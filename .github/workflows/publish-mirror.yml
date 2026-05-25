@@ -1,0 +1,488 @@
+name: Publish orphan-commit mirror to public repo (G7)
+
+# W435 G7 — Operator-manual orphan-commit publish to public mirror.
+#
+# Implements W431 BINDING-VERDICTS.md §2.10 10-step publish-mirror architecture
+# (Mirror+SoT / orphan-export). The orphan commit is the SAFETY BOUNDARY — not
+# git filter-repo; only the tree of the SoT HEAD enters the public history, with
+# zero ancestry, so any leaked credentials in private-repo history NEVER reach
+# the public repo's object database.
+#
+# Trigger:    workflow_dispatch ONLY (no auto-fire); operator must explicitly run.
+# Auth:       PUBLIC_REPO_TOKEN secret (operator-provisioned PAT, scope:
+#             `repo:public_repo` ONLY — does NOT inherit GITHUB_TOKEN powers).
+# Pre-flight: gitleaks v8 + trufflehog v3 zero-tolerance scan; both MUST report
+#             clean (2-tool consensus per §2.10 step 8); fail-closed on either.
+# Post-push:  operator-checklist printed to job summary for §2.10 steps 9-10.
+#
+# Cite anchors (≥3 distinct orgs per cardinal-rule-6):
+# - GitHub Inc:       https://docs.github.com/en/actions/learn-github-actions/contexts
+#                     https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+#                     https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+# - OpenSSF:          https://openssf.org/projects/scorecard/  (pinned-dependencies + token-permissions)
+#                     https://github.com/ossf/scorecard/blob/main/docs/checks.md
+# - step-security:    https://github.com/step-security/harden-runner
+#                     (StepSecurity is a CNCF-Sandbox security-tooling vendor; harden-runner
+#                      runs an in-toto-compatible egress firewall on the runner)
+# - gitleaks (Zachary Rice / Gitleaks LLC):
+#                     https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1
+# - trufflesecurity:  https://github.com/trufflesecurity/trufflehog/releases/tag/v3.95.3
+# - SLSA / Linux-Foundation OpenSSF:
+#                     https://slsa.dev/spec/v1.0/levels#build-l3
+# - NIST SP 800-218:  https://csrc.nist.gov/Projects/ssdf  (SSDF PW.7 — review/analyze code)
+# - OWASP CICD-SEC-7: https://owasp.org/www-project-top-10-ci-cd-security-risks/CICD-SEC-07-Insecure-System-Configuration
+#
+# Trust-tuple (CR-1 W331 axis-1 #3 — maintainer-identity + license + freshness + blast-radius):
+#   * actions/checkout v6.0.2 — GitHub-owned MIT; SHA `de0fac2e4500dabe0009e67214ff5f5447ce83dd`
+#   * actions/upload-artifact v7.0.1 — GitHub-owned MIT; SHA `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`
+#   * step-security/harden-runner v2.19.3 — StepSecurity Apache-2.0; SHA `ab7a9404c0f3da075243ca237b5fac12c98deaa5`
+#   * trufflesecurity/trufflehog v3.95.3 — TruffleSec AGPL-3.0 (binary-only usage, not linking);
+#       used as standalone scanner CLI per §2.10 step 8; SHA `37b77001d0174ebec2fcca2bd83ff83a6d45a3ab`
+#   * gitleaks binary v8.30.1 — Gitleaks LLC MIT; tar.gz fetch from `github.com/gitleaks/gitleaks`
+#       (no `gitleaks-action` because we already vendor it in ci.yml — direct binary keeps
+#       this workflow free of third-party action dependencies on the high-trust publish path)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'Public mirror target (OWNER/REPO). Must already exist and be EMPTY.'
+        type: string
+        required: true
+        default: 'seathatflowsinourveins/ourveins'
+      source_ref:
+        description: 'SoT commit / tag / branch to publish (e.g. `main` or `W*-ship-*` tag).'
+        type: string
+        required: true
+        default: 'main'
+      confirm_orphan:
+        description: 'Type `ORPHAN-PUBLISH` to confirm operator-acknowledged single-root-commit force-push.'
+        type: string
+        required: true
+
+# Top-level permissions: zero. Per-job permissions: minimal scope.
+permissions: {}
+
+# Concurrency: never two publish-mirror runs in parallel; cancel in-flight if a new run starts.
+# (Same operator might trigger twice; treat newer trigger as authoritative.)
+concurrency:
+  group: publish-mirror-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  preflight-secret-scan:
+    name: Pre-flight zero-tolerance secret scan (2-tool consensus)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      gitleaks_result: ${{ steps.gitleaks.outputs.result }}
+      trufflehog_result: ${{ steps.trufflehog.outputs.result }}
+      preflight_pass: ${{ steps.consensus.outputs.pass }}
+    steps:
+      - name: Harden runner (audit egress per step-security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Validate operator confirmation token
+        # zizmor-fix: bind ${{ inputs.* }} to env: block to avoid template-injection class.
+        # Per https://docs.zizmor.sh/audits/#template-injection
+        env:
+          CONFIRM_ORPHAN: ${{ inputs.confirm_orphan }}
+          TARGET_INPUT: ${{ inputs.target_repo }}
+        run: |
+          set -euo pipefail
+          if [[ "$CONFIRM_ORPHAN" != "ORPHAN-PUBLISH" ]]; then
+            echo "::error::Operator confirmation token MUST be 'ORPHAN-PUBLISH' (got: $(printf '%q' "$CONFIRM_ORPHAN"))"
+            echo "::error::This workflow force-pushes an orphan commit to '$TARGET_INPUT' main branch."
+            echo "::error::Operator MUST type 'ORPHAN-PUBLISH' in the confirm_orphan input to proceed."
+            exit 1
+          fi
+          echo "Operator confirmation: ORPHAN-PUBLISH acknowledged."
+
+      - name: Validate target_repo format
+        # zizmor-fix: bind inputs + github.repository to env: block.
+        env:
+          TARGET_INPUT: ${{ inputs.target_repo }}
+          SOT_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TARGET_INPUT" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::target_repo must be OWNER/REPO format (got: $(printf '%q' "$TARGET_INPUT"))"
+            exit 1
+          fi
+          # Refuse to overwrite this SoT repo by accident.
+          if [[ "$TARGET_INPUT" == "$SOT_REPO" ]]; then
+            echo "::error::target_repo MUST be the public mirror, NOT the SoT repo '$SOT_REPO'"
+            exit 1
+          fi
+          echo "Target repo validated: $TARGET_INPUT"
+
+      - name: Checkout source tree (no history depth — orphan publish only needs HEAD tree)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install gitleaks v8.30.1 (binary, version-pinned)
+        run: |
+          set -euo pipefail
+          # Per https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1
+          GL_ARCHIVE="gitleaks_8.30.1_linux_x64.tar.gz"
+          curl -sSLfo "/tmp/${GL_ARCHIVE}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/${GL_ARCHIVE}"
+          # Verify SHA-256 of binary archive (gitleaks ships checksums.txt per release)
+          curl -sSLfo /tmp/gitleaks-checksums.txt \
+            "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt"
+          ( cd /tmp && grep "${GL_ARCHIVE}" gitleaks-checksums.txt | sha256sum -c - )
+          tar -xzf "/tmp/${GL_ARCHIVE}" -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Install trufflehog v3.95.3 (binary, version-pinned)
+        run: |
+          set -euo pipefail
+          # Per https://github.com/trufflesecurity/trufflehog/releases/tag/v3.95.3
+          TH_VER='3.95.3'
+          TH_ARCHIVE="trufflehog_${TH_VER}_linux_amd64.tar.gz"
+          curl -sSLfo "/tmp/${TH_ARCHIVE}" \
+            "https://github.com/trufflesecurity/trufflehog/releases/download/v${TH_VER}/${TH_ARCHIVE}"
+          curl -sSLfo /tmp/trufflehog-checksums.txt \
+            "https://github.com/trufflesecurity/trufflehog/releases/download/v${TH_VER}/trufflehog_${TH_VER}_checksums.txt"
+          ( cd /tmp && grep "${TH_ARCHIVE}" trufflehog-checksums.txt | sha256sum -c - )
+          tar -xzf "/tmp/${TH_ARCHIVE}" -C /tmp trufflehog
+          sudo mv /tmp/trufflehog /usr/local/bin/trufflehog
+          trufflehog --version
+
+      - name: Run gitleaks v8 (zero-tolerance; tree only — orphan-publish has no history)
+        id: gitleaks
+        # NB: --no-git scans working tree only; matches the orphan-export safety model.
+        # Exit 0 = clean; exit 1 = leaks found (fail-closed); exit 2+ = error (fail-closed).
+        run: |
+          set -uo pipefail
+          mkdir -p tmp
+          set +e
+          gitleaks detect \
+            --no-git \
+            --redact \
+            --report-format json \
+            --report-path tmp/gitleaks-report.json \
+            --exit-code 1
+          RC=$?
+          set -e
+          if [[ $RC -eq 0 ]]; then
+            echo "result=clean" >> "$GITHUB_OUTPUT"
+            echo "gitleaks: CLEAN (no secrets detected in working tree)"
+          else
+            echo "result=leaked" >> "$GITHUB_OUTPUT"
+            echo "::error::gitleaks detected potential secrets (exit code $RC) — publish BLOCKED"
+            echo "::group::gitleaks JSON report"
+            cat tmp/gitleaks-report.json || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+      - name: Run trufflehog v3 filesystem scan (verified+unknown; high-confidence consensus)
+        id: trufflehog
+        # Per W431 §2.10 step 8: trufflehog filesystem --results=verified,unknown --fail
+        # `--fail` exits non-zero on any finding (high-confidence + unknown = fail-closed).
+        # `verified` = vendor-API-confirmed live credential; `unknown` = high-confidence pattern.
+        run: |
+          set -uo pipefail
+          mkdir -p tmp
+          set +e
+          trufflehog filesystem . \
+            --results=verified,unknown \
+            --no-update \
+            --fail \
+            --exclude-paths=.trufflehog-exclude-paths.txt \
+            --json > tmp/trufflehog-report.json 2> tmp/trufflehog-stderr.log
+          RC=$?
+          set -e
+          # Sanitize report for log (trufflehog can emit large multi-line JSON).
+          LINES=$(wc -l < tmp/trufflehog-report.json || echo 0)
+          echo "trufflehog scanned filesystem; $LINES finding lines"
+          if [[ $RC -eq 0 ]]; then
+            echo "result=clean" >> "$GITHUB_OUTPUT"
+            echo "trufflehog: CLEAN (no verified/unknown findings)"
+          else
+            echo "result=leaked" >> "$GITHUB_OUTPUT"
+            echo "::error::trufflehog detected secrets (exit code $RC) — publish BLOCKED"
+            echo "::group::trufflehog findings (first 200 lines)"
+            head -n 200 tmp/trufflehog-report.json || true
+            echo "::endgroup::"
+            echo "::group::trufflehog stderr"
+            cat tmp/trufflehog-stderr.log || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+      - name: 2-tool consensus (BOTH gitleaks AND trufflehog must report clean)
+        id: consensus
+        # zizmor-fix: bind step.outputs to env: block.
+        env:
+          GITLEAKS_RESULT: ${{ steps.gitleaks.outputs.result }}
+          TRUFFLEHOG_RESULT: ${{ steps.trufflehog.outputs.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITLEAKS_RESULT" == "clean" && "$TRUFFLEHOG_RESULT" == "clean" ]]; then
+            echo "pass=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::2-tool consensus: BOTH gitleaks AND trufflehog report clean — publish authorized"
+          else
+            echo "pass=false" >> "$GITHUB_OUTPUT"
+            echo "::error::2-tool consensus FAILED — gitleaks=$GITLEAKS_RESULT trufflehog=$TRUFFLEHOG_RESULT — publish BLOCKED"
+            exit 1
+          fi
+
+      - name: Upload scan reports as audit artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: preflight-scan-reports-${{ github.run_id }}
+          path: |
+            tmp/gitleaks-report.json
+            tmp/trufflehog-report.json
+            tmp/trufflehog-stderr.log
+          if-no-files-found: warn
+          retention-days: 90
+
+  publish-orphan-mirror:
+    name: Force-push orphan commit to public mirror
+    needs: [preflight-secret-scan]
+    if: needs.preflight-secret-scan.outputs.preflight_pass == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # SoT repo: read only; PUBLIC_REPO_TOKEN provides write to public mirror.
+    environment:
+      name: publish-mirror
+      # NB: GitHub Environments allow per-environment required-reviewers; operator can
+      # add a reviewer requirement on this environment in repo Settings → Environments.
+      # That second-gate is OUT-OF-SCOPE for this workflow (operator-side wiring).
+    steps:
+      - name: Harden runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Validate PUBLIC_REPO_TOKEN secret presence
+        # zizmor-fix: bind all inputs/secrets via env: only (no ${{ }} in run-body).
+        env:
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          TARGET_INPUT: ${{ inputs.target_repo }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PUBLIC_REPO_TOKEN:-}" ]]; then
+            echo "::error::PUBLIC_REPO_TOKEN secret is not configured."
+            echo "::error::Operator MUST run: gh secret set PUBLIC_REPO_TOKEN --body \"\$PAT\""
+            echo "::error::PAT scope: repo:public_repo (scoped to '$TARGET_INPUT' ONLY)."
+            exit 1
+          fi
+          echo "PUBLIC_REPO_TOKEN is configured (length: ${#PUBLIC_REPO_TOKEN})"
+
+      - name: Checkout source tree
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify target_repo exists AND is empty (refuse if any commits present)
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          TARGET: ${{ inputs.target_repo }}
+        run: |
+          set -euo pipefail
+          # The repo MUST exist (operator created it per §2.10 step 1).
+          if ! gh api "repos/$TARGET" --silent; then
+            echo "::error::target_repo '$TARGET' does not exist OR PUBLIC_REPO_TOKEN lacks access."
+            echo "::error::Operator MUST first run: gh repo create $TARGET --public --description '...'"
+            exit 1
+          fi
+          # Sanity: target MUST be public (we never publish to a different private repo).
+          VIS=$(gh api "repos/$TARGET" --jq '.visibility')
+          if [[ "$VIS" != "public" ]]; then
+            echo "::error::target_repo '$TARGET' visibility is '$VIS' — MUST be 'public'."
+            exit 1
+          fi
+          # Best-effort emptiness check: if HEAD branch has commits, refuse (this is the
+          # FIRST publish; subsequent publishes will replace history wholesale via force-push,
+          # which is the orphan-mirror model — but require operator to confirm via the
+          # confirm_orphan token, which we already did upstream).
+          DEFAULT=$(gh api "repos/$TARGET" --jq '.default_branch // "main"')
+          # Best-effort emptiness probe; tolerate failure (gh returns 404 if no commits).
+          # NB: do NOT bind exit status to a name (SC2034); we only inspect /tmp/head-sha.txt contents.
+          gh api "repos/$TARGET/commits?sha=$DEFAULT&per_page=1" --jq '.[0].sha' \
+            > /tmp/head-sha.txt 2>/tmp/gh-err.log || true
+          HEAD_SHA=$(cat /tmp/head-sha.txt 2>/dev/null || true)
+          if [[ -n "$HEAD_SHA" && "$HEAD_SHA" != "null" ]]; then
+            echo "::warning::target_repo '$TARGET' already has commits on '$DEFAULT' (HEAD: $HEAD_SHA)"
+            echo "::warning::Confirm_orphan token validated; proceeding with FORCE-PUSH (history will be replaced)."
+          else
+            echo "target_repo '$TARGET' is empty on '$DEFAULT' — first orphan publish."
+          fi
+
+      - name: Build orphan commit (single-root; no ancestry from SoT history)
+        # zizmor-fix: bind all ${{ inputs.* }} via env: block only.
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+          TARGET_INPUT: ${{ inputs.target_repo }}
+        run: |
+          set -euo pipefail
+          # ARCHITECTURE: orphan branch = no parent = no history exposure.
+          # Per https://git-scm.com/docs/git-checkout#Documentation/git-checkout.txt---orphanltnew-branchgt
+          # `--orphan` creates a branch whose first commit has no parents, so the public
+          # repo's object database receives ONLY the tree we explicitly stage — no blobs
+          # from prior commits, no parent commits, no tags.
+          #
+          # This is the SAFETY BOUNDARY per W431 BINDING-VERDICTS.md §2.10:
+          #   "filter-repo alone is not the safety boundary (orphan commit is)"
+
+          git config --global user.name 'claude-sota-installed publish-mirror'
+          git config --global user.email 'noreply@github.com'
+
+          # Capture the source commit SHA + summary for the orphan commit message.
+          SRC_SHA=$(git rev-parse HEAD)
+          SRC_SHORT=$(git rev-parse --short=12 HEAD)
+          SRC_SUMMARY=$(git log -1 --format='%s' HEAD)
+
+          # Create orphan branch
+          git checkout --orphan publish-temp
+
+          # Stage current working tree (HEAD's tree) — git checkout --orphan keeps the
+          # working tree intact; we re-add ALL tracked paths and commit.
+          # NB: .gitignore is respected; no untracked files are added.
+          git add -A
+
+          # Refuse if the staged set is empty (sanity check; SoT tree should be non-empty).
+          if git diff --cached --quiet; then
+            echo "::error::No files staged for orphan commit — source tree appears empty."
+            exit 1
+          fi
+
+          # Build the orphan commit message via printf array (multi-line, attribution-explicit).
+          PUBLISH_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          COMMIT_MSG=$(printf '%s\n' \
+            "Publish snapshot from claude-sota-installed @ ${SRC_SHORT}" \
+            "" \
+            "Source ref:    ${SOURCE_REF}" \
+            "Source SHA:    ${SRC_SHA}" \
+            "Source title:  ${SRC_SUMMARY}" \
+            "Publish at:    ${PUBLISH_TS}" \
+            "Mirror model:  Mirror+SoT (orphan-export)" \
+            "Safety:        single-root commit; no ancestry from SoT history." \
+            "" \
+            "This is an orphan-commit publish per W431 BINDING-VERDICTS §2.10." \
+            "The public mirror at ${TARGET_INPUT} contains ONLY the tree" \
+            "of this commit; no blobs from prior SoT history are reachable." \
+            "" \
+            "For attestations, SBOM, and SLSA provenance corresponding to this snapshot," \
+            "see the SoT release notes at the W*-ship-* tag in the SoT repository.")
+
+          git commit \
+            --no-gpg-sign \
+            --signoff \
+            --allow-empty-message \
+            -m "$COMMIT_MSG"
+
+          # Record orphan commit SHA for next step
+          ORPHAN_SHA=$(git rev-parse HEAD)
+          echo "Orphan commit built: $ORPHAN_SHA"
+          echo "ORPHAN_SHA=$ORPHAN_SHA" >> "$GITHUB_ENV"
+
+          # Print tree structure summary (count + size) for audit log
+          TREE_FILES=$(git ls-tree -r --name-only HEAD | wc -l)
+          TREE_SIZE_KB=$(git ls-tree -r HEAD | awk '{sum+=$3} END {printf "%.0f", sum/1024}')
+          echo "Orphan tree: $TREE_FILES files, ~${TREE_SIZE_KB}KB"
+
+      - name: Verify orphan commit has NO parents (final safety assertion)
+        run: |
+          set -euo pipefail
+          PARENTS=$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')
+          if [[ "$PARENTS" != "0" ]]; then
+            echo "::error::Orphan commit has $PARENTS parent(s) — SAFETY VIOLATION; aborting publish."
+            git rev-list --parents -n 1 HEAD
+            exit 1
+          fi
+          echo "Safety assertion: orphan commit has 0 parents (verified)."
+
+      - name: Force-push orphan commit to public mirror main branch
+        env:
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          TARGET: ${{ inputs.target_repo }}
+        run: |
+          set -euo pipefail
+          # Use HTTPS with token in URL; never log the token.
+          # Per https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+          # `repo:public_repo` scope is sufficient for push to a public repo.
+
+          REMOTE_URL="https://x-access-token:${PUBLIC_REPO_TOKEN}@github.com/${TARGET}.git"
+
+          # Add the public mirror remote.
+          git remote add public-mirror "$REMOTE_URL"
+
+          # Resolve target default branch (operator may have chosen `main` or `master`).
+          DEFAULT=$(gh api "repos/$TARGET" --jq '.default_branch // "main"' 2>/dev/null || echo 'main')
+
+          # Force-push orphan branch as the target's default branch.
+          # NB: NOT `--force-with-lease` because the public mirror is OWNED by the
+          # publish-mirror workflow; no concurrent peer push surface exists. Bare
+          # `--force` is correct for the canonical-replace publish model.
+          git push --force public-mirror "HEAD:refs/heads/${DEFAULT}"
+
+          # Remove the remote (don't leave token-bearing remote in working state).
+          git remote remove public-mirror
+
+          echo "Orphan commit ${ORPHAN_SHA} force-pushed to ${TARGET}:${DEFAULT}"
+
+      - name: Print post-publish operator checklist
+        env:
+          TARGET: ${{ inputs.target_repo }}
+        run: |
+          set -euo pipefail
+          # Write checklist line-by-line to GITHUB_STEP_SUMMARY using printf to avoid
+          # YAML heredoc leading-whitespace issues (column-1 escapes the `run: |` block).
+          {
+            printf '%s\n' "# W435 G7 Publish — Post-Push Operator Checklist"
+            printf '%s\n' ""
+            printf 'The orphan commit has been force-pushed to **%s**.\n' "$TARGET"
+            printf '%s\n' ""
+            printf '%s\n' "## Next operator actions (per W431 BINDING-VERDICTS §2.10 step 9)"
+            printf '%s\n' ""
+            printf '%s\n' "1. **Verify** the public repo shows a single root commit:"
+            printf '   \`gh api repos/%s/commits --jq '"'"'. | length'"'"'\`\n' "$TARGET"
+            printf '%s\n' "   (expected: \`1\`)"
+            printf '%s\n' ""
+            printf '%s\n' "2. **Enable** GitHub Security & analysis (FREE on PUBLIC repos):"
+            printf '%s\n' "   - Dependabot alerts"
+            printf '%s\n' "   - Dependabot security updates"
+            printf '%s\n' "   - Secret scanning + push protection"
+            printf '%s\n' "   - CodeQL default setup"
+            printf '%s\n' ""
+            printf '3. **Apply** G7-tightened ruleset to %s:\n' "$TARGET"
+            printf '%s\n' "   - \`required_signatures: enabled\`"
+            printf '%s\n' "   - \`code_scanning\` with \`severity_threshold: high\`"
+            printf '%s\n' "   - \`commit_message_pattern\` regex (Conventional Commits + W-wave)"
+            printf '%s\n' "   - See \`docs/architecture/W434-GITHUB-CICD/PHASE-4-G7-CHECKLIST.md §2\`"
+            printf '%s\n' ""
+            printf '%s\n' "4. **Set** OSSF Scorecard \`publish_results: true\` in scorecard.yml."
+            printf '%s\n' ""
+            printf '%s\n' "5. **Remove** \`continue-on-error: true\` from the 5 advisory workflows"
+            printf '%s\n' "   (ci.yml trivy-ci + dependency-review, codeql.yml analyze, zizmor-action.yml,"
+            printf '%s\n' "   provenance.yml attest-build-provenance) per §1.1."
+            printf '%s\n' ""
+            printf '%s\n' "6. **Smoke test** by tagging \`W*-ship-2026-MM-DD\` and verifying:"
+            printf '%s\n' "   - SLSA L3 provenance reusable workflow succeeds"
+            printf '%s\n' "   - actions/attest@v4 attestation step succeeds (now on PUBLIC repo)"
+            printf '%s\n' "   - cosign sign-blob + verify-blob loop succeeds"
+            printf '%s\n' "   - Sigstore signatures upload as release assets"
+            printf '%s\n' ""
+            printf '%s\n' "## ACCEPT EXPLICITLY (per §2.10 step 10):"
+            printf '%s\n' ""
+            printf '%s\n' "Any unrotated leaked credentials from prior SoT history remain compromised"
+            printf '%s\n' "forever; this architecture prevents **public object exposure**, NOT"
+            printf '%s\n' "credential recovery. Rotate any credentials that may have been exposed in"
+            printf '%s\n' "the SoT private-repo history."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Operator checklist written to job summary."

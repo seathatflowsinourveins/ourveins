@@ -1,0 +1,188 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 26a36d0e4b181510b4c30a50af06b567dc2e3a4b
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 105 ++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 103 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 26a36d0e4b181510b4c30a50af06b567dc2e3a4b
+Author:     42 <42@local>
+AuthorDate: Sun May 10 11:40:15 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 11:40:15 2026 -0400
+
+    docs(wave-135-fire-6): codex T1 e2e on P0 INSTALL actions COMPLETE — 4-voice advanced agent team — convergent finding ALL 3 P0 actions ALREADY-INSTALLED at binary layer (Wave 135 Fire 5 META Mia OVER) — Mia n=140→n=145 + FM-17.f n=4 + Wave 135 Fire 7 atomic Pattern A apply queued (10 prescribed_edits/9 files)
+    
+    Per task #118 Wave 135 Fire 6 candidate: codex T1 e2e on Top-3 P0 INSTALL actions (RTK wire / pre-commit framework / /codex:rescue) BEFORE atomic Pattern A apply per CR-3 strict reading on INSTALL-class actions.
+    
+    ## Dispatch architecture (4-voice advanced agent team — ≥3-agent invariant satisfied)
+    
+    | Voice | Class | Status | Verdict |
+    |---|---|---|---|
+    | Path P codex bg b3bdjahr8 (REAL GPT-5.5 deep-review-exec foreground+tee) | TIER-1-DIRECT cross-model | ✅ PATTERN A SUCCESS (NOT HNF-LOSS) | NEEDS-REVISION conf=0.94 + JSON-strict at EOF |
+    | Agent A a0f5f7e9593a5df5b (sota-researcher SOLO RTK wire) | Sonnet stand-in | ✅ COMPLETED 439s | NEEDS-REVISION conf=0.87 + 75%-wired Mia OVER catch |
+    | Agent B a8e7c5ab8dacd4ccf (architect SOLO pre-commit) | Sonnet stand-in | ✅ COMPLETED 232s | NEEDS-REVISION conf=0.86 + 2 augmentations |
+    | Agent C a174b76a9c4a96db6 (code-reviewer SOLO attempt) | Sonnet stand-in | ❌ FM-17.f n=4 | n/a |
+    | Agent C-substitute (ORCHESTRATOR-DIRECT per FM-17.f Path P PRIMARY recovery) | Opus orchestrator | ✅ COMPLETED via direct probes | APPROVE-WITH-MINOR-AMENDMENT conf=0.91 |
+    
+    ## Convergent finding: ALL 3 P0 INSTALL actions ALREADY-INSTALLED at binary layer
+    
+    LOAD-BEARING META-CATCH: Wave 135 Fire 5 SYNTHESIS framing of "P0 INSTALL actions" was Mia OVER on ALL 3 axes:
+    
+    - **axis_a RTK**: ALREADY WIRED at .claude/settings.json:246-250 per Wave 118 (75% wired pre-fire; only RTK.md/@RTK.md/docs/RTK.md missing)
+    - **axis_b pre-commit framework**: ALL 4 tools INSTALLED (pre-commit v4.6.0 + gitleaks v8.30.1 + ruff system PATH + actionlint v1.7.12 per Wave 105 SHIP-A3); only .pre-commit-config.yaml + justfile + ruff.toml WIRE missing
+    - **axis_c /codex:rescue**: codex CLI v0.130.0 + 7 slash commands at .claude/plugins/cache/openai-codex/codex/1.0.4/commands/; only AGENTS.md slash command listing + CLAUDE.md cardinal-rule-10 step (a) FM-17.f fallback documentation missing
+    
+    These are NOT new installs — they are WIRE/RECONCILE actions only.
+    
+    ## Mia OVER ladder advance (n=140 → n=145, 5 fresh catches)
+    
+    - n=141: Agent A — RTK 75%-wired (Wave 135 Fire 5 axis_a framing OVER)
+    - n=142: Path P — META OVER on all 3 axes ALREADY-INSTALLED
+    - n=143: Agent B — P-B-01 missing exclude block (Path P axis_b OVER; gitleaks would scan 2GB cache)
+    - n=144: Agent B — missing ruff.toml config file (Path P axis_b OVER; first pre-commit run blocks)
+    - n=145: Agent C-substitute — Path P missed /codex:setup slash command (Path P axis_c OVER; minor undercount)
+    
+    ## FM-17.f cumulative n=3 → n=4
+    
+    Wave 130 Fire 2 baseline n=3 firm + Wave 135 Fire 6 (this fire) Agent C dispatch failure with parent [1m] flag = exact FM-17.f sub-class .f signature. Recovery via FM-17.f Path P PRIMARY orchestrator-direct substitution; cross-model gate satisfied via Path P codex bg b3bdjahr8 REAL GPT-5.5 verdict.
+    
+    ## Wave 135 Fire 7 candidate (queued task #122)
+    
+    Atomic Pattern A apply on 10 prescribed_edits across 9 files (~220 LOC):
+    
+    axis_a (3): P-A-01 settings.json:246-250 cmd /c stderr suppress + P-A-02 manifest update + P-A-03 docs/RTK.md NEW
+    axis_b (4 augmented): P-B-01-AUGMENTED .pre-commit-config.yaml + exclude block + P-B-02 justfile + P-B-03 manifest update + P-B-04-NEW ruff.toml cite-import-AMBER from sibling
+    axis_c (3): P-C-01 AGENTS.md slash commands + P-C-02 CLAUDE.md cardinal-rule-10 step (a) FM-17.f fallback + P-C-03 install-provenance.md entry
+    
+    Per CR-3 strict reading: T2 working-tree review BEFORE commit; per CR-9 install-risk: 2-round fix-forward budget for axis_b first-run churn (gitleaks baseline + ruff format may rewrite tracked files).
+    
+    ## Files changed: 1 (+108 LOC)
+    
+    - docs/install-provenance.md — Wave 135 Fire 6 entry appended (TOC bullet update + detailed entry block)
+    
+    ## CR conformance ("all with sota references" mandate)
+    
+    - CR-1 cite-trail TIER-1-DIRECT: Path P verified 4 upstream HEAD SHAs; Agent A verified 1 upstream HEAD SHA + WSL/Windows caveat probe; Agent C-substitute verified 7 codex-plugin-cc 1.0.4 command files
+    - CR-3 cross-model T1 lifecycle: Path P REAL GPT-5.5 codex bg conf=0.94 IS the cross-model T1 verification; CC subagents (Sonnet stand-in) provide independent re-verification per Phase 1 bootstrap exception; FM-17.f Agent C dispatch failure recovered via Path P primary
+    - CR-7 REPORT errors: FM-17.f n=4 + Mia ladder advance + META Mia OVER all documented inline
+    - CR-9 install-risk: ZERO-RISK doc-only commit (Wave 135 Fire 6 itself); INSTALL actions deferred to Wave 135 Fire 7 with explicit pre-Edit Mia probes + 2-round fix-forward budget
+    - CR-10 research-first: 4-voice advanced agent team WAS the research; codex T1 e2e via Path P satisfies cross-model gate
+    - CR-11 META-process: 4-voice advanced agent team discipline COMPLETE (≥3-agent invariant satisfied; sequential CADP rule 5 dispatch validated)
+    - CR-12 PRIMARY: All 5 install primitives (rtk + pre-commit + gitleaks + ruff + actionlint + codex-plugin-cc) are upstream-CR-12-PRIMARY; sibling cite-import REQUIRED only for ruff.toml (P-B-04 cite-import-AMBER per Section 14.5 last-resort)
+    
+    ## Operator-action summary
+    
+    - ✅ Wave 135 Fire 6 advanced agent team COMPLETE (4-voice + 1 substitute due to FM-17.f)
+    - ✅ Path P REAL GPT-5.5 codex T1 Pattern A SUCCESS (NOT HNF-LOSS this time)
+    - ✅ Convergent META Mia OVER catch on Wave 135 Fire 5 framing — all 3 P0 actions ALREADY-INSTALLED
+    - ✅ 10 prescribed_edits across 9 files specified for Wave 135 Fire 7 atomic Pattern A apply
+    - ✅ Mia n=140 → n=145 (5 fresh catches)
+    - ✅ FM-17.f n=3 → n=4 documented + Path P orchestrator-direct recovery validated
+    - 📋 Wave 135 Fire 7+ atomic Pattern A apply per task #122 queue
+    - 📋 Path D ENV (h) CLAUDE_CODE_DISABLE_1M_CONTEXT=1 activation deferred (operator decision; Path P adequate workaround)
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 5fd48db..44d095f 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -12099,8 +12099,109 @@ Cumulative pattern: Mia probe at orchestrator boundary continues to catch ~3-5 O
+ - Wave 135 Fire 2: Agent A SOLO sota-researcher kits v63/v64 deep audit
+ - Wave 135 Fire 3: Agent B SOLO architect SRA D1-D10 91.90% scoring
+ - Wave 135 Fire 4: Agent C SOLO code-reviewer adversarial review
+-- Wave 135 Fire 5 (THIS): SYNTHESIS close (convergent ~82-86% + Top-10 + CR-7 MANUAL-OVERRIDE + Mia n=140)
+-- Total: 23+ ship-class deliverables since Wave 119
++- Wave 135 Fire 5: SYNTHESIS close (convergent ~82-86% + Top-10 + CR-7 MANUAL-OVERRIDE + Mia n=140)
++- Wave 135 Fire 6 (THIS): codex T1 e2e on P0 INSTALL actions — convergent finding ALL 3 P0 INSTALL actions ALREADY-INSTALLED at binary layer; 4-voice advanced agent team complete (Path P REAL GPT-5.5 conf=0.94 + Agent A sota-researcher conf=0.87 + Agent B architect conf=0.86 + orchestrator-substitute Agent C conf=0.91 due to FM-17.f n=4); Mia n=140→n=145 (5 fresh catches); Wave 135 Fire 7 candidate atomic Pattern A apply 10 prescribed_edits queued per task #122
++- Total: 24+ ship-class deliverables since Wave 119
++
++---
++
++## Wave 135 Fire 6 — codex T1 e2e on P0 INSTALL actions (advanced agent team SOTA convergence verification)
++
++**Da
+
+[prompt truncated]

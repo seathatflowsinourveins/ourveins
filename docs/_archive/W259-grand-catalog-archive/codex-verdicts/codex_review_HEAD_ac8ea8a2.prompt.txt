@@ -1,0 +1,228 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit ac8ea8a2fd38accb0be3a00ad3939128308ae882
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../00-future-evolution-tracker.md                 | 111 ++++
+ .../01-user-sota-stack-validation.md               | 244 +++++++++
+ .../future-evolution/02-extension-baseline.md      | 160 ++++++
+ .../future-evolution/03-top-15-strict-deep-dive.md | 204 ++++++++
+ .../future-evolution/04-tier-by-tier-synthesis.md  | 127 +++++
+ .../future-evolution/05-definitive-architecture.md | 283 ++++++++++
+ .../06-coverage-extended-tracker.md                | 127 +++++
+ .../_extension-and-reaudit-metadata.json           | 477 +++++++++++++++++
+ .../future-evolution/_top15-strict-audit.json      | 573 +++++++++++++++++++++
+ 9 files changed, 2306 insertions(+)
+
+=== git show --format=fuller ===
+commit ac8ea8a2fd38accb0be3a00ad3939128308ae882
+Author:     42 <42@local>
+AuthorDate: Sun May 10 16:02:42 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 16:02:42 2026 -0400
+
+    audit(w134-f6): future-evolution folder — user SOTA-stack validation + 5-repo extension + top-15 strict deep-dive + definitive architecture
+    
+    Wave 134 Fire 6 closes the audit arc with the LOAD-BEARING definitive
+    architecture deliverable. Builds on Fire 5's 555-repo programmatic SRA
+    probe (91.13% coverage) with:
+    
+    1. User-research validation against external SOTA synthesis (May 2026)
+    2. 5-repo baseline EXTENSION beyond v1-v65 kit corpus (planning-with-files,
+       agent-os, memory-bank, travisvn awesome-skills, Piebald system-prompts)
+    3. Top-15 STUDY-PILOT STRICT deep-dive (LICENSE file content + README +
+       manual SRA D1-D10 + Probe 7.b 5-clause)
+    4. Tier-by-tier synthesis across user's 4-tier pyramid + eee Tier-6
+    5. Definitive 6-tier architecture synthesis
+    6. License re-audit catching 5 LICENSE-classifier false-negatives
+    
+    ## Headline coverage (post-F6)
+    
+    | Metric                                  | Pre-F6   | Post-F6  | %      |
+    |-----------------------------------------|----------|----------|--------|
+    | Strict line-by-line (A1+A2)             | 17 / 609 | 50 / 614 | 8.14%  |
+    | Programmatic SRA probe                  | 555/609  | 560/614  | 91.21% |
+    | Attempted audit                         | 599/609  | 604/614  | 98.37% |
+    | Cumulative baseline (kits+extension)    | 609      | 614      | --     |
+    
+    ## Critical findings
+    
+    ### LICENSE-CLASSIFIER FALSE-NEGATIVES (5 corrections)
+    - bmad-code-org/bmad-method 47k actually MIT (was NOASSERTION)
+    - eyaltoledano/claude-task-master 27k actually MIT (was NOASSERTION)
+    - modelcontextprotocol/servers 85k actually MIT->Apache-2.0 (was NOASSERTION)
+    - modelcontextprotocol/modelcontextprotocol 8k same transition
+    - humanlayer/humanlayer 11k actually Apache-2.0 (was NOASSERTION)
+    
+    ### TRULY-UNLICENSED Anthropic-OFFICIAL repos (CR-1 admissibility crisis)
+    - anthropics/skills (131k!) literally no LICENSE file at root
+    - anthropics/claude-agent-sdk-typescript (1.4k) same
+    Operationally OK via anthropics/claude-plugins-official marketplace
+    (which has explicit LICENSE per plugin); upstream issue queued
+    
+    ## Definitive 6-tier architecture (see 05-definitive-architecture.md)
+    
+    Tier 0 (foundation, ALWAYS ON): CLAUDE.md + claude-plugins-official + Plan Mode
+    Tier 1 (method, BOTH): obra/superpowers (INSTALLED) + github/spec-kit (INSTALL F7)
+    Tier 2 (PM, TWO pilots): automazeio/ccpm (INSTALL F7) + OthmanAdi/planning-with-files (INSTALL F7)
+    Tier 3 (standards + memory): buildermethods/agent-os (INSTALL F8) + existing L1/L3 memory stack
+    Tier 4 (discovery surfaces, cite-only): travisvn awesome-skills (NEW CITE) + 6 existing catalogs
+    Tier 5 (reference): Piebald system-prompts (CITE-IMPORT F8) + 2 Anthropic docs
+    Tier 6 (eee-specific): cwc-long-running-agents 5 primitives + cardinal-rule-12 + FM catalog + T0-T7 lifecycle
+    
+    ## Gap-closure roadmap
+    
+    - W134-F7: Install spec-kit + ccpm + planning-with-files (3 Tier-1+2 installs)
+    - W134-F8: Install agent-os + markitdown + cite-import Piebald (Tier-3 + utility + Tier-5)
+    - W134-F9: Hygiene (anthropics/skills upstream issue + CLAUDE.md trim + ECC /agent-sort audit)
+    - W134-F10: Verify + cross-model T1 e2e + close arc
+    
+    ## Convergence verdict vs user research
+    
+    95% CONVERGENT — user's 4-tier pyramid + 4 picks (Superpowers / Spec-Kit /
+    CCPM / Agent OS) all validated as SOTA via SRA D1-D10. 6 explicit gaps named
+    with sequenced mitigation fires. Per Outcome A monotone-decline path:
+    ACCEPT-WITH-DOC ship.
+    
+    ## Deliverables (7 new files + 2 JSON)
+    
+    - docs/sota-architecture-audit/future-evolution/00-future-evolution-tracker.md (~150)
+    - docs/sota-architecture-audit/future-evolution/01-user-sota-stack-validation.md (~300)
+    - docs/sota-architecture-audit/future-evolution/02-extension-baseline.md (~200)
+    - docs/sota-architecture-audit/future-evolution/03-top-15-strict-deep-dive.md (~280)
+    - docs/sota-architecture-audit/future-evolution/04-tier-by-tier-synthesis.md (~150)
+    - docs/sota-architecture-audit/future-evolution/05-definitive-architecture.md (~350)
+    - docs/sota-architecture-audit/future-evolution/06-coverage-extended-tracker.md (~120)
+    - docs/sota-architecture-audit/future-evolution/_extension-and-reaudit-metadata.json (raw probe data, 18 repos)
+    - docs/sota-architecture-audit/future-evolution/_top15-strict-audit.json (raw strict audit, 15 repos)
+    
+    ## Mia ladder
+    
+    n=853 (pre-F6) -> n=920 (post-F6) = +67 verifications:
+    - +5 extension probes (planning-with-files / agent-os / memory-bank / travisvn / Piebald)
+    - +13 license re-audit probes (5 false-neg corrections + 3 truly-unlicensed + ELv2 + CC-BY-SA + others)
+    - +15 top-15 STUDY-PILOT strict-audit probes
+    - +22 tier-by-tier canonical claim verifications
+    - +12 definitive-architecture claim verifications
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/future-evolution/00-future-evolution-tracker.md b/docs/sota-architecture-audit/future-evolution/00-future-evolution-tracker.md
+new file mode 100644
+index 0000000..5ed124a
+--- /dev/null
++++ b/docs/sota-architecture-audit/future-evolution/00-future-evolution-tracker.md
+@@ -0,0 +1,111 @@
++# 00 — Future Evolution Tracker (definitive architecture for eee runtime)
++
++**Folder mission**: track Wave 134 Fire 6+ arc that takes the v1-v65 audit (91.13% probe coverage / 555 successful probes / 161 STUDY-PILOT candidates) and **extends beyond it** to incorporate user's external SOTA-research synthesis (May 2026) + strict line-by-line deep-dive of high-impact candidates + definitive future architecture synthesis.
++
++**Operator directive (verbatim re-issue + extension)**:
++> *"please continue tracking with local md, create a folder for this task, it is your future, please do extensive research ... reach 100% and beyond, as i mentioned, they are just a start, please give me most comprehansive repos deep dive so we can have the defintive architecture for your future evolve aim."*
++
++User attached external SOTA research synthesis identifying canonical 4-tier stack (May 2026):
++
++```
++                    [ Anthropic foundation ]              ← Tier 0
++              CLAUDE.md  +  anthropics/skills  +  Plan Mode
++                            |
++              ┌─────────────┼─────────────┐
++              ▼             ▼             ▼               ← Tier 1
++         [ Method ]   [ PM system ]   [ Standards ]
++         Superpowers     CCPM         Agent OS v3
++         Spec-Kit        Task Master  
++         BMAD v6
++              │
++              ▼                                            ← Tier 2-5
++        [ Aggregators / discovery ]
++        claudemarketplaces.com, awesome-claude-skills, SkillsMP
++```
++
++**Opinionated SOTA stack from user research**: `CLAUDE.md + anthropics/skills + built-in Plan Mode + Superpowers + CCPM + Agent OS v3` (4 installs total).
++
++**My job in this arc**: validate this against my 555-repo audit findings + extend beyond it where my audit produced higher-quality verdicts.
++
++## Folder layout
++
++| 
+
+[prompt truncated]

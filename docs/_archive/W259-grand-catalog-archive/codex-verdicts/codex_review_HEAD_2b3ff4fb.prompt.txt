@@ -1,0 +1,166 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 2b3ff4fbea3ed0c374472b65777b87ae9805735d
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit 2b3ff4fbea3ed0c374472b65777b87ae9805735d
+Author:     42 <42@local>
+AuthorDate: Sat May 9 18:51:27 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 18:51:27 2026 -0400
+
+    fix(t3-silent-failure): widen PostToolUse `if:` matchers to leading-wildcard substring patterns (codex T1 APPROVE conf=0.94)
+    
+    Wave 130 Fire 3 Ship H — Pattern A apply per codex T1 NEEDS-REVISION→APPROVE arc. Resolves T3 cross-model gate silent-failure that has been operationally bypassing codex_postcommit_review.py for EVERY commit since Wave 118 Ship A2 RTK install (commit `741d695`).
+    
+    ==== Phase 1+2 systematic-debugging: TRIPLE-CONVERGED ROOT CAUSE ====
+    
+    Phase 1 Iron Law (NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST) per superpowers:systematic-debugging skill. 3-agent advanced-team fan-out (per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` Wave 24-D OWNED at n=3 user-trigger):
+    
+    - **Agent A** (`a2b9f12e`, 228s, conf=0.93): CC `if:` matcher semantics + RTK auto-rewrite empirical reproduction.
+      Direct test: `echo '{"tool_name":"Bash","tool_input":{"command":"git -C Z:/claude-sota-installed commit -F /tmp/test -- foo.md"}}' | rtk.exe hook claude` returns `{"hookSpecificOutput":{"updatedInput":{"command":"rtk git -C ... commit -F ..."}}}` per CC-canonical hookSpecificOutput.updatedInput.command mechanism.
+    
+    - **Agent B** (`acd5f0af`, 114s, conf=0.92): codex_postcommit_review.py code audit.
+      609 main_entered + 426 filter_rejected_not_commit + 2 launched JSONL totals; `_is_commit_cmd` delegates to `_guard_base.git_verb_matches` which splits cmd on `&&|||;` (NOT `\n`); compound-chain commits with Bash line-continuation `\<newline>` survive splitter as literal `\` non-whitespace breaking segment-2 `git ` prefix detection.
+    
+    - **Agent C** (`ad287996`, 276s, conf=0.85 revised): Differential 2b9dc42→HEAD.
+      EMPTY settings.json diff (zero config change between last-firing commit + silent commits). Manual invoke at 22:38 PROVES hook works structurally (3rd `launched` row + codex_review_HEAD_5f9c60f8.txt 380 bytes for 5f9c60f). Smoking gun: Ship A-FIX `6eb1a52` JSONL row at 20:47:50 shows `main_entered` + `filter_rejected_not_commit` for compound chain `rtk git -C ... add ... && \\\ngit -C ... commit -F ...`.
+    
+    - **Orchestrator empirical reproduction** (this fire, conf=1.00): direct rtk subprocess invocation confirmed Agent A claim verbatim.
+    
+    ==== ROOT CAUSE ====
+    
+    RTK 0.39.0 PreToolUse[6][6] (matcher='Bash', no `if:` filter, runs LAST) prepends `rtk ` to every git command via Anthropic CC `hookSpecificOutput.updatedInput.command` rewrite primitive. PostToolUse[0] `if: Bash(git commit *)` and `if: Bash(git -C * commit *)` evaluate against the REWRITTEN cmd (now starting with `rtk git ...`, not `git ...`) — original strict-prefix matchers do NOT match → codex_postcommit_review.py NEVER DISPATCHED → T3 verdict file + JSONL launched row never written.
+    
+    Wave 128 Ship A `2b9dc420` 20:46:30Z fired ONLY because the manual smoke-probe bypassed CC's normal Bash dispatch path (direct invocation, NOT through PreToolUse rewrite chain). Ship A-FIX `6eb1a52` commit body's "T3 STRUCTURALLY ACTIVE again" claim was OVER per `Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories` — smoke-probe missed actual rtk-rewrite failure mode. Wave 128 Agent H's compound-chain hypothesis (refuted at the time) was actually CORRECT but misclassified.
+    
+    ==== Pattern A pre-apply fix-forward (codex T1 APPROVE conf=0.94) ====
+    
+    codex T1 deep-review consult at `.claude/state/codex_consult_w130_fire3_t3_silent_failure_fix.txt` returned APPROVE conf=0.94 for Option A (widen `if:` patterns to leading-wildcard substring). Verdict file at `.claude/state/codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt`.
+    
+    Codex web-verified Anthropic CC official docs (TIER-1-DIRECT) that hook-level `if:` uses permission rule syntax which DOES support leading `*` wildcards. Canonical examples in CC docs: `Bash(* --version)`, `Bash(* --help *)`, `Bash(* install)`. Therefore widened patterns are syntactically valid AND match BOTH the original `git ...` cmd shape AND the rtk-rewritten `rtk git ...` cmd shape.
+    
+    ==== 4 surgical Edits applied (Pattern A discipline) ====
+    
+    `.claude/settings.json` PostToolUse[0] entries [0]+[1]+[2]+[3]:
+    
+    ```diff
+    - "if": "Bash(git commit *)"          (line 213, codex_postcommit_review.py)
+    + "if": "Bash(*git commit *)"
+    - "if": "Bash(git -C * commit *)"     (line 220, codex_postcommit_review.py)
+    + "if": "Bash(*git -C * commit *)"
+    - "if": "Bash(git push *)"            (line 227, codex_prepush_review.py)
+    + "if": "Bash(*git push *)"
+    - "if": "Bash(git -C * push *)"       (line 234, codex_prepush_review.py)
+    + "if": "Bash(*git -C * push *)"
+    ```
+    
+    JSON validity confirmed via `python3 -c "import json; json.load(open('.claude/settings.json'))"`.
+    
+    ==== Pattern A discipline scope ====
+    
+    PreToolUse[6][2-5] gitleaks_pre_commit_gate.py + codex_t2_pre_commit_gate.py have IDENTICAL `if:` patterns (`Bash(git commit *)` + `Bash(git -C * commit *)` at lines 177/183/189/195) — same root cause AFFECTS them too (T2 cross-model gate at commit-time is also silently bypassed since rtk install). Codex T1 consult was scoped to T3 only; per `codex-t1-fix-forward-pattern.md` Pattern A "apply ALL prescribed_edits in SINGLE atomic commit; do NOT iterate iter-N→iter-N.1→iter-N.2", PreToolUse[6] extension is QUEUED as separate fire (task #94 to be created post-commit). Apply EXACTLY codex's 4 prescribed edits.
+    
+    ==== Mia pre-apply ladder n=89 (catch this fire pre-commit) ====
+    
+    #89 (this fire pre-investigation): orchestrator's compact suggestion blamed RTK PreToolUse:Bash auto-rewrite at high confidence but framed as "vs matcher inspect order suspect" — actual mechanism is `updatedInput.command` rewrite (CC-canonical primitive), not "matcher inspect order". Agent A's empirical test sharpened the mechanism. Pre-apply correction via narrative-only refinement; no code edit needed.
+    
+    ==== Smoke-test: this commit IS the test ====
+    
+    Per codex T1 expected_smoke_outcome: "PostToolUse codex_postcommit_review.py hook fires for the commit command after RTK rewrites it to `rtk git ...`, producing a new T3/codex postcommit trace". If T3 fires for this commit, fix is verified. If T3 silent for this commit too, deeper investigation needed (would suggest CC `if:` glob doesn't actually support leading `*` despite codex's docs verification, OR rtk has additional rewrite step).
+    
+    Post-commit verify: `ls .claude/state/codex_review_HEAD_<sha8>*.txt` + `tail .claude/state/codex_postcommit_reviews.jsonl`.
+    
+    ==== CR conformance ====
+    
+    - **CR-1 cite-trail**: TIER-1-DIRECT to Anthropic CC official docs verified by codex T1 web-search (permission rule syntax with leading `*` wildcards) + cite anchors at agent return artifacts (Agent A/B/C verdict bodies)
+    - **CR-3 cross-model gate**: Phase 1 bootstrap exception per CLAUDE.md L137 — codex T1 deep-review BG fired at .claude/state/codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt (182 lines, conf=0.94 APPROVE Option A); satisfies orchestrator-side codex exec foreground+tee dispatch path. T3 cross-model gate post-commit will validate the fix itself
+    - **CR-5 install-priority**: cite-import-AMBER NOT applicable — settings.json edit is bootstrap-only file per CLAUDE.md §"Bootstrap-only files"; no install-class artifact change
+    - **CR-8 full-SOTA-content**: ADAPTED-FROM-SOTA — the widened `if:` pattern syntax is direct from Anthropic CC permission rule canonical examples (`Bash(* --version)`, `Bash(* --help *)`, `Bash(* install)` per codex T1 web-verified docs)
+    - **CR-9 install-risk**: LOW (additive 4 character changes, REVERT path = single-commit rever
+
+[prompt truncated]

@@ -1,0 +1,150 @@
+# .github/workflows/release-tag-sign.yml
+#
+# W436-GH-PRACTICE-INSTALL — Install #B4: crazy-max/ghaction-import-gpg
+#
+# G7 publish-mirror prep — bind a GPG key to the CI runner so the
+# `commit-signing.yml` "GPG/SSH signature presence (advisory)" check can flip
+# from advisory to PR-blocking once PRIVATE -> PUBLIC.
+#
+# Trigger: ONLY tag pushes matching `W*-ship-*` (wave-ship tag pattern).
+# Does NOT auto-sign every push; tag-bound to avoid signing churn.
+#
+# Cite anchors (cardinal-rule-6 verify-before-claim):
+#   1. crazy-max/ghaction-import-gpg (MIT, 378 stars) @ v7.0.0
+#      https://github.com/crazy-max/ghaction-import-gpg/releases/tag/v7.0.0
+#      verified SHA via `gh api repos/crazy-max/ghaction-import-gpg/git/refs/tags/v7.0.0`
+#      => 2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
+#   2. GitHub Inc — Signed-commits docs:
+#      https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits
+#   3. OpenSSF Scorecard "Signed-Releases" check:
+#      https://github.com/ossf/scorecard/blob/main/docs/checks.md#signed-releases
+#   4. NIST SP 800-218 PW.7 — signed-artifact discipline (SSDF):
+#      https://csrc.nist.gov/Projects/ssdf
+#
+# CR-1 trust-tuple: (a) signed releases via crazy-max maintainer (b) MIT
+# (c) crazy-max GitHub-verified author (d) deps clean.
+# CR-2 compliance: pure upstream-Action wiring; no project-owned hook bodies.
+# CR-5 compliance: harden-runner egress-policy audit retained.
+# CR-6 compliance: every SHA cited has a `gh api` probe receipt above.
+#
+# OPERATOR ACTION NEEDED before this workflow can sign anything:
+#   1. Generate a CI GPG key:
+#        gpg --batch --generate-key <<EOF
+#        %no-protection
+#        Key-Type: EDDSA
+#        Key-Curve: ed25519
+#        Subkey-Type: ECDH
+#        Subkey-Curve: cv25519
+#        Name-Real: claude-sota-installed CI signer
+#        Name-Email: ci-signer@seathatflowsinourveins.local
+#        Expire-Date: 0
+#        %commit
+#        EOF
+#   2. Export the private key:
+#        gpg --armor --export-secret-keys <KEYID> > ci-signer.key
+#   3. Set GitHub Actions secrets in repo Settings -> Secrets and variables -> Actions:
+#        GPG_PRIVATE_KEY = <contents of ci-signer.key>
+#        GPG_PASSPHRASE  = (empty if --no-protection used)
+#   4. Add the public key to GitHub Settings -> SSH and GPG keys (under the
+#      account that owns the signing identity).
+#
+# The job is `continue-on-error: true` until secrets are populated; once
+# secrets are set, flip to false and the workflow signs the wave-ship tag.
+
+name: Release tag GPG sign (W*-ship-*)
+
+on:
+  push:
+    tags:
+      - 'W*-ship-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to sign (must already exist on origin)'
+        required: true
+
+permissions:
+  contents: write  # write to push the signed tag back to origin
+  id-token: write  # OIDC for sigstore audit-trail attestation
+
+concurrency:
+  group: release-tag-sign-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sign-tag:
+    name: GPG-sign wave-ship tag and re-push
+    runs-on: ubuntu-latest
+    continue-on-error: true   # advisory until GPG_PRIVATE_KEY secret populated
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24)
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0   # need full history + tags for re-signing
+          persist-credentials: true
+          submodules: false
+
+      - name: Skip if GPG_PRIVATE_KEY secret unset (advisory mode)
+        id: check_secret
+        env:
+          HAS_KEY: ${{ secrets.GPG_PRIVATE_KEY != '' && 'true' || 'false' }}
+        run: |
+          echo "has_key=$HAS_KEY" >> "$GITHUB_OUTPUT"
+          if [ "$HAS_KEY" = "false" ]; then
+            echo "::warning::GPG_PRIVATE_KEY secret not set — release-tag-sign workflow is advisory until operator populates it (see workflow header for setup instructions)."
+            exit 0
+          fi
+
+      - name: Import GPG key
+        if: steps.check_secret.outputs.has_key == 'true'
+        # crazy-max/ghaction-import-gpg @ v7.0.0 (W436-GH-PRACTICE-INSTALL install 2026-05-24)
+        # SHA verified via `gh api repos/crazy-max/ghaction-import-gpg/git/refs/tags/v7.0.0`
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd  # v7.0.0
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_tag_gpgsign: true
+
+      - name: Re-sign tag and force-push
+        if: steps.check_secret.outputs.has_key == 'true'
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Verify tag exists
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag '$TAG' does not exist"
+            exit 1
+          fi
+          # Capture original tag message
+          msg=$(git tag -l --format='%(contents)' "$TAG")
+          if [ -z "$msg" ]; then
+            msg="Signed by W436-GH-PRACTICE-INSTALL release-tag-sign workflow"
+          fi
+          # Delete + re-create as annotated signed tag at same commit
+          commit=$(git rev-list -n 1 "$TAG")
+          git tag -d "$TAG"
+          git tag -s -m "$msg" "$TAG" "$commit"
+          # Force-push (tag-only, NOT a branch force-push)
+          git push --force origin "refs/tags/$TAG"
+
+      - name: Verify tag signature
+        if: steps.check_secret.outputs.has_key == 'true'
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          status=$(git tag -v "$TAG" 2>&1)
+          echo "$status"
+          if ! echo "$status" | grep -qiE 'Good signature'; then
+            echo "::error::Tag '$TAG' signature verification failed"
+            exit 1
+          fi

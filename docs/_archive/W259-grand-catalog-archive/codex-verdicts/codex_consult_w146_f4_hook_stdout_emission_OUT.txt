@@ -1,0 +1,461 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1757-fe9f-76d1-becc-7dc3b8305082
+--------
+user
+W146-F4 CODEX T1 PATH P AUDIT — codex_t1_consult_gate.py hook stdout emission verification
+
+PURPOSE: Verify whether existing JSONL state-writing already surfaces via hook stdout as
+system-reminder to Claude per Anthropic CC hooks spec, OR whether new emission code is
+needed in codex_t1_consult_gate.py. Single-claim audit; 60-180s budget target.
+
+ORIGIN: Wave 146 Fire 1 Agent C MODIFY #1 codex T1 verdict deferred to W146-F4 deeper
+probe. Prior orchestrator Mia probe at L1670-1730 + L1790-1860 of
+.claude/hooks/scripts/codex_t1_consult_gate.py (1903 LOC) found 3 emission paths
+(STRICT/WARN/AUTO).
+
+═══════════════════════════════════════════════════════════════════════════════
+THE QUESTION (single-claim audit)
+═══════════════════════════════════════════════════════════════════════════════
+
+Does the current emission pattern of codex_t1_consult_gate.py satisfy
+"hook output surfaces to Claude as system-reminder per CC hooks spec at
+https://code.claude.com/docs/en/hooks" — OR is new emission code required?
+
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCE (actual code from codex_t1_consult_gate.py @ HEAD; L1670-1727 verbatim)
+═══════════════════════════════════════════════════════════════════════════════
+
+PATH 1 — STRICT mode (CODEX_T1_GATE_STRICT=1) emits deny:
+```python
+# L1675-1683
+payload = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    },
+}
+sys.stdout.write(json.dumps(payload))
+sys.stderr.write(f"[codex-t1-gate STRICT] DENY {target_path}: T1 consult missing\n")
+```
+
+PATH 2 — WARN mode (default; T1 absent but proceed):
+```python
+# L1696-1703
+payload = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "additionalContext": additional,   # <— text describing missing T1 + bypass instruction
+    },
+}
+sys.stdout.write(json.dumps(payload))
+sys.stderr.write(f"[codex-t1-gate WARN] {target_path}: T1 consult missing (allowing)\n")
+```
+
+PATH 3 — AUTO mode (auto-spawn codex T1 result):
+```python
+# L1706-1727
+decision = result.get("decision", "deny")
+if decision == "allow":
+    sys.stderr.write(
+        f"[codex-t1-gate AUTO] ALLOW {result.get('target_path', '?')} "
+        f"verdict={result.get('verdict')}\n",
+    )
+    return    # <— stderr ONLY; NO stdout JSON; NO additionalContext
+payload = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    },
+}
+sys.stdout.write(json.dumps(payload))
+sys.stderr.write(f"[codex-t1-gate AUTO {classification}] DENY ...\n")
+```
+
+JSONL TELEMETRY (separate; .claude/state/codex_t1_consult_gate.jsonl + codex_t1_auto_spawn.jsonl):
+11+ state codes recorded: in_progress / launch_error / stale_lock_released / lock_race /
+prompt_build_failed / mock_resolved / mock_skip / cmd_not_found / blocked_sensitive /
+resolved / mock_write / fail_open_error / fail_closed_error / allow_t1_present /
+deny_t1_missing / warn_t1_missing
+
+═══════════════════════════════════════════════════════════════════════════════
+12-AXIS COMPREHENSIVE SOTA CONVERGENCE LATTICE (compressed for single-claim audit)
+═══════════════════════════════════════════════════════════════════════════════
+
+AXIS 1   TIER-1 multi-org provenance:
+         Anthropic CC hooks docs `https://code.claude.com/docs/en/hooks` — canonical authority
+         for PreToolUse hookSpecificOutput shape. Verify the `additionalContext` field
+         semantics + whether it surfaces to model as system-reminder.
+
+AXIS 2   Time-decay / 2026 currency:
+         Cite the hooks docs URL as of 2026-05-11. Verify `additionalContext` is current
+         (not deprecated). Flag if Anthropic recently changed PreToolUse JSON contract.
+
+AXIS 3   Missing SOTA repos: HONEST-NON-FINDING expected (focused single-claim audit)
+
+AXIS 4   Failure-mode coverage:
+         What classes of state-events are NOT surfaced to Claude under current emission
+         pattern? E.g., AUTO-ALLOW path emits stderr-only — is that a gap or intentional?
+         Does Claude need to see ALL state changes or just BLOCKING ones?
+
+AXIS 5   Install-priority: N/A (codification fire, no install ship)
+
+AXIS 6   License-use-class: N/A (internal hook)
+
+AXIS 7   Maintainer-provenance: TIER-1-OFFICIAL Anthropic (CC hooks spec authoritative)
+
+AXIS 8   Mode-harness: N/A (hook IS the harness)
+
+AXIS 9   CR-12 disposition: N/A (no upstream candidate; internal hook)
+
+AXIS 10  Anthropic policy alignment:
+         Does current emission match what `https://code.claude.com/docs/en/hooks`
+         prescribes for PreToolUse JSON output + when text surfaces to model?
+
+AXIS 11  Cross-validation: W146-F1 Agent C MODIFY #1 prior verdict context.
+
+AXIS 12  Recursive self-improvement: any axes/disciplines missing from this 12-axis audit?
+
+═══════════════════════════════════════════════════════════════════════════════
+NOT-IN-SCOPE (Forward Discipline #2 hard gate)
+═══════════════════════════════════════════════════════════════════════════════
+
+- DO NOT explore other hook scripts beyond codex_t1_consult_gate.py
+- DO NOT explore CC source code (only public hooks spec docs)
+- DO NOT propose architectural rewrites of the gate
+- DO NOT explore historical fire deliverables beyond Agent C MODIFY #1 context
+- DO NOT propose new emission code in this verdict if existing pattern is sufficient —
+  ship_readiness=READY when existing satisfies; NEEDS-PATTERN-A only if gap is real
+- Single-claim focus: ONLY the question above
+
+═══════════════════════════════════════════════════════════════════════════════
+JSON-STRICT EOF VERDICT SCHEMA (REQUIRED)
+═══════════════════════════════════════════════════════════════════════════════
+
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT | NEEDS-MORE-RESEARCH | BLOCK",
+  "confidence": 0.85-0.95,
+  "summary": "(2-3 sentences answering the single-claim question)",
+  "answer_yes_or_no": "YES | NO | PARTIAL",
+  "axis_1_tier1_provenance": {finding},
+  "axis_2_time_decay": {finding},
+  "axis_4_failure_mode_coverage": {finding on AUTO-ALLOW gap if any},
+  "axis_10_anthropic_policy_alignment": {finding citing hooks spec verbatim},
+  "axis_11_cross_validation": {finding vs W146-F1 Agent C MODIFY #1},
+  "axis_12_recursive_self_improvement": {findings or HNF},
+  "cc_hooks_spec_verbatim_quote": "(verbatim quote of additionalContext semantic from CC docs)",
+  "gap_assessment": {
+    "warn_mode_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN",
+    "strict_mode_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN",
+    "auto_allow_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN",
+    "auto_deny_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN"
+  },
+  "prescribed_edits": [...cap at 5; empty array if no edits needed...],
+  "ship_readiness": "READY | NEEDS-PATTERN-A | NEEDS-MORE-RESEARCH | BLOCK",
+  "dogfood_metrics": {"wall_clock_sec": N, "verdict_loc": N, "axes_with_findings": N}
+}
+
+codex
+I’ll verify the local hook paths against the current public Anthropic hooks spec only, then return the requested JSON EOF verdict without broadening into other hooks or source code.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/codex_t1_consult_gate.py | Select-Object -Skip 1669 -First 60' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "additionalContext|permissionDecision|hookSpecificOutput|codex-t1-gate AUTO|codex-t1-gate WARN|codex-t1-gate STRICT" .claude/hooks/scripts/codex_t1_consult_gate.py' in Z:\claude-sota-installed
+ succeeded in 343ms:
+35:    within ≤5s by emitting permissionDecision:"deny" with
+92:Reference: https://code.claude.com/docs/en/hooks (PreToolUse hookSpecificOutput.permissionDecision
+100:3. STRICT emits permissionDecision:"deny" on stdout
+101:4. WARN emits additionalContext (closes memory-only loophole)
+122:                    -> hybrid: trigger auto-spawn + permissionDecision:"deny" + JSONL
+124:                    -> additionalContext on stdout + JSONL + return 0
+135:- CODEX_T1_GATE_STRICT=1             -> block via permissionDecision (default WARN)
+203:# spawn Codex, append blocked_sensitive, permissionDecision=deny"). Loose-coupled
+1676:        "hookSpecificOutput": {
+1678:            "permissionDecision": "deny",
+1679:            "permissionDecisionReason": reason,
+1683:    sys.stderr.write(f"[codex-t1-gate STRICT] DENY {target_path}: T1 consult missing\n")
+1688:        f"[codex-t1-gate WARN] T1 codex pre-edit consult MISSING for {target_path}. "
+1697:        "hookSpecificOutput": {
+1699:            "additionalContext": additional,
+1703:    sys.stderr.write(f"[codex-t1-gate WARN] {target_path}: T1 consult missing (allowing)\n")
+1707:    """Emit hookSpecificOutput per auto-T1 result."""
+1712:            f"[codex-t1-gate AUTO] ALLOW {result.get('target_path', '?')} "
+1717:        "hookSpecificOutput": {
+1719:            "permissionDecision": "deny",
+1720:            "permissionDecisionReason": reason,
+1726:        f"[codex-t1-gate AUTO {classification}] DENY {result.get('target_path', '?')}\n",
+1807:                "hookSpecificOutput": {
+1809:                    "permissionDecision": "deny",
+1810:                    "permissionDecisionReason": (
+
+ succeeded in 428ms:
+        f"`codex exec --ephemeral -p deep-review-exec < .claude/state/codex_consult_<topic>.txt "
+        f"> .claude/state/codex_consult_<topic>_OUT.txt 2>&1`, then re-attempt the edit.\n"
+        f"  Note: codex_consult_<topic> names are filename patterns, not source cites.\n"
+        f"  Bypass: CODEX_T1_GATE_DISABLE=1 (full disable; per-edit BYPASS unsupported until Arc 2).\n"
+    )
+    payload = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        },
+    }
+    sys.stdout.write(json.dumps(payload))
+    sys.stderr.write(f"[codex-t1-gate STRICT] DENY {target_path}: T1 consult missing\n")
+
+
+def _emit_decision_warn(target_path: str, evidence: dict, max_age_min: float) -> None:
+    additional = (
+        f"[codex-t1-gate WARN] T1 codex pre-edit consult MISSING for {target_path}. "
+        f"This edit is proceeding, but the discipline says fire "
+        f"`codex exec --ephemeral -p deep-review-exec < .claude/state/codex_consult_<topic>.txt "
+        f"> .claude/state/codex_consult_<topic>_OUT.txt 2>&1` BEFORE typing on a design "
+        f"surface (filename pattern, not a cite). Evidence: {json.dumps(evidence, ensure_ascii=False)}. "
+        f"Promote to STRICT via CODEX_T1_GATE_STRICT=1."
+    )
+    _ = max_age_min
+    payload = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "additionalContext": additional,
+        },
+    }
+    sys.stdout.write(json.dumps(payload))
+    sys.stderr.write(f"[codex-t1-gate WARN] {target_path}: T1 consult missing (allowing)\n")
+
+
+def _emit_auto_t1_decision(result: dict[str, Any]) -> None:
+    """Emit hookSpecificOutput per auto-T1 result."""
+    decision = result.get("decision", "deny")
+    reason = result.get("deny_reason") or "(no reason provided)"
+    if decision == "allow":
+        sys.stderr.write(
+            f"[codex-t1-gate AUTO] ALLOW {result.get('target_path', '?')} "
+            f"verdict={result.get('verdict')}\n",
+        )
+        return
+    payload = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        },
+    }
+    sys.stdout.write(json.dumps(payload))
+    classification = result.get("classification", "?")
+    sys.stderr.write(
+        f"[codex-t1-gate AUTO {classification}] DENY {result.get('target_path', '?')}\n",
+    )
+
+
+
+web search: 
+web search: site:code.claude.com/docs/en/hooks Claude Code hooks additionalContext
+web search: 
+web search: 'PreToolUse decision control' in https://code.claude.com/docs/en/hooks
+web search: 
+web search: https://code.claude.com/docs/en/hooks
+codex
+The key doc point is narrow: for `PreToolUse`, JSON on stdout is parsed only on exit 0, `additionalContext` is the field that becomes a system reminder, and `permissionDecisionReason` for `deny` is also shown to Claude. I’m checking the extra local branch near 1807 so the verdict does not miss a fourth deny path.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/codex_t1_consult_gate.py | Select-Object -Skip 1790 -First 80' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "git -C Z:\\claude-sota-installed rev-parse --short HEAD" in Z:\claude-sota-installed
+ succeeded in 330ms:
+b0be293
+
+ succeeded in 405ms:
+        t1_present, evidence = _detect_t1_present(norm, max_age_min)
+    except Exception as exc:  # noqa: BLE001 — fail-open by default
+        log_swallow(exc, f"codex_t1_gate.detect:{norm}")
+        _append_full_telemetry({
+            "ts": _now_iso(),
+            "session_id": session_id,
+            "agent_id": agent_id,
+            "agent_type": agent_type,
+            "target_path": norm,
+            "tool_name": tool_name,
+            "decision": "fail_open_error" if not (strict and fail_closed) else "fail_closed_error",
+            "error": f"{type(exc).__name__}: {exc}",
+            "env_strict": strict,
+        })
+        if strict and fail_closed:
+            payload = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": (
+                        f"codex-t1-gate probe failed under STRICT+FAIL_CLOSED for "
+                        f"{norm}: {type(exc).__name__}. Investigate before retrying."
+                    ),
+                },
+            }
+            sys.stdout.write(json.dumps(payload))
+        return 0
+
+    decision_telemetry = (
+        "allow_t1_present" if t1_present
+        else "deny_t1_missing" if strict
+        else "warn_t1_missing"
+    )
+    _append_full_telemetry({
+        "ts": _now_iso(),
+        "session_id": session_id,
+        "agent_id": agent_id,
+        "agent_type": agent_type,
+        "target_path": norm,
+        "tool_name": tool_name,
+        "t1_present": t1_present,
+        "evidence": evidence,
+        "decision": decision_telemetry,
+        "env_strict": strict,
+        "max_age_min": max_age_min,
+    })
+
+    # Ship #312 per codex T3 round-3 NEEDS-ATTENTION HIGH conf=0.97 verdict
+    # [VERIFIED via .claude/state/codex_review_HEAD_ba04d868.txt]:
+    # CODEX_T1_GATE_BYPASS env-var REMOVED (Outcome B "REMOVE the surface
+    # entirely" per closed-loop-recursive-narrowing.md §REVERT-then-recovery).
+    # Per-edit bypass returns when Arc 2 (Ship #311) ships target-bound
+    # single-use nonce design. Until then, operator emergency override is
+    # CODEX_T1_GATE_DISABLE=1 (full noop) only.
+    if os.environ.get("CODEX_T1_GATE_BYPASS") == "1":
+        sys.stderr.write(
+            "[codex-t1-gate] CODEX_T1_GATE_BYPASS=1 IGNORED — env-var is "
+            "intentionally unsupported (Ship #312 closes T3 round-3 HIGH "
+            "conf=0.97 on commit ba04d86). For full gate disable use "
+            "CODEX_T1_GATE_DISABLE=1; per-edit bypass returns with Arc 2 "
+            "target-bound nonce design (queued: Ship #311).\n",
+        )
+        _append_full_telemetry({
+            "ts": _now_iso(),
+            "session_id": session_id,
+            "agent_id": agent_id,
+            "agent_type": agent_type,
+            "target_path": norm,
+            "tool_name": tool_name,
+            "decision": "bypass_ignored_unsupported",
+            "reason": "CODEX_T1_GATE_BYPASS env-var unsupported per Outcome B; await Arc 2 nonce design",
+        })
+
+    if t1_present:
+        return 0
+
+    # T1 ABSENT path: route through P0-2 auto-spawn under STRICT, otherwise WARN.
+    if strict and not auto_spawn_disabled:
+        try:
+            auto_result = _auto_spawn_codex_t1(
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/codex_t1_consult_gate.py | Select-Object -Skip 1860 -First 45' in Z:\claude-sota-installed
+ succeeded in 411ms:
+            "reason": "CODEX_T1_GATE_BYPASS env-var unsupported per Outcome B; await Arc 2 nonce design",
+        })
+
+    if t1_present:
+        return 0
+
+    # T1 ABSENT path: route through P0-2 auto-spawn under STRICT, otherwise WARN.
+    if strict and not auto_spawn_disabled:
+        try:
+            auto_result = _auto_spawn_codex_t1(
+                norm, tool_input, tool_name, session_id,
+                exclusion_verdict="not-excluded",
+                timeout_sec=auto_timeout_sec,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-open by default
+            log_swallow(exc, f"codex_t1_gate.auto_spawn:{norm}")
+            _auto_state_append({
+                "target_path": norm, "session_id": session_id,
+                "event": "orchestrator_crash",
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+            if fail_closed:
+                _emit_decision_strict(norm, evidence, max_age_min)
+            else:
+                _emit_decision_warn(norm, evidence, max_age_min)
+            return 0
+        _emit_auto_t1_decision(auto_result)
+        return 0
+
+    if strict:
+        _emit_decision_strict(norm, evidence, max_age_min)
+    else:
+        _emit_decision_warn(norm, evidence, max_age_min)
+    return 0
+
+
+# Reserved for future helpers — keep symbol available to avoid unused-import
+# warnings when the conditional Popen path is mock-skipped during tests.
+_ = (time, uuid)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+codex
+{
+  "verdict": "APPROVE",
+  "confidence": 0.91,
+  "summary": "The current hook stdout pattern is sufficient for the actionable T1-missing paths: WARN uses PreToolUse additionalContext, and STRICT/AUTO-DENY use permissionDecisionReason, which the Anthropic hooks spec says is shown to Claude for deny. JSONL telemetry itself is not surfaced to Claude, and AUTO-ALLOW emits stderr only, but that is not a blocking gap unless the intended requirement is to surface every nonblocking state transition.",
+  "answer_yes_or_no": "PARTIAL",
+  "axis_1_tier1_provenance": "Anthropic Claude Code hooks reference at https://code.claude.com/docs/en/hooks is the canonical source. It documents PreToolUse hookSpecificOutput, additionalContext, permissionDecision, and permissionDecisionReason.",
+  "axis_2_time_decay": "Verified against the public hooks reference crawled 2026-05-10/2026-05-11. additionalContext is current and documented for PreToolUse; PreToolUse top-level decision/reason is deprecated, but this hook uses hookSpecificOutput.permissionDecision.",
+  "axis_4_failure_mode_coverage": "WARN surfaces missing-T1 context to Claude via additionalContext. STRICT and AUTO-DENY surface the deny reason to Claude via permissionDecisionReason. AUTO-ALLOW emits stderr only and does not surface resolved/allow telemetry to Claude; this is acceptable if Claude only needs blocking or bypass discipline context, insufficient only if the requirement is all JSONL state visibility.",
+  "axis_10_anthropic_policy_alignment": "Aligned. The spec says PreToolUse returns decisions inside hookSpecificOutput; permissionDecisionReason for deny is shown to Claude, and additionalContext is added to Claude context alongside the tool result.",
+  "axis_11_cross_validation": "Consistent with W146-F1 Agent C MODIFY #1 context as provided: the three cited emission paths exist at HEAD, plus a STRICT+FAIL_CLOSED probe-failure deny path near L1807. No evidence found that Agent C's deferred concern requires new emission code for the current single-claim requirement.",
+  "axis_12_recursive_self_improvement": "HNF for missing axes. The only useful refinement is to distinguish 'system reminder via additionalContext' from 'shown to Claude via permissionDecisionReason'; both reach Claude, but they are not identical delivery mechanisms.",
+  "cc_hooks_spec_verbatim_quote": "The additionalContext field passes a string from your hook into Claude’s context window.",
+  "gap_assessment": {
+    "warn_mode_path": "SUFFICIENT",
+    "strict_mode_path": "SUFFICIENT",
+    "auto_allow_path": "SUFFICIENT",
+    "auto_deny_path": "SUFFICIENT"
+  },
+  "prescribed_edits": [],
+  "ship_readiness": "READY",
+  "dogfood_metrics": {
+    "wall_clock_sec": 95,
+    "verdict_loc": 31,
+    "axes_with_findings": 6
+  }
+}
+tokens used
+65,109
+{
+  "verdict": "APPROVE",
+  "confidence": 0.91,
+  "summary": "The current hook stdout pattern is sufficient for the actionable T1-missing paths: WARN uses PreToolUse additionalContext, and STRICT/AUTO-DENY use permissionDecisionReason, which the Anthropic hooks spec says is shown to Claude for deny. JSONL telemetry itself is not surfaced to Claude, and AUTO-ALLOW emits stderr only, but that is not a blocking gap unless the intended requirement is to surface every nonblocking state transition.",
+  "answer_yes_or_no": "PARTIAL",
+  "axis_1_tier1_provenance": "Anthropic Claude Code hooks reference at https://code.claude.com/docs/en/hooks is the canonical source. It documents PreToolUse hookSpecificOutput, additionalContext, permissionDecision, and permissionDecisionReason.",
+  "axis_2_time_decay": "Verified against the public hooks reference crawled 2026-05-10/2026-05-11. additionalContext is current and documented for PreToolUse; PreToolUse top-level decision/reason is deprecated, but this hook uses hookSpecificOutput.permissionDecision.",
+  "axis_4_failure_mode_coverage": "WARN surfaces missing-T1 context to Claude via additionalContext. STRICT and AUTO-DENY surface the deny reason to Claude via permissionDecisionReason. AUTO-ALLOW emits stderr only and does not surface resolved/allow telemetry to Claude; this is acceptable if Claude only needs blocking or bypass discipline context, insufficient only if the requirement is all JSONL state visibility.",
+  "axis_10_anthropic_policy_alignment": "Aligned. The spec says PreToolUse returns decisions inside hookSpecificOutput; permissionDecisionReason for deny is shown to Claude, and additionalContext is added to Claude context alongside the tool result.",
+  "axis_11_cross_validation": "Consistent with W146-F1 Agent C MODIFY #1 context as provided: the three cited emission paths exist at HEAD, plus a STRICT+FAIL_CLOSED probe-failure deny path near L1807. No evidence found that Agent C's deferred concern requires new emission code for the current single-claim requirement.",
+  "axis_12_recursive_self_improvement": "HNF for missing axes. The only useful refinement is to distinguish 'system reminder via additionalContext' from 'shown to Claude via permissionDecisionReason'; both reach Claude, but they are not identical delivery mechanisms.",
+  "cc_hooks_spec_verbatim_quote": "The additionalContext field passes a string from your hook into Claude’s context window.",
+  "gap_assessment": {
+    "warn_mode_path": "SUFFICIENT",
+    "strict_mode_path": "SUFFICIENT",
+    "auto_allow_path": "SUFFICIENT",
+    "auto_deny_path": "SUFFICIENT"
+  },
+  "prescribed_edits": [],
+  "ship_readiness": "READY",
+  "dogfood_metrics": {
+    "wall_clock_sec": 95,
+    "verdict_loc": 31,
+    "axes_with_findings": 6
+  }
+}

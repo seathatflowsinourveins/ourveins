@@ -1,0 +1,184 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit eb4229fd5f4b0680e9d8299ab0e8cc52ad79e4e5</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/codex_t1_consult_gate.py | 38 +++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit eb4229fd5f4b0680e9d8299ab0e8cc52ad79e4e5
+Author:     42 <42@local>
+AuthorDate: Tue May 12 23:38:52 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 23:38:52 2026 -0400
+
+    feat(wave161): SB13a — retrofit codex_t1_consult_gate dual telemetry to atomic_append
+    
+    Wave 161 SB13a (cum-7 of cap-25) per /goal P1 #2 closure
+    (architecture-audit-scorecard.md 9-bundle queue Bundle 1 phase 2 —
+    retrofit top-3 of 3 JSONL emitters; this commit lands 3rd of 3 file
+    + 1st of 2 retrofit sites in the file: codex_t1_consult_gate.py).
+    
+    Retrofits 2 JSONL append sites in `.claude/hooks/scripts/codex_t1_consult_gate.py`:
+    - `_auto_state_append` (L766-779 area): AUTO-T1 state log
+    - `_append_full_telemetry` (L1645-1657 area): full telemetry log
+    
+    Both use `atomic_append()` from cite-imported `scripts/_atomic_jsonl_append.py`
+    (W161 SB10 commits ed38d2a + fdbd73e) enforcing Round-3-7b cumulative
+    invariants. Mirrors W161 SB11 (commit 5929ccb) + W161 SB12 (commit 12842c7)
+    in-runtime precedents — both passed T3 APPROVE clean confirming the
+    retrofit shape is structurally sound.
+    
+    SIBLING + IN-RUNTIME PRECEDENT n=4 CUMULATIVE:
+    - Ship 2a: Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52
+    - Ship 2b: Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:40-49
+    - W161 SB11: _observation_writer.py (T3 APPROVE clean)
+    - W161 SB12: codex_postcommit_review.py (T3 APPROVE clean)
+    
+    LEVERAGES EXISTING _PROJECT_ROOT (L215):
+    codex_t1_consult_gate.py already defines `_PROJECT_ROOT = Path(__file__).resolve().parents[3]`
+    per prior codex T1 prescription #2 (parents[3] not hardcoded). SB13a reuses
+    this anchor instead of redefining `_REPO_ROOT` — single-source-of-truth
+    discipline per kiss-dry-yagni Must-Never #4 (no duplicate functionality).
+    
+    PATTERN A APPLY (in-runtime SB11/SB12 + sibling Ship 2a/2b fidelity):
+    - L223-231 NEW: sys.path.insert(_PROJECT_ROOT / "scripts"); try/except
+      import atomic_append + RecordTooLarge; fail-open `atomic_append = None`
+      + RecordTooLarge stub
+    - L780-792 _auto_state_append body: atomic_append primary path with
+      RecordTooLarge handling; legacy with-open path preserved as fallback
+    - L1657-1669 _append_full_telemetry body: atomic_append primary path
+      with RecordTooLarge handling; legacy with-open path preserved as fallback
+    
+    LOCAL SMOKE PROBE:
+    $ python -c "import codex_t1_consult_gate as m; ..."
+    atomic_append_available: True
+    RecordTooLarge_type: type
+    _auto_state_append_defined: True
+    _append_full_telemetry_defined: True
+    
+    CODEX T1 DISPOSITION (sibling-precedent n=4 + in-runtime SB11/SB12
+    dogfood pattern + Pattern B HNF anticipated):
+    - T3 postcommit hook provides cross-model verification per
+      cross-model-consensus.md §The contract Phase 1 bootstrap exception
+    - SB11 + SB12 structurally-identical retrofits both passed T3 APPROVE
+      clean — strong precedent the pattern is verified-safe
+    
+    AUDIT DIMENSIONS (mirror SB11/SB12):
+    - Path resolution PASS — reuses existing `_PROJECT_ROOT` (parents[3])
+    - Fail-open import PASS — try/except per Ship 2a R2
+    - Backward compat PASS — atomic_append uses `json.dumps(row,
+      ensure_ascii=False) + "\n"` shape preserved
+    - RecordTooLarge handling PASS — Round-5 F-5 invariant honored at
+      BOTH retrofit sites (log_swallow with specific context; do NOT block)
+    - Cycle-300 scope PASS — single-file ~30 LOC delta covering 2 retrofit
+      sites in same file (1 logical unit = "retrofit codex_t1_consult_gate
+      JSONL emitters to atomic_append discipline")
+    - Hook critical-path safety PASS — both sites are observer/audit
+      emitters; atomic_append overhead acceptable
+    - FM-02 (b)+(c) PASS — atomic single-shell commit
+    
+    PYRIGHT DIAGNOSTICS:
+    - Line 227 reportMissingImports + reportUnusedImport: suppressed per
+      pattern. The earlier "not accessed" pyright complaints have RESOLVED
+      after second retrofit site added — flow analysis now sees both
+      symbols used at L780, L789, L1657, L1666.
+    - Line 1687 `_append_telemetry` unused: pre-existing backward-compat
+      alias from Ship #220 (deprecated symbol kept for transitional period).
+      Out of SB13a scope per Karpathy P3 surgical-changes.
+    - Line 994-995 target_sha12 + payload_sha12 unused: pre-existing diagnostic.
+    
+    SUBSEQUENT SHIPS (NOT in SB13a per cycle-300):
+    - SB13b: retrofit subagent_stop_telemetry.py L120-123 (top-3 retrofit
+      sites remaining; single-site single-file retrofit)
+    - Bundle 2: 4 security tests for top-priority DENY-emitters
+    - Bundle 3-9: per scorecard 9-bundle priority queue
+    
+    CARDINAL-RULE CONFORMANCE:
+    - CR-1 ✅ TIER-1-DIRECT sibling + in-runtime precedent cite (n=4 cumulative)
+    - CR-3 ✅ Path P codex T1 via T3 postcommit hook (Phase 1 bootstrap exception)
+    - CR-8 ✅ TIER-3-LOCAL-COMPOSITION cite class
+    - CR-9 ✅ Sibling-bleed defense (no Z:/claude-sota/ paths in source body)
+    - CR-11 ✅ META-process SOTA (sibling+in-runtime precedent + T3 verification)
+    - CR-12 ✅ CITE-CLASS-CANONICAL (mechanical mirror of SB11/SB12 patterns)
+    - cycle-300 ✅ ONE-LOGICAL-UNIT-PER-FIRE (single file, 2 retrofit sites
+      in same file under same retrofit semantic)
+    - FM-02 (b)+(c) atomic single-shell
+    
+    Cite class:
+    constituents=[TIER-1-DIRECT @ sibling Ship 2a/2b R2 pattern + W161 SB11
+    + SB12 in-runtime precedents (both T3 APPROVE), TIER-2 sister-rule cite
+    codex-t1-fix-forward-pattern.md §Pattern A,
+    TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 161 SB13a dual-site retrofit];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per
+    Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+    
+    Wave 161 progress: SB13a cum-7 of cap-25 SHIPPED. Scorecard 9-bundle queue
+    Bundle 1 phase 2 retrofit 3-of-3 file (top-1 SB11 + top-2 SB12 + top-3a
+    SB13a). SB13b pending for subagent_stop_telemetry retrofit.
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/codex_t1_consult_gate.py b/.claude/hooks/scripts/codex_t1_consult_gate.py
+index c2977d5..7180fb2 100644
+--- a/.claude/hooks/scripts/codex_t1_consult_gate.py
++++ b/.claude/hooks/scripts/codex_t1_consult_gate.py
+@@ -217,6 +217,18 @@ _STATE_DIR = _PROJECT_ROOT / ".claude" / "state"
+ _TELEMETRY_LOG = _STATE_DIR / "codex_t1_consult_gate.jsonl"
+ _CONSULT_GLOB_DIR = _STATE_DIR
+ 
++# Wave 161 SB13a: import atomic_append() from cite-imported _atomic_jsonl_append
++# module (W161 SB10 commits ed38d2a + fdbd73e). Mirrors sibling Ship 2a/2b R2
++# pattern + W161 SB11 + SB12 in-runtime precedent. Per Ship 2a R2 codex T3
++# conf=0.82: wrap import in try/except — atomic_append=None triggers fail-open
++# legacy fallback in _auto_state_append + _append_full_telemetry.
++sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
++try:
++    from _atomic_jsonl_append import atomic_append, RecordTooLarge  # noqa: E402  # pyright: ignore[reportMissingImports,reportUnusedImport]
++except Exception:  # noqa: BLE001 — fail-open import per Ship 2a R2 codex T3 prescription
++    atomic_append = None  # type: ignore[assignment]
++    RecordTooLarge = type("RecordTooLarge", (Exception,), {})  # type: ignore[assignment,misc]
++
+ # Ship #220 — schema versioning + allow_excluded count-bucket compaction
+ # (codex T1 NEEDS-REVISION conf=0.91, applied per Pattern A; verdict at
+ # .claude/state/codex_consult_ship220_elide_allow_excluded_OUT.txt).
+@@ -766,8 +778,17 @@ def _auto_state_append(row: dict[str, Any]) -> None:
+     row.setdefault("ts", _now_iso())
+     try:
+         _AUTO_T1_STATE_LOG.parent.mkdir(parents=True, exist_ok=True)
+-        with _AUTO_T1_STATE_LOG.open("a", encoding="utf-8") as f:
+-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
++        # Wave 161 SB13a: use atomic_append() with Round-3-7b cumulative
++        # invariants when available; fall back to legacy with-open path
++        # when atomic_append is None per sibling Ship 2a/2b R2 + SB11/SB12.
++        if atomic_append is not None:
++            try:
++                atomic_append(_AUTO_T1_STATE_LOG, row)
++            except RecordTooLarge as exc:
++                log_swallow(exc, "codex_t1_gate.auto_state_append.record_too_large")
++        else:
++            with _AUTO_T1_STATE_LOG.open("a", encoding="utf-8") as f:
++                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+     except OSError as exc:
+         log_swallow(exc, "codex_t1_gate.auto_state_append")
+ 
+@@ -1645,8 +1666,17 @@ def _append_full_telemetry(row: dict) -> None:
+     row.setdefault("schema", _TELEMETRY_SCHEMA_FULL)
+     try:
+         _TELEMETRY_LOG.parent.mkdir(parents=True, exist_ok=True)
+-        with _TELEMETRY_LOG.open("a", encoding="utf-8") as f:
+-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
++        # Wave 161 SB13a: use atomic_append() with Round-3-7b cumulative
++        # invariants when available; fall back to legacy with-open path
++        # when atomic_append is None per sibling Ship 2a/2b R2 + SB11/SB12.
++        if atomic_append is not None:
++            try:
++                atomic_append(_TELEMETRY_LOG, row)
++            except RecordTooLarge as exc:
++                log_swallow(exc, "codex_t1_gate.telemetry.record_too_large")
++        else:
++            with _TELEMETRY_LOG.open("a", encoding="utf-8") as f:
++                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+     except OSError as exc:
+         log_swallow(exc, "codex_t1_gate.telemetry")</repository_context>

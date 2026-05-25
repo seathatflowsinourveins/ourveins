@@ -1,0 +1,79 @@
+## W161 SB10 — _atomic_jsonl_append.py cite-import-AMBER install
+
+Audit the proposed install of `_atomic_jsonl_append.py` shared module from sibling claude-sota into claude-sota-installed runtime per Wave 161 /goal P1 #2 closure.
+
+### Context (read-only — DO NOT explore filesystem beyond this prompt + the sibling file)
+
+**Source**: `Z:/claude-sota/scripts/_atomic_jsonl_append.py` (18.8KB, 338 LOC) — 9-round cumulative fix-forward applied per parallel-session-worktree-isolation.md §Mandatory mechanical collision-guard. Cumulative invariants: Round-3 O_CREAT|O_APPEND|O_WRONLY + lock + low-level os.write / Round-4 lock-discipline+max-record+fsync / Round-5 5 silent-failure error-propagation / Round-6 mode default 0o600 / Round-7 POSIX fchmod-after-open coercion / Round-7b Windows lock-via-separate-file.
+
+**Destination**: `Z:/claude-sota-installed/scripts/_atomic_jsonl_append.py` (NEW; runtime currently has NO collision-guard wrapping for ~15 JSONL-emitting hooks per architecture-audit-scorecard.md P1 #2).
+
+**Cite-import-AMBER classification** per CLAUDE.md §14.5 + CR-9 install-risk discipline:
+- CR-9 pre-cite-import REVERT check: PASS (9 FIX/FEAT commits in sibling history; zero REVERT-AND-REMOVE precedents per `git -C Z:/claude-sota log --all --oneline -- scripts/_atomic_jsonl_append.py`)
+- CR-9 sibling-bleed defense: module uses `_PROJECT_ROOT = Path(__file__).resolve().parents[1]` so runtime-context-resolves correctly to either claude-sota OR claude-sota-installed; verify no hard-coded `Z:/claude-sota` paths in body
+- CR-12 disposition: CITE-CLASS-CANONICAL (sibling has canonical implementation; no upstream parity exists — module is sibling-codified per Wave 31 fire-34 promotion ladder; cite-import via §14.5 amber sibling cite)
+
+### Proposed design (SB10 scope — install + verify, NOT retrofit)
+
+**SB10 = INSTALL-ONLY**: copy sibling module to `Z:/claude-sota-installed/scripts/_atomic_jsonl_append.py` with port-note header. Do NOT retrofit JSONL-emitting hooks in this commit (retrofit is SB11 separate ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE).
+
+**Port-note header to prepend**:
+```python
+# Port-note (Wave 161 SB10 cite-import 2026-05-12): cite-imported from sibling
+# Z:/claude-sota/scripts/_atomic_jsonl_append.py @ HEAD f30597d (latest commit
+# "Ship 1.5 Windows record byte-bound 512") per CR-12 CITE-CLASS-CANONICAL +
+# Section 14.5 cite-import-AMBER lattice. Module provides atomic JSONL append
+# with cumulative Round-3-7 invariants per parallel-session-worktree-isolation
+# §Mandatory mechanical collision-guard. CR-9 pre-cite-import REVERT check
+# PASS (9 FIX/FEAT commits sibling history, zero REVERT-AND-REMOVE). Path
+# layout matches eee runtime exactly (uses Path(__file__).resolve().parents[1]
+# for cross-runtime portability).
+```
+
+**Subsequent ships (NOT in SB10)**:
+- SB11: retrofit `_observation_writer.append_observation` to use `atomic_append` instead of direct `with .open("a")` + `f.write`
+- SB12: retrofit `codex_postcommit_review._append_jsonl` similarly
+- SB13: retrofit `codex_t1_consult_gate` + `subagent_stop_telemetry` (top-3 per scorecard P1 #2)
+
+### Audit dimensions (focus codex review here)
+
+1. **Path-portability**: does `Path(__file__).resolve().parents[1]` correctly resolve under claude-sota-installed (where the file would land at `/scripts/_atomic_jsonl_append.py` with parent dir `/scripts/`)? Verify no `Z:/claude-sota` hard-coded paths in module body.
+
+2. **CR-9 install-risk**: any hidden sibling-bleed? Module imports stdlib only? No dependency on parent's `_guard_base.py` or sibling-specific modules?
+
+3. **Backward compat with SB8 helper**: SB8 added `merge_agent_context(record, payload)` to `_observation_writer.py`. The new `atomic_append()` from this module would be called BEFORE merge_agent_context in `append_observation`. Verify the integration order: `merge_agent_context(row, payload)` → `atomic_append(path, row)` is correct.
+
+3a. **Smoke-probe before retrofit**: confirm we can invoke `python -c "from scripts._atomic_jsonl_append import atomic_append; atomic_append('/tmp/probe.jsonl', {'test': True})"` returns cleanly.
+
+4. **Windows-specific safety**: Round-7b Windows lock-via-separate-file mechanism (msvcrt.locking on `.lock` sidecar to avoid O_APPEND pointer race). Verify the .lock sidecar pattern works in Z: drive context (Windows NTFS).
+
+5. **Round-3-7 invariants intact**: lock-then-write order / fsync-on-durability-contract / 0o600 mode default / fchmod-after-open coercion / sidecar atomic-rename. Spot-check 2-3 invariants.
+
+6. **cycle-300 ONE-LOGICAL-UNIT-PER-FIRE**: is INSTALL-only sufficient for SB10 (no retrofit yet), OR should retrofit-top-3 be bundled? Per scorecard ~150 LOC budget includes retrofit; this consult's SB10 is INSTALL-only ~340 LOC.
+
+7. **FM-02 (b)+(c) defense**: single-shell `git add -- <path> && git commit -o -F <msg> -- <path>` atomic commit on the new file.
+
+### Verdict shape (JSON-strict at EOF — NO prose preamble)
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "prescribed_edits": [
+    {"file": "<path>", "edit": "<verbatim text or diff hunk>", "reason": "<one line>"}
+  ],
+  "audit_dimensions": {
+    "path_portability": "PASS|NEEDS-REVISION",
+    "cr9_install_risk": "PASS|NEEDS-REVISION",
+    "sb8_backward_compat": "PASS|NEEDS-REVISION",
+    "smoke_probe_safety": "PASS|NEEDS-REVISION",
+    "windows_lock_correctness": "PASS|NEEDS-REVISION",
+    "invariants_intact": "PASS|NEEDS-REVISION",
+    "cycle300_scope": "PASS|NEEDS-REVISION (recommend retrofit-in-same-ship | recommend split)",
+    "fm02_defense": "PASS|NEEDS-REVISION"
+  },
+  "cite_anchor_risk": "LOW|MED|HIGH"
+}
+```
+
+Budget: 60-120s per codex-t1-pattern-b-forward-discipline.md Forward Discipline #2 (codification fire). Do NOT explore historical fire deliverables beyond cite anchors. Verdict at EOF.

@@ -1,0 +1,64 @@
+# W352 S3 — operator-installed external binaries
+# Source: docs/architecture/W352-SOTA-CONVERGENCE-FOUNDATIONAL/DESIGN.md §2 S3
+# Generated: 2026-05-21T04:43:44Z
+
+git-town:
+  version: 16.0.0
+  install: go install github.com/git-town/git-town/v16@v16.0.0
+  install_path: C:/Users/42/go/bin/git-town.exe
+  verified: Git Town 16.0.0
+  install_method_notes: |
+    winget GitTown.GitTown package NOT available in winget catalog as of 2026-05-21
+    (winget search/show returned "No package found matching input criteria" exit 20).
+    Fell back to `go install` per Go 1.26.1 toolchain availability (verified
+    via `go version`). Module path: github.com/git-town/git-town/v16
+  cite: git-town.com docs (3.2k★ MIT) + Conventional Branch v1.0.0 + Atlassian Bitbucket guide
+
+pinact:
+  version: 3.0.0
+  install: |
+    Download: https://github.com/suzuki-shunsuke/pinact/releases/download/v3.0.0/pinact_windows_amd64.zip
+    Extract to: Z:/tools/pinact/
+    Copy to PATH: C:/Users/42/go/bin/pinact.exe
+  install_path: C:/Users/42/go/bin/pinact.exe (copied from Z:/tools/pinact/pinact.exe)
+  verified: pinact version 3.0.0 (4ba07f320bec4ec8ae9c38d6fd6beb2b30bf7ffb)
+  install_method_notes: |
+    go install github.com/suzuki-shunsuke/pinact/v3/cmd/pinact@v3.0.0 FAILED
+    (module path mismatch: "invalid version: unknown revision v3/cmd/pinact/v3.0.0").
+    Fell back to GitHub release binary download (pinact_windows_amd64.zip) per
+    DESIGN.md §2 S3 fallback path. Authoritative binary verified via SHA-256
+    commit hash in --version output (4ba07f320bec4ec8ae9c38d6fd6beb2b30bf7ffb).
+  cite: SLSA v1.0 §Build Track L3 + OSSF Scorecard pinned-dependencies + CWE-829 (GitHub Action SHA-pin)
+
+biome:
+  version: 2.4.14
+  install: npm install -g @biomejs/biome@2.4.14
+  install_path: C:/Users/42/AppData/Roaming/npm/biome
+  verified: Version 2.4.14
+  install_method_notes: |
+    Already-installed by operator pre-W353. Verified via `biome --version` (2.4.14).
+    sca-v17 cited latest as 2.4.15 (2026-05-09 release) — local at 2.4.14 (one patch behind).
+    Patch-bump to 2.4.15 deferred to W354 if any 2.4.14→2.4.15 changelog regression surfaces.
+  scope: STAGED-PILOT-narrow — JS/TS lint ONLY for tools/*.mjs + harness/**/*.{js,ts}
+  cite: sca-v17 verdict W353 P1.13 install_score=4.17 T2-CHERRY tier
+        + biomejs/biome@2.4.15 SOTA (706 contribs / 24.7k★ / Apache-2.0)
+
+prek:
+  version: 0.4.1
+  install: cargo install prek --version 0.4.1
+  install_path: Z:/claude-sota-installed/.cargo/bin/prek.exe
+  verified: prek 0.4.1 (cargo 1.95.0 compiled from source, 1m 40s)
+  install_method_notes: |
+    Rust crate compiled from source via cargo 1.95.0. Binary at
+    Z:/claude-sota-installed/.cargo/bin/prek.exe (CARGO_HOME unset; cargo respected
+    project-local .cargo via parent-dir scan). NOTE: bash PATH points at
+    /z/claude-sota-installed/.local/cargo/bin (different from install location);
+    operator must add Z:/claude-sota-installed/.cargo/bin to PATH OR symlink prek.exe
+    to .local/cargo/bin/ before .pre-commit-config.yaml runner-switch in W354.
+    Used by CPython / Airflow / FastAPI as pre-commit drop-in replacement (single
+    Rust binary, no Python runtime). STAGED-PILOT: install + verify only;
+    .pre-commit-config.yaml NOT switched in W353 (deferred to W354 post-soak per
+    sca-v17 D-EMP=2 untested-in-runtime ceiling).
+  scope: STAGED-PILOT — pre-commit drop-in (verify-only in W353; runner-switch + PATH-fix in W354)
+  cite: sca-v17 verdict W353 P1.13 install_score=4.01 T2-CHERRY tier
+        + j178/prek@v0.4.1 (2026-05-20 release) + Rust 1.x binary distribution

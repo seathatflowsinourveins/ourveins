@@ -1,0 +1,61 @@
+# promptfoo eval scaffold — eee runtime smoke pilot
+# Cite: https://www.promptfoo.dev/docs/configuration/guide/ + Z:/repos/deps/promptfoo @ HEAD
+# Wave 119 Ship 5 — closes Wave 118 audit §12 Tier-1 #4 "promptfoo + openai/evals smoke pilot"
+#
+# Schema reference: https://www.promptfoo.dev/docs/configuration/reference/
+#
+# OPERATOR USAGE:
+#   cd Z:/claude-sota-installed
+#   promptfoo eval -c evals/promptfooconfig.yaml          # runs against ALL providers
+#   promptfoo view                                          # opens local results UI
+#   promptfoo eval --filter-pattern smoke                   # subset
+#
+# COST WARNING: each `eval` run spends real Anthropic tokens via CPA fleet.
+# Use sparingly; promptfoo cache is on by default — re-runs don't re-call unless
+# --no-cache passed.
+#
+# CR conformance:
+#   - CR-1: TIER-1-DIRECT to promptfoo official docs + upstream HEAD
+#   - CR-3: cross-model T2 commit-time hook is the gate (descriptive scaffold; no
+#     new mechanism)
+#   - CR-5: NO new install — promptfoo@0.121.11 installed via npm-global
+#     (CR-6 official native channel) Wave 119 Ship 5 upgrade from 0.121.8
+#   - CR-9 install-risk: ZERO-RISK descriptive scaffold; reversible via git rm
+#   - CR-10 research-first: probe verified promptfoo present + working before
+#     authoring this scaffold
+#   - CR-11 META-process: closes audit §12 Tier-1 #4 gap surfaced by Wave 118
+#     audit doc
+
+description: |
+  eee runtime smoke eval — verify CLIProxyAPI fleet end-to-end via Anthropic
+  /v1/messages API. Routes through eee-fleet-key-eval stratified API key (per
+  .cli-proxy-api/config.yaml §api-keys[3]).
+
+# Provider — eee's CPA fleet at port 8317 with stratified eval API key
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    label: cpa-fleet-sonnet
+    config:
+      apiBaseUrl: http://127.0.0.1:8317
+      apiKey: eee-fleet-key-eval
+      max_tokens: 256
+
+# Trivial smoke prompt — no destructive surface; verifies routing + response
+prompts:
+  - |-
+    Reply with the literal token READY-FOR-EVAL in 1-2 words to confirm the
+    request reached the model end-to-end. No other content.
+
+# Test cases
+tests:
+  - description: smoke — round-trip verification via CPA fleet
+    assert:
+      - type: contains
+        value: READY-FOR-EVAL
+      - type: latency
+        threshold: 30000
+      - type: cost
+        threshold: 0.01
+
+# Output config
+outputPath: Z:/claude-sota-installed-state/evals/results

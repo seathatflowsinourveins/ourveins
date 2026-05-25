@@ -1,0 +1,102 @@
+# Tier-B fix: strip RTK wrapper in git_verb_matches segment check
+
+## Context (Phase 1+2 already done — Phase 3 hypothesis test)
+
+Wave 130 Fire 3 Ship H (sha 2b3ff4f) widened PostToolUse[0] `if:` matchers to leading-wildcard `Bash(*git ...)` patterns. Tier-A fix WORKED — JSONL row at 22:51:27Z confirms `main_entered` for cmd `rtk git -C ... add ... && rtk git -C ... commit -o ... -F ...`.
+
+But Tier-B internal `_is_commit_cmd` at codex_postcommit_review.py L222 → `_guard_base.git_verb_matches` REJECTED the cmd → `filter_rejected_not_commit` → no codex review fired.
+
+## Root cause (Tier-B)
+
+`Z:/claude-sota-installed/.claude/hooks/scripts/_guard_base.py:336-394` — `git_verb_matches`:
+
+```python
+def git_verb_matches(cmd: str, verb: str) -> bool:
+    import shlex
+    if not cmd or not isinstance(cmd, str):
+        return False
+    for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+        seg = seg.strip()
+        if not seg.startswith("git "):    # ← REJECTS "rtk git ..." segments
+            continue
+        try:
+            parts = shlex.split(seg, posix=True)
+        except ValueError:
+            parts = seg.split()
+        if not parts or parts[0] != "git":  # ← Defense-in-depth
+            continue
+        idx = 1
+        while idx < len(parts):
+            tok = parts[idx]
+            if tok in _GIT_FLAGS_VALUE:
+                idx += 2
+                continue
+            if tok in _GIT_FLAGS_NOVALUE:
+                idx += 1
+                continue
+            if tok.startswith("--") and "=" in tok:
+                idx += 1
+                continue
+            return tok == verb  # First non-flag token == verb
+    return False
+```
+
+For cmd `rtk git -C path add -- file && rtk git -C path commit -o file -F msg`:
+- Split on `&&` → 2 segments
+- Segment 1: `rtk git -C path add -- file` → `seg.startswith("git ")` is False → SKIP
+- Segment 2: `rtk git -C path commit -o file -F msg` → `seg.startswith("git ")` is False → SKIP
+- Returns False → `_is_commit_cmd` False → `filter_rejected_not_commit`
+
+## Proposed Tier-B fix
+
+Strip leading `rtk ` (RTK 0.39.0 PreToolUse:Bash auto-rewrite per Wave 118 Ship A2 commit `741d695`) before the `seg.startswith("git ")` check:
+
+```python
+RTK_PREFIX = "rtk "  # Wave 118 Ship A2 RTK auto-rewrite via CC hookSpecificOutput.updatedInput.command
+
+for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+    seg = seg.strip()
+    # Strip RTK wrapper (CC PreToolUse:Bash hook prepends "rtk " per
+    # `.claude/settings.json` PreToolUse[6][6] rtk.exe hook claude entry)
+    if seg.startswith(RTK_PREFIX):
+        seg = seg[len(RTK_PREFIX):].lstrip()
+    if not seg.startswith("git "):
+        continue
+    # ... rest unchanged
+```
+
+Edge cases:
+- `rtk git -C path commit ...` → strip → `git -C path commit ...` → matches → ✓
+- `git commit ...` (no rtk) → no strip → matches → ✓ (preserves existing behavior)
+- `rtk someothercmd ...` → strip → `someothercmd ...` → no `git ` prefix → SKIP → ✓
+- `rtkrtk git ...` (no space after first rtk) → no strip (doesn't start with `rtk `) → no `git ` prefix → SKIP → ✓
+- `rtk-foo` (rtk-hyphen-foo) → no strip → no `git ` prefix → SKIP → ✓
+
+## Question for codex T1
+
+**Verify the proposed Tier-B fix**:
+1. Is the strip-prefix approach safe? Are there edge cases that break the fix or introduce false positives?
+2. Should the fix instead be in `parts` walking (`if parts[0] == "rtk": parts = parts[1:]`) or in segment-prefix check (current proposal)?
+3. Should we strip OTHER known wrappers (e.g., `hub`, `gh`, `lab`) defensively, or scope tight to `rtk` only?
+4. Per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #6 + cardinal-rule-1: should this fix carry a per-line cite to RTK 0.39.0 source code? RTK is at `Z:/claude-sota-installed/.local/cargo/bin/rtk.exe` (binary; source at GitHub `rtk-ai/rtk`).
+
+## Output schema (JSON-strict)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.00,
+  "reasoning": "...",
+  "prescribed_edits": [{"file": "...", "diff_snippet": "..."}],
+  "smoke_probe_command": "...",
+  "expected_smoke_outcome": "..."
+}
+```
+
+## Severity
+
+P1 — closes Wave 130 Fire 3 Ship H residual gap. Without Tier-B fix, T3 cross-model gate remains silent for ALL commits going through CC's normal Bash dispatch (which prepends rtk via PreToolUse hook). Ship H alone fixed Tier-A but is operationally insufficient.
+
+## Time budget
+
+Per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` invariant #1 + FM-17.d defense: 90s default cap (this is a TIGHT well-scoped consult — no broad investigation needed).

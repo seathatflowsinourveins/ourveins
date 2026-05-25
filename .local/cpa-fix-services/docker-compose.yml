@@ -1,0 +1,95 @@
+# eee Wave 150 Fire 2 — Docker compose for CPA + cache-fix-proxy supervisor migration from NSSM
+#
+# Convergence-consensus SOTA per Wave 150 Fire 1:
+#   - Agent A `a5f49ccba4921af78` ARTIFACT-INLINE Wave 150 Fire 1 (general-purpose Sonnet, 297s, 563K tokens)
+#   - Path P codex T1 `b1roaion3` (REAL GPT-5.5 BRIDGE-MODE foreground+tee, 8min budget — Pattern B HNF with directional Docker-Desktop-product caveat)
+#   - Operator-corrected CR-12 disposition: PROVIDER-COMPLEMENT (not PARTIAL-OVERLAP); single-jump migration (not Servy intermediate)
+#
+# Cite anchors (TIER-1-DIRECT):
+#   - CLIProxyAPI upstream docker-compose.yml @ HEAD 785b00c3: Z:/repos/deps/CLIProxyAPI/docker-compose.yml
+#   - cache-fix-proxy upstream Dockerfile + README @ HEAD 2f17aeb: Z:/repos/deps/cnighswonger-claude-code-cache-fix/Dockerfile + README.md:89-117
+#   - Docker Inc restart-policy docs: https://docs.docker.com/engine/containers/start-containers-automatically/
+#   - Docker compose service_healthy spec: https://docs.docker.com/compose/compose-file/05-services/#depends_on
+#
+# CR-9 install-risk: pinned by SHA256 digest (D6 today-release-auto-upgrade defense)
+# CR-7 Phase 1: operator-gated cutover; AUTO-PROCEED ineligible (HIGH-risk D1 launch per launch-discipline.md)
+# FM-02 b+c: atomic git commit via tmp/wave150f2-commit-msg.txt + bash script
+
+services:
+  cli-proxy-api:
+    # Image pinned by SHA256 digest per CR-9 D6 mitigation; refresh by intentional bump only
+    # Tag latest = sha256:e7b19291f121d20e13a34c96ef9980d2b207229c01ae1aaf1d6c4b848a6a0f4a (pulled 2026-05-11)
+    image: eceasy/cli-proxy-api@sha256:e7b19291f121d20e13a34c96ef9980d2b207229c01ae1aaf1d6c4b848a6a0f4a
+    container_name: eee-cli-proxy-api
+    restart: unless-stopped
+    ports:
+      # Keep 18317 externally per Wave 149 Fire 3 port migration (clients all hit 18317);
+      # container-internal stays at 8317 (Windows excluded-range doesn't apply inside container)
+      - "127.0.0.1:18317:8317"
+      # 8085 = management/admin (optional; bind localhost-only for safety)
+      - "127.0.0.1:8085:8085"
+    volumes:
+      # Config: docker-aware variant with auth-dir pointing at container-internal /root/.cli-proxy-api
+      # See Z:/claude-sota-installed-state/.cli-proxy-api/config-docker.yaml (operator-creates pre-cutover)
+      - type: bind
+        source: Z:/claude-sota-installed-state/.cli-proxy-api/config-docker.yaml
+        target: /CLIProxyAPI/config.yaml
+        read_only: true
+      # Auth dir: contains claude-*.json (7 OAuth) + antigravity-*.json + gemini-*.json + codex-*.json
+      # Read-write so the auth-auto-refresh worker (15min interval) can update tokens in place
+      - type: bind
+        source: Z:/claude-sota-installed-state/.cli-proxy-api/auths
+        target: /root/.cli-proxy-api
+      # Logs: persistent for forensic audit per audit-action-loop.md Surface stage
+      - type: bind
+        source: Z:/claude-sota-installed-state/logs/services/eee-cli-proxy-api
+        target: /CLIProxyAPI/logs
+    healthcheck:
+      # CPA exposes /healthz returning {"status":"ok"} per Wave 149 Fire 3 probe
+      # Operator-added (upstream Dockerfile lacks HEALTHCHECK — Wave 150 Fire 1 Agent A noted gap)
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8317/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "25m"
+        max-file: "5"
+    # No depends_on (CPA is the upstream; cache-fix-proxy depends on it)
+    networks:
+      - eee-proxy-chain
+
+  cache-fix-proxy:
+    # Image pinned by SHA256 digest per CR-9 D6
+    # 3.5.4 = sha256:198348aabc00dd3a3c8d989862268d446386aa0f2e5533ed623db7d400187695 (pulled 2026-05-11)
+    image: ghcr.io/cnighswonger/claude-code-cache-fix@sha256:198348aabc00dd3a3c8d989862268d446386aa0f2e5533ed623db7d400187695
+    container_name: eee-cache-fix-proxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:19801:9801"
+    environment:
+      # Default container internal port; bind to 0.0.0.0 so external publish works
+      CACHE_FIX_PROXY_PORT: "9801"
+      CACHE_FIX_PROXY_BIND: "0.0.0.0"
+      # Chain upstream to CPA via compose-network service-name resolution (cleaner than host.docker.internal)
+      CACHE_FIX_PROXY_UPSTREAM: "http://cli-proxy-api:8317"
+    # HEALTHCHECK already in upstream Dockerfile — inherited; no override needed
+    depends_on:
+      cli-proxy-api:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "25m"
+        max-file: "5"
+    networks:
+      - eee-proxy-chain
+
+networks:
+  # Custom bridge network for the proxy chain
+  # Container-name DNS resolution works automatically within this network
+  eee-proxy-chain:
+    driver: bridge
+    name: eee-proxy-chain

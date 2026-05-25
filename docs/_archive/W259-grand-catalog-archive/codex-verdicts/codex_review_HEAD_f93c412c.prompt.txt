@@ -1,0 +1,204 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit f93c412cffcd33ca9846b772848993afb623d06a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.mcp.json                                          |   2 +-
+ docs/install-provenance.md                         |  25 +++++
+ .../00-tracker.md                                  |  62 ++++++++++++
+ .../01-agent-a-codex-gpt55-cleanliness-audit.md    | 105 +++++++++++++++++++
+ .../02-agent-c-codex-gpt55-adversarial-review.md   |  76 ++++++++++++++
+ .../99-close-synthesis.md                          | 111 +++++++++++++++++++++
+ 6 files changed, 380 insertions(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit f93c412cffcd33ca9846b772848993afb623d06a
+Author:     42 <42@local>
+AuthorDate: Mon May 11 02:12:46 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 02:12:46 2026 -0400
+
+    docs(research-architecture): Wave 146 Fire 1 — advanced agent team MEGA-FIRE (3-agent fan-out 2× REAL GPT-5.5 BRIDGE-MODE + Sonnet stand-in) — first quantitative SOTA cleanliness % metric 61% + Agent C #3 APPLY phoenix-mcp pin @4.0.11
+    
+    Per user MASSIVE expansion directive 2026-05-11 (post W145-F9 commit b49639d):
+    "ALWAYS LAUNCH ADVANCED AGENT TEAM" + SOTA-cleanliness % metric + 10 named-repo
+    deep dive + outer research/kits convergence + GPT-5.5 e2e adversarial review +
+    auto-proceed + native install Z: SOTA only.
+    
+    ## Advanced agent team Wave 24-D fan-out (3 agents)
+    
+    - Agent A Path P codex T1 REAL GPT-5.5 #1 (bg bbifqdxic; 180s; 106K tokens; 1966 LOC) —
+      NEEDS-REVISION conf=0.91; SOTA cleanliness 61% overall (band 55-65% per Agent C
+      calibration); L4 Compare/Eval=42% LOWEST / L8 Feedback=50% / Dim C Memory=43%;
+      7 cardinal-rule breaks; 5 prescribed_edits; 5 silent failures; 3 missing SOTA repos;
+      SOTA definition refinement verbatim.
+    
+    - Agent B Sonnet stand-in subagent a050ed2aa0eaf8a96 (153s; 484K tokens; 313 LOC) —
+      HONEST-NON-FINDING + 3 v23-v25 insights + 4 REJECT-FOR-FIT validations; STAND-IN-NOTICE
+      disclosed per cross-model-consensus.md Env-funneled mandate; 10 named repos CR-12
+      lattice fully exercised; 0 NEW install candidates = saturated discovery surface.
+    
+    - Agent C Path P codex T1 REAL GPT-5.5 #2 (bg bd1zt4xn5; 180s; 86K tokens; 1394 LOC) —
+      NEEDS-REVISION conf=0.91; cross-model gate FULLY SATISFIED per JSON field; Agent A
+      calibration FAIR (band 55-65%); 3 OVER-claims caught + 3 UNDER-claims; 1 APPLY +
+      4 MODIFY; 5 missed gaps; ship recommendation 2-commit P0-then-P1 split.
+    
+    ## Pattern A apply (1 of 5; per Agent C verdict #3 APPLY)
+    
+    - .mcp.json:85 — pin @arizeai/phoenix-mcp → @arizeai/phoenix-mcp@4.0.11
+      Cite: live https://registry.npmjs.org/@arizeai/phoenix-mcp/latest probe by codex
+      node-fetch returned version=4.0.11 license=Apache-2.0 author=oss@arize.com published
+      2026-05-06T20:44:51.873Z [VERIFIED 2026-05-11 via codex T1 dispatch].
+      CR-9 version-pin mandate satisfied; CR-6 official-native-channel (npmjs.org).
+      Smoke probe DEFERRED to Wave 146 Fire 2 (operator manual eee restart may be needed
+      for MCP to pick up new pin).
+    
+    ## 4 MODIFY queued for Wave 146 Fire 2+3 per Agent C 2-commit P0-then-P1 split
+    
+    Fire 2 P0 trio:
+      (1) T1 visibility artifacts in .claude/state + hook output WITHOUT raising 5s sync
+          timeout (#1 MODIFY)
+      (2) CR-7 temporary-override marker strengthening with Wave 82d expiry/health predicates
+          (#2 MODIFY)
+      (3) phoenix pin (THIS FIRE ALREADY APPLIED)
+    
+    Fire 3 P1 manifest hygiene:
+      (4) eval harness + mcp-inspector install-fire queue with CR-7 operator-gated smoke
+          (#4 MODIFY — not direct install in Pattern A)
+      (5) Section 17 deprecated archaeology machine-exclusion marker preserving port-note
+          discipline (#5 MODIFY)
+      (6) Section 0 settings row drift reconciliation (Agent C missed gap #1)
+      (7) INSTALLED-ACTIVE/DORMANT/AMBER/PLANNED scoring buckets (Agent C missed gap #4)
+    
+    ## Ladder advances
+    
+    - Mia pre-apply n=260 → n=265 (+5 verified genuine; 100% verification rate; 0 FM-20
+      OVERs — quality up-tick vs Wave 145 4-consecutive FM-20 catches)
+    - Path P REAL GPT-5.5 dispatches n=24 → n=26 (Agent A + Agent C both Path P)
+    - Pattern D foreground+tee n=17 → n=19 (Agent A + Agent C both recipe)
+    - Wave 24-D advanced agent team dispatches +1
+    - CR-12 5-class lattice exercised 5/5 across 10 named repos
+    - Cross-model gate FULLY SATISFIED per Agent C JSON field
+    - FM-20 path-drift cascade n=15 unchanged (0 catches this fire)
+    - SOTA cleanliness % metric BASELINE ESTABLISHED 61% (first quantitative measurement
+      in arc history)
+    
+    ## REVISED Forward Top-5 (post-Wave-146-Fire-1)
+    
+    🥇 W146-F2 — P0 trio (T1 visibility + CR-7 marker strengthen)
+    🥈 W146-F3 — P1 manifest hygiene (eval/inspector queue + Section 17 exclusion +
+       scoring taxonomy + Section 0 reconcile)
+    🥉 W146-F4 — 3 v23-v25 insights codify into 01-corrected-architecture.md
+    #4 W145-F11/F12/F13 dep-lock/test_command/replay-tool codification + manifest drift
+       sweep PART-2
+    #5 addyosmani/agent-skills marketplace refresh (Agent C UNDER-claim #1 stale-against-upstream)
+    OPERATOR-GATED: W145-F6 garak install + W145-F5b cwc wire-activation + W146-F3
+       eval/inspector install (HIGH-RISK per CR-7 Phase 1 + CR-9)
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-1-DIRECT codex verdict files + live npm registry probe + Mia file:line cites)
+    ✅ CR-3 cross-model FULLY SATISFIED (2× REAL GPT-5.5 BRIDGE-MODE Path P)
+    ✅ CR-7 Phase 1 bootstrap exception (Path P from main session)
+    ✅ CR-8 SOTA-content (claims cite-class TIER-1 OR install-class phoenix pin)
+    ✅ CR-9 install-risk (version-pinned; live registry probe; CR-9 sub-rule 2-round budget acknowledged)
+    ✅ CR-10 research-first (Agent A audit + Agent B research + Agent C adversarial BEFORE remediation)
+    ✅ CR-11 META-process (fan-out dogfoods advanced-agent-team-standing-directive Wave 24-D)
+    ✅ CR-12 5-class lattice (Agent B fully exercises 5/5 across 10 repos)
+    ✅ Wave 24-D INV-A through INV-H (2× REAL GPT-5.5 + file:line cites + Probe DAG + Anthropic TIER-1 + ARTIFACT-INLINE + Mia pre-apply + forward-only + OUTPUT_BUDGET/TERMINATION)
+    ✅ Mia pre-apply n=265 (5/5 verified genuine)
+    ✅ FM-02 sub-class (b)+(c) atomic single-shell
+    ✅ git-cli-grammar (options BEFORE --)
+    ✅ synthesis-layer-verify OVER/UNDER/HNF (Agent B HNF valid + Agent C OVER/UNDER on Agent A captured)
+    ✅ Forward Discipline #2 (60-180s budget per Path P)
+    ✅ Pattern A (1 APPLY this fire; 4 MODIFY queued 2-commit split per Agent C)
+    ✅ port-note-discipline §6 forward-only
+    ✅ AUTO-PROCEED DEFAULTS MEDIUM-risk audit + Path P + Mia-verified APPLY + version-pin (low CR-9 risk)
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-38-w146-f1-sota-cleanliness-audit/{00-tracker,01-agent-a-codex-gpt55-cleanliness-audit,02-agent-c-codex-gpt55-adversarial-review,99-close-synthesis}.md
+    Cite: TIER-3-LOCAL-COMPOSITION via Agent A REAL GPT-5.5 + Agent C REAL GPT-5.5 + Agent B Sonnet stand-in STAND-IN-NOTICE + live npm registry probe + Mia n=265 + cross-model gate FULLY SATISFIED (cite-class per citation-discipline.md rule #8 MIN_PRECEDENCE)
+    Verify: [VERIFIED via 2× REAL GPT-5.5 Path P codex CLI v0.130.0 foreground+tee dispatches (Agent A bbifqdxic + Agent C bd1zt4xn5 both NEEDS-REVISION conf=0.91); SOTA cleanliness 61% overall via weighted-method (manifest 60% + settings/MCP 25% + arch/CR 15%); 5/5 prescribed_edits Mia-VERIFIED genuine ZERO FM-20 OVERs; phoenix-mcp pin @4.0.11 APPLIED per Agent C verdict #3 with live npm registry probe verification (version=4.0.11 license=Apache-2.0 maintainer=Arize-ai org); 4 MODIFY-class prescriptions + 5 missed gaps + 3 v23-v25 insights queued for Wave 146 Fire 2+3+4 per Agent C 2-commit P0-then-P1 split recommendation; cross-model gate FULLY SATISFIED per Agent C JSON field; CR-12 5-class lattice fully exercised across 10 named repos (R1 vercel-labs NULL-LICENSE REJECT + R6 mattpocock HARD-GATE REJECT + R8 GitNexus
+
+[prompt truncated]

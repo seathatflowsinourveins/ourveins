@@ -1,0 +1,76 @@
+# GPT-5.5 e2e ADVERSARIAL REVIEW — Wave 119 Ship 7: tools/cpa-cache-rate.py
+
+## Role
+
+You are GPT-5.5 deep-review-exec acting as ADVERSARIAL REVIEWER per `Z:/claude-sota/.claude/rules/cross-model-consensus.md §The contract`. Find PROBLEMS in this Ship 7 candidate. Be aggressive. No compliments.
+
+## Context
+
+Wave 119 Ship 7 = `tools/cpa-cache-rate.py` (~85 LOC NEW). Closes operator's recurring "give me cache rate" question by aggregating CLIProxyAPI session-affinity cache hit/miss events per claude account from `Z:/claude-sota-installed/.cli-proxy-api/logs/main.log`.
+
+Initial regex had a whitespace bug: `(cache hit|cache miss[^|]*)\|` expected NO space between `cache hit` and `|`, but actual log has ` cache hit | session=`. Smoke test caught it (11 miss / 0 hit when log has 1065 hits / 63 miss). Fixed by replacing `\|` with `\s*\|`. Re-smoke now shows correct rate (98.2% global, 567 hits / 11 miss in 720min window).
+
+## Files under review
+
+1. `Z:/claude-sota-installed/tools/cpa-cache-rate.py` — the ~85-LOC script
+2. `Z:/claude-sota-installed/.cli-proxy-api/logs/main.log` — log this script parses (1065 hit + 63 miss event lines)
+
+## Read these before reviewing
+
+- `Z:/claude-sota-installed/tools/cpa-cache-rate.py` (whole file)
+- A representative `cache hit` line from main.log: `[2026-05-09 02:43:43] [c38794c8] [info ] [selector.go:503] session-affinity: cache hit | session=claude:8... auth=claude-aesthetic9c@gmail.com.json provider=mixed model=claude-opus-4-7`
+- A representative `cache miss` line: `[2026-05-08 01:51:48] [ccfb6f4b] [info ] [selector.go:535] session-affinity: cache miss, new binding | session=header:p... auth=claude-739955940fc@gmail.com.json provider=mixed model=claude-sonnet-4-6`
+
+## 3 ADVERSARIAL AXES — find what's wrong
+
+### AXIS 1 — Regex correctness + log-format edge cases
+
+The fixed regex is:
+```
+^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*?session-affinity: (cache hit|cache miss[^|]*?)\s*\|.*?auth=(claude-[\w.@-]+\.json)
+```
+
+Find:
+- Edge cases where the regex MISSES valid events (e.g., are there "cache hit, " or "cache hit;" variants?)
+- Edge cases where the regex MIS-CLASSIFIES (e.g., does any line contain both "hit" and "miss" tokens?)
+- Auth-name regex `claude-[\w.@-]+\.json` — does `\w` include `.`? Are the dot+@+dash chars sufficient for ALL claude account file names (`claude-mr.euphoriaincarnate@gmail.com.json` / `claude-aesthetic9c@gmail.com.json` / `claude-739955940fc@gmail.com.json`)?
+- Does the timestamp parse handle 02:00 daylight-saving anomalies? (`datetime.strptime` is naive)
+- The `kind = "hit" if "hit" in m.group(2) else "miss"` classifier — does any "miss" capture group contain "hit" substring? (e.g. could `cache miss, new binding` ever be `cache miss, hit-rate-degraded`?)
+
+### AXIS 2 — Smoke-empty-window + edge-case behavior
+
+The smoke test with `--since-mins 240` returned 0 events (cache events were 7-8h old per pre-equalization sticky session). The wider `--since-mins 720` window returned 605 hits / 11 miss / 98.2% rate.
+
+Find:
+- Should the script error or warn when 0 events found? (current behavior: prints "(no session-affinity events in window)" and returns 0)
+- Is `tail last N lines` strategy correct for log files that may rotate? `--lines 5000` default is small; CPA log can grow fast under heavy traffic.
+- For 1065 cache hit lines in a 8-day log, default `--since-mins 60` will likely find 0 events (last activity was 7-8h ago). Default may be misleading. Should default be `--since-mins 1440` (24h)?
+- The `readlines()[-args.lines:]` is O(file_size) memory load. For a 100MB log, this hangs. Should it stream from end?
+
+### AXIS 3 — Cite discipline + commit-readiness
+
+- The cite line `# Cite: CLIProxyAPI sdk/cliproxy/auth/selector.go:498-535 @ HEAD 785b00c3` — verify line range matches actual selector.go (the script docstring claims `selector.go:498-535`; the log lines themselves cite `selector.go:503` for hits and `selector.go:535` for miss — does 498-535 actually contain those emit sites?)
+- HEAD SHA `785b00c3` — is that the current pin or stale? This script ships under cardinal-rule-1 cite-trail discipline.
+- For commit body: this is a NEW tool file (~85 LOC). Per `codex-t1-fix-forward-pattern.md §Mechanical-mirror exception`, predicate (1) ≤24 LOC delta FAILS (85 LOC > 24). So Pattern A NEEDS-REVISION fix-forward path applies if you find any prescription. If no prescription and you APPROVE, commit lands as-is.
+
+## Output (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_regex_correctness": "...",
+    "axis_2_smoke_empty_window_edge_cases": "...",
+    "axis_3_cite_commit_readiness": "..."
+  },
+  "prescribed_edits": [...],
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance for THIS consult
+
+- CR-1: every claim under review pinned to file:line at script + log line
+- CR-3: this consult IS the cross-model gate (BRIDGE-MODE foreground+tee bypasses FM-17.f because codex CLI is OpenAI-side)
+- The user mandate "always launch advanced agent team with gpt5.5 e2e adversarial review BEFORE commit" is operationally satisfied via this BRIDGE-MODE consult + paired Explore subagent (independent Sonnet stand-in factual audit)

@@ -1,0 +1,205 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 977fff4f464cfd0392f7c726490a3e4fd9749169
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit 977fff4f464cfd0392f7c726490a3e4fd9749169
+Author:     42 <42@local>
+AuthorDate: Mon May 11 10:35:25 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 10:35:25 2026 -0400
+
+    fix(settings): Wave 146 Fire 6.1 fix-forward — remove duplicate quote at L86 EOL (W146-F6 commit `82413db` broke JSON parse; surgical 1-char delete)
+    
+    Per Wave 146 Fire 6.1 fix-forward of immediately-prior commit `82413db` (W146-F6
+    mechanical-mirror exception apply): the W146-F6 Edit's new_string accidentally
+    included a trailing `"` that doubled with the existing JSON string-close quote,
+    producing `closure).""` at L86 end. Python json.tool error: `Expecting ','
+    delimiter: line 86 column 2047 (char 18937)`.
+    
+    ## Surgical 1-character delete
+    
+    OLD (line ending fragment): `Agent C missed gap #1 closure).""`
+    NEW (line ending fragment): `Agent C missed gap #1 closure)."`
+    
+    Removed ONE redundant `"`. JSON validation post-Edit: `python -m json.tool` → JSON_VALID.
+    
+    ## Why W146-F6 commit `82413db` shipped invalid JSON
+    
+    The Edit tool's old_string was `(auto mode active).` (literal period, NO quote).
+    The new_string was `currently NOT set. ⚠️ ...mechanical-mirror exception (Agent C
+    missed gap #1 closure)."` — accidentally included trailing `"` thinking it was
+    inside the JSON string boundary, but the JSON string was already closed-by-
+    file's existing `"` after the old_string match.
+    
+    Result: `closure)."` (my extra `"`) + `"` (existing JSON close) = `closure).""`
+    followed by `,` (field separator) — JSON parser expects `,` directly after the
+    closing `"` but found `"` instead = parse failure.
+    
+    ## NEW DISCIPLINE LESSON CODIFIED — JSON-validation MUST precede commit
+    
+    This is a forward-only codification of a sub-discipline that should govern
+    ALL future settings.json / .mcp.json / *.json Edits — INCLUDING those applied
+    via mechanical-mirror exception (T1 SKIP) per
+    `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Mechanical-mirror exception`:
+    
+    **JSON-class Edit discipline (NEW)**:
+    
+    1. Edit applied to `*.json` file
+    2. **MANDATORY** post-Edit pre-commit validation: `python -m json.tool <file> >/dev/null 2>&1 && echo VALID || echo INVALID`
+    3. If INVALID → DO NOT COMMIT; surgical fix-forward Edit BEFORE git commit
+    4. If VALID → atomic narrow commit per FM-02 b+c
+    
+    This sub-discipline applies REGARDLESS of:
+    - Mechanical-mirror exception eligibility (T1 SKIP)
+    - Pattern A fix-forward (NEEDS-REVISION integration)
+    - Cross-model gate satisfaction status
+    - FM-02 b+c atomic-batch chain
+    
+    Reasoning: JSON is structurally validated at parse-time. A "mechanical mirror"
+    discipline that bypasses T1 BECAUSE the Edit is small + low-risk STILL requires
+    post-Edit JSON-shape-validation because syntactic correctness is orthogonal
+    to semantic-claim correctness. T1 audits semantic claims (does the prose say
+    the right thing?); JSON-validate audits structural shape (does the file parse?).
+    
+    Codification timing: this fire (W146-F6.1 fix-forward) IS the first dogfood.
+    Future fires should grep this commit for the discipline rationale + apply
+    unconditionally to JSON-class Edits.
+    
+    ## Mia probes 2/2 GENUINE (n=289→n=291)
+    
+    - Probe #1 JSON validation post-W146-F6 commit `82413db`: VERIFIED INVALID (parse error column 2047 L86)
+    - Probe #2 root-cause analysis (duplicate `"` at L86 EOL): VERIFIED GENUINE (Read confirmed `closure).""` literal)
+    
+    Zero FM-20 path-drift in the fix-forward (Mia probes confirmed exact target +
+    1-character fix).
+    
+    ## Ladder advances
+    
+    - Mia pre-apply n=289 → n=291 (+2 verified GENUINE fix-forward probes)
+    - Path P REAL GPT-5.5 unchanged n=30 (no codex dispatch this fix-forward — surgical 1-char delete)
+    - Pattern D unchanged n=22 (no codex dispatch)
+    - Forward Discipline #2 unchanged n=7
+    - FM-20 path-drift cascade unchanged n=16 (no path-drift; this is JSON-validation-skip class, distinct)
+    - NEW FAILURE-MODE class candidate: **FM-21 JSON-validation-skip** (n=1 — this incident at W146-F6 commit `82413db`). Per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 jurisdiction: codification at n=1 only if (a) user-trigger explicit OR (b) expected savings ≥10 min/mo + LOC ceiling fit. Re-derive cost of this class is ~5-15 min (parse error → root cause → fix-forward → re-commit); future settings.json / .mcp.json edits via Edit tool may hit similar bug. NEEDS n=2 same-class recurrence before full sub-rule promotion per cycle-322; codification of the discipline TEXT in this commit body serves as forward-only marker until n=2 lands.
+    - Mechanical-mirror exception applications: this fix-forward is mechanical-mirror exception ELIGIBLE too (single-file + 0-line delete + pure typo-correction + NO new authority class + same-session chain) — but JSON-validation discipline now PRECEDES exception eligibility check per new discipline above
+    
+    ## Recovery path verification
+    
+    - W146-F6 commit `82413db` landed broken JSON
+    - Runtime impact: Claude Code reads settings.json at session-start; broken JSON would prevent next session from loading hooks/permissions correctly
+    - Detection: `python -m json.tool` immediately caught the issue
+    - Recovery: surgical 1-char Edit + fresh commit (this commit)
+    - No revert needed: forward-only fix-forward per `Z:/claude-sota/.claude/rules/port-note-discipline.md §6` anti-pattern "Do not rewrite historical commit bodies"
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-3-LOCAL-OPERATOR-DERIVED via this fire's own dogfood incident + JSON-validation cite to python json.tool)
+    ✅ CR-3 cross-model gate cumulative 5× REAL GPT-5.5 W146 arc unchanged (no additional dispatch this fix-forward)
+    ✅ CR-8 SOTA-content (surgical 1-char fix; no novel content; discipline codification text TIER-3-LOCAL-OPERATOR-DERIVED honest)
+    ✅ CR-10 research-first (Mia probe BEFORE re-Edit; root-cause analysis BEFORE fix)
+    ✅ CR-11 META-process (this fire dogfoods new JSON-validation discipline + FM-21 candidate identification)
+    ✅ Mia pre-apply n=291 (+2 verified GENUINE fix-forward probes)
+    ✅ FM-02 sub-class (b)+(c) atomic single-shell narrow `--only -- .claude/settings.json`
+    ✅ FM-20 unchanged n=16 (no path-drift this fire; distinct failure class FM-21 candidate)
+    ✅ **NEW: JSON-validation discipline applied** (python -m json.tool VALID confirmed BEFORE commit)
+    ✅ git-cli-grammar (options BEFORE -- separator)
+    ✅ port-note-discipline §6 forward-only (no historical commit body rewrite of `82413db`; fix-forward in NEW commit)
+    ✅ AUTO-PROCEED LOW-risk surgical typo-fix + Mia-verified + JSON-validated + atomic commit
+    
+    ## Trailers
+    
+    Refs: .claude/settings.json L86 EOL surgical 1-char delete (removed redundant `"`)
+    Cite: TIER-3-LOCAL-OPERATOR-DERIVED via W146-F6 commit `82413db` JSON validation failure (incident-driven codification of JSON-validation-MUST-precede-commit sub-discipline; FM-21 JSON-validation-skip candidate at n=1)
+    Verify: [VERIFIED via python -m json.tool .claude/settings.json → JSON_VALID post-fix-forward; W146-F6 commit `82413db` had invalid JSON per Expecting ',' delimiter line 86 column 2047 error; surgical 1-char delete at L86 EOL (closure).""→closure)."); Mia n=289→n=291; NEW DISCIPLINE codified inline: JSON-class Edits MUST run python -m json.tool VALID validation BEFORE commit regardless of T1 SKIP / mechanical-mirror exception / Pattern A status; FM-21 JSON-validation-skip candidate at n=1 (cycle-322 threshold not yet met — needs n=2 same-class recurrence for sub-rule promotion); cross-model gate unchanged 5× REAL GPT-5.5 cumulative W146 arc]
+
+=== diff ===
+diff --git a/.claude/settings.json b/.claude/settings.json
+index bafce9f..ad09f2b 100644
+
+
+[prompt truncated]

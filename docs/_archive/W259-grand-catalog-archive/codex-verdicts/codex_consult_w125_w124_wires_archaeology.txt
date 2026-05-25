@@ -1,0 +1,30 @@
+ROLE: GPT-5.5 cross-model architect reviewing Wave 124-WIRES safe-sequence design
+
+CONTEXT:
+- Runtime: Z:/claude-sota-installed/.claude/settings.json (current 459 lines)
+- Wave 124 batch already cite-imported 6 codex hooks (codex_failure_audit + codex_mcp_healthcheck + codex_review_thread_bridge + codex_review_trace + codex_stop_review_gate + codex_stuck_detector)
+- 4 of 6 already wired: codex_failure_audit (PostToolUseFailure Bash matcher), codex_mcp_healthcheck (PostToolUse Edit|Write|MultiEdit), codex_postcommit_review/codex_prepush_review (PostToolUse Bash matcher with if conditions)
+- Wave 124-WIRES needs to add 6 more wire entries:
+  1. PostToolUse Bash 5th hook (codex_review_trace.py) — async true, timeout 5
+  2. PostToolUse Agent matcher NEW (codex_review_trace.py) — async true, timeout 5
+  3. SubagentStop 2nd hook (codex_review_trace.py) — async true, timeout 5
+  4. Stop 4th hook (codex_stop_review_gate.py) — sync false, timeout 900
+  5. Stop 5th hook (codex_stuck_detector.py) — async true, timeout 10
+  6. UserPromptSubmit NEW event block (codex_stuck_detector.py) — async true, timeout 10
+  7. SessionStart 2nd hook (codex_review_thread_bridge.py) — async true, timeout 10
+
+CURRENT EEE STATE:
+L206-L251 PostToolUse: Bash matcher (4 hooks: codex_postcommit/prepush *2 each), Edit|Write|MultiEdit matcher (1 hook: codex_mcp_healthcheck)
+L267-L289 Stop: matcher='*' has 3 hooks (auto_proceed_gate sync 5s, commit-on-stop-throttled.sh timeout 60, openai-codex stop-review-gate-hook.mjs timeout 300)
+L290-L302 SubagentStop: matcher='*' has 1 hook (subagent_stop_telemetry.py async 5s)
+L303+ SessionStart: matcher='*' (openai-codex session-lifecycle-hook.mjs)
+NO UserPromptSubmit event block exists.
+
+QUESTIONS:
+1. SAFE-SEQUENCE: ordered Edit plan — which Edit goes first, last, why? (the 6 wire additions can land in 1 commit OR sequential)
+2. BUS-FACTOR: any single-author / single-source / single-platform dependencies?
+3. W124-A5 SAFETY: codex_stop_review_gate.py is sync 900s on Stop event — risks running unbounded codex T6 review at session-close; should env-knob CODEX_STOP_REVIEW_GATE_DRY_RUN=1 land BEFORE wire flip OR same atomic commit?
+4. STOP-EVENT ORDERING: Stop already has 3 hooks; adding 4th sync 900s + 5th async 10s. What's the right slot order? (A5 before/after existing hooks)
+5. VERIFY: any obvious Mia-OVER risks in the proposed wire shapes vs sibling reference?
+
+OUTPUT: VERDICT line + 3-5 prescribed_edits (specific) + 1 safety contract for A5 wire

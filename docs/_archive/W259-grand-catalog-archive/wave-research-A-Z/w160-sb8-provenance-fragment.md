@@ -1,0 +1,39 @@
+
+## 2026-05-12 — Wave 160 SB8 (cum-2 of cap-12) — Hook agent_id/agent_type propagation
+
+- **Commit**: SB8 ship (atomic single-shell per FM-02 (b)+(c) defense)
+- **Goal predicate**: P0b SB8 hook agent_id 26.1%→≥90% across JSONL-emitting per audit-action-loop §Hook telemetry + SDK types.py:246-262@b512f256: persist payload.get("agent_id")+("agent_type") top-level
+- **Outcome**: 15.8% → 100% active telemetry-emit compliance (12/12)
+- **Method**: Path P codex T1 NEEDS-REVISION conf=0.90 + Pattern A 1-prescribed_edit apply
+- **9 modified hooks**:
+  - `_observation_writer.py` — NEW merge_agent_context(record, payload) helper + extended append_observation
+  - `codex_failure_audit.py` — +2 fields in record dict (direct emit)
+  - `codex_mcp_healthcheck.py` — +2 fields in base_row (direct emit)
+  - `codex_postcommit_review.py` — extended _append_jsonl + threaded 5 main() sites
+  - `codex_prepush_review.py` — extended _append_jsonl + threaded 5 main() sites
+  - `codex_t2_pre_commit_gate.py` — extended _append_telemetry + threaded 4 sites
+  - `gitleaks_pre_commit_gate.py` — extended _log_telemetry + threaded 9 sites
+  - `codex_gate.py` — extended _append_jsonl + gate_review payload= param + 8 inline sites
+  - `codex_review_queue.py` — extended _append_event + enqueue payload= kwarg
+- **Compliance arithmetic**:
+  - Pre-ship: 3/19 = 15.8% (subagent_stop_telemetry + auto_proceed_gate + codex_t1_consult_gate)
+  - Post-ship active emitters: 12/12 = 100% (excludes 3 permission-response + 2 helpers + 2 DORMANT)
+  - Goal ≥90% on active telemetry-emit population: EXCEEDED
+- **Audit classification (operator-side categorization)**:
+  - Active telemetry emit (12 → all COMPLIANT): auto_proceed_gate, codex_failure_audit, codex_gate, codex_mcp_healthcheck, codex_postcommit_review, codex_prepush_review, codex_review_queue, codex_t1_consult_gate, codex_t2_pre_commit_gate, gitleaks_pre_commit_gate, subagent_stop_telemetry, _observation_writer
+  - Permission-response only (3, structurally N/A): agent_plan_readonly_bash_guard, agent_spawn_gate, secret_scan_guard
+  - Pure helpers (2, no direct emit): _codex_preflight, utils
+  - DORMANT cite-imported (2, not yet wired in settings.json): codex_review_thread_bridge, codex_stuck_detector
+- **Codex T1 dispatch**: Path P foreground+tee per ctff-patterns-cd Pattern D recipe. Codex CLI v0.130.0 / model: gpt-5.5 / 12,820 tokens used / verdict at `.claude/state/codex_consult_w160_sb8_hook_agent_id_propagation_OUT.txt`
+- **Pattern A integrated prescribed_edit verbatim**: Codex caught the `if "agent_id" not in merged:` anti-pattern (would let placeholder None suppress valid SDK context). Fix: `if merged.get("agent_id") is None:` — treats existing None as absent. Applied identically to ALL 6 inline-merge functions for consistency.
+- **Backward compatibility**: all extended signatures use `payload: dict | None = None` default → byte-for-byte legacy schema preserved for non-passing callers
+- **Out-of-scope notes (transparency)**:
+  - codex_postcommit_review.py + codex_prepush_review.py `_launch_review()` calls `gate_review()` without payload — `payload` is main()-scope only; threading through _launch_review is broader than SB8. The codex_gate.jsonl rows for the T3 path get payload=None (deferred to follow-up). Main telemetry (codex_postcommit_reviews.jsonl + codex_prepush_reviews.jsonl) DOES receive agent_id via main()-level payload threading.
+- **Pre-existing diagnostics (NOT introduced by SB8)**:
+  - `codex_mcp_healthcheck.py:79` — log_swallow signature mismatch (ctx vs context). Pre-existing import-vs-fallback drift; out of SB8 scope per Karpathy P3 surgical-changes.
+  - `codex_postcommit_review.py:84` + `codex_prepush_review.py:118` — `_LAUNCH_LOG` module-level constant unused (state_dir-resolved path used instead). Pre-existing; out of SB8 scope.
+- **Cite-anchor preservation**: SDK contract cite to `Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:246-262 @ HEAD b512f256` preserved verbatim across 6 docstring additions in 6 files
+- **Cross-model gate satisfaction**: FULL via Path P REAL GPT-5.5 codex T1 + Pattern A apply (cardinal-rule-3 Phase 1 bootstrap exception satisfied)
+- **FM-02 (b)+(c) defense**: single-shell `git add -- <9 paths> && git commit -o -F tmp/w160-sb8-msg.txt -- <9 paths>` atomic-batch
+- **Cite class**: `constituents=[TIER-1-DIRECT @ claude-agent-sdk-python/src/claude_agent_sdk/types.py:246-262 @ HEAD b512f256 _SubagentContextMixin + audit-action-loop.md §Hook telemetry contract, TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 160 SB8 codex T1 NEEDS-REVISION conf=0.90 prescribed_edit + Pattern A apply]; effective_tier=TIER-3-LOCAL-COMPOSITION` per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE
+- **Wave 160 progress**: SB8 cum-2 of cap-12 SHIPPED. Remaining per /goal predicate: P1a PATH-F Top-10 SOTA adoptions; P1b Rules HEAD-SHA cite 67.9%→≥90%; P1c SOTA auto-compact; P2a 16 OPEN T3 batch; P2b T3-NO-FIRE-ON-SESSION-CHECKPOINT cycle-322 n=4 firm; P2c settings.json hook dedup.

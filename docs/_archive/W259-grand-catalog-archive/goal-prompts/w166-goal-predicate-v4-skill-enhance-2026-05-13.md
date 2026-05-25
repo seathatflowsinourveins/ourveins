@@ -1,0 +1,19 @@
+/goal W166 advanced-automation-convergence-PARALLEL: extend W165 STOP-4of5 (codex T1-T7 ALREADY-WIRED per manifest §2 W156 F1 — cross-model gate MECHANICALLY ENFORCED). Parallel-session-tracking: pre-dispatch `ps -ef|grep claude` + TaskList + `git status` per coordination.md §4 BEFORE each Agent + per-priority `mcp__graphiti__add_memory(group_id=eee)` + `mcp__memory__memory_store_session(tag=W166-PN)` cross-session memory per parallel-sessions.md P1-P15 + Karpathy §5 3-layer wiki. Advance STOP-5of5 via 5 parallel priorities + R1-R4 + REAL GPT-5.5 BRIDGE-MODE ≥2.
+
+P0 W165 Top-3 INSTALL CR-6 (atomic `git add -- <f> && git commit -o -F msg -- <f>` FM-02.b): (a) shell-scripting, (b) gitnexus-pr-review (P4+P5), (c) protect-mcp (P6+P7.b). Per install: T1 NARROW 60-120s FD#2 → Pattern A → T2 → §3 + provenance + graphiti tag=install.
+
+P1 CR-8 §11+§11.5+§13 audit-coverage (F29-reframe 21/85=24.7%→≥45%): 3 parallel NARROW codex T1 per FD#2; §13 table-shape FM-20 via table-normalize before Pattern A; FM-20 n=8→n=9 if new sub-class.
+
+P2 14-repo line-by-line convergence audit via 4-agent BRIDGE-MODE max-3-concurrent staggered §CADP + `Agent({isolation:worktree})`: wshobson/agents, abhigyanpatwari/GitNexus, quemsah/awesome-claude-plugins, Shubhamsaboo/awesome-llm-apps, forrestchang/andrej-karpathy-skills, mattpocock/skills, hesreallyhim/awesome-claude-code, alirezarezvani/claude-skills, gsd-build/get-shit-done, vercel-labs/agent-skills, affaan-m/everything-claude-code, shanraisshan/claude-code-best-practice, vinta/awesome-python, ComposioHQ/awesome-claude-skills — extract auto-compact + memory + hooks + parallel-git + goal-synthesis patterns; ≥3-distinct-orgs Axis-1+2+3 + per-repo 6-Probe-DAG + SRA D1-D10; ARTIFACT-INLINE FM-19; FM-22 classify codex-readonly refuse before stand-in accept.
+
+P3 Karpathy §5 5-surface + post-compact + SKILL-ENHANCE: every fire MUST mcp__memory__memory_store_session(tag=W166-PN) + mcp__graphiti__add_memory(group_id=eee) verify hash + MEMORY.md L2 atomic-append (REFUTES W164 F22-F36 + FM-20.7); post-compact: measure `/context` % + paths-glob + MEMORY.md L2 + last-3 close (CCBP claude-memory.md:34-40 @ 48f2ceb); ENHANCE `.claude/skills/goal-prompt-synthesis/SKILL.md` via P2 cite-imports (mattpocock skill-format + vercel-labs composition + obra writing-skills + CCBP RPI); FM-16 phantom-cite probe rtk-ai__rtk + serena.
+
+P4 observability + Path P 4-repo: W164 F39 Stack B Langfuse UNWIRED → `.mcp.json` per CR-6; Stack C OTel; W165 Agent B FM-17.e → Path P single-repo per-dispatch FD#2; ANY concurrent ship → `eee --worktree` per Boris-Cherny + jj-vcs + OpenAI codex (3-org Axis-1 PASS).
+
+MANDATES: CR-1/5/6/8/9/10/11/12; multi-source≥4 + Probe DAG 1-7 + Axis-1+2+3 + SRA D1-D10; Mia pre-apply EVERY (n=108+); Pattern A narrow `--only` FM-02.b; ARTIFACT-INLINE FM-19; FM-17.d 90s codex (120s/180s reason); FM-17.e/f ctx_execute_file + Path P/D bypass; FM-20 decompose-per-claim; FM-21.b STATE PROBE + FM-22 classify-before-accept; forward-only §6; per-priority 5-surface + graphiti + mcp-memory.
+
+UNLEASH: BRIDGE-MODE ≥2 codex CLI deep-review-exec; Path P foreground+tee on FM-17; bypassPermissions ACTIVE per W82d; Docker full incl restart/start/exec/logs; CR-7 Phase 2 (c) Tier 1a SATISFIED; P1-P15 auto-invoke.
+
+REPORT/SHIP: tmp/wave166-*.md ARTIFACT-INLINE; close tmp/wave166-close-2026-05-13.md; MEMORY.md L2 + 5-surface verify + graphiti hash + mcp-memory tag; provenance Wave-166 rows; commit cites codex T1/T2/T3 + [VERIFIED via <path>].
+
+STOP: W166 closes ≥4-of-5 MET (P0 ≥2/3, P1 ≥45%, P2 ≥10/14, P3 5-surface + SKILL-ENHANCE, P4 ≥1 obs); coverage % MEMORY.md ladder; FM-20 mirror new sub-class; cross-model FULL via codex T1 Pattern A each ship; FM-02/21/22 zero absorption-or-stale-or-misclassify + 5/5 memory-backend-hashes iter-close.

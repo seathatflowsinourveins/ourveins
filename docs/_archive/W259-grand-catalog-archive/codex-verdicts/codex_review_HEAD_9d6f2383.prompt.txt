@@ -1,0 +1,207 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 9d6f2383a24b0552e614cd7969c929968e04a231
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/_guard_base.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+=== git show --format=fuller ===
+commit 9d6f2383a24b0552e614cd7969c929968e04a231
+Author:     42 <42@local>
+AuthorDate: Sat May 9 19:16:22 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 19:16:22 2026 -0400
+
+    fix(t3-tier-b-defense-in-depth): collapse Bash line-continuation `\<newline>` in git_verb_matches preprocessor (Ship I sister)
+    
+    Wave 130 Fire 3 Ship K — Tier-B defense-in-depth fix-forward closes Task #95. Closes Bash line-continuation `\<newline>` segment-prefix mismatch identified by Wave 130 Fire 3 Agent C (`acd5f0af`) in Ship A-FIX `6eb1a52` JSONL row at 20:47:50Z.
+    
+    ==== Failure mode (Tier-B sub-class — line-continuation chains) ====
+    
+    Bash line continuation `\<newline>` is a SHELL-PARSE-time construct: shell consumes the `\<newline>` and joins lines. But CC presents the PRE-shell-parse cmd literal to PostToolUse hooks. Hook receives:
+    
+    ```
+    git -C path add -- file && \<newline>git -C path commit -F msg
+    ```
+    
+    Where `\<newline>` is 2 literal chars: single backslash (chr(92)) + newline (chr(10)).
+    
+    After Ship I's `re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip())`:
+    - Segment 1: `git -C path add -- file`
+    - Segment 2: `\<newline>git -C path commit -F msg`
+    
+    `seg.strip()` removes trailing `\n` whitespace but leading `\` is NOT whitespace → preserved. Result: segment 2 starts with `\` → `seg.startswith("git ")` False → SKIP → `git_verb_matches` returns False.
+    
+    Ship I's rtk-prefix strip doesn't catch this because `\` isn't the `rtk ` prefix.
+    
+    ==== Fix: 1 surgical Edit at _guard_base.py:368 ====
+    
+    Pre-process cmd to collapse `\<whitespace>` line continuations BEFORE re.split:
+    
+    ```python
+    +    # Collapse Bash line continuations `\<newline>` to single space (Wave 130 Fire 3
+    +    # Tier-B defense-in-depth — `&&` chain with `\<newline>` continuation produces
+    +    # segment-2 starting with literal `\` non-whitespace breaking segment prefix
+    +    # check; CC presents pre-shell-parse cmd literal so backslash-newline survives
+    +    # to hook-input. Sister to RTK-strip below for compound-chain coverage).
+    +    cmd = re.sub(r"\\\s*\n\s*", " ", cmd)
+         for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+    ```
+    
+    Regex `\\\s*\n\s*` matches: literal `\` + optional whitespace + literal `\n` + optional whitespace. Replaces with single space. Subsequent `&&` split sees clean segments.
+    
+    ==== Smoke-test 12/12 PASS (chr-based unambiguous test data) ====
+    
+    ```
+    PASS: 'git -C path add -- file && \\\ngit -C path commit -F msg' = True  ← Tier-B NEW
+    PASS: 'rtk git -C path add && \\\nrtk git -C path commit -F msg' = True  ← Tier-B + rtk
+    PASS: 'git add -- foo && \\\n\tgit commit -m msg' = True  ← tabbed continuation
+    PASS: 'echo foo && \\\necho bar' = False  ← negative case
+    PASS: 'rtk git -C Z:/claude-sota-installed commit ...' = True  ← Ship I regression
+    PASS: 'rtk git -C path add && rtk git -C path commit ...' = True  ← compound chain
+    PASS: 'git -C path commit -m msg' = True  ← existing behavior
+    PASS: 'git commit -m msg' = True  ← existing behavior
+    PASS: 'git push origin main' = True  ← push verb
+    PASS: 'rtk' = False  ← edge: lone token
+    PASS: 'cat foo.txt' = False  ← edge: non-git
+    PASS: 'rtk somethingelse' = False  ← edge: rtk + non-git
+    ```
+    
+    ZERO regressions on Ship I + ZERO regressions on existing behavior. Tier-B `\<newline>` failure case + Tier-B rtk + line-continuation combination + tabbed continuation all FIXED.
+    
+    ==== Pattern A discipline (no separate codex T1) ====
+    
+    This Ship K is scope-extension of the SAME Tier-B fix lineage (Ship I + Ship K both at `_guard_base.py:367+`) for the SAME root cause class (CC pre-shell-parse cmd literal causes segment-prefix mismatch). Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A: same-shape extensions don't require separate T1 — Ship I's smoke-test pattern + this Ship K's 12/12 isolated smoke-test + post-commit T3 review serve as cross-model verification. T3 codex review fires on commit per Pattern A self-validation discipline (Ship H + Ship I + Ship J + this Ship K all carry same shape).
+    
+    ==== Mia pre-apply ladder n=91 → n=92 (catch this fire) ====
+    
+    #92 (this fire pre-apply): initial smoke-test had `\\\\\n` in Python source which is `\\` + newline (3 chars: 2 backslashes + 1 newline) NOT actual Bash line continuation (single backslash + newline = 2 chars). Real Bash line continuation in Python source needs `\\\n` (3 chars source = `\` + newline = 2 chars value). Caught when smoke-test failed 9/11 — moved to chr(92) + chr(10) for unambiguous test data; achieved 12/12 PASS. Forward-only n-counter discipline per `port-note-discipline.md §5 Discipline 4`.
+    
+    ==== Tier-A + Tier-B convergence COMPLETE ====
+    
+    | Layer | Fix | Wave 130 Fire 3 Ship | Coverage |
+    |---|---|---|---|
+    | Tier-A PostToolUse[0] | `Bash(*git ...)` widening | Ship H sha 2b3ff4f | T3 + T4 hook dispatch |
+    | Tier-B `_guard_base.py` rtk-strip | `if seg.startswith("rtk "): seg = seg[4:].lstrip()` | Ship I sha 4a49994 | rtk-prefix internal check |
+    | Tier-A PreToolUse[6] | `Bash(*git ...)` scope-extension | Ship J sha fa9b3d4f | T2 + gitleaks hook dispatch |
+    | Tier-B `_guard_base.py` line-cont | `re.sub(r"\\\s*\n\s*", " ", cmd)` | Ship K (this commit) | `\<newline>` chains internal check |
+    
+    ALL Tier-A + Tier-B failure modes for git-verb matching now CLOSED.
+    
+    ==== CR conformance ====
+    
+    - **CR-1 cite-trail**: same Wave 130 Fire 3 lineage (Agent C JSONL evidence at Ship A-FIX 6eb1a52 + RTK auto-rewrite mechanism) carries forward; Pattern A scope-extension per `codex-t1-fix-forward-pattern.md`
+    - **CR-3 cross-model gate**: Pattern A scope-extension per Ship I/J precedent — T3 post-commit hook now fully operational (Ship I + J both validated by codex T3 APPROVE); this commit's own T3 dispatch validates Ship K end-to-end
+    - **CR-5 install-priority**: cite-import-AMBER NOT applicable
+    - **CR-8 full-SOTA-content**: ADAPTED-FROM-SOTA — `re.sub` line-continuation collapse is canonical Python idiom; Bash line-continuation semantic is POSIX standard
+    - **CR-9 install-risk**: LOW (additive 7-line patch in single function; preserves all existing behavior; ZERO regressions on smoke-test 12/12)
+    - **CR-11 META-process**: Wave 130 Fire 3 Ship K = Phase 4 systematic-debugging Implementation per superpowers:systematic-debugging skill + Mia pre-apply n=92 + Pattern A scope-extension
+    
+    ==== Outstanding queue (post-Ship K) ====
+    
+    - Task #95 (this commit closes): Tier-B `\<newline>` segment splitter
+    - Task #91 still pending: sibling fm17 backport (sibling-context fire)
+    - Task #92 still pending: fm17 multi-file taxonomy split (LOC ceiling exceeded)
+    - Task #45/#47/#61/#87/#88 pre-existing queue items
+    
+    VERDICT (this commit): Tier-B defense-in-depth complete per Pattern A. Combined with Ship H + I + J, full Tier-A + Tier-B coverage of CC-dispatch path closed.
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/_guard_base.py b/.claude/hooks/scripts/_guard_base.py
+index 038ca40..2fa3d9b 100644
+--- a/.claude/hooks/scripts/_guard_base.py
++++ b/.claude/hooks/scripts/_guard_base.py
+@@ -366,6 +366,12 @@ def git_verb_matches(cmd: str, verb: str) -> bool:
+     import shlex
+     if not cmd or not isinstance(cmd, str):
+         return False
++    # Collapse Bash line continuations `\<newline>` to single space (Wave 130 Fire 3
++    # Tier-B defense-in-depth — `&&` chain with `\<newline>` continuation produces
++    # segment-2 starting with literal `\` non-whitespace breaking segment prefix
++    # check; CC presents pre-shell-parse cmd literal so backslash-newline survives
++    # to hook-input. Sister to RTK-strip below for compound-chain coverage).
++    cmd = re.sub(r"\\\s*\n\s*", " ", cmd)
+     for seg in re.s
+
+[prompt truncated]

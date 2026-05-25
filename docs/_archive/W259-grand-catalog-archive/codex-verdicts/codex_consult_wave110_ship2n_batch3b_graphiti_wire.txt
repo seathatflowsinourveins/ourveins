@@ -1,0 +1,142 @@
+T1 PRE-COMMIT CONSULT — Wave 110 Ship 2N-batch3-B — graphiti MCP wire with Ollama embeddings + FalkorDB backend
+
+USER MANDATE: "we need all repos set up via the official sota methods" + "your decisions with research, log evaluation and audit, our aim the max performance unleashed with sota harness" + "in terms of ollama we may only need it for the mcps such as cognee etc"
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Wave 100 Ship 2P 2026-05-08 commit b6dc7e5) — NO --sandbox=read-only flag; profile default danger-full-access. Per Ship 2X SRA cross-model T1 mandate (.mcp.json + settings.json env additions = design surface).
+
+==========================================
+ORIGIN — multi-wave research convergence
+==========================================
+Wave 105 Agent C P0-2: graphiti MCP unwired (Mia probe `grep graphiti .mcp.json` = 0 matches)
+Wave 110 Agent F: cognee REJECT-FOR-FIT (SUPERSEDED-BY-X — duplicates graphiti L3 temporal-KG)
+Wave 110 Agent F finding: graphiti FULLY supports Ollama (verified upstream README L183 + METADATA L598-639 `api_key="ollama"` placeholder)
+Wave 110 Mia probe: eee Ollama @ :11700 has qwen3-embedding:0.6b (1024-dim) + qwen3.6:35b LLM models ready
+Wave 110 Agent G: FalkorDB at :16379 KEEP-REFERENCE (parent CCC compose-managed; eee will share)
+
+OPERATOR-CONFIRMED LANE: "Ollama only for MCPs such as cognee" — graphiti is cognee-class L3 KG MCP, so Ollama embedding lane is appropriate.
+
+==========================================
+TIER-1 CITES
+==========================================
+- Z:/repos/deps/graphiti/mcp_server/README.md @ HEAD (verified 2026-05-09):
+  L23: "Multiple backend options including FalkorDB (default) and Neo4j"
+  L62-68: "Start the combined FalkorDB + MCP server using Docker Compose (recommended)"
+  L183: api_key="ollama" placeholder pattern
+- Z:/repos/deps/graphiti/mcp_server/config/config-docker-falkordb.yaml (standalone FalkorDB config; HTTP transport :8000)
+- Z:/repos/deps/graphiti/mcp_server/config/config-docker-falkordb-combined.yaml (combined container; bundled FalkorDB+MCP)
+- Z:/repos/deps/graphiti/mcp_server/config/mcp_config_stdio_example.json (stdio MCP entry shape — official upstream example)
+- graphiti-core 0.29.0 installed at Z:/claude-sota-installed/.local/graphiti/ (eee local; pyproject.toml L4)
+
+==========================================
+THREE INSTALL PATH OPTIONS — codex must choose
+==========================================
+
+**PATH A — Combined Docker Container (graphiti's "recommended" SOTA per README L62-68)**:
+- `cd Z:/claude-sota-installed/.local/graphiti && docker compose up -d` (uses bundled compose; runs FalkorDB+MCP in single container at port 8000 HTTP)
+- HTTP MCP transport (not stdio); .mcp.json entry as `type: "http"` URL `http://127.0.0.1:8000/mcp`
+- BUT current eee compose ships Neo4j by default (read graphiti compose at .local/graphiti/docker-compose.yml — `db_backend=neo4j`, depends_on neo4j); FalkorDB profile is opt-in (`profiles: ["falkordb"]`)
+- Cross-harness conflict: parent CCC already runs FalkorDB at host :16379 → container :6379. Graphiti compose would bind FalkorDB at :6379 (host). Either port-conflict OR runs second FalkorDB instance.
+- Pro: "Recommended" upstream
+- Con: complex Docker compose orchestration; cross-harness FalkorDB conflict; new HTTP service
+
+**PATH B — Standalone Python via uv (stdio MCP, reuse parent's FalkorDB)**:
+- `uv run --directory Z:/claude-sota-installed/.local/graphiti/mcp_server main.py --transport stdio`
+- stdio MCP entry; reuses parent CCC's existing FalkorDB :16379 (no new container)
+- env block: FALKORDB_URI=redis://127.0.0.1:16379 + OPENAI_API_KEY=ollama + OPENAI_API_URL=http://127.0.0.1:11700/v1 + MODEL_NAME=qwen3.6:35b + EMBEDDER_MODEL=qwen3-embedding:0.6b + GRAPHITI_GROUP_ID=eee
+- Pro: minimal cross-harness state mutation; no new containers; no port conflicts
+- Con: uv install dependency; requires `uv` on PATH
+
+**PATH C — Hybrid (HTTP transport pointing at standalone Python)**:
+- Run `uv run main.py --transport http` (HTTP at :8000)
+- .mcp.json HTTP entry pointing at :8000
+- Pro: HTTP transport matches Wave 79 token-opt synthesis recommendation
+- Con: needs background process management (Start-Process or service)
+
+==========================================
+RECOMMENDED DECISION (research-backed)
+==========================================
+**PATH B — stdio Python via uv** because:
+- (1) No cross-harness Docker conflict (parent CCC's FalkorDB stays exclusive owner of :16379)
+- (2) stdio MCP is simplest .mcp.json shape (matches existing serena + memory pattern)
+- (3) `uv run` per upstream stdio_example.json IS the official-upstream-docs path for non-Docker install
+- (4) Reuses parent's FalkorDB → no data duplication; eee just adds graph data via group_id="eee" namespacing
+- (5) Avoids Wave 110 Mia OVER #31-33 lessons (avoid cross-harness state mutation)
+
+==========================================
+PROPOSED EDIT (PATH B — atomic JSON to .mcp.json)
+==========================================
+Add `graphiti` entry to .mcp.json:mcpServers (after "memory" entry):
+
+```json
+    "graphiti": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "Z:/claude-sota-installed/.local/graphiti/mcp_server",
+        "main.py",
+        "--transport", "stdio"
+      ],
+      "env": {
+        "FALKORDB_URI": "redis://127.0.0.1:16379",
+        "FALKORDB_PASSWORD": "",
+        "FALKORDB_DATABASE": "default_db",
+        "OPENAI_API_KEY": "ollama",
+        "OPENAI_API_URL": "http://127.0.0.1:11700/v1",
+        "MODEL_NAME": "qwen3.6:35b",
+        "EMBEDDER_MODEL": "qwen3-embedding:0.6b",
+        "EMBEDDER_DIMENSIONS": "1024",
+        "GRAPHITI_GROUP_ID": "eee",
+        "SEMAPHORE_LIMIT": "3"
+      }
+    }
+```
+
+Update _comment field with Wave 110 Ship 2N-batch3-B citation.
+
+==========================================
+SRA D1-D10 SCORING (graphiti wire PATH B)
+==========================================
+- D1 license-use-class: PASS (graphiti Apache-2.0; library-link via Python; permissive)
+- D2 freshness: PASS (graphiti-core 0.29.0 active; recent commits)
+- D4 maintainer: TIER-1-OFFICIAL getzep + named-T2 contributors
+- D5 active maintenance: PASS (active commit cadence; pip releases)
+- D6 use-class compatibility: PASS (L3 temporal-KG MCP for autonomous /loop runtime; FalkorDB Redis-based no Java deps)
+- D7 Anthropic-policy: PASS (stdio MCP per CC docs convention)
+- D9 failure-mode awareness: NEUTRAL (Ollama-local LLM may be slow for entity extraction; SEMAPHORE_LIMIT=3 mitigates)
+- Convergence verdict: 9-10 + critical D1+D6 PASS = INSTALL
+
+==========================================
+CR-9 INSTALL-RISK ANALYSIS
+==========================================
+- LOW-MEDIUM (.mcp.json additive entry; reversible via revert; graphiti MCP server only spawns when Claude invokes; no always-on background process)
+- 2-round fix-forward expectation: Pattern A apply if NEEDS-REVISION
+- Cross-harness consideration: graphiti writes to parent's FalkorDB. Wave 110 lesson: prefer NOT writing to parent state. Mitigation: GRAPHITI_GROUP_ID=eee namespaces graph data so parent + eee can co-exist on same FalkorDB without collision.
+- Ollama load consideration: qwen3-embedding:0.6b lightweight (609MB); qwen3.6:35b heavier — may saturate Ollama under heavy graphiti use. SEMAPHORE_LIMIT=3 throttles concurrency.
+
+==========================================
+QUESTIONS (JSON ONLY)
+==========================================
+1. Path A (combined Docker) vs Path B (stdio Python) vs Path C (HTTP standalone) — which is most "official SOTA" per upstream README?
+2. .mcp.json entry shape correct? `uv run --directory <path> main.py --transport stdio`
+3. Env var names correct? Verified:
+   - OPENAI_API_KEY=ollama (placeholder per upstream)
+   - OPENAI_API_URL=http://127.0.0.1:11700/v1 (Ollama OpenAI-compat endpoint)
+   - MODEL_NAME=qwen3.6:35b (Ollama LLM)
+   - EMBEDDER_MODEL=qwen3-embedding:0.6b (Ollama embedding)
+   - EMBEDDER_DIMENSIONS=1024 (qwen3-embedding:0.6b dim per ollama show probe)
+   - FALKORDB_URI=redis://127.0.0.1:16379 (parent CCC's FalkorDB)
+   - FALKORDB_DATABASE=default_db
+   - GRAPHITI_GROUP_ID=eee (namespace for cross-harness coexistence)
+   - SEMAPHORE_LIMIT=3 (Ollama throttle)
+4. Should EMBEDDER_DIMENSIONS be passed via env OR via config.yaml? Per config-docker-falkordb.yaml `dimensions: 1536` default — env-override mechanism unclear; should we pass `--config <custom>.yaml` instead?
+5. Cross-harness FalkorDB sharing safe via group_id namespace?
+6. Should LLM model be qwen3.6:35b (largest, slowest) vs qwen3-coder:30b vs devstral-small-2:24b vs gemma4:26b? For graphiti entity extraction, judgment-class model preferred — qwen3.6:35b IS the judge-tuned model.
+7. Need uv installed on PATH? `which uv` should return; if not, prereq `pip install uv` or chocolatey install.
+8. Should GROUP_ID="eee" or "claude-sota-installed-runtime" or other? Affects graph data namespacing.
+9. Risk: graphiti MCP server may spawn long-running entity-extraction calls that hold Ollama for minutes → blocks parallel agent ops. Mitigation needed?
+10. Backup path: if PATH B fails, fall back to PATH A (combined Docker) OR document graphiti as "DEFERRED until Ollama LLM throughput verified"?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

@@ -1,0 +1,18 @@
+CODEX T1 RETROACTIVE — narrow single-edit review
+
+Edit: .mcp.json memory entry command swap
+- BEFORE: "command": "Z:/venvs/claude/Scripts/mcp-memory-server.exe", "args": []
+- AFTER:  "command": "Z:/venvs/claude/Scripts/memory.exe", "args": ["server"]
+
+Reason: mcp-memory-server.exe is HTTP transport (StreamableHTTP); .mcp.json memory entry uses "type": "stdio" which requires stdio MCP transport. Per upstream warning emitted at runtime, stdio clients must use either:
+  - memory server (subcommand of memory CLI)
+  - python -m mcp_memory_service.server
+
+Verified via runtime smoke-probe: mcp-memory-server.exe spawned a FastAPI HTTP server on 127.0.0.1:8000 — wrong transport for CC's stdio MCP path.
+
+Q1: Is "memory.exe server" the correct stdio entry point per upstream doobidoo/mcp-memory-service v10.51.3?
+Q2: Risk ranking 0-10 for this single-field config swap?
+Q3: Any prescribed_edits?
+
+OUTPUT_BUDGET: 100 LOC. Cite verbatim if any prescription.
+VERDICT: APPROVE / NEEDS-REVISION + prescribed_edits / BLOCK

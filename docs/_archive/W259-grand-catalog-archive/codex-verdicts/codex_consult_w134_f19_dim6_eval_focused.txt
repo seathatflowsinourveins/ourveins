@@ -1,0 +1,74 @@
+You are GPT-5.5 with codex CLI. Audit 3 specific architectural claims about Dim 6 (Eval / Observability) in eee runtime against SOTA references + identify SOTA gaps.
+
+## Subject (eee runtime state)
+- promptfoo scaffold: `Z:/claude-sota-installed/evals/promptfooconfig.yaml`
+- DeepEval scaffold: `Z:/claude-sota-installed/evals/deepeval/` (README.md + test_smoke.py)
+- Codex review JSONL: `Z:/claude-sota-installed/.claude/state/codex_postcommit_reviews.jsonl` (428K) + `codex_prepush_reviews.jsonl` (333K) + per-commit `codex_review_HEAD_*.stream.jsonl`
+- openlit / Phoenix / Langfuse: STATUS UNCERTAIN — probe via `pip list` (Z:/venvs/claude) OR `docker ps` for containers
+
+## SOTA references
+- promptfoo official docs: `https://www.promptfoo.dev/docs/`
+- DeepEval upstream: `confident-ai/deepeval @ v4.0.0`
+- openlit: `openlit/openlit` (Apache-2.0 OTel-native observability)
+- Arize Phoenix: `Arize-ai/phoenix`
+- Langfuse: `langfuse/langfuse`
+- Ragas: `explodinggradients/ragas`
+
+## Claim 1 — promptfoo + DeepEval eval scaffolds operational
+The eee runtime has both eval scaffolds installed per Wave 119 Ship 5 + Wave 121 Ship 2:
+- promptfoo 0.121.11 (npm-global) + scaffold at `evals/promptfooconfig.yaml` (~50 LOC YAML)
+- DeepEval 4.0.0 (PyPI) + scaffold at `evals/deepeval/test_smoke.py`
+
+Probe: read both files; verify CR-9 install-risk compliance (version-pinned vs @latest); verify scaffolds reference upstream cite
+
+Output: VERIFIED-OPERATIONAL if both scaffolds present with proper cite + version-pin, PARTIAL if one missing or stale, REFUTED if neither present
+Cite specific file:line evidence
+
+## Claim 2 — Codex review JSONL audit-trail producing observable signals
+Per `Z:/claude-sota/.claude/rules/audit-action-loop.md` + `cross-model-consensus.md`, the codex T3/T4 hooks produce postcommit + prepush review JSONL streams.
+
+Probe: count entries in `codex_postcommit_reviews.jsonl` + `codex_prepush_reviews.jsonl`; verify schema (timestamp, sha, verdict, confidence); identify last 5 entries' verdict distribution
+
+Output: VERIFIED-OBSERVABLE if signals present + parseable + recent (≤30d), PARTIAL if some gap, REFUTED if empty/broken
+Report entry counts + recent-verdict distribution
+
+## Claim 3 — Observability gap analysis (SOTA primitives MISSING from eee)
+Compare eee Dim 6 inventory against SOTA observability primitives:
+- OpenTelemetry traces (openlit OTel-native)
+- LLM-call tracing (Phoenix / Langfuse / Helicone)
+- Eval-result dashboards (promptfoo view / DeepEval Confident dashboard / Langfuse traces)
+- Cost-tracking aggregation (ccusage / openlit)
+- Pass-rate gates (evolve_pass_rate_gate.py — per Wave 119 Ship 5 closure)
+
+Probe: identify which SOTA observability primitives are INSTALLED vs MISSING in eee runtime; report gaps with severity (P0 missing-load-bearing / P1 missing-nice-to-have / P2 already-covered-differently)
+
+Output: list MISSING primitives + severity classification + recommended install priority
+
+## Output schema (JSON at EOF)
+Emit verbatim at EOF:
+VERDICT_JSON_AT_EOF:
+{
+  "claim_1_eval_scaffolds": {
+    "status": "VERIFIED-OPERATIONAL|PARTIAL|REFUTED",
+    "promptfoo_scaffold_present": <bool>,
+    "deepeval_scaffold_present": <bool>,
+    "version_pin_correct": <bool>,
+    "evidence_summary": "<1-line>"
+  },
+  "claim_2_codex_jsonl_audit": {
+    "status": "VERIFIED-OBSERVABLE|PARTIAL|REFUTED",
+    "postcommit_entries": <int>,
+    "prepush_entries": <int>,
+    "recent_verdict_distribution": "<1-line>",
+    "evidence_summary": "<1-line>"
+  },
+  "claim_3_observability_gaps": {
+    "status": "AT-SOTA|SOTA-WITH-GAPS|MAJOR-GAP",
+    "installed_primitives": ["promptfoo", "deepeval", "codex-jsonl", "..."],
+    "missing_primitives_p0": ["..."],
+    "missing_primitives_p1": ["..."],
+    "missing_primitives_p2": ["..."]
+  },
+  "overall_dim6_verdict": "AT-SOTA|SOTA-WITH-GAPS|NEEDS-REVISION|MAJOR-GAP",
+  "confidence": 0.0-1.0
+}

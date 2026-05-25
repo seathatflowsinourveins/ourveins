@@ -1,0 +1,1855 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e0a6f-01ec-7911-8be3-d46a0089424b
+--------
+user
+T1 PRE-COMMIT CONSULT — Wave 105 Ship 2N-batch3-A — wire safety_guard.py + agent_plan_readonly_bash_guard.py PreToolUse:Bash hooks (P0 SAFETY)
+
+USER MANDATE: "make sure all sota optimization applied without harming the sota performance" + "we need full advanced unleash of all performance, foundation level, and beyond" + "don't ignore any hidden fallback or errors"
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Wave 100 Ship 2P 2026-05-08 commit b6dc7e5) — NO --sandbox=read-only flag; profile default danger-full-access. Per Ship 2X SRA cross-model T1 mandate (any safety-floor change to PreToolUse hook chain).
+
+==========================================
+ORIGIN
+==========================================
+Wave 105 Agent C (`adea003df2f012855`) feature-coverage audit P0-5 finding + Mia probe verified:
+
+Both scripts EXIST as cite-imports (CR-12 TERTIARY HONEST-NON-FINDING-gated):
+- `.claude/hooks/scripts/safety_guard.py` — 16631B, executable; cite-imported from sibling SHA `32fbcb0d` (Wave 14b); 12-destructive-pattern auto-block (rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd)
+- `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` — 48984B; cite-imported from sibling SHA `f57c74dd` (Wave 14); plan-mode subagent positive-validation allowlist hook scoped to PreToolUse:Bash
+
+BOTH NOT WIRED: settings.json L74 `_comment_allow` mentions both as "safety floor preserved via..." but ZERO PreToolUse hook entries register them. CR-7 Phase 3 destination `bypassPermissions` (current defaultMode per Wave 82d operator override during Anthropic-side classifier outage) lacks mechanical safety-floor enforcement.
+
+==========================================
+CURRENT PreToolUse:Bash CHAIN (block [6])
+==========================================
+Block [6] matcher=`Bash` inner=5 hooks (verified via Python json.load):
+- [6.0] block_no_verify_guard.py (5s sync) — always fires
+- [6.1] gitleaks_pre_commit_gate.py (10s sync) `if: Bash(git commit *)`
+- [6.2] gitleaks_pre_commit_gate.py (10s sync) `if: Bash(git -C * commit *)`
+- [6.3] codex_t2_pre_commit_gate.py (180s sync) `if: Bash(git commit *)`
+- [6.4] codex_t2_pre_commit_gate.py (180s sync) `if: Bash(git -C * commit *)`
+
+==========================================
+PROPOSED WIRE (Ship 2N-batch3-A)
+==========================================
+Insert 2 NEW hooks at TOP of block [6] (BEFORE block_no_verify_guard.py for fail-fast on catastrophic patterns):
+
+NEW [6.0] safety_guard.py (5s sync) — always fires; 12-destructive-pattern auto-block; fail-CLOSED on corruption
+NEW [6.1] agent_plan_readonly_bash_guard.py (8s sync) — always fires; plan-mode subagent positive-validation allowlist (non-plan-mode = pass-through)
+THEN [6.2] block_no_verify_guard.py (5s sync) — existing; renamed slot
+THEN [6.3] gitleaks `if: Bash(git commit *)` (10s)
+THEN [6.4] gitleaks `if: Bash(git -C * commit *)` (10s)
+THEN [6.5] codex_t2 `if: Bash(git commit *)` (180s)
+THEN [6.6] codex_t2 `if: Bash(git -C * commit *)` (180s)
+
+Total chain length: 5 → 7 hooks. Fail-fast ordering on catastrophic patterns.
+
+==========================================
+WIRE RATIONALE
+==========================================
+1. **safety_guard FIRST**: 12-pattern catastrophic deny-list takes priority over all other gates. If `rm -rf /` or `:(){:|:&};:` fork bomb fires, NOTHING else should run.
+2. **agent_plan_readonly_bash_guard SECOND**: plan-mode subagent positive allowlist applies to subagent-spawned Bash. Most invocations are non-plan-mode (operator session) → fast pass-through (~8s timeout but typically <100ms when not in plan mode).
+3. **block_no_verify_guard THIRD**: narrower scope (just --no-verify); after safety+plan-readonly catch broader patterns.
+4. **gitleaks/codex_t2 LAST**: commit-time gates with `if:` conditions; expensive (180s for codex_t2) but only fire on git commit.
+
+==========================================
+SCHEMA EDIT (atomic JSON)
+==========================================
+Two new entries prepended to `.claude/settings.json:hooks.PreToolUse[6].hooks`:
+
+```json
+{
+  "type": "command",
+  "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py",
+  "timeout": 5
+},
+{
+  "type": "command",
+  "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py",
+  "timeout": 8
+},
+```
+
+==========================================
+COMPANION DOCUMENTATION EDIT
+==========================================
+Update `.claude/settings.json:_comment_allow` (currently L74) to remove the misleading "safety floor preserved via safety_guard.py + agent_plan_readonly_bash_guard.py" claim — these are now MECHANICALLY ENFORCED, not just documentary.
+
+NEW comment text: "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor MECHANICALLY enforced via PreToolUse:Bash hooks safety_guard.py + agent_plan_readonly_bash_guard.py at Block[6][0,1] (Ship 2N-batch3-A 2026-05-08); cardinal-rule deny-class still applies."
+
+==========================================
+SRA D1-D10 SCORING
+==========================================
+- D1 license: PASS (Apache-2.0 inheritance via cite-import per CR-12)
+- D2 freshness: PASS (sibling SHA pinned 2026-05-07; current per `port-note-discipline` immutable cite anchor)
+- D4 maintainer: TIER-3-LOCAL-COMPOSITION (sibling-derived; NOT TIER-1 SOTA per cite-class lattice; CR-12 TERTIARY HNF-confirmed at Wave 50 fire 11 row-7)
+- D6 use-class: PASS (PreToolUse:Bash sync hook chain; same use-class as block_no_verify_guard / codex_t2_pre_commit_gate)
+- D7 Anthropic CC policy: PASS (uses official PreToolUse contract — stdin JSON + permissionDecision deny/allow/ask)
+- D9 failure-mode: NEUTRAL → CR-7 Phase 3 SAFETY-FLOOR PROTECTIVE (closes load-bearing gap)
+- Convergence verdict: PASS at TIER-3-LOCAL-COMPOSITION; CR-9 install-risk MEDIUM (touches PreToolUse hook chain; reversible via revert)
+
+==========================================
+CR-9 INSTALL-RISK ANALYSIS
+==========================================
+- MEDIUM (touches PreToolUse hook chain — adds 2 hooks at fail-fast position)
+- 2-round fix-forward expectation: Pattern A apply if NEEDS-REVISION
+- Scripts already cite-import-AMBER per CR-12 TERTIARY (Wave 14 + 14b); this ship transitions to MECHANICALLY-ENFORCED
+- Reversible via `git revert` (single .claude/settings.json edit)
+- No sibling-bleed (zero `Z:/claude-sota/` paths in wire)
+- Pre-cite-import REVERT check passed (these scripts NOT in any prior REVERT-AND-REMOVE list)
+
+==========================================
+QUESTIONS (JSON ONLY)
+==========================================
+1. Wire ordering: safety_guard FIRST → agent_plan_readonly SECOND → block_no_verify_guard THIRD — correct fail-fast prioritization for 12-destructive-pattern auto-block?
+2. Timeouts: safety_guard 5s + agent_plan_readonly 8s — appropriate? (safety_guard is regex deny-list; agent_plan_readonly is positive validator with subagent context resolution)
+3. Both NEW hooks `sync` (no `async: true`) — correct? (must BLOCK; not asyncRewake; per `layered-gates-architecture.md §4 Layer 1` for PreToolUse permission-deny semantic — "Not a substitute for permission-deny semantics — `permissionDecision: deny` is a synchronous PreToolUse-only mechanism")
+4. _comment_allow update text — accurately reflects new MECHANICALLY-ENFORCED state?
+5. Should we ALSO add an `if:` condition narrowing to specific Bash patterns? Or keep matcher=`Bash` always-fires for catastrophic-pattern coverage breadth?
+6. Both scripts return `permissionDecision: "deny"` JSON OR exit 2 — Anthropic CC contract honored at hook-chain level?
+7. Edge case: subagent_plan_readonly fires on plan-mode subagents only — does its 8s timeout matter for non-plan-mode operator sessions (where it should fast-pass)?
+8. `_comment_safety_hooks_wire_ship_2n_batch3a` documentation comment additionally needed?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}
+
+**Figuring out the output format**
+
+I’m considering whether I need to read files or not. The developer suggested giving updates while exploring, but it looks like the final output has to be strict JSON only. I wonder if my commentary updates might interfere with that. Since the tools aren’t user-facing, I should probably keep commentary separate. I need to use `rg` and the parallel tool for inspecting settings and scripts to make sure everything is in order.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "safety_guard|agent_plan_readonly|PreToolUse|_comment_allow" .claude/settings.json' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/settings.json -TotalCount 140' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/agent_plan_readonly_bash_guard.py -TotalCount 260' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/safety_guard.py -TotalCount 260' in Z:\claude-sota-installed
+ succeeded in 298ms:
+74:    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor preserved via safety_guard.py narrow deny-list + agent_plan_readonly_bash_guard.py + cardinal-rule deny-class.",
+80:    "PreToolUse": [
+311:  "_comment_wave104_ship2n_batch2": "Wave 104 Ship 2N-batch2 2026-05-08 — enable plugin-dev (Anthropic OFFICIAL Tier-0 plugin development toolkit) per Wave 104 SRA-driven re-audit B.4 INSTALL-CANDIDATE (TIER-1-OFFICIAL maintainer + D1+D2+D4+D6+D7 PASS via SRA D1-D10 convergence gate at .claude/rules/sota-research-architecture.md @ 3322b58). plugin-dev contains agents/ + commands/ + skills/ subdirs (no active plugin-level hooks or MCP server config) per verified cache at .claude/plugins/cache/claude-plugins-official/plugin-dev/76b35e91d1c9/ — LICENSE (Apache-2.0 11358B) + README.md (14590B) + agents/ + commands/ + skills/. CR-9 install-risk LOW (no active hooks/MCPs to add edit-path latency, no @latest, no sibling-bleed, marketplace-clone HEAD pinned at 76b35e91d1c9 .gcs-sha first-12). Wave 104 Agent SRA listed agent-sdk-dev as B.4 candidate but it was ALREADY enabled per Ship 2N-batch1 commit 1deb221 — this ship newly enables ONLY plugin-dev. security-guidance plugin DEFERRED to Ship 2N-batch3 — Mia caught hardcoded /tmp/security-warnings-log.txt path (cross-platform Windows-Git-Bash incompatibility) + PreToolUse:Edit fires on every edit (per-edit token cost needs CR-9 monitoring). Codex T1 verdict NEEDS-REVISION conf=0.88 5-prescription Pattern A applied: agents-only mischaracterization corrected to agents/commands/skills only. Cite: Wave 104 SRA re-audit verdict tmp/wave104-sra-driven-reaudit-2026-05-08.md REVISE-RE-AUDIT conf=0.84 + .claude/state/codex_consult_wave104_ship2n_batch2_OUT.txt NEEDS-REVISION conf=0.88.",
+
+ succeeded in 352ms:
+# ===================================================================
+# WAVE 14 PORT — claude-sota-installed cite-import per CR-12 TERTIARY
+# (HONEST-NON-FINDING-gated; manifest §13 row Path B HNF-confirmed)
+# ===================================================================
+# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+# Source SHA (PINNED): f57c74dd68bb52771633d6ea76426842669fa499
+# Source bytes: 44974 (this target adds prepend block; body byte-for-byte port + 1 rewrite class)
+# Path-rewrites applied: 1 class × 2 occurrences ("in sss" -> "in eee" launcher-name)
+#
+# effective_tier: TIER-3-LOCAL-COMPOSITION
+# (per CLAUDE.md cardinal-rule-1 cite-class lattice; sibling-derived cannot elevate to TIER-1 SOTA
+#  per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8)
+#
+# HONEST-NON-FINDING evidence (per cardinal-rule-12 cite-import-AMBER gate):
+#   Wave 14 dispatch ID = "Wave 62 fire 13"
+#   Upstream-parity-probe scope: claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers
+#     + mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc — probed for
+#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
+#     ZERO upstream parity. Sibling-discovered/codified Wave 50 fire 11 row-7 verdict.
+#
+#   Probe DAG: P1 LICENSE PASS (sibling Apache-2.0 inheritance) / P2 registry-existence N/A
+#     (no install-class equivalent on npm/PyPI/cargo) / P3 namespace PASS (no collision in
+#     claude-sota-installed) / P4 plugin-namespace PASS (probe of all enabled plugins
+#     returned no equivalent hook) / P5 README/frontmatter PASS / P6 deep-audit PASS.
+#
+#   CR-9 sibling-bleed defense:
+#     - 6-class strict pattern grep: 0 hits on Z:/claude-sota[^-]/, Z:\claude-sota\, Z--claude-sota[^-],
+#       claude-sota-state, sss --, `sss`. PASS strict-pattern check.
+#     - Non-strict launcher-name leak: 2 occurrences "in sss" (docstring lines 5 + 65) rewritten
+#       to "in eee" at port time per cleanliness extension of CR-9 strictness.
+#     - All paths in body are RUNTIME-AGNOSTIC (.claude/state/..., .claude/rules/..., .codex/...)
+#       — relative paths interpreted from runtime CWD, not absolute sibling paths.
+#
+#   CR-9 sub-rules applied:
+#     - Pre-cite-import REVERT check: PASSED. Git log shows forward-only commit chain
+#       (b677669 creation -> 89fe24b/f7cc1f6/18586c8 fix-forwards -> f57c74d).
+#       Commit f57c74d title "Wave 11A REVERT-AND-REMOVE bash_command_allowlist" refers to
+#       a DIFFERENT file (bash_command_allowlist.py) — NOT this file. False-positive REVERT
+#       flag corrected per Wave 14 directive verification.
+#     - 2-round fix-forward expectation: budget acknowledged; first-round port carries
+#       0-rewrite + cleanliness-extension only.
+#
+# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
+# slot — this row promotes PLANNED-Path-B-HNF-confirmed -> INSTALLED-AMBER post-port.
+# ===================================================================
+# Reference: TIER-1 OFFICIAL Anthropic CC hooks docs https://code.claude.com/docs/en/hooks (PreToolUse JSON input/output contract; permissionDecision deny/allow/ask)
+# Reference: TIER-1 OFFICIAL Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents L463-493,520-548 (subagent frontmatter PreToolUse hooks; only fire while subagent active)
+# Reference: TIER-1 OFFICIAL Anthropic CC permissions docs https://code.claude.com/docs/en/permissions L130-137 (Bash(*) ≡ Bash) + L292-295 (hooks extend permissions and can deny tool calls before permission rules complete)
+# Reference: .claude/state/codex_consult_path_b_substantive_enforcement_design_OUT.txt (codex T1 APPROVE Path F conf=0.89 verdict — Q7 prescription verbatim drives this script's behavior)
+# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
+# Reference: .claude/rules/layered-gates-architecture.md §9 (HARD GATE for DENY-emitting hooks — tests/test_<hook>_security.py REQUIRED before commit)
+# Reference: .claude/rules/cross-model-consensus.md §Severity taxonomy mapping (this hook closes HIGH/P1 from arc-2 + arc-3 + arc-4 codex T3 verdicts)
+# Reference: .codex/config.toml profile definitions (read-only `deep-review` profile vs danger-full-access `deep-review-exec` profile — codex-readonly policy distinguishes them)
+"""agent_plan_readonly_bash_guard.py — frontmatter-scoped read-only Bash enforcement for plan-mode agents.
+
+WHY THIS HOOK EXISTS
+====================
+Per Anthropic sub-agents docs L399-410, parent's permission_mode (e.g. bypassPermissions) PRECEDES
+subagent frontmatter declarations. Subagents declaring `permissionMode: plan` cannot OPERATIONALLY
+enforce read-only contract under a bypass parent. This hook is the operational closure: it lives in
+the read-only subagent's OWN frontmatter PreToolUse:Bash slot, where it fires only while that
+subagent is active, and denies mutating Bash commands at the exec boundary BEFORE they execute.
+
+This closes the structural concern surfaced by codex T3 across arc-2 (c8e7dd6 REVERTED 874d897) +
+arc-3 (6c6d692 REVERTED d56499f) + arc-4 first-round on REVERT (d56499f T3 verdict at
+.claude/state/codex_review_HEAD_d56499f9.txt) — codex's verbatim next_step: "Replace the revert-only
+closure with the queued Path B enforcement before re-promoting or relying on these agents."
+
+CONTRACT (Anthropic PreToolUse)
+================================
+Input: JSON on stdin per https://code.claude.com/docs/en/hooks L615-627:
+  {
+    "session_id": str,
+    "transcript_path": str,
+    "tool_name": str,           # we only act on "Bash"
+    "tool_input": dict,         # for Bash: {"command": "<bash string>"}
+    "permission_mode": str,     # parent's mode: "default"|"acceptEdits"|"bypassPermissions"|"plan"
+    ...
+  }
+
+Output: JSON to stdout per https://code.claude.com/docs/en/hooks L1111-1133:
+  Allow: exit 0 (no JSON needed, or emit hookSpecificOutput.permissionDecision: "allow")
+  Deny:  exit 0 + JSON {hookSpecificOutput: {hookEventName: "PreToolUse",
+                                              permissionDecision: "deny",
+                                              permissionDecisionReason: "<text>"}}
+
+POLICY MODES (--policy flag)
+============================
+- readonly:        standard read-only — file/text/git read subcommands; no codex exec
+- codex-readonly:  readonly + narrow codex exec patterns (`exec --ephemeral -p deep-review`,
+                   `exec review --uncommitted --ephemeral`); for gpt5-archaeologist + gpt5-reviewer
+
+ENV KNOBS (defense-in-depth precedence: explicit settings > env > defaults)
+==========================================================================
+- AGENT_PLAN_BASH_GUARD_DISABLE=1 → exit 0 unconditionally (debug/escape hatch)
+- AGENT_PLAN_BASH_GUARD_DRY_RUN=1 → log decision but always allow (canary)
+- AGENT_PLAN_BASH_GUARD_STRICT=1  → escalate WARN cases to DENY (default: WARN to stderr, allow)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shlex
+import sys
+
+# === ALLOWLISTS ===
+# Read-only file inspection commands (Wave 11A: bash_command_allowlist.py REMOVED;
+# this frozenset is now the SOLE positive-validation Bash allowlist in eee, scoped to plan-mode subagents.
+# Operator reference for the broader CLI tool surface: .claude/skills/sota-cli-tools/SKILL.md)
+_READONLY_COMMANDS = frozenset({
+    # File inspection
+    "ls", "cat", "head", "tail", "wc", "grep", "rg", "stat", "tree",
+    "find",  # NOTE: validated separately for -type f read-only forms
+    "du", "df",
+    # Path / system inspection
+    "pwd", "where", "which", "basename", "dirname", "realpath", "readlink",
+    "uname", "hostname", "whoami", "date", "printf", "echo",
+    # Text processing (read-only forms)
+    "sort", "uniq", "awk",  # NOTE: awk validated for non-system forms (no system())
+    "diff", "comm", "cut", "tr", "fold", "expand", "tac", "rev", "nl",
+    # Process inspection (read-only)
+    "ps", "lsof", "top",
+    # Read-only Python evaluation (gpt5-archaeologist needs `python -c` for analysis)
+    # Validated separately to deny -W/-c-with-import-system-mutate
+    "python", "python.exe", "python3",
+    # Sleep is inert
+    "sleep",
+})
+
+# Git subcommands that are PURELY READ (no write forms)
+_GIT_READ_SUBCMDS = frozenset({
+    "log", "diff", "blame", "show", "status", "rev-parse", "rev-list",
+    "ls-files", "ls-tree", "for-each-ref", "describe", "name-rev",
+    "shortlog", "reflog", "cherry", "merge-base", "fsck",
+    "cat-file", "hash-object", "ls-remote", "archive",
+    "annotate", "whatchanged", "verify-commit",
+})
+
+# Git subcommands that are PURELY WRITE (no read forms)
+_GIT_WRITE_SUBCMDS = frozenset({
+    "commit", "push", "pull", "fetch", "merge", "rebase", "checkout", "switch",
+    "reset", "clean", "rm", "mv", "add",
+    "cherry-pick", "revert", "filter-branch", "update-ref", "update-index",
+    "apply", "am", "format-patch", "send-email",
+    "init", "clone", "submodule", "worktree", "gc", "prune", "repack",
+    "bundle", "fast-import", "fast-export",
+    "notes",
+})
+
+# Git subcommands that are AMBIGUOUS — read or write depending on flags
+# Validated by _validate_git_ambiguous_subcmd: bare invocation = read; specific write flags = deny
+_GIT_AMBIGUOUS_SUBCMDS = frozenset({
+    "branch",   # bare/--list = read; -d/-D/-m/-M = write
+    "tag",      # bare/-l/--list = read; -d/--delete = write
+    "config",   # --get/--list = read; --unset/--remove = write
+    "remote",   # bare/-v = read; add/remove/rename/set-url = write
+    "stash",    # list/show = read; push/pop/drop = write
+})
+
+# Always-deny commands regardless of args (irreversible / network / mutating)
+_ALWAYS_DENY = frozenset({
+    "rm", "rmdir", "mv", "cp", "ln", "mkdir", "touch", "chmod", "chown", "chgrp",
+    "dd", "mkfs", "fdisk", "format", "del", "erase",
+    "curl", "wget", "scp", "rsync", "ftp", "sftp", "ssh", "telnet", "nc", "netcat",
+    "pip", "npm", "yarn", "gem", "cargo", "go",  # package installers (note: `go` may also build/test — bare command-name deny)
+    "pkill", "kill", "killall",
+    "shutdown", "reboot", "halt", "poweroff", "init",
+    "sudo", "doas", "su", "runas",
+})
+
+# Codex deny tokens — token-based check (regex \b fails on --flag boundaries
+# because \b requires word/non-word transition; `--` is non-word so no boundary
+# triggers. shlex.split + token equality is the SOTA security pattern).
+#
+# Sandbox-escalation closure (Stop hook 2026-05-03): added --sandbox / --config /
+# -c / --profile to close the runtime-override class. Even with `-p deep-review`,
+# `codex exec -p deep-review --sandbox danger-full-access` overrides profile at
+# runtime. Per codex-cli-flag-positioning.md matrix row 11: `-c key=value` is
+# global on `codex exec` and accepts arbitrary config including sandbox.mode.
+_CODEX_DENY_TOKENS = frozenset({
+    "--write",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--yolo",
+    "--sandbox",         # `--sandbox danger-full-access` overrides profile sandbox
+    "--config",          # `--config <toml>` loads alternative config
+    "-c",                # `-c key=value` inline config override (e.g. sandbox.mode=...)
+    "--profile",         # alias for -p — must be explicitly checked
+    "--full-auto",       # codex flag — auto-approve all actions
+    "--ask-for-approval",  # also accepts danger-full-access value
+    "-a",                # short form of --ask-for-approval
+    "--ignore-rules",        # bypasses execpolicy `.rules` files (codex T1 F-001 conf=0.91)
+    "--ignore-user-config",  # bypasses $CODEX_HOME/config.toml (codex T1 F-002 conf=0.91)
+})
+
+# Codex deny token PREFIXES — match attached/equals forms that token-equality misses
+# (codex T1 F-003 residual hardening): `--config=key=value` (long-form-with-equals) and
+# `-cKEY=VALUE` (short-form-no-space) bypass exact-token deny check at L411-412.
+_CODEX_DENY_TOKEN_PREFIXES = (
+    "--config=",  # `--config=approval_policy=never` etc
+    "-c",         # `-csandbox_mode=danger-full-access` (no-space short form);
+                  # narrower than allowing bare `-c` because exact `-c` is in DENY_TOKENS
+                  # above, this catches `-c<value>` attached forms only
+)
+# Codex deny substrings — match anywhere in any token (catches `-p deep-review-exec`)
+_CODEX_DENY_SUBSTRINGS = (
+    "deep-review-exec",       # danger-full-access profile
+    "danger-full-access",     # raw sandbox value
+    "danger-bypass",          # alternative dangerous value
+    "workspace-write",        # write-capable sandbox
+    "no-sandbox",             # disabling sandbox
+)
+
+# Sed mutation + subprocess-spawning patterns (Stop-hook fix-forward round-2 2026-05-03)
+# - `sed -i` / `--in-place`: file write
+# - `sed 's/foo/bar/e'`: e-flag executes replacement as shell command
+# - `sed '1e cmd'` / `sed 'e cmd'`: e command evaluates pattern space as shell
+# Read-only mode rejects ALL sed forms that can write OR spawn subprocesses.
+_SED_DENY_PATTERNS = (
+    re.compile(r"^sed\s+(?:.*\s+)?-i\b", re.IGNORECASE),
+    re.compile(r"^sed\s+(?:.*\s+)?--in-place\b", re.IGNORECASE),
+    # s<sep>...<sep>...<sep><flags-with-e>  — substitute with e flag (executes
+    # replacement as shell). Uses backref \1 to support arbitrary separators
+    # (/, |, :, ,, #, ~ — sed accepts any non-alphanumeric non-whitespace char).
+    # `[\s\S]` matches any char including newline (DOTALL semantics inline).
+    re.compile(r"\bs(.)(?:(?!\1)[\s\S])*?\1(?:(?!\1)[\s\S])*?\1[gimpI0-9]*e", re.IGNORECASE),
+    # Bare e command: at start of segment, after ;, after !, after { (sed
+    # control structures), OR after ' / " (start of sed script literal in shell).
+    # The `e` command followed by whitespace+arg evaluates the arg as shell.
+    re.compile(r"(?:^|[;!{'\"])\s*\d*\s*e\s+\S", re.IGNORECASE),
+)
+
+# Awk subprocess-spawning patterns (Stop-hook fix-forward round-2 2026-05-03)
+# Awk is Turing-complete with built-in subprocess primitives that bypass the
+# leading-verb allowlist:
+# - `system("cmd")`            — direct subprocess execution
+# - `print ... | "cmd"`        — pipe output to subprocess (awk-internal `|`,
+#                                 distinct from shell `|` so _COMMAND_SEPARATORS misses it)
+# - `"cmd" | getline`          — pipe input from subprocess
+# - `getline var | "cmd"`      — coprocess-style two-way pipe
+# - `awk -f script.awk`        — read script from external file (uninspectable)
+# - `@load "extension"`        — gawk dynamic extension loading
+# Read-only mode rejects ALL these; legitimate read-only awk uses print/printf/match
+# without subprocess spawning.
+_AWK_SUBPROCESS_DENY_PATTERNS = (
+    re.compile(r"\bsystem\s*\("),                # system("cmd") — direct subprocess
+    re.compile(r"\|\s*[\"']"),                    # | "cmd" or | 'cmd' — pipe to subprocess
+    re.compile(r"[\"']\s*\|\s*getline\b"),        # "cmd" | getline — pipe from subprocess
+    re.compile(r"\bgetline\s+\w*\s*\|"),          # getline var | — coprocess form
+    re.compile(r"@load\b"),                       # gawk dynamic extension loading
+)
+# Awk option flags that bypass script inspection (load script from external file)
+_AWK_DENY_FLAGS = frozenset({
+    "-f", "--file",       # read script from file (uninspectable)
+    "-i", "--include",    # gawk include directive
+    "-l", "--load",       # gawk extension load
+    "-e", "--source",     # NB: -e ALSO valid for inline script in some awks; conservative deny
+})
+
+
+ succeeded in 358ms:
+#!/usr/bin/env python3
+# WAVE 14b PORT — claude-sota-installed cite-import per CR-12 TERTIARY (HONEST-NON-FINDING-gated)
+#
+# Source: Z:/claude-sota/.claude/hooks/scripts/safety_guard.py
+# Source SHA: 32fbcb0d082bb9297d8fc3ad4655c69f301b33c1 (PINNED — VERIFIED 2026-05-07)
+# Target: Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py
+# Pattern: 1:1 verbatim port (zero sibling-bleed in body — pre-port grep returned 0 across 6 classes;
+#          codex T2 BLOCK conf=0.93 prescribed broader sibling-bleed re-audit covering plain `sss\b`,
+#          `Z:/claude/`, `ccc/tools/status.py`, `CLAUDE.local.md`, `tools/eee.ps1`, `bin/eee.cmd` —
+#          this file was verified clean against ALL classes pre-port; provenance comment is the only
+#          location with substring `claude-sota` and is intentional port-attribution per port-note-discipline.md)
+#
+# effective_tier: TIER-3-LOCAL-COMPOSITION
+# (per CLAUDE.md cardinal-rule-1 cite-class lattice; sibling-derived cannot be elevated to TIER-1 SOTA per
+#  Z:/claude-sota/.claude/rules/citation-discipline.md rule #8)
+#
+# HONEST-NON-FINDING evidence (per cardinal-rule-12 cite-import-AMBER gate):
+#   Wave 14b dispatch ID = "Wave 62 fire 17"
+#   Upstream-parity-probe scope: probed claude-plugins-official + ECC 2.0.0-rc.1 (pre-bash-dispatcher.js
+#     + safety-guard SKILL) + obra/superpowers + mattpocock/skills + anthropic-cookbook for the auto-block
+#     12-destructive-pattern HOOK-shape (rm-rf / sudo rm / git push --force / git reset --hard / git
+#     checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd).
+#     ECC ships SKILL-shape only (user-invoked); ECC pre-bash-dispatcher.js chain has block-no-verify only,
+#     NOT the 12-pattern auto-block scope. Defense-in-depth gap is 12 vs 1.
+#   Probe DAG: P1 LICENSE PASS (sibling Apache-2.0 inheritance) / P2 registry-existence N/A
+#     (no install-class equivalent on npm/PyPI/cargo/marketplace for this HOOK-shape) / P3 namespace PASS
+#     (no collision in claude-sota-installed) / P4 plugin-namespace PASS (probe of all enabled plugins
+#     returned no equivalent — verified Wave 14 fork) / P5 README/frontmatter N/A (Python script) /
+#     P6 deep audit PASS (1:1 verbatim, no behavioral changes).
+#   Sibling-bleed defense: 0 path-rewrites needed — file is hook-script-only with zero sibling-specific
+#     runtime paths in body (verified Wave 14b pre-port grep at SHA 32fbcb0d).
+#   CR-9 sub-rules applied: REVERT check PASSED (5 forward commits at b9cad09 / 35fec73 / b26bc70 /
+#     07d2e16 / 32fbcb0d; no revert/remove precedent. Note: CLAUDE.md CR-9 actual REVERT list is
+#     bash_command_allowlist.py / fleet_health_start.py / permission_request_auto_approve.py — NOT
+#     this file. False-positive corrected per Wave 14 fork's similar verdict on
+#     agent_plan_readonly_bash_guard.py).
+#
+# All in-body cite anchors resolve post-Wave 11 (canonical.md @ Wave 8, layered-gates-architecture.md
+# @ Wave 10, port-note-discipline.md @ Wave 9 — all present in Z:/claude-sota-installed/.claude/rules/).
+#
+# Reference: Z:/repos/deps/everything-claude-code/skills/safety-guard/SKILL.md:18-39,67-75 @ 841beea45cb25ba51f29fa45b7e272938d19b80a [content-SHA 7870073b56a770f4a1c1883e0db2db53f1070fbb]
+#   (ECC primary source — Careful-mode destructive-pattern interception and PreToolUse implementation)
+# Reference: https://code.claude.com/docs/en/hooks (PreToolUse contract — exit 0 allow / exit 2 block)
+# Reference (LOCAL POLICY — TIER-3, not SOTA authority): .claude/rules/canonical.md Must-Always #5 + Must-Never #1
+#   (security checks intact; no destructive shortcuts)
+# Reference (LOCAL POLICY — TIER-3, not SOTA authority): .claude/rules/layered-gates-architecture.md §1+§9 (5-layer gate model
+#   + DENY-emitting test-coverage HARD GATE)
+# Port-provenance (TIER-3, not SOTA authority): parent CCC operational mirror upstream of sibling
+#   (cycle-185/186/187 quote-strip + data-prefix exemption preserved — sibling header retained
+#   verbatim for forward-traceability)
+#
+# Port-note (Wave 14b 1:1 cite-import per port-note-discipline.md §1):
+#   Symbol-anchor cites used for cycle-N tags (e.g. cycle-187 quote-strip) instead of
+#   line numbers — line numbers volatile across edits; symbol+cycle anchor stable.
+#   Closes the broader destructive-Bash interception gap the static deny[] list
+#   does not cover — rm -rf root/home/wildcard/cwd, force-push, hard-reset,
+#   DROP TABLE/DATABASE/SCHEMA, TRUNCATE, docker system prune, kubectl delete,
+#   chmod 777, fork bomb, mkfs, dd to raw disk.
+"""PreToolUse safety-guard — intercept destructive Bash commands.
+
+Contract:
+- stdin JSON: {"tool_name": "Bash", "tool_input": {"command": "..."}}
+- exit 0: allow (proceed)
+- exit 2: block (stderr message shown to Claude with reason + suggested alternative)
+- fail-CLOSED on safety-gate corruption: stdin read failure / malformed JSON / evaluate() exception -> exit 2
+  (closed by Ship 29.A.2 per Wave 29 Agent A REAL GPT-5.5 BRIDGE-MODE BLOCK + T3 R1 NEEDS-ATTENTION conf=0.86 monotone-decline path)
+- fail-open preserved on explicit allow paths: empty stdin / tool_name != "Bash" / empty command (no-command-to-check semantic)
+
+Patterns matched (Careful Mode per ECC safety-guard SKILL.md):
+  rm -rf / | rm -rf /* | rm -rf ~ | rm -rf * | rm -rf .
+  sudo rm
+  git push --force / -f
+  git reset --hard
+  git checkout .
+  DROP TABLE / DATABASE / SCHEMA / INDEX (any case)
+  TRUNCATE TABLE (any case)
+  docker system prune
+  kubectl delete
+  chmod 777
+  :(){ :|:& };: (fork bomb)
+  mkfs.* (filesystem format)
+  dd to /dev/[sh]d* (raw disk overwrite)
+  --no-verify (always-block, overlaps with block_no_verify_guard)
+
+Three-layer scan:
+  1. Whole-command scan (fork-bomb class only — patterns containing `;`/`|` that
+     per-sub splitter would fragment). Quote-stripped via _strip_quoted_regions.
+  2. Per-sub scan: split on `;`/`&&`/`||`/newlines/`|`. For each sub:
+     a. ALWAYS_BLOCK patterns fire even inside _DATA_PREFIXES (e.g. --no-verify
+        inside `git commit` still blocks because the flag actually skips hooks).
+        Exempted by _ALWAYS_BLOCK_EXEMPT_PREFIXES (echo/printf/grep/rg/cat/awk/
+        sed/less/more — text tools where args are pure data).
+     b. _DATA_PREFIXES (git commit / echo / printf / gh issue/pr/etc / heredoc) —
+        skip pattern match because args are data, not subcommands.
+     c. _DESTRUCTIVE patterns scanned against per-sub.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+_HOOKS_DIR = Path(__file__).parent
+if str(_HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR))
+
+try:
+    from utils import log_swallow
+except ImportError:
+    def log_swallow(exc: Exception, context: str) -> None:
+        sys.stderr.write(f"[safety-guard:fallback] {context}: {exc}\n")
+
+
+# Each pattern: (regex, human-readable description, suggested safer alternative)
+# Keep patterns narrow to avoid false-positives (legitimate `git reset` non-hard, etc.)
+_DESTRUCTIVE: tuple[tuple[re.Pattern[str], str, str], ...] = (
+    # rm -rf followed by ONE of: standalone `/`, `~`, `*`, `/*`, or `.` (as whole argument)
+    (re.compile(r"\brm\s+(-[a-zA-Z]*[rRfF][a-zA-Z]*\s+)+(/|~|\*|/\*|\.)(?=\s|$|;|\||&)"),
+     "rm -rf against root/home/wildcard/glob/cwd",
+     "specify an exact path; consider `git clean -fd` for tracked-file cleanup"),
+    (re.compile(r"\bsudo\s+rm\b"),
+     "sudo rm (elevated destructive delete)",
+     "avoid sudo for file removal; drop privileges if possible"),
+    (re.compile(r"\bgit\s+push\s+.*(--force\b|--force-with-lease\s+$|\s-f\b)"),
+     "git push --force (rewrites remote history)",
+     "use --force-with-lease with an explicit ref; coordinate with collaborators"),
+    (re.compile(r"\bgit\s+reset\s+--hard\b"),
+     "git reset --hard (discards uncommitted work)",
+     "git stash first, or `git reset --keep` to preserve working tree"),
+    (re.compile(r"\bgit\s+checkout\s+\.\s*$"),
+     "git checkout . (discards ALL unstaged changes)",
+     "git stash, or check `git status` first"),
+    (re.compile(r"(?i)\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX)\b"),
+     "SQL DROP (irreversible schema removal)",
+     "BEGIN transaction first; take a backup; DROP in a migration file"),
+    (re.compile(r"(?i)\bTRUNCATE\s+TABLE\b"),
+     "SQL TRUNCATE (wipes all rows, skips triggers)",
+     "DELETE with WHERE; TRUNCATE only in migrations"),
+    (re.compile(r"\bdocker\s+system\s+prune\b"),
+     "docker system prune (removes all unused containers/images/volumes)",
+     "be explicit: `docker container prune` or `docker image prune`"),
+    (re.compile(r"\bkubectl\s+delete\b"),
+     "kubectl delete (cluster resource deletion)",
+     "preview with `kubectl get` first; `--dry-run=server` before real delete"),
+    (re.compile(r"\bchmod\s+777\b"),
+     "chmod 777 (world-writable — security risk)",
+     "use 755 for dirs, 644 for files, or set owner-only 700/600"),
+    (re.compile(r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:"),
+     "fork bomb",
+     "stop"),
+    (re.compile(r"(?i)\bmkfs\."),
+     "mkfs (filesystem format — wipes target device)",
+     "verify device path twice; take a backup image first"),
+    (re.compile(r"\bdd\s+.*of=/dev/[sh]d[a-z]"),
+     "dd to raw disk device (overwrites disk)",
+     "dd only to files during testing; mount then write for disks"),
+)
+
+
+def _strip_quoted_regions(cmd: str) -> str:
+    """Replace quoted-string contents with a placeholder so downstream pattern
+    matchers see shell structure without matching inside quoted narrative data.
+
+    Cycle-187 verified: real flags kept; narrative stripped to placeholder.
+    Closes cycle-186 documented known-limitation (commit message containing
+    literal destructive syntax).
+    """
+    return re.sub(r"'[^']*'", "'X'", re.sub(r'"[^"]*"', '"X"', cmd))
+
+
+# Commands whose args are DATA (quoted text), not executable subcommands.
+# Skip pattern-match to avoid false-positives on commit messages / echoed text.
+_DATA_PREFIXES: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^\s*git\s+commit\b"),
+    re.compile(r"^\s*echo\s+"),
+    re.compile(r"^\s*printf\s+"),
+    re.compile(r"^\s*gh\s+(issue|pr|release|api)\s+(create|comment|edit|review|close|merge)\b"),
+    re.compile(r"^\s*cat\s*>\s*\S+\s*<<"),  # heredoc write
+)
+
+
+# Split on shell command separators — but NOT on newlines, because newlines inside
+# quoted heredocs / commit messages are legitimate text.
+_SPLIT_RE = re.compile(r"(?:;|&&|\|\|)+")
+
+# Always-block patterns that fire even inside _DATA_PREFIX exempt commands.
+_ALWAYS_BLOCK: tuple[tuple[re.Pattern[str], str, str], ...] = (
+    (re.compile(r"--no-verify\b"),
+     "--no-verify (skips pre-commit/pre-push hooks)",
+     "fix the underlying hook failure; never skip safety hooks"),
+)
+
+# Cycle-186: destructive patterns the per-sub splitter cannot catch because the pattern
+# syntax itself uses `;` or `|` as structural characters. Only these need whole-command
+# scan; full _DESTRUCTIVE list is correctly handled by per-sub logic.
+_WHOLE_COMMAND_ONLY_DESTRUCTIVE: tuple[tuple[re.Pattern[str], str, str], ...] = (
+    (re.compile(r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:"),
+     "fork bomb",
+     "stop"),
+)
+
+
+# Text-handling tools whose args are PURE DATA — exempt from _ALWAYS_BLOCK so
+# `grep -E "--no-verify"` or `echo "--no-verify"` in narrative text are ALLOWED.
+_ALWAYS_BLOCK_EXEMPT_PREFIXES: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^\s*echo\s+"),
+    re.compile(r"^\s*printf\s+"),
+    re.compile(r"^\s*grep\b"),
+    re.compile(r"^\s*rg\b"),
+    re.compile(r"^\s*cat\s+"),
+    re.compile(r"^\s*awk\b"),
+    re.compile(r"^\s*sed\b"),
+    re.compile(r"^\s*less\b"),
+    re.compile(r"^\s*more\b"),
+)
+
+
+def _iter_subcommands(command: str):
+    """Split a multi-line shell command into individual executable sub-commands.
+
+    Skips comment lines (leading `#`) and blank lines. Splits on `|` (pipe) so
+    destructive in tail of pipe is caught.
+    """
+    cleaned_lines = []
+    for line in command.splitlines():
+        s = line.strip()
+        if s and not s.startswith("#"):
+            cleaned_lines.append(line)
+    cleaned = "\n".join(cleaned_lines) if cleaned_lines else command
+    for part in _SPLIT_RE.split(cleaned):
+        stripped = part.strip()
+        if not stripped:
+            continue
+        for piped in stripped.split("|"):
+            piped = piped.strip()
+            if piped:
+                yield piped
+
+
+def evaluate(command: str) -> tuple[bool, str, str]:
+    """Return (is_destructive, description, suggested_alternative)."""
+    whole_command_exempt = any(
+        prefix.match(command) for prefix in _ALWAYS_BLOCK_EXEMPT_PREFIXES
+    ) or any(prefix.match(command) for prefix in _DATA_PREFIXES)
+    if not whole_command_exempt:
+        # Quote-stripped scan for fragment-prone patterns (fork bomb)
+        command_stripped = _strip_quoted_regions(command)
+        for pattern, desc, alt in _WHOLE_COMMAND_ONLY_DESTRUCTIVE:
+            if pattern.search(command_stripped):
+                return True, desc, alt
+
+    for sub in _iter_subcommands(command):
+        # Text-tool exemption FIRST — `grep --no-verify`, `echo "--no-verify"`,
+        # `printf "--no-verify"` are data-content not real flags.
+        always_block_exempt = False
+        for prefix in _ALWAYS_BLOCK_EXEMPT_PREFIXES:
+            if prefix.match(sub):
+                always_block_exempt = True
+                break
+
+ succeeded in 360ms:
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 60,
+  "env": {
+    "_comment": "CLAUDE_SOTA_INSTALLED_RUNTIME DROPPED Wave 50 Agent B P2 — was setter-no-reader hidden self-invention. Re-introduce only when a hook/script consumer lands.",
+    "_comment_disable_autoupdater_removed": "DISABLE_AUTOUPDATER=1 REMOVED Wave 62 2026-05-07 per user-trigger directive 'eee must be all sota, auto update with all offical sota native install methods'. Original Wave 53 pin (codex T1 b58s3u956 stable=119/latest=132 heuristic) was self-inventing against Anthropic's actual release cadence — CHANGELOG defines no 'stable channel'. Removal lets Anthropic in-place self-update flow per https://code.claude.com/docs/en/install. minimumVersion floor preserved as forward-only quality gate; updates above floor proceed automatically.",
+    "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "FM17_STALL_DETECTOR_DISABLE": "1",
+    "_comment_fm17d_disabled": "Wave 76 2026-05-08 — fm17d_stall_detector.py was writing 100% schema-rot observations (172 entries / 172 schema_missing across two sessions, 0 useful classifications). Hook honors FM17_STALL_DETECTOR_DISABLE=1 per its own _DISABLE_ENV constant at line 58. Re-enable after fixing the SubagentStop input-schema parsing (script expects stop_reason / tool_uses fields that CC v2.1.119 / 2.1.132 don't emit at the top level).",
+    "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force,pre:write:doc-file-warning,post:edit:design-quality-check,post:edit:console-warn,stop:format-typecheck,stop:check-console-log,pre:observe:continuous-learning,post:observe:continuous-learning,pre:edit-write:suggest-compact,post:session-activity-tracker,stop:evaluate-session,stop:cost-tracker,stop:desktop-notify",
+    "PYTHON_BIN": "Z:/venvs/claude/Scripts/python.exe",
+    "_comment_python_bin": "Wave 78 2026-05-08 — per real-GPT-5.5 codex T1 deep-review-exec verdict NEEDS-REVISION conf=0.78 finding F4 at .claude/state/codex_consult_wave77_full_audit_OUT.txt: cwc track-read.sh + verify-gate.sh call `python` (no full path). Git Bash on Windows may not resolve `python` — scripts then silent-no-op. Adding explicit PYTHON_BIN env that the .sh scripts can prefer via `${PYTHON_BIN:-python}` fallback. Cite: TIER-3-LOCAL-CODEX-T1-VERDICT (real GPT-5.5 BRIDGE-MODE; cross-model gate satisfied per cardinal-rule-3 Phase 1 bootstrap exception).",
+    "_comment_ecc_disabled_hooks": "Wave 76 baseline + Wave 77 expansion 2026-05-08. Wave 76: gateguard-fact-force (pre:bash + pre:edit-write) — costs round-trip per first-of-class action. Wave 77 (per fleet-arch-vs-official-2026-05-08.md §3 ECC-hooks triage): added 5 pure-overhead hook IDs that target JS/TS/frontend project workflows orthogonal to this Z-drive Anthropic-CC runtime — pre:write:doc-file-warning (warns on docs we intentionally create), post:edit:design-quality-check (frontend UI check, N/A), post:edit:console-warn (no JS edits), stop:format-typecheck (Biome/Prettier+tsc, no JS/TS source), stop:check-console-log (no JS). Each saves ~100-200ms node spawn per matched event. The hook's own recovery instructions document this env var. Other ECC hooks (pre-bash-dispatcher, pre-mcp-health-check, post-bash-dispatcher, governance-capture handled separately, etc.) remain ACTIVE.",
+    "ECC_GOVERNANCE_CAPTURE": "0",
+    "_comment_ecc_governance_capture": "Wave 76 2026-05-08 — ECC governance-capture hook spawns Node on every Edit/Write/MultiEdit pre + post (2 spawns × 100ms cold start = ~200ms/edit) writing to .claude/governance-capture/ which has zero downstream consumer in this runtime. Disable until a consumer wires in. Cite: ECC hooks.json plugin cache `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/hooks/hooks.json` governance-capture entries; control env per ECC plugin.json env.",
+    "ECC_HOOK_PROFILE": "standard",
+    "_comment_ecc_hook_profile": "Wave 76 2026-05-08 — explicit standard (default) profile to prevent surprise. ECC supports `off`/`standard`/`strict`; we hold at standard while we triage individual hooks via ECC_DISABLED_HOOKS rather than nuke all.",
+    "ANTHROPIC_SMALL_FAST_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "Haiku 4.5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "fast/cheap inline-judge",
+    "_comment_haiku_pin": "Wave 82a 2026-05-08 — pin small-fast-model to Haiku 4.5 per Anthropic CC CHANGELOG.md:929 ('ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL_SUPPORTS') + :3298 ('Bedrock ARN passed to ANTHROPIC_MODEL or ANTHROPIC_SMALL_FAST_MODEL'). TIER-1-DIRECT via Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD. Prevents inline-judge calls (session titles, classifier passes, away summaries, recap) from landing on Haiku 3.5 (~3× token cost). Source: wave52/iter2b #2 advanced-unadopted pattern.",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": "1",
+    "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1",
+    "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": "60000",
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "ENABLE_TOOL_SEARCH": "auto:5",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70",
+    "OTEL_LOG_TOOL_DETAILS": "1",
+    "OTEL_LOG_USER_PROMPTS": "1",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "_comment_max_mcp_output_tokens": "Wave 97 Ship 1L 2026-05-08 — 2× CCBP default 25000 (claude-settings.md:822 @ HEAD 64fffd53). Sized for ctx_batch_execute + repomix workloads (30-60K bytes returns observed Wave 97). Risk: LOW. Cross-model gate: real GPT-5.5 codex T1 APPROVE conf=0.88 single-round at .claude/state/codex_consult_wave97_ship1l_mcp_env_OUT.txt.",
+    "BASH_MAX_OUTPUT_LENGTH": "100000",
+    "_comment_bash_max_output_length": "Wave 97 Ship 1L 2026-05-08 (50000) → Ship 1L-followup 2026-05-08 (100000) per user mandate 'full unleash with sota harness' + Phase 3 graduated-unleash. Cite: CCBP claude-settings.md:825 @ HEAD 64fffd53. 100K chars ≈ 25K tokens; well below context-rot threshold (~300-400K tokens per Karpathy 1M calibration). Covers larger codex verdict files + cwc + repomix CLI outputs. Risk: LOW. Real GPT-5.5 codex T1 R1 APPROVE conf=0.86 single-round per .claude/state/codex_consult_wave97_ship1l_followup_unleash_bumps_OUT.txt.",
+    "BASH_MAX_TIMEOUT_MS": "1800000",
+    "_comment_bash_max_timeout_ms": "Wave 97 Ship 1L 2026-05-08 (900000=15min) → Ship 1L-followup 2026-05-08 (1800000=30min) per user 'full unleash' mandate + Phase 3. Cite: CCBP claude-settings.md:824 + Anthropic CHANGELOG.md:3311 (introduced) + L2686 (auto-background). Covers codex T6 stop-gate 900s (longest sync gate per cross-model-consensus.md §Profile selection), cwc up to 600s, codex T1/T2 240-480s + edge cases (full-repo gitleaks scans, large monorepo git clone 5-15min). BASH_DEFAULT_TIMEOUT_MS auto-background trigger UNCHANGED at Anthropic default. Conflict-resolved with CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS=60000 (different scope: SessionEnd hooks ceiling vs Bash-tool-call ceiling). Risk: MED.",
+    "MCP_TOOL_TIMEOUT": "300000",
+    "_comment_mcp_tool_timeout": "Wave 97 Ship 1L 2026-05-08 (120000=2min) → Ship 1L-followup 2026-05-08 (300000=5min) per user 'full unleash' mandate + Phase 3. Cite: CCBP claude-settings.md:979 @ HEAD 64fffd53 (FM-20 cite-correction Wave 97 Fan-3 X1 — fan-2 B brief had stale L1071 which is mcpServers block) + Anthropic CHANGELOG.md:3259 (respect-bug fix). Sized for heavy ctx_batch_execute (8-10 concurrent commands could hit 2-3min p99) + repomix large-repo + gitnexus impact 10K+ symbol graph. 5min cap preserves fan-out parallelism (wedged tools eventually time out vs unbounded). Orthogonal to MCP_TIMEOUT (server-startup, L821). Risk: MED.",
+    "CLAUDE_CODE_EFFORT_LEVEL": "xhigh",
+    "_comment_wave97_ship1g_effort_pin": "Wave 97 Ship 1G 2026-05-08 — env-precedence pin for max-thinking effort per user mandate 'set up your default thinking effort to max'. CLAUDE_CODE_EFFORT_LEVEL takes precedence over /effort runtime command + settings.json effortLevel key per CCBP `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:857 @ HEAD 64fffd53` (TIER-1-DIRECT). xhigh = max thinking effort for Opus 4.7 (v2.1.111+); manual MAX_THINKING_TOKENS budget_tokens NOT used per Anthropic Opus 4.7 adaptive-thinking architecture (real GPT-5.5 codex T1 NEEDS-REVISION conf=0.86 caught this Mia OVER — manual token ceilings deprecated, can produce 400 errors and cost amplification). effortLevel + alwaysThinkingEnabled + CLAUDE_CODE_EFFORT_LEVEL form the canonical 3-axis max-thinking pin for Opus 4.7. Verdict file: .claude/state/codex_consult_wave97_ship1g_max_thinking_OUT.txt.",
+    "_comment_wave82a_advanced_unleash": "Wave 82a 2026-05-08 — advanced unleashed-mode env block per wave52/iter2b TOP 10 + adoption baseline. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD: AGENT_TEAMS=1 (CCBP claude-cli-startup-flags.md:211 — feature gate); NO_FLICKER (CHANGELOG render perf); ENABLE_AWAY_SUMMARY (away-from-keyboard summary feature); FINE_GRAINED_TOOL_STREAMING (CHANGELOG streaming-grain feature); ATTRIBUTION_HEADER=0 (CHANGELOG suppress 'Generated with Claude Code'); USE_POWERSHELL_TOOL=1 (CHANGELOG.md:88,213,414 — Windows pwsh native tool primary shell, paired with defaultShell:powershell at L226); SESSIONEND_HOOKS_TIMEOUT_MS=60000 (CHANGELOG.md:1265 — 1.5s ceiling override; honors per-hook timeout:30s declared on 14+ SessionEnd audits); ENABLE_PROMPT_CACHING_1H=1 (1h cache extension feature); ENABLE_TOOL_SEARCH=auto:5 (deferred-tool-search auto-promote 5 tools per turn — present session-reminder evidence); CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70 (sibling-validated threshold; CR-3 cite chain through claude-sota CLAUDE.local.md ENV); OTEL_LOG_TOOL_DETAILS=1 (CHANGELOG OTel tool_result/tool_decision events); OTEL_LOG_USER_PROMPTS=1 (CHANGELOG.md:157 — 'user_system_prompt to LLM request spans'). DEFERRED: OTEL_LOG_RAW_API_BODIES (PII risk per iter2b #7; would leak full prompts to Langfuse — enable only with verified local-only Langfuse). Cardinal-rule-3 Phase 1 bootstrap exception cross-model gate satisfaction: T1 hook codex_t1_consult_gate.py at L58 fires on this Edit; T2 hook fires on commit. Cite source: wave52/iter2b advanced-unadopted patterns 1-10."
+  },
+  "permissions": {
+    "allow": [
+      "Edit(Z:/claude-sota-installed/.claude/settings.json)",
+      "Edit(Z:/claude-sota-installed/CLAUDE.md)",
+      "Edit(Z:/claude-sota-installed/docs/sota-installed-manifest.md)",
+      "Edit(Z:/claude-sota-installed/docs/install-provenance.md)",
+      "Bash(npm install -g *)",
+      "Bash(uv tool install *)",
+      "Bash(gh release download *)",
+      "Bash(git clone --depth 1 https://github.com/* *)",
+      "Bash(docker pull *)",
+      "Bash(cargo install *)",
+      "Bash(codex *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.pfx)",
+      "Read(**/*.key)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "_comment_deny_secrets_baseline": "Wave 75 2026-05-08 — kits-convergence cited (v5 SETTINGS_AND_HOOKS_REFERENCE.md:32-38, fleet-kits-convergence-2026-05-08.md §2 row 4) chained back to CCBP claude-mcp.md hard rule 'NEVER commit secrets'. Read-class deny floor; auto-mode classifier still gates everything else.",
+    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor preserved via safety_guard.py narrow deny-list + agent_plan_readonly_bash_guard.py + cardinal-rule deny-class.",
+    "_comment_deny": "Empty — auto-mode classifier handles risk-tiering; explicit deny[] only added when a SOTA primitive needs operation-level block.",
+    "_comment_phase3_transition": "Wave 61 fire-extension 2026-05-07 flipped defaultMode default→bypassPermissions; parallel-session refined to 'auto' Wave 61.5 per SOTA convergence. CCBP-CANONICAL per Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:251 @ HEAD 64fffd53 [VERIFIED 2026-05-07]: 'auto' mode 'Auto-approves tool calls with background safety checks... Classifier auto-approves read-only and file edits; sends everything else through a safety check. Falls back to prompting after 3 consecutive or 20 total blocks. In the default Shift+Tab permission-mode cycle since v2.1.111'. SOTA-superior to bypassPermissions because bypassPermissions STILL prompts for .git/.claude/.vscode/.idea/.husky paths per CCBP L250 — auto handles via classifier instead. User-trigger directive 'all setting must be fully unleashed with sota harness' + 'full premission unleashed' satisfied via auto-mode classifier (no per-action confirm for safe ops). TIER-1-DIRECT authority: https://code.claude.com/docs/en/settings + https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode. Reversal: change to 'default' (single-line edit). disableAutoMode setting could be set to 'disable' if auto mode misbehaves on this workload — currently NOT set (auto mode active)."
+  },
+  "disabledMcpjsonServers": [],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t1_consult_gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/secret_scan_guard.py",
+            "timeout": 8
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t5_plan_review_gate.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_spawn_gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/kill-switch.sh",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/steer.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/track-read.sh",
+            "timeout": 3
+          }
+        ]
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/settings.json | Select-Object -Skip 140 -First 120' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"def main|permissionDecision|exit\\(2\\)|sys.exit|AGENT_PLAN_BASH_GUARD_DISABLE|plan|subagent|transcript|deny\" .claude/hooks/scripts/agent_plan_readonly_bash_guard.py" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"def main|permissionDecision|sys.exit|exit\\(2\\)|fail-CLOSED|fail-open|json\" .claude/hooks/scripts/safety_guard.py" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/agent_plan_readonly_bash_guard.py | Select-Object -Skip 260 -First 360' in Z:\claude-sota-installed
+ succeeded in 303ms:
+5:# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+18:#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
+43:# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
+46:# Reference: TIER-1 OFFICIAL Anthropic CC hooks docs https://code.claude.com/docs/en/hooks (PreToolUse JSON input/output contract; permissionDecision deny/allow/ask)
+47:# Reference: TIER-1 OFFICIAL Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents L463-493,520-548 (subagent frontmatter PreToolUse hooks; only fire while subagent active)
+48:# Reference: TIER-1 OFFICIAL Anthropic CC permissions docs https://code.claude.com/docs/en/permissions L130-137 (Bash(*) ≡ Bash) + L292-295 (hooks extend permissions and can deny tool calls before permission rules complete)
+50:# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
+54:"""agent_plan_readonly_bash_guard.py — frontmatter-scoped read-only Bash enforcement for plan-mode agents.
+59:subagent frontmatter declarations. Subagents declaring `permissionMode: plan` cannot OPERATIONALLY
+61:the read-only subagent's OWN frontmatter PreToolUse:Bash slot, where it fires only while that
+62:subagent is active, and denies mutating Bash commands at the exec boundary BEFORE they execute.
+74:    "transcript_path": str,
+77:    "permission_mode": str,     # parent's mode: "default"|"acceptEdits"|"bypassPermissions"|"plan"
+82:  Allow: exit 0 (no JSON needed, or emit hookSpecificOutput.permissionDecision: "allow")
+84:                                              permissionDecision: "deny",
+85:                                              permissionDecisionReason: "<text>"}}
+95:- AGENT_PLAN_BASH_GUARD_DISABLE=1 → exit 0 unconditionally (debug/escape hatch)
+110:# this frozenset is now the SOLE positive-validation Bash allowlist in eee, scoped to plan-mode subagents.
+126:    # Validated separately to deny -W/-c-with-import-system-mutate
+153:# Validated by _validate_git_ambiguous_subcmd: bare invocation = read; specific write flags = deny
+162:# Always-deny commands regardless of args (irreversible / network / mutating)
+167:    "pip", "npm", "yarn", "gem", "cargo", "go",  # package installers (note: `go` may also build/test — bare command-name deny)
+173:# Codex deny tokens — token-based check (regex \b fails on --flag boundaries
+197:# Codex deny token PREFIXES — match attached/equals forms that token-equality misses
+199:# `-cKEY=VALUE` (short-form-no-space) bypass exact-token deny check at L411-412.
+206:# Codex deny substrings — match anywhere in any token (catches `-p deep-review-exec`)
+258:    "-e", "--source",     # NB: -e ALSO valid for inline script in some awks; conservative deny
+432:    """Validate `git <subcmd>` — allow read subcommands, deny write subcommands."""
+479:    # Token-based deny check (closes \b regex boundary issue)
+482:            return False, f"block:codex deny-token {tok}"
+484:        # `--config=key=value` and `-cKEY=VALUE` bypass exact-token deny above.
+488:                return False, f"block:codex deny-prefix {prefix} in token {tok}"
+492:                return False, f"block:codex deny-substring {sub} in token {tok}"
+555:            return False, f"block:sed deny pattern ({ps})"
+600:        return False, "block:find -exec/-execdir spawns subprocesses (deny by default)"
+613:        return False, "block:bare python invocation (interactive REPL not supported in subagent)"
+623:        # Conservative deny of mutation patterns
+624:        deny_patterns = ("open(", "os.system", "os.remove", "os.unlink", "os.rmdir",
+627:        for dp in deny_patterns:
+635:    """Verifier policy: allow `pytest` with safe args; deny `-c` (Python eval) + bad --basetemp."""
+643:        # --basetemp escape: deny ALL paths that escape cwd, not just absolute paths.
+676:            #      Global denylist at L236 catches `${...}`, `$(`, backticks BUT NOT bare `$HOME`.
+684:            #     over-denying legit dirnames like `..safe/foo` (which normpath preserves).
+692:    """Verifier policy: allow `pyright`; deny `--watch` (long-running daemon)."""
+704:    """Verifier policy: allow `ruff check` (NOT --fix) + `ruff format --check`; deny mutating forms."""
+725:    """Verifier policy: allow `npm test` + `npm run {test,typecheck,lint,check}`; deny installs/builds."""
+744:    """Verifier policy: allow `cargo test` + `cargo check`; deny installs/builds."""
+758:    """Verifier policy: allow `go test`; deny everything else (build/get/install)."""
+772:    """Verifier policy: allow `tsc --noEmit` (type-check only); deny emit forms."""
+797:    # Must run BEFORE _ALWAYS_DENY because npm/cargo/go are in always-deny but
+817:    # Always-deny check (defense-in-depth for non-verifier policies AND
+820:        return False, f"block:{cmd} is in always-deny set"
+854:    # under prior code; all closed by this hard-deny.
+885:def main() -> int:
+893:    if os.environ.get("AGENT_PLAN_BASH_GUARD_DISABLE") == "1":
+900:        print(f"agent_plan_readonly_bash_guard: invalid JSON on stdin: {e}", file=sys.stderr)
+915:        print(f"agent_plan_readonly_bash_guard[DRY_RUN]: would {'allow' if allowed else 'block'} ({reason}): {cmd[:120]}", file=sys.stderr)
+921:    # Deny: emit JSON permissionDecision per Anthropic CC PreToolUse contract
+925:            "permissionDecision": "deny",
+926:            "permissionDecisionReason": (
+927:                f"agent_plan_readonly_bash_guard[--policy {args.policy}]: "
+933:    return 0  # exit 0 + JSON deny per Anthropic spec (NOT exit 2)
+937:    sys.exit(main())
+
+ succeeded in 378ms:
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/verify-gate.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/block_no_verify_guard.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(git commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_postcommit_review.py",
+            "if": "Bash(git commit *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_postcommit_review.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_prepush_review.py",
+            "if": "Bash(git push *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_prepush_review.py",
+            "if": "Bash(git -C * push *)",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/auto_proceed_gate.py",
+            "timeout": 5,
+            "async": false
+          },
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bash \".claude/hooks/scripts/cwc/commit-on-stop-throttled.sh\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\stop-review-gate-hook.mjs\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/subagent_stop_telemetry.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+
+ succeeded in 306ms:
+65:- fail-CLOSED on safety-gate corruption: stdin read failure / malformed JSON / evaluate() exception -> exit 2
+67:- fail-open preserved on explicit allow paths: empty stdin / tool_name != "Bash" / empty command (no-command-to-check semantic)
+99:import json
+279:def main() -> int:
+282:    except Exception as exc:  # noqa: BLE001 — fail-CLOSED per Ship 29.A.2 Wave 29 Agent A P1-2.3
+289:        return 2  # fail-CLOSED on corruption attack vector
+295:        payload = json.loads(raw)
+296:    except json.JSONDecodeError as exc:
+297:        log_swallow(exc, "safety-guard.json-decode")
+303:        return 2  # fail-CLOSED on corruption attack vector
+315:    except Exception as exc:  # noqa: BLE001 — fail-CLOSED per Ship 29.A.2 Wave 29 Agent A P1-2.4
+322:        return 2  # fail-CLOSED on regex/runtime corruption
+337:    sys.exit(main())
+
+ succeeded in 415ms:
+# Shell write redirections (>, >>) — detect at command-string level
+_REDIRECT_WRITE_PATTERN = re.compile(r"(?<![<>&])(?:>>?)\s*\S")
+
+# Stop-hook fix-forward 2026-05-03 — close shell-substitution bypass class.
+# The shell evaluates substitutions BEFORE the leading verb runs, so a
+# leading-verb allowlist that only inspects `git`/`ls`/`cat` etc. is bypassed
+# when the inner substitution itself runs an arbitrary command at exec time
+# (e.g. `git diff $(rm -rf /)` allowlists `git diff` but executes the inner
+# command at substitution time before `git diff` even starts).
+#
+# Empirical confirmation: tmp/probe_substitution_bypass.py 6/11 bypass cases
+# under prior code (n=6 distinct bypass shapes — $(...), backtick, <(...),
+# ${...}, $((...)), newline-separator).
+#
+# Read-only mode has no legitimate need for command substitution, backticks,
+# process substitution, or parameter expansion with embedded commands; HARD
+# DENY is the kiss-dry-yagni-aligned closure (fail-closed per
+# security-checklist.md posture + layered-gates-architecture.md §13 anti-
+# pattern "Try to enforce at front gate via async: true alone").
+#
+# NB: \$\( catches BOTH `$(...)` command substitution AND `$((...))` arithmetic
+# substitution (both share `$(` prefix). One pattern, two coverages.
+_SHELL_SUBSTITUTION_DENY_PATTERNS = (
+    re.compile(r"\$\("),  # $(...) command sub + $((...)) arithmetic sub
+    re.compile(r"`"),     # `...`  backtick command substitution
+    re.compile(r"<\("),   # <(...) process substitution (input)
+    re.compile(r">\("),   # >(...) process substitution (output)
+    re.compile(r"\$\{"),  # ${...} parameter expansion (may embed cmd via :-$(cmd))
+)
+
+# Newline is a Bash command separator that _COMMAND_SEPARATORS misses.
+# `git status\nrm -rf /` would only validate the first segment after split.
+# Read-only mode rejects multiline commands; one command per Bash invocation suffices.
+_NEWLINE_SEPARATOR_PATTERN = re.compile(r"[\r\n]")
+
+
+def _split_segments(cmd: str) -> list[str]:
+    """Split a Bash string by UNQUOTED command separators into individual command segments.
+
+    Implements the same per-segment-validation contract that the removed
+    bash_command_allowlist.py:split_command_segments helper used to provide before
+    Wave 11A removal. Each segment is a single command + its args. Compound commands
+    (a && b ; c) are split into [a, b, c] for individual validation.
+
+    Quote-aware: separators inside single ('...') or double ("...") quotes are NOT
+    split. This is critical for `python -c 'import sys; print(sys.version)'` which
+    contains a literal ';' inside the quoted argument.
+    """
+    segments: list[str] = []
+    current: list[str] = []
+    i = 0
+    in_single = False
+    in_double = False
+    while i < len(cmd):
+        c = cmd[i]
+        # Quote state tracking
+        if c == "'" and not in_double:
+            in_single = not in_single
+            current.append(c)
+            i += 1
+            continue
+        if c == '"' and not in_single:
+            in_double = not in_double
+            current.append(c)
+            i += 1
+            continue
+        # Only split on separators OUTSIDE quotes
+        if not in_single and not in_double:
+            # Multi-char separators first (&& ||)
+            if cmd[i : i + 2] in ("&&", "||"):
+                segments.append("".join(current).strip())
+                current = []
+                i += 2
+                continue
+            # Single-char separators (; | &)
+            # `&` is bash background-execution separator: `cmd1 & cmd2` runs cmd1 in
+            # background AND cmd2 in foreground. Without splitting, leading-token
+            # allowlist on cmd1 lets cmd2 (potentially destructive) execute unchecked.
+            # Codex T1 F-004 conf=0.91 HIGH: `git status & rm -rf /` was accepted as
+            # single segment with `git` allowlisted. Multi-char `&&` handled at L266-270
+            # ABOVE this single-char check (precedence preserved by ordering).
+            if c in (";", "|", "&"):
+                segments.append("".join(current).strip())
+                current = []
+                i += 1
+                continue
+        current.append(c)
+        i += 1
+    # Append final segment
+    tail = "".join(current).strip()
+    if tail:
+        segments.append(tail)
+    return [s for s in segments if s]
+
+
+def _first_token(segment: str) -> str:
+    """Extract the first token (command name) from a segment, stripping basename + extension."""
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        # shlex can't parse (unmatched quote etc) — return raw split as fallback
+        tokens = segment.split()
+    if not tokens:
+        return ""
+    # Get basename without extension (e.g. /usr/bin/python3.11 -> python)
+    cmd = os.path.basename(tokens[0]).lower()
+    # Strip common executable extensions
+    for ext in (".exe", ".cmd", ".bat", ".ps1"):
+        if cmd.endswith(ext):
+            cmd = cmd[: -len(ext)]
+            break
+    return cmd
+
+
+def _validate_git_ambiguous_subcmd(subcmd: str, tokens: list[str], i: int) -> tuple[bool, str]:
+    """Validate ambiguous git subcommands (branch/tag/config/remote/stash) by inspecting flags.
+
+    Bare invocation (no flag args) defaults to READ for these (they list/show by default).
+    Specific write flags trigger DENY.
+    """
+    next_arg = tokens[i + 1] if i + 1 < len(tokens) else ""
+
+    if subcmd == "stash":
+        # bare `git stash` = `git stash push` (write); list/show = read
+        if next_arg in {"list", "show"}:
+            return True, "allow:git stash list/show is read-only"
+        return False, f"block:git stash {next_arg or '(bare = push)'} is write"
+
+    if subcmd == "tag":
+        if next_arg in {"-l", "--list", ""}:
+            return True, "allow:git tag --list/bare is read-only"
+        if next_arg in {"-d", "-D", "--delete"}:
+            return False, "block:git tag --delete is write"
+        # Creating a tag (e.g. `git tag v1.0`) is write
+        return False, f"block:git tag {next_arg} (create) is write"
+
+    if subcmd == "config":
+        if next_arg in {"--get", "--list", "-l", "--get-all", "--get-regexp", "--show-origin"}:
+            return True, "allow:git config --get/--list is read-only"
+        if next_arg in {"--unset", "--unset-all", "--remove-section", "--rename-section"}:
+            return False, "block:git config --unset/--remove is write"
+        # Bare `git config foo.bar` (read single) is allowed; `git config foo.bar value` (set) is write
+        # Heuristic: 1 positional after subcmd = read; 2+ positionals = write
+        positionals = [t for t in tokens[i + 1 :] if not t.startswith("-")]
+        if len(positionals) <= 1:
+            return True, "allow:git config single positional is read"
+        return False, "block:git config with value (set) is write"
+
+    if subcmd == "branch":
+        if next_arg in {"", "-l", "--list", "-a", "-r", "--all", "--remotes", "-v", "-vv", "--verbose"}:
+            return True, "allow:git branch list/bare is read-only"
+        if next_arg in {"-d", "-D", "--delete"}:
+            return False, "block:git branch --delete is write"
+        if next_arg in {"-m", "-M", "--move"}:
+            return False, "block:git branch --move is write"
+        if next_arg in {"-c", "-C", "--copy"}:
+            return False, "block:git branch --copy is write"
+        # Creating a branch (e.g. `git branch new-feature`) is write
+        return False, f"block:git branch {next_arg} (create) is write"
+
+    if subcmd == "remote":
+        if next_arg in {"", "-v", "--verbose", "show", "get-url"}:
+            return True, "allow:git remote bare/-v/show is read-only"
+        if next_arg in {"add", "remove", "rename", "set-url", "set-head", "prune", "rm", "set-branches"}:
+            return False, f"block:git remote {next_arg} is write"
+        return False, f"block:git remote {next_arg} unknown subcommand (fail-closed)"
+
+    return False, f"block:git {subcmd} ambiguous subcommand fall-through (should not reach)"
+
+
+def _validate_git(segment: str) -> tuple[bool, str]:
+    """Validate `git <subcmd>` — allow read subcommands, deny write subcommands."""
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        return False, "block:git unparseable"
+    # Skip `git` and any global flags like `-C path`, `--git-dir=...`, `--work-tree=...`
+    i = 1
+    while i < len(tokens):
+        t = tokens[i]
+        if t.startswith("--") or t == "-C":
+            # Skip -C and its arg, or --flag=value
+            i += 2 if t == "-C" else 1
+            continue
+        if t.startswith("-"):
+            i += 1
+            continue
+        break
+    if i >= len(tokens):
+        return True, "allow:bare git command (e.g. `git`)"
+    subcmd = tokens[i].lower()
+    # Ambiguous subcommands (read or write depending on flags) — check FIRST
+    if subcmd in _GIT_AMBIGUOUS_SUBCMDS:
+        return _validate_git_ambiguous_subcmd(subcmd, tokens, i)
+    # Pure write subcommands
+    if subcmd in _GIT_WRITE_SUBCMDS:
+        return False, f"block:git {subcmd} is write subcommand"
+    # Pure read subcommands
+    if subcmd in _GIT_READ_SUBCMDS:
+        return True, f"allow:git {subcmd} is read-only"
+    # Unknown subcommand — fail closed (per security-checklist.md fail-closed posture)
+    return False, f"block:git {subcmd} unknown subcommand (fail-closed)"
+
+
+def _validate_codex(segment: str, policy: str) -> tuple[bool, str]:
+    """Validate `codex ...` invocation per policy mode (token-based for boundary safety).
+
+    Regex `\\b--word\\b` fails to match `--word` because `\\b` requires word/non-word
+    transition; `--` is non-word so no boundary triggers. Token-based check via shlex.split
+    is the SOTA-recommended fix per security-checklist allowlist patterns.
+    """
+    if policy != "codex-readonly":
+        return False, "block:codex invocation requires --policy codex-readonly"
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        return False, "block:codex unparseable"
+
+    # Token-based deny check (closes \b regex boundary issue)
+    for tok in tokens:
+        if tok in _CODEX_DENY_TOKENS:
+            return False, f"block:codex deny-token {tok}"
+        # Prefix check for attached/equals forms (codex T1 F-003 residual hardening):
+        # `--config=key=value` and `-cKEY=VALUE` bypass exact-token deny above.
+        # Skip bare exact matches already in DENY_TOKENS to avoid duplicate-error noise.
+        for prefix in _CODEX_DENY_TOKEN_PREFIXES:
+            if tok.startswith(prefix) and tok != prefix and tok not in _CODEX_DENY_TOKENS:
+                return False, f"block:codex deny-prefix {prefix} in token {tok}"
+        # Substring check for embedded patterns (e.g. -p deep-review-exec)
+        for sub in _CODEX_DENY_SUBSTRINGS:
+            if sub in tok.lower():
+                return False, f"block:codex deny-substring {sub} in token {tok}"
+
+    # Structural allow check: require specific subcommand shape
+    # Acceptable forms:
+    #   codex --version | -V
+    #   codex --help | -h
+    #   codex exec --help | -h
+    #   codex exec [--ephemeral] -p deep-review [...]            (+ allowed extras)
+    #   codex exec review --uncommitted [--ephemeral] [...]
+    if len(tokens) < 2:
+        return False, "block:bare codex invocation"
+
+    # `codex --version` / `codex --help`
+    if tokens[1] in {"--version", "-V", "--help", "-h"}:
+        return True, f"allow:codex {tokens[1]}"
+
+    # All allowed forms after `codex` start with `exec`
+    if tokens[1] != "exec":
+        return False, f"block:codex subcommand '{tokens[1]}' not in readonly allowlist"
+
+    # `codex exec --help` / `codex exec -h`
+    if len(tokens) >= 3 and tokens[2] in {"--help", "-h"}:
+        return True, "allow:codex exec --help"
+
+    # `codex exec review --uncommitted ...` (review subcommand)
+    if len(tokens) >= 3 and tokens[2] == "review":
+        if "--uncommitted" not in tokens:
+            return False, "block:codex exec review requires --uncommitted in readonly mode"
+        # All tokens after `review` must be in safe set
+        return True, "allow:codex exec review --uncommitted"
+
+    # `codex exec [...] -p deep-review [...]` — REQUIRES explicit -p deep-review
+    # Sandbox-escalation closure (Stop hook 2026-05-03):
+    # - `codex exec --ephemeral` WITHOUT -p was a bypass: default profile is operator-
+    #   configurable and could be `deep-review-exec` (danger-full-access).
+    # - `codex exec -p deep-review --sandbox X` overrides profile sandbox; closed by
+    #   _CODEX_DENY_TOKENS containing --sandbox.
+    # - `codex exec -p deep-review -c sandbox.mode=X` overrides via inline config;
+    #   closed by _CODEX_DENY_TOKENS containing -c / --config.
+    # The strict requirement: explicit `-p deep-review` is the ONLY allowed exec form.
+    if "-p" not in tokens:
+        return False, "block:codex exec requires explicit -p deep-review (default profile is operator-configurable, not safe to assume readonly)"
+    p_idx = tokens.index("-p")
+    if p_idx + 1 >= len(tokens):
+        return False, "block:codex -p missing profile name"
+    profile = tokens[p_idx + 1]
+    if profile != "deep-review":
+        return False, f"block:codex -p {profile} not in readonly allowlist (only deep-review)"
+    return True, "allow:codex exec -p deep-review"
+
+
+def _validate_sed(segment: str) -> tuple[bool, str]:
+    """sed -i / --in-place is write; sed `e` flag/command spawns subprocess; -n print is read."""
+    for pat in _SED_DENY_PATTERNS:
+        if pat.search(segment):
+            # Distinguish reasons for forensic clarity
+            ps = pat.pattern
+            if "in-place" in ps or r"-i\b" in ps:
+                return False, "block:sed -i/--in-place writes to file"
+            if "e[gimpI" in ps or "0-9]*e" in ps:
+                return False, "block:sed s///e flag executes replacement as shell (subprocess spawn)"
+            if r"e\s+\S" in ps:
+                return False, "block:sed `e` command evaluates pattern space as shell (subprocess spawn)"
+            return False, f"block:sed deny pattern ({ps})"
+    return True, "allow:sed without -i/--in-place/e-flag is read-only"
+
+
+def _validate_awk(segment: str) -> tuple[bool, str]:
+    """awk subprocess-spawning is HARD DENY (system, pipe-to-cmd, pipe-from-cmd, getline-coproc).
+
+    Stop-hook fix-forward round-2 2026-05-03 — awk's Turing-complete language has
+    multiple subprocess primitives that bypass the leading-verb allowlist. Read-only
+    mode rejects them all; legitimate read-only awk uses print/printf/match/etc.
+    without subprocess spawning. Also rejects `-f script.awk` (uninspectable file).
+    """
+    # Tokenize for flag inspection
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        # Unparseable — fail-closed (likely contains injected metacharacters)
+        return False, "block:awk segment unparseable (fail-closed)"
+
+    # Reject awk option flags that bypass script inspection (read script from file)
+    for tok in tokens[1:]:
+        # Match flag itself or flag=value form (e.g. --file=script.awk)
+        flag = tok.split("=", 1)[0] if "=" in tok else tok
+        if flag in _AWK_DENY_FLAGS:
+            return False, (
+                f"block:awk {tok} reads script from external source (uninspectable); "
+                "read-only mode requires inline script literal"
+            )
+
+    # Reject subprocess-spawning patterns inside awk script string
+    for pat in _AWK_SUBPROCESS_DENY_PATTERNS:
+        if pat.search(segment):
+            return False, (
+                f"block:awk subprocess pattern ({pat.pattern}) — awk system()/pipe-to/"
+                "pipe-from/coprocess/extension-load bypass leading-verb allowlist"
+            )
+
+    return True, "allow:awk without system()/pipe/coprocess is read-only"
+
+
+def _validate_find(segment: str) -> tuple[bool, str]:
+    """find with -delete / -exec / -execdir is write; bare find or find -type is read."""
+    if re.search(r"-delete\b", segment):
+        return False, "block:find -delete is write"
+    if re.search(r"-exec(?:dir)?\b", segment):
+        return False, "block:find -exec/-execdir spawns subprocesses (deny by default)"
+    if re.search(r"-fprint\b", segment):
+        return False, "block:find -fprint is write"
+    return True, "allow:find without -delete/-exec is read-only"
+
+
+def _validate_python(segment: str) -> tuple[bool, str]:
+    """python -c with limited surface; python script.py blocked (could be anything)."""
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        return False, "block:python unparseable"
+    if len(tokens) < 2:
+        return False, "block:bare python invocation (interactive REPL not supported in subagent)"
+    # Allow python --version / python -V / python -h / python --help
+    if tokens[1] in {"--version", "-V", "-h", "--help"}:
+        return True, f"allow:python {tokens[1]} is read-only"
+    # Block python -m pip install / etc.
+    if tokens[1] == "-m" and len(tokens) > 2 and tokens[2] in {"pip", "ensurepip", "venv"}:
+        return False, f"block:python -m {tokens[2]} is package management"
+    # Allow python -c with no obvious mutation keywords
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/agent_plan_readonly_bash_guard.py | Select-Object -Skip 840 -First 120' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/safety_guard.py | Select-Object -Skip 260 -First 110' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "_is_plan|permission_mode|agent|active|frontmatter|transcript|is_plan|policy" .claude/hooks/scripts/agent_plan_readonly_bash_guard.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Path .claude/hooks/scripts -Filter utils.py | Select-Object -ExpandProperty FullName; Get-ChildItem -Path .claude/hooks/scripts/safety_guard.py,.claude/hooks/scripts/agent_plan_readonly_bash_guard.py | Select-Object Name,Length,Mode,LastWriteTime' in Z:\claude-sota-installed
+ succeeded in 361ms:
+    return False, f"block:{cmd} not in {policy} allowlist (fail-closed)"
+
+
+def validate_command(cmd: str, policy: str = "readonly") -> tuple[bool, str]:
+    """Sync test-friendly entry point: validate Bash command string against policy.
+
+    Returns (allowed: bool, reason: str). Reason prefixed with "allow:" or "block:".
+    """
+    # Stop-hook fix-forward 2026-05-03 — FAIL-CLOSED on shell substitutions
+    # BEFORE any segment validation. Substitutions evaluate at exec time and
+    # bypass leading-verb allowlists (e.g. `git diff $(rm -rf /)` allowlists
+    # `git diff` but inner command runs at substitution time). Probe at
+    # tmp/probe_substitution_bypass.py — n=6 distinct bypass shapes confirmed
+    # under prior code; all closed by this hard-deny.
+    for pat in _SHELL_SUBSTITUTION_DENY_PATTERNS:
+        if pat.search(cmd):
+            return False, (
+                f"block:shell substitution detected ({pat.pattern}) — "
+                "read-only mode rejects substitutions; inner command bypasses "
+                "leading-verb allowlist (Stop-hook 2026-05-03 fix-forward)"
+            )
+
+    # Newline as command separator — _COMMAND_SEPARATORS regex misses it.
+    # Multiline commands sneak destructive segments past per-segment validation.
+    if _NEWLINE_SEPARATOR_PATTERN.search(cmd):
+        return False, (
+            "block:multiline command (newline separator) — read-only mode "
+            "rejects; submit one command per Bash invocation"
+        )
+
+    # Check write redirections at full-string level
+    if _REDIRECT_WRITE_PATTERN.search(cmd):
+        return False, "block:write redirection (> or >>) detected"
+    # Split into segments and validate each
+    segments = _split_segments(cmd)
+    if not segments:
+        return False, "block:empty command"
+    for seg in segments:
+        allowed, reason = _validate_segment(seg, policy)
+        if not allowed:
+            return False, reason
+    return True, "allow:all segments passed"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--policy", default="readonly",
+                         choices=["readonly", "codex-readonly", "verifier"],
+                         help="Allowlist policy mode (verifier extends readonly with test/type-check tools)")
+    args = parser.parse_args()
+
+    # Env knobs (defense-in-depth precedence)
+    if os.environ.get("AGENT_PLAN_BASH_GUARD_DISABLE") == "1":
+        return 0
+
+    # Read PreToolUse JSON from stdin
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError as e:
+        print(f"agent_plan_readonly_bash_guard: invalid JSON on stdin: {e}", file=sys.stderr)
+        return 0  # Fail open on malformed input (parent CC retries)
+
+    tool_name = payload.get("tool_name", "")
+    if tool_name != "Bash":
+        return 0  # Pass-through for non-Bash tools
+
+    tool_input = payload.get("tool_input") or {}
+    cmd = tool_input.get("command", "")
+    if not cmd:
+        return 0  # Empty command — pass-through
+
+    allowed, reason = validate_command(cmd, args.policy)
+
+    if os.environ.get("AGENT_PLAN_BASH_GUARD_DRY_RUN") == "1":
+        print(f"agent_plan_readonly_bash_guard[DRY_RUN]: would {'allow' if allowed else 'block'} ({reason}): {cmd[:120]}", file=sys.stderr)
+        return 0  # Always allow in dry-run
+
+    if allowed:
+        return 0  # Default allow — exit 0
+
+    # Deny: emit JSON permissionDecision per Anthropic CC PreToolUse contract
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": (
+                f"agent_plan_readonly_bash_guard[--policy {args.policy}]: "
+                f"{reason}. Command: {cmd[:200]}"
+            ),
+        }
+    }
+    print(json.dumps(output))
+    return 0  # exit 0 + JSON deny per Anthropic spec (NOT exit 2)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+ succeeded in 384ms:
+
+        if not always_block_exempt:
+            for pattern, desc, alt in _ALWAYS_BLOCK:
+                if pattern.search(sub):
+                    return True, desc, alt
+        skip = False
+        for prefix in _DATA_PREFIXES:
+            if prefix.match(sub):
+                skip = True
+                break
+        if skip:
+            continue
+        for pattern, desc, alt in _DESTRUCTIVE:
+            if pattern.search(sub):
+                return True, desc, alt
+    return False, "", ""
+
+
+def main() -> int:
+    try:
+        raw = sys.stdin.read().strip()
+    except Exception as exc:  # noqa: BLE001 — fail-CLOSED per Ship 29.A.2 Wave 29 Agent A P1-2.3
+        log_swallow(exc, "safety-guard.stdin-read")
+        sys.stderr.write(
+            f"[safety-guard] FAIL-CLOSED: stdin read error - {exc}\n"
+            f"  Hook contract requires valid JSON payload from CC PreToolUse Bash matcher\n"
+            f"  Reference: hooks/scripts/safety_guard.py + Wave 29 Agent A REAL GPT-5.5 BRIDGE-MODE BLOCK\n"
+        )
+        return 2  # fail-CLOSED on corruption attack vector
+
+    if not raw:
+        return 0
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        log_swallow(exc, "safety-guard.json-decode")
+        sys.stderr.write(
+            f"[safety-guard] FAIL-CLOSED: malformed JSON payload - {exc}\n"
+            f"  Hook contract requires valid JSON from CC PreToolUse stdin\n"
+            f"  Reference: hooks/scripts/safety_guard.py + Wave 29 Agent A REAL GPT-5.5 BRIDGE-MODE BLOCK\n"
+        )
+        return 2  # fail-CLOSED on corruption attack vector
+
+    tool_name = payload.get("tool_name", "")
+    if tool_name != "Bash":
+        return 0  # not our matcher
+
+    command = payload.get("tool_input", {}).get("command", "")
+    if not command:
+        return 0
+
+    try:
+        is_destructive, desc, alt = evaluate(command)
+    except Exception as exc:  # noqa: BLE001 — fail-CLOSED per Ship 29.A.2 Wave 29 Agent A P1-2.4
+        log_swallow(exc, "safety-guard.evaluate")
+        sys.stderr.write(
+            f"[safety-guard] FAIL-CLOSED: evaluate() exception - {exc}\n"
+            f"  Pattern-match runtime failure; treating as deny per fail-closed contract\n"
+            f"  Reference: hooks/scripts/safety_guard.py + Wave 29 Agent A REAL GPT-5.5 BRIDGE-MODE BLOCK\n"
+        )
+        return 2  # fail-CLOSED on regex/runtime corruption
+
+    if is_destructive:
+        sys.stderr.write(
+            f"[safety-guard] BLOCKED destructive pattern: {desc}\n"
+            f"  Command: {command[:200]}\n"
+            f"  Suggested alternative: {alt}\n"
+            f"  Reference: hooks/scripts/safety_guard.py + ECC safety-guard/SKILL.md\n"
+        )
+        return 2
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+ succeeded in 306ms:
+5:# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+18:#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
+24:#     returned no equivalent hook) / P5 README/frontmatter PASS / P6 deep-audit PASS.
+43:# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
+47:# Reference: TIER-1 OFFICIAL Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents L463-493,520-548 (subagent frontmatter PreToolUse hooks; only fire while subagent active)
+50:# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
+53:# Reference: .codex/config.toml profile definitions (read-only `deep-review` profile vs danger-full-access `deep-review-exec` profile — codex-readonly policy distinguishes them)
+54:"""agent_plan_readonly_bash_guard.py — frontmatter-scoped read-only Bash enforcement for plan-mode agents.
+58:Per Anthropic sub-agents docs L399-410, parent's permission_mode (e.g. bypassPermissions) PRECEDES
+59:subagent frontmatter declarations. Subagents declaring `permissionMode: plan` cannot OPERATIONALLY
+61:the read-only subagent's OWN frontmatter PreToolUse:Bash slot, where it fires only while that
+62:subagent is active, and denies mutating Bash commands at the exec boundary BEFORE they execute.
+67:closure with the queued Path B enforcement before re-promoting or relying on these agents."
+74:    "transcript_path": str,
+77:    "permission_mode": str,     # parent's mode: "default"|"acceptEdits"|"bypassPermissions"|"plan"
+87:POLICY MODES (--policy flag)
+110:# this frozenset is now the SOLE positive-validation Bash allowlist in eee, scoped to plan-mode subagents.
+193:    "--ignore-rules",        # bypasses execpolicy `.rules` files (codex T1 F-001 conf=0.91)
+201:    "--config=",  # `--config=approval_policy=never` etc
+465:def _validate_codex(segment: str, policy: str) -> tuple[bool, str]:
+466:    """Validate `codex ...` invocation per policy mode (token-based for boundary safety).
+472:    if policy != "codex-readonly":
+473:        return False, "block:codex invocation requires --policy codex-readonly"
+613:        return False, "block:bare python invocation (interactive REPL not supported in subagent)"
+635:    """Verifier policy: allow `pytest` with safe args; deny `-c` (Python eval) + bad --basetemp."""
+642:            return False, "block:pytest -c (arbitrary Python eval) denied under verifier policy"
+688:    return True, "allow:pytest with safe args (verifier policy)"
+692:    """Verifier policy: allow `pyright`; deny `--watch` (long-running daemon)."""
+699:            return False, "block:pyright --watch (long-running daemon) denied under verifier policy"
+700:    return True, "allow:pyright (verifier policy)"
+704:    """Verifier policy: allow `ruff check` (NOT --fix) + `ruff format --check`; deny mutating forms."""
+715:                return False, "block:ruff check --fix is mutating; verifier policy denies"
+716:        return True, "allow:ruff check (verifier policy)"
+719:            return True, "allow:ruff format --check (verifier policy)"
+720:        return False, "block:ruff format without --check/--diff is mutating; verifier policy denies"
+725:    """Verifier policy: allow `npm test` + `npm run {test,typecheck,lint,check}`; deny installs/builds."""
+734:        return True, "allow:npm test (verifier policy)"
+738:            return True, f"allow:npm run {script} (verifier policy)"
+744:    """Verifier policy: allow `cargo test` + `cargo check`; deny installs/builds."""
+753:        return True, f"allow:cargo {sub} (verifier policy)"
+758:    """Verifier policy: allow `go test`; deny everything else (build/get/install)."""
+767:        return True, "allow:go test (verifier policy)"
+772:    """Verifier policy: allow `tsc --noEmit` (type-check only); deny emit forms."""
+778:        return True, "allow:tsc --noEmit (verifier policy)"
+779:    return False, "block:tsc requires --noEmit under verifier policy (else emits files)"
+783:    """Verifier policy: allow `mypy` (type-check is read-only by design)."""
+785:    return True, "allow:mypy (verifier policy)"
+788:def _validate_segment(segment: str, policy: str) -> tuple[bool, str]:
+789:    """Validate a single command segment per policy."""
+796:    # Verifier-policy pre-check for verification tools.
+798:    # verifier policy permits specific subcommands (npm test, cargo test/check, go test).
+799:    if policy == "verifier":
+826:        return _validate_codex(segment, policy)
+841:    return False, f"block:{cmd} not in {policy} allowlist (fail-closed)"
+844:def validate_command(cmd: str, policy: str = "readonly") -> tuple[bool, str]:
+845:    """Sync test-friendly entry point: validate Bash command string against policy.
+879:        allowed, reason = _validate_segment(seg, policy)
+887:    parser.add_argument("--policy", default="readonly",
+889:                         help="Allowlist policy mode (verifier extends readonly with test/type-check tools)")
+900:        print(f"agent_plan_readonly_bash_guard: invalid JSON on stdin: {e}", file=sys.stderr)
+912:    allowed, reason = validate_command(cmd, args.policy)
+915:        print(f"agent_plan_readonly_bash_guard[DRY_RUN]: would {'allow' if allowed else 'block'} ({reason}): {cmd[:120]}", file=sys.stderr)
+927:                f"agent_plan_readonly_bash_guard[--policy {args.policy}]: "
+
+ succeeded in 380ms:
+Z:\claude-sota-installed\.claude\hooks\scripts\utils.py
+
+[32;1mName                             [0m[32;1m Length[0m[32;1m Mode [0m[32;1m LastWriteTime[0m
+[32;1m----                             [0m [32;1m------[0m [32;1m---- [0m [32;1m-------------[0m
+safety_guard.py                    16631 -a--- 5/7/2026 9:27:20 PM
+agent_plan_readonly_bash_guard.py  48984 -a--- 5/7/2026 9:30:11 PM
+
+
+**Testing git commands**
+
+I’m considering using `git push --force` or `git push --force-with-lease` to communicate explicit references. I think it's important to clarify which method to use. I might need to run tests to confirm if the agent blocks `git commit`, and I'll use a stdin sample for that. I wonder if running a simulation will help ensure everything is working correctly. Yes, running with the sample seems like a good way to go!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "'{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git commit -m test\"}}' | Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "'{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git status\"}}' | Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "'{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"rm -rf /\"}}' | Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py; Write-Output \"exit="'$LASTEXITCODE"' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "'{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git commit -m test\"}}' | Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py; Write-Output \"exit="'$LASTEXITCODE"' in Z:\claude-sota-installed
+ succeeded in 355ms:
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "agent_plan_readonly_bash_guard[--policy readonly]: block:git commit is write subcommand. Command: git commit -m test"}}
+
+ succeeded in 406ms:
+ succeeded in 332ms:
+exit=0
+
+ succeeded in 360ms:
+exit=2
+[safety-guard] BLOCKED destructive pattern: rm -rf against root/home/wildcard/glob/cwd
+  Command: rm -rf /
+  Suggested alternative: specify an exact path; consider `git clean -fd` for tracked-file cleanup
+  Reference: hooks/scripts/safety_guard.py + ECC safety-guard/SKILL.md
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "agent_plan_readonly_bash_guard|permissionMode: plan|PreToolUse|hooks:" .claude -g "*.md" -g "*.json"' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "agent_plan_readonly_bash_guard|permission_mode|permissionMode|agent_name|subagent" .claude/hooks/scripts -g "*.py"' in Z:\claude-sota-installed
+ succeeded in 263ms:
+.claude\agents\code-reviewer.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude\agents\code-reviewer.md:41:permissionMode: plan
+.claude\agents\code-reviewer.md:51:hooks:
+.claude\agents\code-reviewer.md:52:  PreToolUse:
+.claude\agents\code-reviewer.md:54:      hooks:
+.claude\agents\code-reviewer.md:56:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+.claude\agents\code-reviewer.md:59:    - hooks:
+.claude\agents\code-reviewer.md:69:  persistence under FM-19 (`agent_plan_readonly_bash_guard.py` blocks Bash
+.claude\agents\verifier.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude\agents\verifier.md:52:# disallowedTools blocks file mutation. Per-agent PreToolUse:Bash guard uses
+.claude\agents\verifier.md:69:hooks:
+.claude\agents\verifier.md:70:  PreToolUse:
+.claude\agents\verifier.md:72:      hooks:
+.claude\agents\verifier.md:74:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy verifier"
+.claude\agents\verifier.md:77:    - hooks:
+.claude\agents\architect.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude\agents\architect.md:43:permissionMode: plan
+.claude\agents\architect.md:53:hooks:
+.claude\agents\architect.md:54:  PreToolUse:
+.claude\agents\architect.md:56:      hooks:
+.claude\agents\architect.md:58:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+.claude\agents\architect.md:61:    - hooks:
+.claude\agents\architect.md:71:  (`agent_plan_readonly_bash_guard.py` blocks Bash heredoc / tee / redirect /
+.claude\agents\debugger.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude\agents\debugger.md:47:hooks:
+.claude\agents\debugger.md:49:    - hooks:
+.claude\agents\sota-researcher.md:71:hooks:
+.claude\agents\sota-researcher.md:73:    - hooks:
+.claude\agents\gpt5-archaeologist.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude\agents\gpt5-archaeologist.md:55:hooks:
+.claude\agents\gpt5-archaeologist.md:56:  PreToolUse:
+.claude\agents\gpt5-archaeologist.md:58:      hooks:
+.claude\agents\gpt5-archaeologist.md:60:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy codex-readonly"
+.claude\agents\gpt5-archaeologist.md:63:  For artifact persistence under FM-19 (`agent_plan_readonly_bash_guard.py`
+.claude\agents\gpt5-reviewer.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude\agents\gpt5-reviewer.md:56:hooks:
+.claude\agents\gpt5-reviewer.md:57:  PreToolUse:
+.claude\agents\gpt5-reviewer.md:59:      hooks:
+.claude\agents\gpt5-reviewer.md:61:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy codex-readonly"
+.claude\agents\gpt5-reviewer.md:64:  For artifact persistence under FM-19 (`agent_plan_readonly_bash_guard.py`
+.claude\settings.json:74:    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor preserved via safety_guard.py narrow deny-list + agent_plan_readonly_bash_guard.py + cardinal-rule deny-class.",
+.claude\settings.json:80:    "PreToolUse": [
+.claude\settings.json:311:  "_comment_wave104_ship2n_batch2": "Wave 104 Ship 2N-batch2 2026-05-08 — enable plugin-dev (Anthropic OFFICIAL Tier-0 plugin development toolkit) per Wave 104 SRA-driven re-audit B.4 INSTALL-CANDIDATE (TIER-1-OFFICIAL maintainer + D1+D2+D4+D6+D7 PASS via SRA D1-D10 convergence gate at .claude/rules/sota-research-architecture.md @ 3322b58). plugin-dev contains agents/ + commands/ + skills/ subdirs (no active plugin-level hooks or MCP server config) per verified cache at .claude/plugins/cache/claude-plugins-official/plugin-dev/76b35e91d1c9/ — LICENSE (Apache-2.0 11358B) + README.md (14590B) + agents/ + commands/ + skills/. CR-9 install-risk LOW (no active hooks/MCPs to add edit-path latency, no @latest, no sibling-bleed, marketplace-clone HEAD pinned at 76b35e91d1c9 .gcs-sha first-12). Wave 104 Agent SRA listed agent-sdk-dev as B.4 candidate but it was ALREADY enabled per Ship 2N-batch1 commit 1deb221 — this ship newly enables ONLY plugin-dev. security-guidance plugin DEFERRED to Ship 2N-batch3 — Mia caught hardcoded /tmp/security-warnings-log.txt path (cross-platform Windows-Git-Bash incompatibility) + PreToolUse:Edit fires on every edit (per-edit token cost needs CR-9 monitoring). Codex T1 verdict NEEDS-REVISION conf=0.88 5-prescription Pattern A applied: agents-only mischaracterization corrected to agents/commands/skills only. Cite: Wave 104 SRA re-audit verdict tmp/wave104-sra-driven-reaudit-2026-05-08.md REVISE-RE-AUDIT conf=0.84 + .claude/state/codex_consult_wave104_ship2n_batch2_OUT.txt NEEDS-REVISION conf=0.88.",
+.claude\rules\audit-action-loop.md:31:**Reference**: `Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:246-262,265,274,284,344 @ HEAD b512f256450dba8f0dd1399e485563b7deb9c534 [VERIFIED 2026-05-02 via Ship 38 Marker Decay refresh; Wave 9 audit at agent af32addc used 8348d1f8 — cited line ranges UNCHANGED in 8348d1f8..b512f256 16-commit span per Ship 38 diff probe (types.py +8 SandboxNetworkConfig at L783-806; subprocess_cli.py 22-mod stderr-reader; client.py + __init__.py UNCHANGED)]` — TIER-1 OFFICIAL Anthropic SDK `_SubagentContextMixin` TypedDict mandates `agent_id: str` + `agent_type: str` on the **four tool-lifecycle hook inputs** (`PreToolUseHookInput` `:265`, `PostToolUseHookInput` `:274`, `PostToolUseFailureHookInput` `:284`, `PermissionRequestHookInput` `:344` — all inherit the mixin). Verbatim source comment at `:252`: "When multiple sub-agents run in parallel their tool-lifecycle hooks interleave over the same control channel — this is the only reliable way to attribute each one to the correct sub-agent."
+.claude\rules\audit-action-loop.md:51:When sss runs 3-6 parallel agents per `.claude/rules/parallel-agent-wave.md`, all of their PreToolUse/PostToolUse/PostToolUseFailure/PermissionRequest hooks fire on the same control channel. Without `agent_id`, JSONL records interleave anonymously:
+.claude\rules\codex-t1-system-meta-review-fallback.md:17:    meta-review fallback discipline (n=7 codification of codex T1 PreToolUse:Edit gate
+.claude\rules\codex-t1-system-meta-review-fallback.md:55:The `hooks/scripts/codex_t1_consult_gate.py` PreToolUse gate enforces codex T1
+.claude\rules\codex-t1-auto-wedge-recovery.md:40:The bypass preserves `cross-model-consensus.md §The contract` cardinal-rule-3 cross-model-consensus invariant via the T2 commit-time hook fallback (`codex_t2_pre_commit_gate.py:424` PreToolUse `Bash(git commit *)` per `layered-gates-architecture.md §5 Layer 2`) — the design-surface edit gets cross-model review at commit time even though T1 pre-edit gate was bypassed.
+.claude\rules\codex-t1-auto-wedge-recovery.md:81:The mv operation triggers PostToolUse hooks (NOT PreToolUse Edit gate). T2 commit-time hook (`codex_t2_pre_commit_gate.py`) provides cross-model verification at the next `git commit` per `cross-model-consensus.md §The contract` — the edit lands with full cross-model consensus invariant preserved.
+.claude\rules\codex-t1-auto-wedge-recovery.md:87:1. **Decouple Edit-time wedge from logical-edit semantics**: the logical edit is split into 3 atomic operations — buffer-prep (cp, gate-excluded), actual-edit (on buffer, gate-excluded), commit-prep (mv to live, post-edit hook). The wedge can't fire on any of these because none is a PreToolUse Edit on the gate-pattern path.
+.claude\rules\codex-t1-fix-forward-pattern.md:358:T1 may be skipped only when the edit is pure downstream-propagation of a **settled upstream authority** to a sister/parallel surface (rule-layer ↔ skill-layer ↔ canonical-authority-surface). **Settled** means either (a) the upstream concept has terminal T1 APPROVE, or NEEDS-REVISION with all prescribed edits integrated, cited with `[VERIFIED via <verdict path>]` plus commit SHA, or (b) an explicit user-trigger directive is being copied as recorded authority with no interpretation. REJECT, INCONCLUSIVE, UNKNOWN, timeout-with-red-flags, or NEEDS-REVISION-with-open-prescriptions fail closed to fresh T1. This is a scoped mechanical-mirror exception, not a generic "looks mechanical" exception. T2 commit-time hook (`.claude/hooks/scripts/codex_t2_pre_commit_gate.py:424` PreToolUse `Bash(git commit *)` per `.claude/rules/layered-gates-architecture.md` §5 Layer 2) is the cross-model verification net.
+.claude\rules\cross-model-consensus.md:35:| §The contract (cardinal rule) | TIER-1-HOOK-SUBSTRATE + TIER-3-LOCAL-COMPOSITION | "no commit lands on a design surface without codex's verdict on file" | Anthropic CC hooks docs PreToolUse `permissionDecision` semantic (`https://code.claude.com/docs/en/hooks` lines 1021-1023, 1111-1119) + sss codex T1 hook wire at `.claude/hooks/scripts/codex_t1_consult_gate.py:23-28,104-108,235` |
+.claude\rules\cross-model-consensus.md:36:| §T1-T7 touchpoint lifecycle | TIER-1-HOOK-SUBSTRATE + TIER-2-CROSS-MODEL-WORKFLOW + TIER-3-LOCAL-LIFECYCLE-COMPOSITION | T1-T7 placement + verdict drives ship/fix-forward/STOP | Anthropic CC hooks docs `PreToolUse` (lines 1021-1023, 1111-1119) + `PostToolUse` (lines 1238-1245, 1291-1292) + `Stop` (lines 1621-1644) + matcher/`if` semantics (lines 328-371, 424-431) + CCBP `cross-model-workflow.md:1-48 @ HEAD 64fffd53` STEPS 1-4 + sss-novel: T0 candidate-list challenge (PROPOSED-PILOT) and T7 ask-without-act gate explicitly marked TIER-3-LOCAL-EXTENSION |
+.claude\rules\cross-model-consensus.md:74:**Discipline-side / hook-side relationship**: PreToolUse `.claude/hooks/scripts/codex_t1_consult_gate.py:232,1717-1719` targets Edit/Write/MultiEdit; when T1 is absent, the default path warns (non-blocking), while `CODEX_T1_GATE_STRICT=1` with auto-spawn enabled routes through AUTO-T1 at `.claude/hooks/scripts/codex_t1_consult_gate.py:1847-1868` and `_auto_spawn_codex_t1` at `.claude/hooks/scripts/codex_t1_consult_gate.py:1238-1455`. This `§The contract` body is the DISCIPLINE-side complement to hook-side enforcement — agent body sections point HERE rather than duplicate mechanics. cf. this file's Dogfood failure note at `cross-model-consensus.md:14` where the rule itself was caught by the gate it codifies before first commit.
+.claude\rules\cross-model-consensus.md:81:| **T1** pre-edit consult | BEFORE typing on design surface (or in parallel with file unstaged) | `deep-review-exec` | 240s narrow / 480s deep / 900s xhigh | **ACTIVE** — this fire fired T1 on every iter-2 through iter-8 port; iter-9 (this rule) was the retroactive-T1 dogfood; iter-19 (commit 927532a) added mechanical PreToolUse hook-wire via `.claude/hooks/scripts/codex_t1_consult_gate.py` (matcher `Edit\|Write\|MultiEdit`, sync (no async:true), timeout 5; default WARN — blocks via `permissionDecision:"deny"` only under `CODEX_T1_GATE_STRICT=1`). Design-surface allowlist enforced by gate script, not settings.json alone — see §Source. Profile updated iter-93 2026-05-02 from `deep-review` to `deep-review-exec` per T2 P2 prescription closing intra-file profile-map conflict. |
+.claude\rules\cross-model-consensus.md:82:| **T2** working-tree review | BEFORE commit on multi-file changes (`codex exec review --uncommitted`) | (default — `-p` rejected on `codex exec review` per `codex-cli-flag-positioning.md` matrix row 1; operator-side custom-prompt T2 uses `-p t2-exec`) | 120s | **ACTIVE** — `.claude/hooks/scripts/codex_t2_pre_commit_gate.py:424` wired at `settings.json:hooks.PreToolUse[1].hooks[0].command` with matcher `Bash` + `if: Bash(git commit *)`, sync. Fires BEFORE `git commit` Bash call so working-tree review happens pre-commit (not post). Verdict written to `.claude/state/codex_review_HEAD_<sha>.txt`. Dirty-tree DOC-EXCEPTION pre-iter-23 is RETIRED — gate now selects only diff-relevant uncommitted changes per gate-script logic. Profile column updated iter-93 2026-05-02 — runtime hook uses default profile (no `-p` flag); operator-side standalone T2 fires use `t2-exec`. |
+.claude\rules\cross-model-consensus.md:229:| **Medium-risk** | Multi-file ships / new mechanics / behavioral changes / existing-surface edits with potential ripple; rule-layer or skill-layer additions ≤200 LOC | Pre-commit cross-model review (**T2 commit-time hook** at `Bash(git commit *)` PreToolUse — agent implements, codex GPT-5.5 reviews uncommitted tree before commit lands) | T1 pre-edit + T2 working-tree + T3 post-commit (full lifecycle) |
+.claude\rules\fm19-readonly-guard-sidestep.md:13:# Reference: TIER-2 `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py:217,249,820-828 @ HEAD 2a63ab6ca0391d3d17b69d8bd4c9d15c890135cd` [VERIFIED 2026-05-04]
+.claude\rules\fm19-readonly-guard-sidestep.md:125:- `agent_plan_readonly_bash_guard.py` owns the hook-side block surface.
+.claude\rules\fm19-readonly-guard-sidestep.md:136:- `agent_plan_readonly_bash_guard.py` changes multiline, redirection, substitution, or write-verb policy.
+.claude\rules\layered-gates-architecture.md:47:| §1 The 5 layers + their canonical role | hook event → role mapping | TIER-1-COMPOSED | Anthropic CC hooks docs `https://code.claude.com/docs/en/hooks` lines 185-219 (PreToolUse/PostToolUse/Stop semantics) + SDK primitives at `Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:265-306,369-376,448-504,532-540 @ b512f256` | sss `.claude/settings.json` hook-event registrations | 5-layer model is sss composition; not directly stated by Anthropic |
+.claude\rules\layered-gates-architecture.md:50:| §4 Layer 1 — Front gates (PreToolUse, observers + asyncRewake) | per-hook sync/async semantics + STRICT env modifier | TIER-1-COMPOSED + TIER-3-LOCAL-CONFIG | Anthropic CC hooks docs PreToolUse `permissionDecision` (lines 1021-1023,1111-1119) + matcher/`if` (lines 328-371,424-431) + asyncRewake (lines 436-440) | sss hook-wire table at §4 cites specific `.claude/settings.json` line numbers for each hook | Each hook's STRICT semantics are eee-local; not Anthropic-authored |
+.claude\rules\layered-gates-architecture.md:52:| §5 Layer 2 — Commit-gate enforcer | sync STRICT FAIL_CLOSED commit-gate semantics | TIER-3-LOCAL-OPERATOR-DERIVED | sss `.claude/hooks/scripts/codex_t2_pre_commit_gate.py:424` + `.claude/settings.json:hooks.PreToolUse[1]` STRICT/FAIL_CLOSED env block | n/a | Sync 60-180s cost amortized across editing session; commit-time-only |
+.claude\rules\layered-gates-architecture.md:56:| §9 Test-coverage HARD GATE for DENY-emitting hooks | mandate that DENY-emitting hooks MUST have `tests/test_<hook>_security.py` | **TIER-3-LOCAL-OPERATOR-DERIVED (codex T6 verdict — NOT TIER-1-NAMED-AUTHOR)** | TIER-1 backing is ONLY the Anthropic hook-deny/block mechanism (lines 1021-1023 PreToolUse permissionDecision); the test-coverage MANDATE itself is eee-local | sss codex T6 verdict at `.claude/state/codex_consult_*_OUT.txt` 2026-04-27 HIGH-severity finding on `permission_request_auto_approve.py` (default-allow Bash unsafe — without test gate, the safety bug class repeats) | Codex T6 verdict is TIER-3 agent-evidence (NOT TIER-1-NAMED-AUTHOR-QUOTE per fire-29 prescription #3 correction); the mandate is eee-local-policy backed by the verdict |
+.claude\rules\layered-gates-architecture.md:73:| **1** | `PreToolUse` | Front gates: **observers + asyncRewake-enforcers** | async OR `asyncRewake: true` | exit 2 wakes Claude with stderr | 0s blocking; ~5-30s in background |
+.claude\rules\layered-gates-architecture.md:74:| **2** | `PreToolUse Bash(git commit *)` | **Commit-gate enforcer** | sync, STRICT, FAIL_CLOSED | exit 0 + permissionDecision:"deny" blocks commit | 60-180s at commit time only |
+.claude\rules\layered-gates-architecture.md:78:Cite rationale: this matches the natural structure of Claude Code's hook event lifecycle per https://code.claude.com/docs/en/hooks (verbatim "PreToolUse: Before a tool call executes. Can block it" / "PostToolUse: After a tool call succeeds. No (post-execution)" / "Stop: When Claude finishes responding. Can block it"). Each event has a fundamentally different role in the lifecycle; conflating them produces design errors.
+.claude\rules\layered-gates-architecture.md:134:## §4 Layer 1 — Front gates (PreToolUse, observers + asyncRewake)
+.claude\rules\layered-gates-architecture.md:142:| `worktree_verify_gate.py` | `Agent` (PreToolUse + PostToolUse) | sync | 8s | observer-only (always exit 0; stderr advisory) | Worktree state coherence check (matcher renamed Task→Agent at Ship M commit `ad8b765`) |
+.claude\rules\layered-gates-architecture.md:152:Prior to 2026-05-04, `.claude/hooks/scripts/bash_command_allowlist.py` was wired as a PreToolUse `Bash` sync hook (settings.json:275-277, 1486 LOC) acting as a positive command allowlist with ~75 commands in a frozenset + 11 per-command validators + autonomous-vs-interactive mode inversion. Wave 10A (commit `d1e42e46` 2026-05-03) extended it with `_validate_mv_command` + `_validate_rm_command` to support FM-14 cp-back / mv -T tmp-buffer bypass mechanics.
+.claude\rules\layered-gates-architecture.md:159:- `settings.json` PreToolUse `Bash` allowlist hook block
+.claude\rules\layered-gates-architecture.md:163:- `.claude/hooks/scripts/safety_guard.py` (PreToolUse `Bash` sync hook): regex deny-list for known catastrophic patterns ONLY (`rm -rf /`, fork bombs, `mkfs.*`, `dd if=/dev/zero of=/dev/sd*`, `:(){:|:&};:`). Per codex T1 HIGH finding 2026-05-04 verbatim: "safety_guard.py is a narrow deny-list for known catastrophic patterns... NOT a validator-equivalent replacement for a positive allowlist." Cite: `.claude/hooks/scripts/safety_guard.py:21,269 [VERIFIED 2026-05-04 via codex T1 verdict at .claude/state/codex_consult_wave11_allowlist_remove_skill_replace_OUT.txt:23918]`. CLI mode at safety_guard.py:269 can fail-open per its own contract — additional fragility under autonomous loops.
+.claude\rules\layered-gates-architecture.md:164:- `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` (Agent-spawn-time read-only restriction for `permissionMode: plan` subagents): unchanged; layer-2 sister gate. Wave 11A repointed cite comments from the removed `bash_command_allowlist.py` to the new operator reference at `.claude/skills/sota-cli-tools/SKILL.md`.
+.claude\rules\layered-gates-architecture.md:172:- This is a deliberate trade-off — autonomous-loop ergonomics + SOTA CLI tool foundation accessibility weighed against positive command validation. The removal is the right call for sss given (a) the user-trigger n=6+ default-unleashed direction, (b) the operator-discipline + comparison harness (OpenAI Codex CLI sandbox model) precedent, and (c) the residual safety floor of safety_guard.py + agent_plan_readonly_bash_guard.py for the highest-risk patterns and read-only agent contexts.
+.claude\rules\layered-gates-architecture.md:209:**T4 naming clarification** (drift fix in this session's Ship #1): the script name `codex_prepush_review.py` is historical — the wire is PostToolUse `Bash(git push *)` so it fires AFTER push completes. The label is "post-push cumulative review" not "prepush gate" (Anthropic CC has no PreToolUse-blocking semantics for `git push` per code.claude.com/docs/en/hooks). See `.claude/rules/cross-model-consensus.md:41` row T4 for the corrected wording.
+.claude\rules\layered-gates-architecture.md:245:- OR `permissionDecision: "deny"` (PreToolUse JSON)
+.claude\rules\layered-gates-architecture.md:320:5. **Not a substitute for permission-deny semantics** — `permissionDecision: "deny"` is a synchronous PreToolUse-only mechanism. asyncRewake cannot deny; it can only wake-with-stderr.
+.claude\rules\layered-gates-architecture.md:339:- Anthropic CC adds new hook event types (e.g. `PreCommit` if it ever lands as a separate event from `PreToolUse Bash(git commit *)`)
+.claude\rules\mia-pre-apply.md:154:- A `.claude/hooks/scripts/<hook>.py` ships that mechanically pre-applies this discipline (e.g., a PreToolUse:Edit gate that probes runtime state when prescriptions are detected in transcript) — flip from operator-discipline to mechanical-enforcement
+.claude\rules\named-failure-modes.md:37:| **FM-06 Fact-Forcing Gate fired on contextually-OK Bash** | PreToolUse hook blocks Bash with `[Fact-Forcing Gate] Quote the user's current instruction verbatim. Then retry the same operation.` | n=2 verified (iter 26 + iter 28+ continuation) | Quote user instruction verbatim in user-facing text; retry same Bash operation; gate clears | system-reminder logs; gate-script `.claude/plugins/cache/everything-claude-code/.../pre-bash-dispatcher.js` | UNCODIFIED — gate is ECC-plugin-supplied (not sss-owned); recovery is the documented gate behavior |
+.claude\rules\named-failure-modes.md:46:| **FM-19 readonly-guard sidestep** | No-Write / readonly-policy subagent tries to persist an artifact via Bash heredoc, `tee`, redirection, shell substitution, PowerShell, or Python inline file-write; `agent_plan_readonly_bash_guard.py` blocks the write path, so the artifact risks being lost unless returned inline | n=4 cumulative dogfood 2026-05-04 (Wave 16 fire-23 gpt5-reviewer heredoc block + Wave 17 fire-9 code-reviewer heredoc/tee block + Wave 17 A4 architect `2>/dev/null` block + Wave 17 C3/D1 companion dogfood cited by `reference_path_drift_cascade_dogfood_2026_05_04.md`) | Agent embeds complete artifact in final return using `## ARTIFACT-INLINE: tmp/wave<N>-<agent>-<topic>-<date>.md`; orchestrator persists post-completion. Do not weaken hook allowlists or retry path-normalized write variants | `Z:/claude-sota-installed/tmp/wave17-A4-fm19-codification-design-2026-05-04.md:12-38,99-157` [VERIFIED path 2026-05-04]; `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py:217,249,820-828 @ HEAD 2a63ab6ca0391d3d17b69d8bd4c9d15c890135cd`; `.claude/projects/Z--claude-sota-installed/memory/reference_path_drift_cascade_dogfood_2026_05_04.md:2-3,11,17-19` [VERIFIED path 2026-05-04] | **OWNED by `.claude/rules/fm19-readonly-guard-sidestep.md`** — promoted Wave 17 D1 at n=4; catalog row routes only, mechanics live in owner rule per jurisdiction |
+.claude\rules\port-note-discipline.md:52:**Enforcement**: at iter-end, run `grep -nE "<just-ported-filename>:[0-9]+" -r .` and verify each result resolves to expected content. Cite-line grep itself remains iter-end manual (mechanizable as a pre-commit hook in a future iter — FUTURE-AUTOMATION). Post-iter-19 (commit 927532a): T1 codex pre-edit consult IS now hook-driven via `.claude/settings.json` PreToolUse Edit|Write|MultiEdit registration of `codex_t1_consult_gate.py` (sync, no async:true present, timeout 5; default WARN — blocks only under `CODEX_T1_GATE_STRICT=1`). T1 enforcement and cite-line grep are orthogonal disciplines.
+.claude\rules\port-note-discipline.md:100:- P2 n=3: verified via Agent B audit per ¶P2 — iter-9 cross-model-consensus.md L40 T3 stale at iter-15 ship + iter-11 ruff_guard.py FORWARD-REF on pyright_guard stale at iter-12 ship + iter-20 Agent-ε T2 review found this rule's L43+L99 "settings.json wires only SessionStart" claims STALE post-iter-19 commit 927532a PreToolUse wire (recursive Pattern P2 dogfood: the rule that codifies FORWARD-REF retirement silently failed its own discipline at the iter where wire transition fired).
+.claude\rules\port-note-discipline.md:108:- **"FORWARD-REF retirement is hook-driven; ship it now"** — partially refuted by current `.claude/settings.json` state. Hook stack registers PreToolUse Edit|Write|MultiEdit for T1 and PostToolUse Bash(git commit *) for postcommit review/audits, but still lacks a dedicated T3 retirement-grep consumer [VERIFIED 2026-04-28 via `.claude/settings.json:273-335`]. T1 enforcement and generic postcommit review are hook-driven; FORWARD-REF retirement remains iter-end manual grep per §3 until a dedicated consumer lands.
+.claude\rules\research-protocol.md:76:- `https://github.com/gsd-build/get-shit-done` @ HEAD `eeaf9c556fa9b89f3d0681b1744852ad5e4b179e` (`README.md` verified via `mcp__github__get_file_contents`) [VERIFIED 2026-04-29 via 5-tool-type convergence audit per `feedback_sota_discovery_must_grep_prior_decisions.md`] — TIER-2 high-confidence third-party workflow reference: TÂCHES/get-shit-done v1, MIT JavaScript meta-prompting + context-engineering + spec-driven development system for Claude Code plus 13 other runtimes (OpenCode/Gemini CLI/Kilo/Codex/Copilot/Cursor/Windsurf/Antigravity/Augment/Trae/Qwen Code/CodeBuddy/Cline). Evidence summary: 58,543 GitHub stars, recent activity (last push 2026-04-29), multi-IDE runtime support, `--minimal` install option (~700 vs 12K cold-start tokens), built-in security claims (PreToolUse prompt-guard + path traversal prevention + JSON sanitization), 7 independent named-T2 practitioner reviews converging on context-rot mitigation [VERIFIED via Exa neural search 2026-04-29], Perplexity/Augment analysis reporting 132 contributors and 49 releases [VERIFIED via Perplexity recency], and no prior REJECT verdict in the decision audit [VERIFIED via grep `.claude/state/agent_team_*` + `.claude/projects/*/memory/feedback_*`]. Study selectively for `/gsd-graphify` (knowledge-graph integration parallels GitNexus dependency), `/gsd-spike` (2-5 focused experiments), `/gsd-sketch` (HTML mockup variants), token-budgeted install patterns, fresh-context subagent task execution, atomic-commit discipline, and security/prompt-guard hook patterns. Reference-only; does not supersede `research-protocol.md` RPI, `cross-model-consensus.md` T1-T7, `team-orchestration.md`, or `parallel-agent-wave.md`.
+.claude\rules\team-orchestration.md:506:- `Z:/repos/deps/claude-code-best-practice-shan/.claude/hooks/HOOKS-README.md:37` — 3 team-specific hooks: `TeammateIdle`, `TaskCreated`, `TaskCompleted` require the env flag
+
+ succeeded in 284ms:
+.claude/hooks/scripts\codex_prepush_review.py:27:#   "all skills, hooks, subagents and beyond, when suitable, add this
+.claude/hooks/scripts\fm17d_stall_detector.py:3:# subagent terminations matching the FM-17.d signature, emits JSONL audit
+.claude/hooks/scripts\fm17d_stall_detector.py:4:# trail, and surfaces recovery hint per fm17-subagent-fleet-depletion.md
+.claude/hooks/scripts\fm17d_stall_detector.py:8:#   event spec -- fires on every subagent termination success+failure)
+.claude/hooks/scripts\fm17d_stall_detector.py:9:# Reference: TIER-2 .claude/rules/fm17-subagent-fleet-depletion.md FM-17.d
+.claude/hooks/scripts\fm17d_stall_detector.py:15:# Reference: TIER-3 sister hook .claude/hooks/scripts/subagent_stop_telemetry.py
+.claude/hooks/scripts\fm17d_stall_detector.py:27:Catches the failure mode codified at fm17-subagent-fleet-depletion.md
+.claude/hooks/scripts\fm17d_stall_detector.py:173:        # (.claude/projects or subagents component)
+.claude/hooks/scripts\fm17d_stall_detector.py:177:        if ".claude/projects" not in path_str and "subagents" not in path_str:
+.claude/hooks/scripts\fm17d_stall_detector.py:257:    agent_id, _ = _safe_field(payload, "agent_id", "subagent_session_id")
+.claude/hooks/scripts\fm17d_stall_detector.py:258:    agent_type, _ = _safe_field(payload, "agent_type", "subagent_type")
+.claude/hooks/scripts\fm17d_stall_detector.py:301:    # ADVISORY mode (always exit 0; never blocks subagent termination)
+.claude/hooks/scripts\agent_spawn_gate.py:2:# Reference: https://code.claude.com/docs/en/hooks (TIER-1 official-docs source for PreToolUse contract; `permission_mode` payload field; `hookSpecificOutput` JSON shape with `additionalContext` / `permissionDecision` / `permissionDecisionReason`)
+.claude/hooks/scripts\agent_spawn_gate.py:3:# Reference: https://code.claude.com/docs/en/sub-agents (TIER-1 official-docs source for parent permissionMode precedence at L399-410; subagent frontmatter PreToolUse Bash guard support at L463-548; deny JSON at L1111-1133 of code.claude.com/docs/en/hooks)
+.claude/hooks/scripts\agent_spawn_gate.py:4:# Reference: Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md:21-30 @ 64fffd53a7c6f8e2e0b1575fdd200b65cda04737
+.claude/hooks/scripts\agent_spawn_gate.py:5:#   (CCBP subagent frontmatter fields for tools/hooks/skills constraints) [VERIFIED 2026-04-28]
+.claude/hooks/scripts\agent_spawn_gate.py:12:#   CCBP claude-subagents.md does NOT document this exact value. Threshold is empirical
+.claude/hooks/scripts\agent_spawn_gate.py:20:#   conditions: permissionMode:plan + Bash in tools + parent permission_mode in
+.claude/hooks/scripts\agent_spawn_gate.py:24:#   permissionMode is silently overridden by parent bypassPermissions/acceptEdits;
+.claude/hooks/scripts\agent_spawn_gate.py:30:1. Fabricated subagent_type (non-existent agent names) — both Task and Agent
+.claude/hooks/scripts\agent_spawn_gate.py:34:   When the target agent declares permissionMode:plan + Bash in tools, parent runs
+.claude/hooks/scripts\agent_spawn_gate.py:35:   under permission_mode in {bypassPermissions, acceptEdits}, AND the agent lacks a
+.claude/hooks/scripts\agent_spawn_gate.py:41:- Reads hook input from stdin as JSON: {tool_name, tool_input, permission_mode, ...}
+.claude/hooks/scripts\agent_spawn_gate.py:60:# Built-in CC subagent types per the Agent tool prompt.
+.claude/hooks/scripts\agent_spawn_gate.py:63:# subagent for cross-model consensus (cardinal-rule-3); ECC plugin agents
+.claude/hooks/scripts\agent_spawn_gate.py:82:# Parent permission modes that override subagent declarative permissionMode per Anthropic
+.claude/hooks/scripts\agent_spawn_gate.py:84:# modes, the subagent's declarative `permissionMode: plan` is silently degraded; only an
+.claude/hooks/scripts\agent_spawn_gate.py:94:def _project_agent_names(project_dir: Path) -> frozenset[str]:
+.claude/hooks/scripts\agent_spawn_gate.py:110:    return _BUILTIN_AGENTS | _project_agent_names(project_dir)
+.claude/hooks/scripts\agent_spawn_gate.py:146:    logic returned that path, `_project_agent_names()` walked into the wrong
+.claude/hooks/scripts\agent_spawn_gate.py:231:    """True iff the frontmatter sets permissionMode: plan."""
+.claude/hooks/scripts\agent_spawn_gate.py:232:    return str(front.get("permissionMode", "")).strip() == "plan"
+.claude/hooks/scripts\agent_spawn_gate.py:280:    subagent_type: str,
+.claude/hooks/scripts\agent_spawn_gate.py:281:    parent_permission_mode: str,
+.claude/hooks/scripts\agent_spawn_gate.py:287:    (a) permissionMode: plan declared in agent frontmatter
+.claude/hooks/scripts\agent_spawn_gate.py:289:    (c) parent permission_mode in {bypassPermissions, acceptEdits} (the override-class)
+.claude/hooks/scripts\agent_spawn_gate.py:293:    declarative permissionMode that could be degraded.
+.claude/hooks/scripts\agent_spawn_gate.py:295:    if parent_permission_mode not in _DEGRADING_PARENT_MODES:
+.claude/hooks/scripts\agent_spawn_gate.py:298:    front = _load_agent_frontmatter(subagent_type, project_dir)
+.claude/hooks/scripts\agent_spawn_gate.py:309:    return parent_permission_mode  # caller uses the mode string in JSON output
+.claude/hooks/scripts\agent_spawn_gate.py:313:    """Task-tool validation: subagent_type allowlist + prompt length + description."""
+.claude/hooks/scripts\agent_spawn_gate.py:314:    subagent_type = tool_input.get("subagent_type", "general-purpose")
+.claude/hooks/scripts\agent_spawn_gate.py:315:    if subagent_type not in allowed:
+.claude/hooks/scripts\agent_spawn_gate.py:317:            f"agent_spawn_gate: subagent_type='{subagent_type}' is not in the "
+.claude/hooks/scripts\agent_spawn_gate.py:327:            "(CCBP claude-subagents.md general principle; the 100-char threshold "
+.claude/hooks/scripts\agent_spawn_gate.py:343:    """Agent-tool validation: subagent_type allowlist only.
+.claude/hooks/scripts\agent_spawn_gate.py:347:    subagent_type allowlist (matches Task validation step 1). Prompt-length and
+.claude/hooks/scripts\agent_spawn_gate.py:350:    subagent_type = tool_input.get("subagent_type", "general-purpose")
+.claude/hooks/scripts\agent_spawn_gate.py:351:    if subagent_type not in allowed:
+.claude/hooks/scripts\agent_spawn_gate.py:353:            f"agent_spawn_gate: subagent_type='{subagent_type}' is not in the "
+.claude/hooks/scripts\agent_spawn_gate.py:361:def _emit_warning(subagent_type: str, parent_mode: str) -> None:
+.claude/hooks/scripts\agent_spawn_gate.py:372:                f"agent_spawn_gate: target agent '{subagent_type}' declares "
+.claude/hooks/scripts\agent_spawn_gate.py:373:                f"permissionMode=plan while parent permission_mode={parent_mode}; "
+.claude/hooks/scripts\agent_spawn_gate.py:375:                f"agent_plan_readonly_bash_guard.py."
+.claude/hooks/scripts\agent_spawn_gate.py:382:def _emit_deny(subagent_type: str, parent_mode: str) -> None:
+.claude/hooks/scripts\agent_spawn_gate.py:393:                f"'{subagent_type}' under {parent_mode} without a frontmatter "
+.claude/hooks/scripts\agent_spawn_gate.py:431:    # Step 1: existing Task-tool gate (subagent_type + prompt + description).
+.claude/hooks/scripts\agent_spawn_gate.py:432:    # For Agent tool, only subagent_type allowlist applies (forks may omit brief).
+.claude/hooks/scripts\agent_spawn_gate.py:446:    # no declarative permissionMode that could be degraded.
+.claude/hooks/scripts\agent_spawn_gate.py:450:    subagent_type = tool_input.get("subagent_type", "general-purpose")
+.claude/hooks/scripts\agent_spawn_gate.py:451:    parent_permission_mode = str(hook_input.get("permission_mode", ""))
+.claude/hooks/scripts\agent_spawn_gate.py:454:        subagent_type, parent_permission_mode, project_dir
+.claude/hooks/scripts\agent_spawn_gate.py:461:        _emit_deny(subagent_type, degradation_mode)
+.claude/hooks/scripts\agent_spawn_gate.py:463:        _emit_warning(subagent_type, degradation_mode)
+.claude/hooks/scripts\subagent_stop_telemetry.py:11:OUT = ROOT / ".claude/state/subagent_metrics.jsonl"
+.claude/hooks/scripts\codex_t5_plan_review_gate.py:3:# Reference: https://code.claude.com/docs/en/permission-modes (ExitPlanMode tool fires when subagent/session exits plan mode)
+.claude/hooks/scripts\codex_t5_plan_review_gate.py:10:When a subagent / plan-mode session calls ExitPlanMode(plan="..."), this hook
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:5:# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:18:#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:43:# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:47:# Reference: TIER-1 OFFICIAL Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents L463-493,520-548 (subagent frontmatter PreToolUse hooks; only fire while subagent active)
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:50:# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:54:"""agent_plan_readonly_bash_guard.py — frontmatter-scoped read-only Bash enforcement for plan-mode agents.
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:58:Per Anthropic sub-agents docs L399-410, parent's permission_mode (e.g. bypassPermissions) PRECEDES
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:59:subagent frontmatter declarations. Subagents declaring `permissionMode: plan` cannot OPERATIONALLY
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:61:the read-only subagent's OWN frontmatter PreToolUse:Bash slot, where it fires only while that
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:62:subagent is active, and denies mutating Bash commands at the exec boundary BEFORE they execute.
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:77:    "permission_mode": str,     # parent's mode: "default"|"acceptEdits"|"bypassPermissions"|"plan"
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:110:# this frozenset is now the SOLE positive-validation Bash allowlist in eee, scoped to plan-mode subagents.
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:613:        return False, "block:bare python invocation (interactive REPL not supported in subagent)"
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:900:        print(f"agent_plan_readonly_bash_guard: invalid JSON on stdin: {e}", file=sys.stderr)
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:915:        print(f"agent_plan_readonly_bash_guard[DRY_RUN]: would {'allow' if allowed else 'block'} ({reason}): {cmd[:120]}", file=sys.stderr)
+.claude/hooks/scripts\agent_plan_readonly_bash_guard.py:927:                f"agent_plan_readonly_bash_guard[--policy {args.policy}]: "
+.claude/hooks/scripts\safety_guard.py:36:#     agent_plan_readonly_bash_guard.py).
+.claude/hooks/scripts\_observation_writer.py:20:(tool_failure_observer.py, subagent_stop_telemetry.py, task_completed_observer.py)
+.claude/hooks/scripts\_observation_writer.py:109:    """Externalize subagent_stop.stop_reason if > threshold; else passthrough.
+.claude/hooks/scripts\_observation_writer.py:116:    if obs.get("type") != "subagent_stop":
+.claude/hooks/scripts\_observation_writer.py:184:    Ship #221: subagent_stop records with stop_reason > threshold are
+.claude/hooks/scripts\_observation_writer.py:188:    types (subagent_start, task_completed) and short stop_reasons pass
+.claude/hooks/scripts\_guard_base.py:38:  DENY-emitting hooks (safety_guard.py + agent_plan_readonly_bash_guard.py)
+.claude/hooks/scripts\_guard_base.py:57:+ agent_plan_readonly_bash_guard.py + future DENY-class hooks — fail-CLOSED
+.claude/hooks/scripts\_guard_base.py:243:    DENY-emitting hooks (safety_guard.py + agent_plan_readonly_bash_guard.py) catch
+.claude/hooks/scripts\_guard_base.py:257:    DENY-emitting hooks (safety_guard.py + agent_plan_readonly_bash_guard.py +
+
+codex
+{"verdict":"NEEDS-REVISION","confidence":0.96,"rationale":"safety_guard.py first is correct, but globally wiring agent_plan_readonly_bash_guard.py as an always-fire Bash hook is not pass-through and blocks normal operator Bash such as git commit; it is already scoped via per-agent frontmatter hooks.","prescribed_edits":["Prepend safety_guard.py as Block[6][0], sync, timeout 5, always-fire matcher Bash.","Do not add agent_plan_readonly_bash_guard.py directly to global settings.json PreToolUse:Bash; keep its existing subagent-frontmatter wiring or add a separate global shim that first proves agent_id/agent_type is an active permissionMode: plan subagent and selects the correct policy.","If a global shim is added, test non-subagent/operator Bash pass-through, git commit pass-through to later gitleaks/codex_t2 hooks, plan-mode readonly denial, verifier-policy allowance, codex-readonly allowance, malformed active-subagent fail-closed behavior, and malformed non-subagent fail-open/pass-through behavior.","Update _comment_allow to avoid claiming agent_plan_readonly_bash_guard.py is enforced at Block[6][1] unless the shim exists; otherwise say safety_guard.py is globally enforced at Block[6][0] and agent_plan_readonly_bash_guard.py is mechanically enforced by plan-agent frontmatter hooks.","Keep the new safety hook sync, no async:true, and do not narrow it with if:; catastrophic deny-list coverage needs full Bash visibility."]}
+tokens used
+49,793
+{"verdict":"NEEDS-REVISION","confidence":0.96,"rationale":"safety_guard.py first is correct, but globally wiring agent_plan_readonly_bash_guard.py as an always-fire Bash hook is not pass-through and blocks normal operator Bash such as git commit; it is already scoped via per-agent frontmatter hooks.","prescribed_edits":["Prepend safety_guard.py as Block[6][0], sync, timeout 5, always-fire matcher Bash.","Do not add agent_plan_readonly_bash_guard.py directly to global settings.json PreToolUse:Bash; keep its existing subagent-frontmatter wiring or add a separate global shim that first proves agent_id/agent_type is an active permissionMode: plan subagent and selects the correct policy.","If a global shim is added, test non-subagent/operator Bash pass-through, git commit pass-through to later gitleaks/codex_t2 hooks, plan-mode readonly denial, verifier-policy allowance, codex-readonly allowance, malformed active-subagent fail-closed behavior, and malformed non-subagent fail-open/pass-through behavior.","Update _comment_allow to avoid claiming agent_plan_readonly_bash_guard.py is enforced at Block[6][1] unless the shim exists; otherwise say safety_guard.py is globally enforced at Block[6][0] and agent_plan_readonly_bash_guard.py is mechanically enforced by plan-agent frontmatter hooks.","Keep the new safety hook sync, no async:true, and do not narrow it with if:; catastrophic deny-list coverage needs full Bash visibility."]}

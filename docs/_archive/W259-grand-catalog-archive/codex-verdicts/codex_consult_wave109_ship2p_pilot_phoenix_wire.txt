@@ -1,0 +1,149 @@
+T1 PRE-COMMIT CONSULT — Wave 109 Ship 2P-pilot-REVISED — wire eee OTel to existing Phoenix (NOT openlit install)
+
+USER MANDATE: "your decisions with research, log evaluation and audit, our aim the the max performance unleashed with sota harness" + "in terms of ollama we may only need it for the mcps such as cognee" + "make sure they using official sota methods to install in eee"
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Wave 100 Ship 2P 2026-05-08 commit b6dc7e5) — NO --sandbox=read-only flag; profile default danger-full-access. Per Ship 2X SRA cross-model T1 mandate (settings.json env additions = design surface).
+
+==========================================
+ORIGIN — Mia OVER #30 + research-backed pivot
+==========================================
+Wave 109 Agent E (`ace8e15ff78f66318`) returned with verdict to install openlit pinned to v1.20.0 + py-1.42.0 with 5 install steps, 4 env vars, 6 risks, SRA 8/10 PASS — BUT flagged "HIGH stack-duplication: eee already runs langfuse + phoenix + grafana for OTel-LLM-obs; openlit is 80% feature-overlap".
+
+Mia probe verified Agent E's stack-duplication claim:
+
+```
+$ docker ps
+falkordb              falkordb/falkordb:latest          16379->6379
+qdrant                qdrant/qdrant:v1.17.0             6341+6600
+langfuse-web          langfuse/langfuse:3.170.0         3000
+langfuse-worker       langfuse/langfuse-worker:3.170.0
+grafana               grafana/grafana:12.4.1             3001
+phoenix               arizephoenix/phoenix:13.15.0      14317+16006
+prometheus            prom/prometheus:v3.10.0            19090
+langfuse-clickhouse   clickhouse/clickhouse-server:24.12  18123+19000
+langfuse-postgres     postgres:17                        15432
+langfuse-redis        redis:7                            6480
+langfuse-minio        cgr.dev/chainguard/minio           19190+19191
+```
+
+11 Docker containers running — observability infrastructure ALREADY DEPLOYED.
+
+**Critical gap**: eee NOT WIRED to send telemetry. settings.json has:
+- ✅ OTEL_LOG_TOOL_DETAILS=1 (Wave 82a)
+- ✅ OTEL_LOG_USER_PROMPTS=1 (Wave 82a)
+- ❌ OTEL_EXPORTER_OTLP_ENDPOINT (MISSING)
+- ❌ OTEL_EXPORTER_OTLP_PROTOCOL (MISSING)
+- ❌ OTEL_SERVICE_NAME (MISSING)
+- ❌ OTEL_TRACES_EXPORTER (MISSING)
+
+Result: signals enabled but flowing nowhere.
+
+**Architectural intent verification** (settings.json L48 _comment_wave82a_advanced_unleash):
+"DEFERRED: OTEL_LOG_RAW_API_BODIES (PII risk per iter2b #7; would leak full prompts to **Langfuse** — enable only with verified local-only Langfuse)"
+
+→ Operator's prior architectural intent was **Langfuse** as primary LLM-obs sink.
+
+==========================================
+DECISION — install openlit DROPPED; wire to Phoenix instead
+==========================================
+DECISION RATIONALE:
+
+1. **kiss-dry-yagni Must-Never #4**: installing openlit creates 4th duplicate observability stack. Existing Phoenix + Langfuse stacks deployed and HEALTHY. Adding openlit = duplicate functionality.
+
+2. **Phoenix wire is IMMEDIATE win**:
+   - phoenix container UP at 127.0.0.1:14317 (OTLP gRPC) + 16006 (UI)
+   - OTel-native (Arize-AI OpenInference auto-instrumentation)
+   - **NO auth needed for local Phoenix** (vs Langfuse which needs LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY operator hasn't provided)
+   - 1-line env add (`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:14317`)
+   - Lowest impedance to existing OTEL_LOG_TOOL_DETAILS=1 + OTEL_LOG_USER_PROMPTS=1 signal
+
+3. **Langfuse stays available** for parallel-sink config when operator provides API keys. Non-exclusive — OTel supports multi-sink. Documented as Ship 2P-pilot-followup.
+
+4. **Operator-decision DEFERRED** for unwired containers (qdrant / grafana / prometheus / openlit-not-installed): per deprecation-discipline.md §The deprecation decision (5-question gate), would need consumer-graph audit before retiring. Not blocking this ship.
+
+==========================================
+TIER-1 CITES
+==========================================
+- Phoenix Apache-2.0 OpenInference auto-instrumentation: `https://github.com/Arize-ai/phoenix` (active maintenance; convergence-gate Axis-3 STABLE-BURN-IN)
+- CC OTel env support per Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD:
+  - L45 (CC subprocesses no longer inherit OTEL_*; CLI itself USES OTEL_* env)
+  - L157 (OTEL_LOG_USER_PROMPTS gates user_system_prompt LLM request spans)
+  - L568 (CC honors OTEL_LOG_USER_PROMPTS / OTEL_LOG_TOOL_DETAILS / OTEL_LOG_TOOL_CONTENT)
+  - L909 (CC respects OTEL_LOGS_EXPORTER / OTEL_METRICS_EXPORTER / OTEL_TRACES_EXPORTER)
+- OpenTelemetry SDK env spec: `https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/`
+  - OTEL_EXPORTER_OTLP_ENDPOINT (base URL for OTLP)
+  - OTEL_EXPORTER_OTLP_PROTOCOL=grpc (or http/protobuf)
+  - OTEL_SERVICE_NAME (service identifier)
+  - OTEL_TRACES_EXPORTER=otlp / OTEL_LOGS_EXPORTER=otlp / OTEL_METRICS_EXPORTER=otlp
+
+==========================================
+PROPOSED EDIT (atomic JSON to settings.json:env)
+==========================================
+Add after OTEL_LOG_USER_PROMPTS (settings.json:35) and before CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY (Wave 106):
+
+```json
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:14317",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+    "OTEL_SERVICE_NAME": "eee",
+    "OTEL_TRACES_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "_comment_otel_phoenix_wire": "Wave 109 Ship 2P-pilot-REVISED 2026-05-08 — wire eee OTel signal to existing Phoenix container (arizephoenix/phoenix:13.15.0 at 127.0.0.1:14317 OTLP gRPC + :16006 UI). Phoenix Apache-2.0 OpenInference auto-instrumentation; no auth needed for local; immediate win. ALTERNATIVE openlit install REJECTED via Wave 109 Agent E HIGH-stack-duplication finding (4th duplicate observability stack would violate kiss-dry-yagni Must-Never #4; eee already runs langfuse + phoenix + grafana + prometheus). Langfuse parallel-sink DEFERRED to Ship 2P-pilot-followup pending operator LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY provision. TIER-1-DIRECT cites: Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD L45+L157+L568+L909 (CC honors standard OTel env vars) + https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/ (OTel SDK env spec). Activates on next eee restart."
+```
+
+==========================================
+WHY THIS IS LOAD-BEARING FOR EEE
+==========================================
+- eee currently has telemetry signals enabled (OTEL_LOG_*=1) but flowing nowhere
+- Phoenix container running, healthy, accepting OTLP at :14317 — zero-config sink available
+- Wiring closes the observability gap that blocks Ship 2N-batch3-G skillOverrides study-pilot (which needs measurement infrastructure to choose value)
+- Aligns with user mandate "advance unleash of all performance" + research-backed audit-decision
+
+==========================================
+SRA D1-D10 SCORING (Phoenix wire)
+==========================================
+- D1 license-use-class: PASS (Phoenix Apache-2.0; local-runtime use)
+- D2 freshness: PASS (phoenix:version-13.15.0 currently running; per docker ps active)
+- D4 maintainer: TIER-1-OFFICIAL Arize-AI (named-org with ML observability focus)
+- D5 active: PASS (container healthy; UI responds at :16006)
+- D6 use-class: PASS (OTLP gRPC sink for eee's existing OTel signal; no SaaS-coupling)
+- D7 Anthropic-policy: PASS (CC explicitly supports OTel env vars per CHANGELOG)
+- D9 failure-mode: NEUTRAL (telemetry sink failure doesn't block CC operation; OTel exporter falls back gracefully)
+- Convergence verdict: 9-10 + critical D1+D6 PASS = INSTALL (wire-not-install per pivot)
+
+==========================================
+CR-9 INSTALL-RISK ANALYSIS
+==========================================
+- LOW (env var addition only; reversible via revert)
+- No new install (Phoenix already deployed)
+- No sibling-bleed (zero `Z:/claude-sota/` paths)
+- 2-round fix-forward expectation: Pattern A apply if NEEDS-REVISION
+- Phoenix container failure mode: telemetry export fails silently per OTel spec (does NOT block CC)
+
+==========================================
+QUESTIONS (JSON ONLY)
+==========================================
+1. Should we wire to Phoenix vs Langfuse first?
+   - Phoenix: immediate (no auth, OTLP gRPC at :14317 ready)
+   - Langfuse: prior architectural intent per Wave 82a comment, BUT needs API keys
+   Pick: Phoenix-first + Langfuse-followup (this proposal) OR Langfuse-only (defer until keys provided) OR both-parallel?
+
+2. Env var values:
+   - OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:14317 (gRPC port; correct per docker port mapping)
+   - OTEL_EXPORTER_OTLP_PROTOCOL=grpc (matches CC's expected OTel exporter protocol)
+   Both correct per OTel SDK spec?
+
+3. Should OTEL_LOGS_EXPORTER + OTEL_METRICS_EXPORTER also be set to otlp?
+   - L909 confirms CC supports them but does Phoenix accept logs/metrics or only traces?
+   - Conservative path: set TRACES only; add LOGS+METRICS in followup if Phoenix rejects them gracefully
+
+4. Should we ALSO probe the 4 unwired containers (qdrant / grafana / prometheus / langfuse-* not yet wired) for retire-or-keep decision per deprecation-discipline.md §The deprecation decision 5-question gate?
+
+5. Does Phoenix need any pre-config (project setup, schema init) before accepting OTLP traces?
+
+6. Should we add operator-decision documentation: a PROVENANCE entry explaining (a) openlit DROPPED, (b) Phoenix-wire chosen, (c) Langfuse-wire DEFERRED for separate ship?
+
+7. CR-9 install-risk LOW correct? (env var additive; reversible; Phoenix container is ALREADY running so no new container deployment risk)
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

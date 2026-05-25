@@ -1,0 +1,111 @@
+You are GPT-5.5 reviewing the SYNTHESIS VERDICT of Wave 86 SOTA deep-dive 3-agent fan-out (token efficiency + CLIProxyAPI 8-account config + account fleet snapshot). Pre-Pattern-A-apply gate per cardinal-rule-3 + standing directive.
+
+CONTEXT
+- 3 agents returned (Agent B + Agent A-redo + Agent C). Mia probes (7/7 PASS) verified at orchestrator side via direct file Read + curl + git rev-parse.
+- All artifacts persisted at tmp/wave86-*-2026-05-08.md
+- Verdict file destination: .claude/state/codex_consult_wave86_synthesis_verdict_OUT.txt (read by orchestrator post-completion)
+
+3-AGENT NET VERDICTS
+
+Agent B (codex-rescue BRIDGE-MODE real GPT-5.5, 2 tools 212s):
+- artifact: tmp/wave86-cliproxy-config-deepdive-agentB-2026-05-08.md (216 LOC)
+- VERDICT: ADOPT-NOW (CLIProxyAPI config tuning)
+- Source SHA: ed1458aa6d3430ba59538aeb980b8934f0e80c1f
+- Recommended diff (additive only):
+  * auth-dir: "~/.cli-proxy-api" -> "Z:/claude-sota-installed/.cli-proxy-api" (absolute path)
+  * disable-control-panel: false -> true (reduces 30s polling noise)
+  * auth-auto-refresh-workers: 32 -> 16 (aggressive for 10 auths)
+  * request-retry: 5 -> 3 (reduce reselect storms)
+  * max-retry-credentials: 3 -> 4 (more fanout when first option unavail)
+  * session-affinity-ttl: "1h" -> "4h" (KEY CHANGE for cache locality)
+  * (conditional) ws-auth: false -> true if Codex WS used
+  * (conditional) enable-gemini-cli-endpoint: false -> true if Gemini CLI native used
+
+Agent A-redo (codex-rescue BRIDGE-MODE real GPT-5.5, 2 tools 217s):
+- artifact: tmp/wave86-sota-repos-deepdive-agentAredo-2026-05-08.md (166 LOC)
+- HONEST-NON-FINDING: docs/outer-research/ at HYPHEN path missing — but Mia probe found docs/outer research/ at SPACE path EXISTS with kits/v10-v21 + wave52/ + 3 zip files
+- Top-7 ranked NOT-YET-ADOPTED:
+  1. rtk-ai/rtk @ 80a6fe60 — shell-output compaction (60-90% reduction); WSL auto-rewrite, native PowerShell explicit wrappers only
+  2. cnighswonger/claude-code-cache-fix @ 12cc30a1 — cache prefix stability A/B 95.5% vs 82.3%
+  3. motiful/cc-cache-audit @ 6bd20812 — billing-header cache-bust quantified (99.98% with header OFF)
+  4. open-compress/claw-compactor @ c1b936d4 — content-aware reversible compression 14-stage pipeline
+  5. LiteLLM @ 934ecdca — gateway routing reference
+  6. Portkey @ 351692fd — second gateway reference
+  7. Restate @ de5bcd3b — durable execution runtime
+- Top-3 leverage adopts: rtk canary + motiful regression harness + cnighswonger after harness validates
+
+Agent C (codex-rescue BRIDGE-MODE real GPT-5.5, 6 tools 482s):
+- artifact: tmp/wave86-account-fleet-snapshot-agentC-2026-05-08.md (101 LOC)
+- VERDICT: Fleet OAuth inventory readable; CPA DB shows 3 active identities; 2 HTTP 429 events 03:50-03:51 on avantmanifest; 32 auth_unavailable_reselect events
+- Capacity scores:
+  * dreamweaverhoudini=100, avantmanifest=100, 739955940fc=85, zfan7=67
+  * mr.euphoriaincarnate=0 (EXHAUSTED) — disable-soft candidate
+  * aesthetic9c=N/A (no score; but 100% cache rate / 8 calls dominant lane)
+  * nalawowac=N/A
+- Real-time usage: aesthetic9c dominant (32K tokens, 100% cache); 739955940fc 4-failed-of-6 calls (high failure rate); codex zfan7 26K tokens 0% cache (codex doesn't use Anthropic cache)
+- Reset estimates: 5h-rolling for Claude (next 08:51-21:19 UTC range), 24h for Codex Pro (2026-05-09 16:09)
+
+MIA PROBES (7/7 PASS)
+1. Current config values verified at exact line numbers Agent B claimed (config.yaml:18,20,41,44,45,71,72,75,76)
+2. Sibling Z:/claude-sota/.cli-proxy-api/config.yaml ABSENT — sibling-bleed defense N/A
+3. docs/outer research/kits/ exists with v10-v21 + wave52/ folders (Agent A-redo's HONEST-NON-FINDING incorrect; actual content present at SPACE-path)
+4. CLIProxyAPI source SHA ed1458aa6d3430ba59538aeb980b8934f0e80c1f confirmed
+5. rtk-ai/rtk source SHA 80a6fe606f73b19e52b0b330d242e62a6c07be42 confirmed
+6. /healthz returns {"status":"ok"} — Agent B's recommendation valid
+7. 5/7 Claude OAuth files have capacity_score field
+
+PROPOSED SYNTHESIS
+
+**Ship 1Q — CLIProxyAPI config.yaml SOTA tuning (commit-bound; 6-line conservative diff)**:
+Apply Agent B's CORE diff (excluding 2 conditionals):
+- auth-dir: "~/.cli-proxy-api" -> "Z:/claude-sota-installed/.cli-proxy-api"
+- disable-control-panel: false -> true
+- auth-auto-refresh-workers: 32 -> 16
+- request-retry: 5 -> 3
+- max-retry-credentials: 3 -> 4
+- session-affinity-ttl: "1h" -> "4h"
+
+DEFER:
+- ws-auth + enable-gemini-cli-endpoint conditionals (need usage probe before flipping)
+- Section 5+6 Agent B narrative (cache-affinity strategy is informational, no code change)
+
+**Ship 1R (next-iter)**: motiful/cc-cache-audit clone + run regression harness baseline (read-only A/B)
+**Ship 1S (next-iter)**: rtk canary on WSL — partial Windows compat documented
+**Ship 1T (next-iter)**: cnighswonger/claude-code-cache-fix prototype AFTER 1R validates no prefix regression
+**Ship 1U (next-iter)**: open-compress/claw-compactor evaluate as sidecar for tool-output compression
+**Ship 1V (next-iter)**: capacity-score=0 mr.euphoria account disable in CPA OR replace with fresh OAuth
+
+REJECTED-DEFER:
+- LiteLLM/Portkey full gateway swap (CR-9 high install-risk; reference-only consumption acceptable)
+- Restate (architectural-novel; no immediate eee fit; defer indefinitely)
+
+Net commit Ship 1Q: 6-line config.yaml additive diff + provenance entry.
+
+REVIEW AXES
+
+AXIS 1 — Synthesis correctness
+- Are 3 agent verdicts reconciled with Mia probe results?
+- Is Ship 1Q scope correctly reduced from Agent B's 8 changes to 6 unconditional + 2 deferred conditionals?
+- Are 5 deferred ships (1R-1V) properly characterized as design-novel vs install-class work?
+- Is Agent A-redo's HONEST-NON-FINDING correctly REFUTED by Mia probe (docs/outer research/ exists at SPACE-path)?
+
+AXIS 2 — Ship 1Q scope (commit-bound)
+- 6-line config.yaml diff with stable cite chain to CLIProxyAPI source @ ed1458aa
+- Reversible via git revert; requires CLIProxyAPI service restart but nothing destructive
+- Cardinal-rule-9 install-risk: LOW (config tuning, not install)
+- Cardinal-rule-1 cite trail: TIER-1 file:line @ HEAD SHA chain present in Agent B artifact
+
+AXIS 3 — Cardinal-rule alignment
+- Cardinal-rule-3 cross-model gate: 3-layer satisfied (Agent B+A-redo+C all BRIDGE-MODE GPT-5.5 + this synthesis = 4-layer)
+- Cardinal-rule-9 install-risk: config-tuning is reversible; sibling-bleed defense N/A (sibling config absent)
+- Cardinal-rule-11 META-process SOTA: Pattern A apply + Mia pre-apply (7/7 PASS) + provenance log
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-3,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-SHIP-1Q-ONLY" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

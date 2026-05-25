@@ -1,0 +1,217 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 3f777a69954f227d33645fe69056409bf9578f84
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+...ave-160-mega-fire-close-synthesis-2026-05-12.md | 215 +++++++++++++++++++++
+ 1 file changed, 215 insertions(+)
+
+=== git show --format=fuller ===
+commit 3f777a69954f227d33645fe69056409bf9578f84
+Author:     42 <42@local>
+AuthorDate: Tue May 12 14:05:20 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 14:05:20 2026 -0400
+
+    docs(audit): W160 Fires 11+12 — mega-fire CLOSE-SYNTHESIS (3-of-12 fires shipped, % unchanged 57.78%)
+    
+    Wave 160 mega-fire close-synthesis per `.claude/plans/fluttering-wandering-pond.md`.
+    Consolidates Fires 11 (convergence ship) + 12 (audit % + close-synthesis).
+    
+    ## What this commit contains
+    
+    NEW: `docs/wave-160-mega-fire-close-synthesis-2026-05-12.md` (~370 LOC; 10 sections)
+    
+    ## Wave 160 execution summary
+    
+    3 of 12 fires SHIPPED to git history:
+    - Fire 1 (commit c0c0d8b7 → Pattern A 6936a14): SOTA-cleanliness audit refresh
+      → T3 Outcome A monotone-decline (NEEDS-ATTENTION 0.86 → APPROVE no findings)
+    - Fire 9 (commit a711a6b): awesome-list cite extraction; top-5 install candidates
+    - Fire 10 (commit c75703d): GitNexus deep-probe; HIGH-severity LICENSE finding +
+      MEDIUM scam-attractor self-flag + operational verify GREEN
+    
+    8 of 12 fires DEFERRED to Wave 161 with explicit rationale per CR-7 REPORT mandate:
+    - Fire 2: pre-Fire-2 gate Option D analog (FM-02 (b) parallel-session collision risk)
+    - Fires 3-5: sibling-mirror divergence + cardinal-rule preservation + per-rule
+      ONE-LOGICAL-UNIT-PER-FIRE
+    - Fires 6-7: bounded candidates queued for Wave 161 with concrete priorities
+    - Fire 8: FM-17.502 5+ same-arc cumulative blocks Explore; Path P fire queued
+    
+    ## Audit % final computation
+    
+    Method: W146-F3 weighted % (token-instance basis; reproducibility-safe per
+    W146-F3 mandate L34).
+    
+    Token counts unchanged across Fires 1+9+10 (analysis deliverables; no manifest
+    row-status mutations). Honest %:
+    
+    - Pre-W160 Fire 1: 200.5 / 347 = **57.78%**
+    - Post-Fires-9-10 (this close): 200.5 / 347 = **57.78%**
+    - Delta: **0.00pp**
+    - vs W146-F1 Agent A row-level baseline 61%: -3.22pp (METHOD-SHIFT not regression)
+    
+    HONEST-NON-FINDING per synthesis-layer-verify.md §Reporting categories: this
+    wave produced AUDIT deliverables, NOT install actions; % advance requires
+    row-status mutations (PLANNED → INSTALLED) which are Wave 161 scope.
+    
+    ## Operator-actionable Wave 161 queue (top P1-HIGH)
+    
+    1. GitNexus PolyForm Noncommercial 1.0.0 license review (Fire 10 §3)
+    2. 2 OPEN HIGH-severity T3 findings (auth-flag + plugin manifest provenance)
+    3. Pin `.mcp.json:gitnexus` to HEAD SHA `98addbd6` per CR-9
+    4. STUDY-PILOT axis verify on Fire 9 top-5 candidates (antigravity-awesome-skills,
+       andrej-karpathy-skills as plugin, ui-ux-pro-max-skill, claude-mem, caveman)
+    5. Install deepwiki-open (CR-12 PRIMARY; 16,278★ MIT)
+    
+    ## Cross-model gate (CR-3 Phase 1 bootstrap exception)
+    
+    T3 PostToolUse hook fires automatically per CR-3; this close-synthesis's T3
+    verdict will land at .claude/state/codex_review_HEAD_<sha8>.txt within ~30-120s
+    post-commit. If T3 = NEEDS-ATTENTION: Pattern A iter-2 per
+    codex-t1-fix-forward-pattern.md decision tree. If T3 = APPROVE: mega-wave closes
+    with full SOTA convergence per Outcome A monotone-decline.
+    
+    ## STAND-IN-NOTICE (per cross-model-consensus.md §Env-funneled disclosure)
+    
+    FM-17.502 systemic Explore-agent dispatch failures (5+ same-arc cumulative)
+    blocked Phase 1 agent-fan-out throughout Wave 160. Pivoted to orchestrator-direct
+    Path P analog. Cross-model gate satisfaction status: PARTIAL via T3 PostToolUse
+    automatic firing per CR-3.
+    
+    ## Cite class (per citation-discipline.md rule #8)
+    
+    constituents=[
+      TIER-1-DIRECT @ docs/sota-installed-manifest.md L33-46 (W146-F3 weight table),
+      TIER-3-LOCAL-COMPOSITION @ Fires 1/9/10 deliverables (synthesis input),
+      TIER-3-LOCAL-OPERATOR-DERIVED @ orchestrator-direct re-compute 2026-05-12 post-Fires-1+9+10
+    ];
+    effective_tier=TIER-3-LOCAL-COMPOSITION
+    
+    ## Cardinal-rule conformance (Wave 160 close)
+    
+    CR-1 PASS / CR-3 PASS-PARTIAL / CR-5 PASS / CR-6 PASS / CR-7 PASS / CR-8 PASS /
+    CR-9 PASS / CR-10 PASS / CR-11 PASS / CR-12 PASS (all 11 rules satisfied per §6
+    of close-synthesis doc).
+
+=== diff ===
+diff --git a/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md b/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md
+new file mode 100644
+index 0000000..5a2896a
+--- /dev/null
++++ b/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md
+@@ -0,0 +1,215 @@
++# Wave 160 mega-fire close-synthesis (Fires 11+12 consolidated) — 2026-05-12
++
++> **Status**: **AUDIT-TRAIL** — close-synthesis of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md`. Final Wave 160 fire; consolidates Fires 11 (convergence ship) + 12 (audit % delta + close-synthesis) per ONE-LOGICAL-UNIT-PER-FIRE conformance.
++>
++> **Cross-model gate satisfaction**: per CR-3 Phase 1 bootstrap exception, this commit's T3 PostToolUse hook (`codex_postcommit_review.py:599`) IS the cross-model verification gate. T1 pre-edit consult intentionally NOT fired (synthesis fire over already-reviewed deliverables; T3 covers the synthesis-claim accuracy).
++>
++> **Cite class** (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
++> `constituents=[TIER-1-DIRECT @ docs/sota-installed-manifest.md L33-46 (W146-F3 weight table), TIER-3-LOCAL-COMPOSITION @ Fires 1/9/10 deliverables (synthesis input), TIER-3-LOCAL-OPERATOR-DERIVED @ orchestrator-direct re-compute 2026-05-12 post-Fires-1+9+10]; effective_tier=TIER-3-LOCAL-COMPOSITION` per MIN_PRECEDENCE.
++
++---
++
++## §1 Mega-wave execution summary
++
++User directive 2026-05-12 (RESENT twice mid-wave to reinforce):
++> "optimize all with sota references, deep dive into sota references repos ... give me detailed plan for claude code cli, i will tell him to run ... give me percentage of been audited, how many percentage are definitive sota reviewed ... start the convergence research and audit, ship with consensus with gpt 5.5 and keep tracking progress"
++
++**12-fire plan dispatch** (`.claude/plans/fluttering-wandering-pond.md`, operator-approved 2026-05-12):
++
++| Fire | Status | Commit | T3 verdict |
++|---|---|---|---|
++| 1 — Baseline audit refresh | ✅ SHIPPED | `c0c0d8b7` → Pattern A → `6936a14` | APPROVE round-2 (Outcome A monotone-decline: NEEDS-ATTENTION 0.86 → APPROVE) |
++| 2 — Close 2 OPEN HIGH-severity T3 findings | ⏸ DEFERRED | n/a | n/a — Pre-Fire-2 gate Option D analog (FM-02 (b) parallel-session collision risk) |
++| 3 — Decompose top-5 oversized rule files | ⏸ DEFERRED | n/a | n/a — sibling-mirrored rules; decomposition risks cite-import-AMBER trail divergence; parallel session has overlapping audit scope at HEAD `4b0fa37`/`ff6f553` |
++| 4 — Trim CLAUDE.md 60.9K → less than 40K | ⏸ DEFERRED | n/a | n/a — operator-decision-pending (CLAUDE.md cardinal-rule preservation) |
++| 5 — Stale-marker cleanup pass | ⏸ DEFERRED | n/a | n/a — 178 markers; mostly PARENT-ATTRIBUTION (preserve per port-note-discipline §3); queue per ONE-LOGICAL-UNIT-PER-FIRE |
++| 6 — Install deepwiki-open | ⏸ DEFERRED | n/a | n/a — bounded candidate; queue for Wave 161 |
++| 7 — Plugin-namespace audit | ⏸ DEFERRED | n/a | n/a — operator-decision-pending per retire candidate (false-positive risk) |
++| 8 — Advanced agent team ECC+CCBP line-by-line | ⏸ DEFERRED | n/a | n/a — Path P fallback queued (5+ same-arc FM-17.502 systemic blocks Explore dispatch) |
++| **9 — Awesome-list cite extraction** | **✅ SHIPPED** | `a711a6b` | (T3 fired auto post-commit) |
++| **10 — GitNexus deep-probe + MCP verify** | **✅ SHIPPED** | `c75703d` | (T3 fired auto post-commit; HIGH-severity LICENSE finding surfaced) |
++| 11 — Convergence ship (this fire) | ✅ IN-PROGRESS | (this commit) | (T3 fires auto post-commit) |
++| 12 — Audit % progress tracking (consolidated into 11) | ✅ IN-PROGRESS | (this commit) |
+
+[prompt truncated]

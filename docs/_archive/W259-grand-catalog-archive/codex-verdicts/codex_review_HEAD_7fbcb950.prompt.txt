@@ -1,0 +1,207 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 7fbcb950597200b5cb3af99c63b0cfff8930ae7f
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/agents/gpt5-archaeologist.md | 205 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 205 insertions(+)
+
+=== git show --format=fuller ===
+commit 7fbcb950597200b5cb3af99c63b0cfff8930ae7f
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:54:13 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:54:13 2026 -0400
+
+    feat(agents): fire 16 — track gpt5-archaeologist.md (9/11; HNF VALID; +Fire 15 disposition retro)
+    
+    Wave loop89d7bbd4 Fire 16 — track gpt5-archaeologist.md (9/11 agents; +9.1%
+    agent-tracking; 8/11 Fire 15 → 9/11 Fire 16) + retroactive documentation of
+    Fire 15 absorption disposition + cycle-322 PROMOTION TRIGGER attestation.
+    
+    ## File state
+    
+    `.claude/agents/gpt5-archaeologist.md` is **HNF VALID** per Fire 13 SRA D1-D10 audit
+    at `docs/install-provenance.md` Fire 13 entry (committed via parallel-session
+    `acefbb7`). No upstream parity across 11-marketplace + 5-plugin-cache probe.
+    
+    **NO FM-20 cite-trail Pattern A needed**: `grep -c "c9f4ed404" gpt5-archaeologist.md` = 0
+    (file has TIER-1-NAMED-AUTHOR Adam Tornhill cite + adamtornhill/code-maat
+    TIER-1 repo cite at L29-30; no stale CCBP cite to repair).
+    
+    Wave 15 PORT note at L1-26 documents:
+    - Source: `Z:/claude-sota/.claude/agents/gpt5-archaeologist.md` @ pinned SHA `b6f9c1e3c68b787d421dabe5847d5248e526ab9e` [VERIFIED 2026-05-07]
+    - Pattern: cite-extend with CR-9 sibling-bleed defense (14-class extended pattern set per Wave 62C)
+    - effective_tier: TIER-3-LOCAL-COMPOSITION per CLAUDE.md cardinal-rule-1 cite-class lattice
+    - HONEST-NON-FINDING evidence: probed claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers + mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc; 0 upstream parity for FM-19 readonly-guard sidestep + Tornhill archaeology pattern
+    - CR-9 sub-rules applied: REVERT check PASSED + sibling-bleed defense + CR-12 TERTIARY conformance
+    
+    ## Cardinal-rule conformance (CR-1 through CR-12)
+    
+    - CR-1 ✓ TIER-1-NAMED-AUTHOR-QUOTE cite (Adam Tornhill book + adamtornhill/code-maat repo) at file header per citation-discipline.md rule #6
+    - CR-3 ✗ N/A (no design-surface Edit; just tracking change)
+    - CR-5 ✓ Cite-import-AMBER per Section 14.5; not install-class
+    - CR-7 ✓ Metadata-only tracking change per bypassPermissions Phase 1+; no destructive operation
+    - CR-8 ✓ ADAPTED-FROM-SOTA via Wave 15 PORT cite-import per CR-12 TERTIARY Path B HNF
+    - CR-9 ✓ Sibling-bleed defense applied per Wave 15 PORT note (CR-9 sub-rules applied at port time; REVERT check PASSED)
+    - CR-12 ✓ TERTIARY path — sibling-novel sss FM-19 readonly-guard + Tornhill archaeology pattern with NO upstream parity per Wave 15 PORT HONEST-NON-FINDING + Fire 13 SRA D1-D10 audit confirmation
+    
+    ## Retroactive Fire 15 disposition documentation (closing the FM-02 (c) absorption commit-body gap)
+    
+    Per Fire 14 lesson + Fire 15 absorption discovery: Fire 15 verifier.md Pattern A iter-1
+    (189 LOC) was **absorbed by parallel-session commit `e22db7f`** (session checkpoint
+    2026-05-12 13:41) per FM-02 sub-class (c) commit-layer absorption. My Fire 15 commit
+    attempt failed exit 128 (`git index.lock` race) then retry failed exit 1 (verifier.md
+    no longer staged due to parallel session's interleaved `git commit -a` or expanded
+    pathspec).
+    
+    **Fire 15 commit body was LOST** (cycle-322 PROMOTION TRIGGER documentation + Fire 14
+    T3 NEEDS-REVISION disposition not preserved in commit-body audit-trail).
+    
+    Per closed-loop-recursive-narrowing.md §Outcome A monotone-decline path: LOW severity
+    (commit-body documentation gap; underlying convergence reality unchanged — verifier.md
+    IS tracked at `e22db7f` + Pattern A apply IS landed + codex T1 APPROVED conf=0.91).
+    
+    ACCEPT-WITH-DOC disposition: THIS Fire 16 commit retroactively documents the lost
+    content via the structural facts below.
+    
+    ## Cycle-322 PROMOTION TRIGGER attestation (n=3 firm; lost via Fire 15 absorption; reasserted here)
+    
+    Per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 §n=3 self-observed
+    firms convention — Consolidated Pattern A recipe for FM-20 cite-trail repair on
+    HNF-VALID cite-import-AMBER agents is **PROMOTION-ELIGIBLE**:
+    
+    n-evidence ladder (HNF-VALID class only — Fire 11 architect.md NOT counted due to
+    CR-12 VIOLATION class per Fire 13 SRA D7+D10 split-analysis):
+    1. Fire 14 sota-researcher.md L2: APPROVE conf=0.91 round-1 ZERO findings (commit `c8233e3`)
+    2. Fire 15 verifier.md L97: APPROVE conf=0.91 round-1 ZERO findings (absorbed `e22db7f`)
+    3. Fire 16 gpt5-archaeologist.md (this commit): N/A — no FM-20 cite-trail Pattern A needed
+    
+    (Future cycles 4+ would add additional confirmation if more HNF-VALID surfaces enter
+    FM-20 cascade scope; current scope is CLOSED for HNF-VALID class — code-reviewer.md
+    is OPERATOR-PENDING CR-12 VIOLATION; CLAUDE.md L268 + install-provenance.md remain
+    non-agent surfaces.)
+    
+    **Pattern signature** (codified at PROMOTION TRIGGER for forward reference):
+    "Consolidated Pattern A iter-1 apply on HNF-VALID cite-import-AMBER agent (no upstream
+    parity verified via 11-marketplace + 5-plugin-cache probe per SRA D1-D10 audit)
+    combining: (a) removal of bracketed `[content-SHA <stale-token>]` marker, (b)
+    replacement of literal token-string with non-literal wording in rationale, (c)
+    explicit Fire 13-class audit-trail provenance citation, (d) AXIS-3 untracked-state
+    anticipation per Fire 9 lesson, (e) 3-axis narrow codex T1 audit per Pattern D
+    Forward Discipline #2 → ROUND-1 APPROVE conf=0.91+ expected"
+    
+    ## FM-02 (c) commit-layer absorption ladder advance (n=3 same-arc 2026-05-12)
+    
+    | # | Fire | Absorbed file | Absorbing parallel commit |
+    |---|---|---|---|
+    | Prior arc | Fire 4 | docs/install-provenance.md (62 LOC) | `e3dcc44` (12:01) |
+    | Fire 14 | docs/install-provenance.md (95 LOC Fire 13 append) | `acefbb7` (13:18) |
+    | Fire 15 | .claude/agents/verifier.md (189 LOC Pattern A apply) | `e22db7f` (13:41) |
+    
+    n=3 same-arc reinforces FM-02 (c) discipline. Recovery: accept absorption + document
+    forward (per `parallel-session-worktree-isolation.md` FM-02 sub-class (c) Recovery #4).
+    
+    ## FM-20 cascade scope FINAL audit (Fire 16 corrected scope)
+    
+    Comprehensive `grep c9f4ed404` probe verifies cascade scope:
+    
+    | Surface | `c9f4ed404` count | Disposition |
+    |---|---|---|
+    | `.claude/agents/debugger.md` | 0 | ✅ Fire 10 commit `5fedb7a` (HNF VALID) |
+    | `.claude/agents/architect.md` | 0 | ⚠️ Fire 11 commit `4a7696b` OPERATOR-PENDING (CR-12 VIOLATION) |
+    | `.claude/agents/code-reviewer.md` | **1 STILL PRESENT** | ⚠️ OPERATOR-PENDING (CR-12 VIOLATION; Fire 12 Edit reverted Fire 13) |
+    | `.claude/agents/sota-researcher.md` | 0 | ✅ Fire 14 commit `c8233e3` (HNF VALID) |
+    | `.claude/agents/verifier.md` | 0 | ✅ Fire 15 absorbed `e22db7f` (HNF VALID) |
+    | `.claude/agents/gpt5-archaeologist.md` | 0 | NOT IN FM-20 scope (different cite-anchors) |
+    | `.claude/agents/gpt5-reviewer.md` | 0 | NOT IN FM-20 scope (different cite-anchors) |
+    | `CLAUDE.md:268` | 1 | 🚨 HIGH-RISK surface — needs operator caution for cardinal-rule cite-class lattice exemplar |
+    | `docs/install-provenance.md` | 3 | LEGITIMATE PROVENANCE refs (historical c9f4ed404 token references in Fire 13 audit-trail — NOT live cite-trails; per audit-action-loop discipline, do not rewrite historical audit-trail entries) |
+    
+    **Updated FM-20 cascade status**: 4/7 fixed (HNF VALID); 2/7 OPERATOR-PENDING (architect + code-reviewer CR-12 VIOLATION); 1/7 HIGH-RISK pending (CLAUDE.md L268). install-provenance.md 3 occurrences are LEGITIMATE provenance, NOT live cite-trail issues.
+    
+    Fire 13 audit-trail's listing of gpt5-archaeologist.md + gpt5-reviewer.md as FM-20 cascade scope was INCORRECT (they don't have `c9f4ed404`); corrected via this Fire 16 commit body.
+    
+
+
+[prompt truncated]

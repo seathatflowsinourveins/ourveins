@@ -1,0 +1,126 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1a40-9767-7110-8169-1dd9d8067a00
+--------
+user
+SYSTEM: You are V2 designer for W154 F5 PATH-fix in eee.ps1 process-scope. Output JSON-strict at EOF.
+
+CONTEXT:
+- W154 F4 shipped gh v2.92.0 at Z:/claude-sota-installed/.local/bin/gh.exe (verified direct-path)
+- BUT cli_path_audit.py STILL reports gh FAIL: shutil.which returns C:/Program Files/GitHub CLI/gh.exe (Machine PATH wins)
+- V3 W154 F4 a2 finding: "C:/Program Files/GitHub CLI/" in Machine PATH idx=31 (NOT User PATH); Windows composes Machine BEFORE User; User PATH ordering CANNOT shadow Machine PATH in fresh shells
+- W154 F4 V3 SCOPED-DOWN deferred PATH-fix to F5
+
+eee.ps1 PRECEDENT (lines 148-151):
+```powershell
+$rtkBinDir = 'Z:\claude-sota-installed\.local\cargo\bin'
+if ((Test-Path $rtkBinDir) -and ($env:PATH -notlike "*$rtkBinDir*")) {
+    $env:PATH = "$rtkBinDir;$env:PATH"
+}
+```
+
+GAP: rtk block uses "if not in PATH at all" — INSUFFICIENT for .local/bin because:
+1. .local/bin IS in Process PATH (idx=47 per W154 F4 pre-flight probe)
+2. C:/Program Files/GitHub CLI/ is at Process PATH idx=37 (wins)
+3. Need: de-duplicate .local/bin entries + prepend to ENSURE first position
+
+PROPOSED PATTERN (analogous to W154 F2 install-path.ps1 Probe 6 TARGETED de-dup + insert):
+```powershell
+# F5: ensure Z .local/bin wins PATH for child processes
+$zLocalBin = 'Z:\claude-sota-installed\.local\bin'
+if (Test-Path $zLocalBin) {
+    $entries = $env:PATH -split ';' | Where-Object { $_ -and ($_ -ine $zLocalBin) }
+    $env:PATH = "$zLocalBin;$($entries -join ';')"
+}
+```
+
+QUESTIONS:
+Q1: minimum_viable_f5_pattern? (de-dup-then-prepend OR just-prepend-allow-dup OR conditional-only-if-c-wins)
+Q2: scope - process-scope eee.ps1 launcher only? OR operator-shell global User PATH ordering?
+Q3: placement in eee.ps1 - right after rtk block (line 152) OR before/after T0.5 codex check (line 349)?
+Q4: smoke-probe sequence post-eee-launch?
+Q5: reversibility per CR-9?
+Q6: scope per cycle-300 - JUST the .local/bin prepend OR include other Z dirs (npm/cargo already handled)?
+
+OUTPUT JSON-strict at EOF:
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.0,
+  "minimum_viable_f5_pattern": "...",
+  "scope_decision": "...",
+  "placement_in_eee_ps1": "after_line_X",
+  "smoke_probe_sequence": [...],
+  "reversibility_path": "...",
+  "scope_discipline": "...",
+  "prescribed_edits": [...],
+  "risk_class": "LOW | MEDIUM | HIGH"
+}
+
+
+codex
+{
+  "verdict": "APPROVE",
+  "confidence": 0.94,
+  "minimum_viable_f5_pattern": "de-dup-then-prepend. Just-prepend works functionally but leaves PATH churn; conditional-only-if-c-wins is more complex than needed and risks missing other stale higher-priority gh.exe locations. Use case-insensitive exact-entry removal, then prepend Z:\\claude-sota-installed\\.local\\bin when it exists.",
+  "scope_decision": "process-scope eee.ps1 launcher only. Do not mutate User or Machine PATH for F5. The bug is child-process resolution inside the eee runtime; process PATH is sufficient, reversible, and avoids operator-shell/global side effects.",
+  "placement_in_eee_ps1": "after_line_151",
+  "smoke_probe_sequence": [
+    "Launch a fresh eee session through tools/eee.ps1 or bin/eee.cmd.",
+    "Inside that launched process, run: $env:PATH -split ';' | Select-Object -First 5",
+    "Verify Z:\\claude-sota-installed\\.local\\bin is entry 0.",
+    "Run: Get-Command gh | Select-Object -ExpandProperty Source",
+    "Verify it returns Z:\\claude-sota-installed\\.local\\bin\\gh.exe.",
+    "Run the existing cli_path_audit.py probe.",
+    "Verify gh reports PASS and shutil.which resolves Z:/claude-sota-installed/.local/bin/gh.exe.",
+    "Run direct version check: Z:\\claude-sota-installed\\.local\\bin\\gh.exe --version"
+  ],
+  "reversibility_path": "CR-9 reversible by deleting the small eee.ps1 process-scope block. No registry/User PATH/Machine PATH writes are introduced; restart the shell to discard the modified process environment.",
+  "scope_discipline": "Cycle-300 scope should be JUST the .local/bin prepend/de-dup needed for gh. Do not add npm/cargo or other Z dirs in this F5 change; rtk/cargo already has an existing block and unrelated PATH normalization would expand blast radius.",
+  "prescribed_edits": [
+    {
+      "file": "Z:\\claude-sota-installed\\tools\\eee.ps1",
+      "location": "immediately after existing rtkBinDir PATH block at lines 148-151",
+      "edit": "Add a process-scope .local/bin PATH precedence block using exact case-insensitive de-duplication followed by prepend.",
+      "code": "$zLocalBin = 'Z:\\claude-sota-installed\\.local\\bin'\nif (Test-Path $zLocalBin) {\n    $entries = $env:PATH -split ';' | Where-Object { $_ -and ($_ -ine $zLocalBin) }\n    $env:PATH = \"$zLocalBin;$($entries -join ';')\"\n}"
+    }
+  ],
+  "risk_class": "LOW"
+}
+{
+  "verdict": "APPROVE",
+  "confidence": 0.94,
+  "minimum_viable_f5_pattern": "de-dup-then-prepend. Just-prepend works functionally but leaves PATH churn; conditional-only-if-c-wins is more complex than needed and risks missing other stale higher-priority gh.exe locations. Use case-insensitive exact-entry removal, then prepend Z:\\claude-sota-installed\\.local\\bin when it exists.",
+  "scope_decision": "process-scope eee.ps1 launcher only. Do not mutate User or Machine PATH for F5. The bug is child-process resolution inside the eee runtime; process PATH is sufficient, reversible, and avoids operator-shell/global side effects.",
+  "placement_in_eee_ps1": "after_line_151",
+  "smoke_probe_sequence": [
+    "Launch a fresh eee session through tools/eee.ps1 or bin/eee.cmd.",
+    "Inside that launched process, run: $env:PATH -split ';' | Select-Object -First 5",
+    "Verify Z:\\claude-sota-installed\\.local\\bin is entry 0.",
+    "Run: Get-Command gh | Select-Object -ExpandProperty Source",
+tokens used
+6,577
+    "Verify it returns Z:\\claude-sota-installed\\.local\\bin\\gh.exe.",
+    "Run the existing cli_path_audit.py probe.",
+    "Verify gh reports PASS and shutil.which resolves Z:/claude-sota-installed/.local/bin/gh.exe.",
+    "Run direct version check: Z:\\claude-sota-installed\\.local\\bin\\gh.exe --version"
+  ],
+  "reversibility_path": "CR-9 reversible by deleting the small eee.ps1 process-scope block. No registry/User PATH/Machine PATH writes are introduced; restart the shell to discard the modified process environment.",
+  "scope_discipline": "Cycle-300 scope should be JUST the .local/bin prepend/de-dup needed for gh. Do not add npm/cargo or other Z dirs in this F5 change; rtk/cargo already has an existing block and unrelated PATH normalization would expand blast radius.",
+  "prescribed_edits": [
+    {
+      "file": "Z:\\claude-sota-installed\\tools\\eee.ps1",
+      "location": "immediately after existing rtkBinDir PATH block at lines 148-151",
+      "edit": "Add a process-scope .local/bin PATH precedence block using exact case-insensitive de-duplication followed by prepend.",
+      "code": "$zLocalBin = 'Z:\\claude-sota-installed\\.local\\bin'\nif (Test-Path $zLocalBin) {\n    $entries = $env:PATH -split ';' | Where-Object { $_ -and ($_ -ine $zLocalBin) }\n    $env:PATH = \"$zLocalBin;$($entries -join ';')\"\n}"
+    }
+  ],
+  "risk_class": "LOW"
+}

@@ -1,0 +1,48 @@
+fix(rules): narrow paths-glob to lift self-referential `.claude/rules/**` from 24 over-broad rule files (W194 P1 — root-cause preload-bloat fix)
+
+Removes the `.claude/rules/**` entry from `paths:` frontmatter on 24 rule files. The over-broad self-referential glob defeats CCBP `claude-memory.md:34-40 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd` [VERIFIED 2026-05-12] lazy-load mechanism: every rule carrying this entry would cold-load whenever ANY file in `.claude/rules/` is touched (which on session start scans the whole rules dir). Each rule's OTHER paths entries (agents/skills/hooks/commands/state surfaces) are PRESERVED — narrowing follows MOVE-not-DELETE per `port-note-discipline.md §6` forward-only mandate.
+
+Empirical measurement (Sonnet+codex GPT-5.5 2-source convergence W193, recorded at tmp/wave193-close-synthesis-2026-05-13.md):
+- BEFORE: ~1.03MB rules cold-load + CLAUDE.md / MEMORY.md / always-load surface = ~278K tokens / ~44% preload on 1M-context session start
+- EXPECTED AFTER: rules cold-load ~150-300KB; preload ~44% → ~14-17% (per W193 V4 Path-P analysis)
+- Post-edit verify: 0 rules carry `.claude/rules/**` (was 24/64; via tmp/w194-glob-inventory-2026-05-14.json + ctx_execute python re-probe 2026-05-14)
+
+Files (24, alphabetical):
+- advanced-agent-team-standing-directive.md
+- ahfv-codex-rescue-blind-spot.md
+- ahfv-probe-dag.md
+- ahfv-seven-sub-classes.md
+- audit-action-loop.md
+- canonical.md
+- citation-discipline.md
+- cmc-env-funneled-disclosure.md
+- cmc-t1-t7-lifecycle.md
+- cmc-verdict-shapes.md
+- codification-threshold.md
+- convergence-gate.md
+- cross-model-consensus.md
+- evidence-policy.md
+- karpathy-adapted.md
+- kiss-dry-yagni.md
+- layered-gates-architecture.md
+- lga-async-rewake.md
+- lga-five-layers.md
+- lga-worktree-prereq.md
+- mia-pre-apply.md
+- port-note-discipline.md
+- research-protocol.md
+- synthesis-layer-verify.md
+
+Cite anchors (constituents per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
+- TIER-1-DIRECT @ CCBP `claude-memory.md:34-40 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd` [VERIFIED 2026-05-12] — lazy-load mechanism authority (conditional rules with `paths:` are supposed to load only when matched paths are touched)
+- TIER-3-LOCAL-OPERATOR-DERIVED @ W193 close-synthesis 2-source convergence (Sonnet sota-researcher + REAL GPT-5.5 codex T1 — independently identified self-referential `.claude/rules/**` as ~44% preload root cause)
+- TIER-2 cite-import-AMBER @ `Z:/claude-sota-installed/.claude/rules/port-note-discipline.md §6` (forward-only MOVE-not-DELETE mandate; this edit narrows paths-list, preserves other entries verbatim — historical rule body unchanged)
+- TIER-2 @ `Z:/claude-sota-installed/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern-A` (single-atomic-apply discipline for 24-file bounded ship)
+
+Pattern A atomic apply per `codex-t1-fix-forward-pattern.md §Pattern-A` — single commit for 24 surgical 1-line edits; not iter-N→iter-N.1 layered correction. effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline rule #8 MIN_PRECEDENCE (TIER-1-DIRECT upstream lazy-load mechanism + TIER-3-LOCAL operator-derived root-cause evidence).
+
+Parallel-arc cross-cite (NOT overwrite per port-note-discipline.md §6): W193 closed 8/8 at tmp/wave193-close-synthesis-2026-05-13.md (P2/P3/P4 + commits); this W194 P1 ship closes the 45-file glob-narrowing hand-off identified there. Cross-arc cite preserved; sibling arc files unmodified.
+
+Reversibility: HIGH — single comment-pattern + 24 edits revertable via `git revert <this-commit>`. Per `closed-loop-recursive-narrowing.md` Outcome A monotone-decline path; if post-commit T3 surfaces NEEDS-REVISION on the paths-narrowing approach (e.g., a rule legitimately needs to load when editing other rules), narrow-add-back-individual-entries is the fix-forward shape, not full revert.
+
+W194 P1 ship 2026-05-14.

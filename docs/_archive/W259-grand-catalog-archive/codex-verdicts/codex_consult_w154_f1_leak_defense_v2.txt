@@ -1,0 +1,88 @@
+## W154 F1 — Leak-defense 4-layer ship audit (V2 DESIGNER role)
+
+You are reviewing a proposed 4-layer leak-defense ship. Be thorough, cite anchors, JSON-strict verdict at EOF.
+
+## Empirical evidence
+
+1500 4-byte files (content=`blat`) + 6 shell-typo artifacts (=500, =1000, =10000, nul, t, tm) accumulated in Z:/claude-sota-installed/ repo root.
+- Owner: same user as Claude session (OHHELLO\42)
+- Time-window: 15:10:49-16:13:52 today (63 min during W153 F8-F13)
+- Source: NOT in project tree (0 hits in scripts/hooks/state)
+- Pattern: random [a-z0-9_]{8} names + 4-byte content "blat" (hex 62 6C 61 74)
+- Plausible source: external canary-token scanner OR plugin-cache leak OR codex CLI internal probe
+
+## Class 3 PROTECT (must NOT delete)
+- .claude/rules/*.md (39 files, SOTA work pending)
+- .claude/agents/ + .claude/skills/mem-recall/
+- .local/ .bun/ .cargo/ .npm-cache/ (CR-5 install-class state)
+- docs/*.md (44 new design docs)
+- bin/eee-backup.cmd + tools/eee.ps1.pre-fire46-fix (operator backups)
+
+## Proposed 4-layer ship
+
+LAYER 1: Targeted cleanup — PowerShell pattern-filter delete:
+```
+$leaked = Get-ChildItem -File -Force | Where-Object { $_.Length -eq 4 -and (Get-Content $_.FullName -Raw) -eq 'blat' -and $_.Name -match '^[a-z0-9_]{1,10}$' -and $_.Name -notmatch '\.' }
+$leaked | Remove-Item -Force
+Get-ChildItem -File -Force | Where-Object { $_.Name -in @('=500','=1000','=10000','nul','t','tm') } | Remove-Item -Force
+```
+
+LAYER 2: .gitignore patterns appended:
+```
+# Leak-defense (Wave 154 Fire 1)
+/[a-z0-9_]
+/[a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/=*
+/nul
+```
+
+LAYER 3: lefthook.yml pre-commit gate:
+```
+pre-commit:
+  jobs:
+    - name: leak-detect
+      run: |
+        n=$(git ls-files --others --exclude-standard | wc -l)
+        if [ "$n" -gt 50 ]; then echo "ABORT: $n untracked"; exit 1; fi
+```
+
+LAYER 4: scripts/leak_audit.py (PostToolUse Bash(git commit *) async + SessionStart additionalContext)
+- Emit JSONL to .claude/state/leak_audit.jsonl schema leak_audit.v1
+- Drift signals: untracked_count > 50 (P1), 4byte_canary_count > 0 (P0)
+
+## Audit dimensions (Q1-Q7)
+
+Q1: .gitignore pattern correctness — does /[a-z0-9_] glob clobber legitimate single-char or short repo-root files? List collisions.
+Q2: Layer 1 PowerShell predicate — is `$_.Name -match '^[a-z0-9_]{1,10}$'` over-broad? Could it match legitimate files?
+Q3: Lefthook config syntax — does this match lefthook.dev/configuration canonical schema? Any anti-patterns?
+Q4: Layer 4 JSONL schema — name conflicts with existing .claude/state/*.jsonl? FM-15 git CLI grammar conformance for the cleanup commands?
+Q5: Cardinal-rule conformance — CR-1 (cite-trail), CR-3 (cross-model gate), CR-5 (install-priority), CR-8 (SOTA content), CR-9 (install-risk)?
+Q6: launch-discipline §D1 6-axis checklist — Reversible (git revert <30s)? Observable (Layer 4 wire)? Incremental (atomic-batch per FM-02)?
+Q7: deprecation-discipline interaction — is cleanup a deprecation (need replacement readiness)? Or just garbage removal?
+
+## Output schema (JSON at EOF, strict)
+
+```
+{
+  "verdict": "APPROVE-DESIGN | NEEDS-REVISION | REJECT",
+  "confidence": <0.0-1.0>,
+  "prescribed_edits": [
+    {"layer": "1|2|3|4", "issue": "...", "fix": "..."}
+  ],
+  "cardinal_rule_conformance": {
+    "cr1": true/false, "cr3": true/false, "cr5": true/false,
+    "cr8": true/false, "cr9": true/false
+  },
+  "launch_d1_axes": {
+    "code_quality": "PASS/FAIL", "security": "PASS/FAIL",
+    "performance": "PASS/FAIL", "infra": "PASS/FAIL", "comms": "PASS/FAIL"
+  },
+  "ship_recommendation": "ATOMIC-ALL-4-LAYERS | ATOMIC-LAYERS-1-2-ONLY | PAUSE-FOR-ROOT-CAUSE"
+}
+```

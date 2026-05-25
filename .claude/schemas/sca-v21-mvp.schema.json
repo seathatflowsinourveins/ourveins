@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claude-sota-installed/schemas/sca-v21-mvp.schema.json",
+  "title": "sca-v21-MVP SOTA-Repo Verdict",
+  "description": "Strict superset of sca-v20-multi-dim. MVP per codex W380-r1 convergence (REVISE@0.86 → MVP-endorsed): output of the executable scorer + raw ledger capture + per-dimension evidence-quality/missingness (the codex-flagged missed-high-value). Weights FROZEN at v20 defaults — fitted calibration deferred until a 50-repo stratified backtest exists (codex P0: avoid n=12 overfit). Stars informational-only (MALTA fake-star check inherited). 5-tier soft-gate routing (INSTALL/PATTERN-STUDY/CITE-ONLY/MONITOR/BLOCK), soft-route-down only. Per-decision-class Pareto-frontier preserved (no single scalar). Authored 2026-05-23 from W380 STREAM-C + 4-stream synthesis + codex W380-r1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "weights_profile", "repo", "evaluated_at",
+    "dims", "evidence", "per_class_scores", "tier",
+    "confidence", "measured_ratio"
+  ],
+  "properties": {
+    "schema_version": { "const": "sca-v21-mvp" },
+    "weights_profile": {
+      "type": "string",
+      "description": "Frozen-weights identifier. Codex W380-r1 P0: NOT tuned on n=12; awaits 50-repo backtest."
+    },
+    "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "evaluated_at": { "type": "string", "format": "date-time" },
+
+    "dims": {
+      "type": "object",
+      "description": "Raw dimension values per contract.mjs DIMS registry. null when no fetcher measured the dim.",
+      "additionalProperties": true
+    },
+
+    "evidence": {
+      "type": "object",
+      "description": "Per-dimension EvidenceAnchor. REQUIRED for every dim in the contract registry — codex W380-r1 MISSED_HIGH_VALUE: missingness rides alongside value so 'clean', 'not-measurable', and 'conflicting' never collapse to one neutral number.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_class", "missingness", "measured_at"],
+        "properties": {
+          "value": { "description": "raw value (number, string, bool, obj, or null)" },
+          "source_class": {
+            "type": "string",
+            "enum": ["CLASS-A", "CLASS-B", "CLASS-C", "operator-attestation"]
+          },
+          "source_uri": { "type": "string", "description": "URL, file:line, or api-endpoint cite" },
+          "measured_at": { "type": "string", "format": "date-time" },
+          "missingness": {
+            "type": "string",
+            "enum": ["measured", "not-measurable", "conflicting"]
+          }
+        }
+      }
+    },
+
+    "per_class_scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["install", "pattern_study", "cite_only", "monitor"],
+      "description": "Per-decision-class weighted scores (Pareto-frontier preserved — NO single scalar).",
+      "properties": {
+        "install":        { "type": "number", "minimum": 0, "maximum": 1 },
+        "pattern_study":  { "type": "number", "minimum": 0, "maximum": 1 },
+        "cite_only":      { "type": "number", "minimum": 0, "maximum": 1 },
+        "monitor":        { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "tier": {
+      "type": "string",
+      "enum": ["INSTALL", "PATTERN-STUDY", "CITE-ONLY", "MONITOR", "BLOCK"],
+      "description": "5-tier soft-gate. Hard-BLOCK on CISA-KEV (D22) or proprietary/noassertion license. Hard-filter violations route DOWN only, never silently UP."
+    },
+
+    "hard_filter_violations": {
+      "type": "array",
+      "description": "Per-class hard-filter violations that downgraded from a higher tier — transparency record.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dim", "blocked_class", "reason"],
+        "properties": {
+          "dim": { "type": "string" },
+          "blocked_class": { "enum": ["INSTALL", "PATTERN-STUDY", "CITE-ONLY"] },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+
+    "confidence": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+      "description": "Top-level confidence discounted by the measured-evidence ratio (codex: unknown != clean)."
+    },
+
+    "measured_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of registered dims with missingness=measured. Drives confidence."
+    },
+
+    "fetcher_versions": {
+      "type": "object",
+      "description": "Per-fetcher version stamp for reproducibility (codex W380-r1 P1: version fetchers, record missingness)."
+    },
+
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pointer back to design provenance for cite-anchor discipline (CR-6).",
+      "properties": {
+        "supersedes": { "const": "sca-v20-multi-dim" },
+        "design_doc": { "type": "string" },
+        "codex_round": { "type": "string" }
+      }
+    }
+  }
+}

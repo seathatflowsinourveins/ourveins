@@ -1,0 +1,224 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1588-1ebd-70c2-8412-12469efaff8b
+--------
+user
+## Context — TIGHTLY SCOPED per Forward Discipline #2 (10th recursive dogfood instance n=10)
+
+You are codex GPT-5.5 in cross-model T1 audit mode. Apply Forward Discipline #2 per `.claude/rules/codex-t1-pattern-b-forward-discipline.md` (promoted Fire 37). Focus ONLY on the codification text below; DO NOT explore historical Wave 134 fire deliverables.
+
+**Budget expectation**: 60-180s wall-clock target.
+**Verdict shape expectation**: JSON-strict at EOF; APPROVE / NEEDS-REVISION / REJECT.
+
+## What is being codified
+
+Wave 134 Fire 45 codifies `docs/cosign-verify-attestation-discipline.md` — operational discipline for `cosign verify-attestation` usage in INSTALL fires. Bridges Fire 44 installed cosign binary (v3.0.6 at `/c/Users/42/go/bin/cosign.exe`) with Fire 41 Gate 1 Registry Trust verdict shape (Tier-A/B/C/D/E).
+
+## 5-step verify-attestation probe
+
+### Step 1 — Probe attestation availability (cheap; no cosign invocation)
+- gh release view --json assets | jq | grep .sig|.pem (GitHub binaries)
+- cosign tree <image> (OCI images)
+- npm view --json | jq .attestations (npm packages)
+- 0 attestations → Tier-D/E verdict directly; skip Steps 2-3
+
+### Step 2 — Fetch sig + cert files locally (CRITICAL)
+- cosign verify-blob URL-fetch FAILS on GitHub release asset URLs (Fire 44 empirical)
+- ALWAYS gh release download to local tmp/ first
+
+### Step 3 — Invoke cosign verify-attestation OR verify-blob
+- verify-attestation for OCI images (type slsaprovenance / sbom / vulnerability)
+- verify-blob for non-OCI binaries
+- --certificate-identity-regexp + --certificate-oidc-issuer
+
+### Step 4 — Classify verdict per Fire 41 Gate 1 Tier-A/B/C/D/E
+- Signed VALID + official-org → Tier-A
+- Signed VALID + named-T2 practitioner → Tier-B
+- NO sig + named-org → Tier-C
+- NO sig + named-individual → Tier-D
+- Signed INVALID OR identity mismatch OR Tier-5 anonymous → Tier-E
+
+### Step 5 — Persist verdict in install-provenance.md
+- Per Fire 42 4-class memory taxonomy: Class 1 SEMANTIC-FACT
+- Format: `gate-1-verdict: Tier-<X> <classification>` + cert subject + cert issuer + verified-at date
+
+## Composition
+
+- Fire 41 Gate 10 Side-Effect Audit: cosign verify is WITHIN-BOUNDARY (read-only filesystem + read-only Sigstore network)
+- Fire 41 Gate 9 Output Validation: use --output json for SCHEMA-VALID verdict
+- Fire 42 4-class memory: verdict = Class 1 SEMANTIC-FACT persist to install-provenance
+
+## When applies / does NOT apply
+
+APPLIES: INSTALL fires with Sigstore-signed releases / Fire 41 Gate 1 elevation / CR-9 + CR-12 PRIMARY install / SRA D4 maintainer-provenance verification
+DOES NOT: candidates without Sigstore signatures (use Tier-C/D/E direct) / READ-ONLY research probes / sibling cite-imports (CR-12 tertiary) / bootstrap files
+
+## Anti-patterns (6 codified)
+
+1. Skip Step 2 fetch sig+cert locally → Fire 44 empirical URL-fetch-shape failure
+2. Use --certificate-identity (exact) instead of -regexp (with caveat: open regexp matches forked workflows)
+3. Trust cosign output without JSON schema validation
+4. Skip Step 4 verdict classification + persistence
+5. Use verify-attestation for SLSA when candidate publishes only signed-blob
+6. Treat Gate 1 Tier-A as transitive trust for downstream dependencies (signed-official is artifact-only; deep supply-chain needs SBOM walk)
+
+## Sister-rule integration (10 cites)
+
+evidence-governed-harness-8-gate-discipline.md Gate 1 + Gate 9 + Gate 10 + CR-9 install-risk + CR-6 official-channel + manifest §13.G1 (Fire 44) + 4class-memory-taxonomy Class 1 + sota-research-architecture.md D4 + named-failure-modes.md + codex-t1-pattern-b-forward-discipline.md.
+
+## Status
+
+- cosign binary: ✅ INSTALLED Fire 44
+- Steps 1+3: ✅ AVAILABLE
+- Steps 2+4+5: ⚠️ PARTIAL (operator-side; mechanical hook NOT-YET-WIRED)
+- Mechanical enforcement hook: ❌ NOT-YET-WIRED (future W134-F-IMP-Q-MECHANICAL)
+
+## Audit dimensions (Forward Discipline #2 — TEXT only)
+
+### 1. 5-step probe completeness
+- Are 5 steps exhaustive for verify-attestation workflow?
+- Should Step 0 (cite anchor at HEAD SHA verification of cosign binary itself) precede Step 1?
+
+### 2. Step 2 fetch-locally discipline correctness
+- Is gh release download the right primary path?
+- Should curl + Accept: application/octet-stream be documented alternative?
+
+### 3. Verdict classification mapping
+- Is Tier-A/B/C/D/E mapping to cosign verify + SRA D4 correct?
+- Should Tier-B require BOTH signed AND named-T2 (vs OR semantics)?
+
+### 4. Anti-pattern caveat on --certificate-identity-regexp
+- Is the "open regexp matches forked workflows" caveat sufficient?
+- Should we mandate workflow-path-tightening when known?
+
+### 5. Composition with Fire 41 Gate 9 + Gate 10
+- Is the Gate 9 JSON schema validation flow correct?
+- Is the Gate 10 boundary classification correct (network READ vs WRITE)?
+
+### 6. Step 5 persistence format
+- Is `gate-1-verdict:` declaration format correct?
+- Should additional fields (cert SHA / log entry index) be included?
+
+### 7. When does NOT apply scope
+- Are all 4 NON-APPLY cases correctly scoped?
+- Should additional cases be excluded (e.g., release-candidate / pre-release)?
+
+## Required verdict shape (JSON-strict at EOF)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00-1.00,
+  "summary": "1-2 sentence verdict rationale",
+  "five_step_probe_complete": "YES | NO | NEEDS-ADDITION",
+  "step_2_fetch_discipline_correct": "YES | NO | NEEDS-FIX",
+  "verdict_classification_correct": "YES | NO | NEEDS-FIX",
+  "regexp_caveat_sufficient": "YES | NO | NEEDS-EXPANSION",
+  "gate_9_composition_correct": "YES | NO | NEEDS-FIX",
+  "gate_10_composition_correct": "YES | NO | NEEDS-FIX",
+  "persistence_format_correct": "YES | NO | NEEDS-FIX",
+  "non_apply_scope_correct": "YES | NO | NEEDS-ADDITION",
+  "anti_pattern_coverage": "COMPREHENSIVE | NEEDS-ADDITION",
+  "sister_rule_count_correct": "YES | NO | NEEDS-FIX",
+  "cite_class_correct": "YES | NO",
+  "missing_steps": ["any 6th step missed"],
+  "prescribed_edits": [
+    "If NEEDS-REVISION: list Pattern A fix-forward prescriptions"
+  ],
+  "next_steps": [
+    "Verbatim operator-actionable instructions"
+  ]
+}
+```
+
+## Budget reminder (Forward Discipline #2 10th recursive dogfood)
+
+You have ~60-180s wall-clock target. DO NOT explore filesystem beyond this prompt.
+
+## End of consult prompt
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "summary": "The discipline is directionally correct and scoped well, but it needs a few fix-forward clarifications before codification: local fetch alternatives, tighter identity-regexp guidance, stronger Tier-B AND semantics, and richer persistence evidence fields. No historical Wave 134 exploration was performed.",
+  "five_step_probe_complete": "NEEDS-ADDITION",
+  "step_2_fetch_discipline_correct": "YES",
+  "verdict_classification_correct": "NEEDS-FIX",
+  "regexp_caveat_sufficient": "NEEDS-EXPANSION",
+  "gate_9_composition_correct": "YES",
+  "gate_10_composition_correct": "YES",
+  "persistence_format_correct": "NEEDS-FIX",
+  "non_apply_scope_correct": "YES",
+  "anti_pattern_coverage": "NEEDS-ADDITION",
+  "sister_rule_count_correct": "YES",
+  "cite_class_correct": "YES",
+  "missing_steps": [
+    "Add Step 0: verify cosign binary provenance/version/path before first operational use in an install fire, using the existing Fire 44 installed binary evidence or current local probe.",
+    "Add post-verification evidence capture: persist enough Rekor/certificate output to make the verdict independently auditable later."
+  ],
+  "prescribed_edits": [
+    "Insert Step 0 before Step 1: confirm the cosign binary path, version, and install-provenance anchor for the installed verifier itself; allow reuse of the Fire 44 evidence when unchanged.",
+    "In Step 2, keep `gh release download` as the primary GitHub release path, but document `curl -L -H \"Accept: application/octet-stream\"` as an allowed fallback when `gh` cannot fetch the asset, with local-file verification still mandatory.",
+    "In Step 3, require `--output json` wherever supported and explicitly distinguish `verify-attestation` for OCI attestations from `verify-blob` for detached binary signatures.",
+    "In Step 4, clarify Tier-B requires BOTH a valid signature AND a named Tier-2 practitioner identity; unsigned named-T2 artifacts must not be promoted to Tier-B.",
+    "Expand the regexp caveat: mandate workflow-path or repository-owner tightening when the expected identity is known; forbid broad org-only or unanchored regexps unless justified in provenance.",
+    "In Step 5, extend the persistence format to include certificate subject, issuer, verified-at date, certificate fingerprint or digest when available, Rekor log index or UUID when available, artifact digest, and identity match rationale.",
+    "Add anti-pattern: accepting a valid Sigstore signature without checking artifact digest and certificate identity against the expected upstream/repository/workflow.",
+    "Add anti-pattern: using a broad `--certificate-identity-regexp` that can match forks, unrelated workflows, or user-controlled refs when a tighter identity is knowable.",
+    "Add a note that pre-release or release-candidate artifacts are not categorically excluded from this discipline; they should be classified by signature/provenance plus the separate install-risk policy."
+  ],
+  "next_steps": [
+    "Apply all prescribed edits in one fix-forward pass to `docs/cosign-verify-attestation-discipline.md`.",
+    "Do not weaken Step 2: detached signatures and certificates must be downloaded to local temp files before `verify-blob`.",
+    "Keep Gate 10 classified as within-boundary because verification performs read-only filesystem access plus read-only Sigstore/Rekor network lookups.",
+    "After editing, re-run a text-only T1 check focused on the changed codification text."
+  ]
+}
+tokens used
+12,393
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "summary": "The discipline is directionally correct and scoped well, but it needs a few fix-forward clarifications before codification: local fetch alternatives, tighter identity-regexp guidance, stronger Tier-B AND semantics, and richer persistence evidence fields. No historical Wave 134 exploration was performed.",
+  "five_step_probe_complete": "NEEDS-ADDITION",
+  "step_2_fetch_discipline_correct": "YES",
+  "verdict_classification_correct": "NEEDS-FIX",
+  "regexp_caveat_sufficient": "NEEDS-EXPANSION",
+  "gate_9_composition_correct": "YES",
+  "gate_10_composition_correct": "YES",
+  "persistence_format_correct": "NEEDS-FIX",
+  "non_apply_scope_correct": "YES",
+  "anti_pattern_coverage": "NEEDS-ADDITION",
+  "sister_rule_count_correct": "YES",
+  "cite_class_correct": "YES",
+  "missing_steps": [
+    "Add Step 0: verify cosign binary provenance/version/path before first operational use in an install fire, using the existing Fire 44 installed binary evidence or current local probe.",
+    "Add post-verification evidence capture: persist enough Rekor/certificate output to make the verdict independently auditable later."
+  ],
+  "prescribed_edits": [
+    "Insert Step 0 before Step 1: confirm the cosign binary path, version, and install-provenance anchor for the installed verifier itself; allow reuse of the Fire 44 evidence when unchanged.",
+    "In Step 2, keep `gh release download` as the primary GitHub release path, but document `curl -L -H \"Accept: application/octet-stream\"` as an allowed fallback when `gh` cannot fetch the asset, with local-file verification still mandatory.",
+    "In Step 3, require `--output json` wherever supported and explicitly distinguish `verify-attestation` for OCI attestations from `verify-blob` for detached binary signatures.",
+    "In Step 4, clarify Tier-B requires BOTH a valid signature AND a named Tier-2 practitioner identity; unsigned named-T2 artifacts must not be promoted to Tier-B.",
+    "Expand the regexp caveat: mandate workflow-path or repository-owner tightening when the expected identity is known; forbid broad org-only or unanchored regexps unless justified in provenance.",
+    "In Step 5, extend the persistence format to include certificate subject, issuer, verified-at date, certificate fingerprint or digest when available, Rekor log index or UUID when available, artifact digest, and identity match rationale.",
+    "Add anti-pattern: accepting a valid Sigstore signature without checking artifact digest and certificate identity against the expected upstream/repository/workflow.",
+    "Add anti-pattern: using a broad `--certificate-identity-regexp` that can match forks, unrelated workflows, or user-controlled refs when a tighter identity is knowable.",
+    "Add a note that pre-release or release-candidate artifacts are not categorically excluded from this discipline; they should be classified by signature/provenance plus the separate install-risk policy."
+  ],
+  "next_steps": [
+    "Apply all prescribed edits in one fix-forward pass to `docs/cosign-verify-attestation-discipline.md`.",
+    "Do not weaken Step 2: detached signatures and certificates must be downloaded to local temp files before `verify-blob`.",
+    "Keep Gate 10 classified as within-boundary because verification performs read-only filesystem access plus read-only Sigstore/Rekor network lookups.",
+    "After editing, re-run a text-only T1 check focused on the changed codification text."
+  ]
+}

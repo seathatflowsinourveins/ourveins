@@ -1,0 +1,131 @@
+# Wave 141A — synthesis T1 review on narrowed scope (post Voice-1+2+3 return)
+
+You are codex GPT-5.5 acting as adversarial reviewer per cross-model-consensus.md
+T1 lifecycle. Single-claim audit. JSON-at-EOF.
+
+## Context — 4-voice agent team converged
+
+### Voice 1 (Path P codex T1 — REAL GPT-5.5 v0.130.0)
+- VERDICT: NEEDS-REVISION conf=0.91 + 8 P0 prescribed_edits (load-bearing)
+- KEY catches:
+  - Section A `Bash(docker run *)` admits `--privileged` / socket mounts / host namespaces / `--cap-add` / remote-engine host flags
+  - Section A omits `docker build *` / `docker buildx *`
+  - Section B missing ~15 catastrophic deny patterns
+  - Section C state-outside-repo discipline = DOCUMENTATION ONLY (needs PreToolUse hook)
+  - CR-7 wording: bypassPermissions = Wave 82d temp override, NOT Phase 3
+  - Plugin binaries filesystem-verified at `C:/Program Files/Docker/cli-plugins/`; runtime smoke pending
+
+### Orchestrator runtime smoke (Voice 1 caveat closed post-verdict)
+- `docker mcp version` → **v0.40.4** ✅
+- `docker agent version` → **v1.44.0** (commit ded87330) ✅
+- `docker compose version` → **v5.1.3** ✅
+- `docker mcp tools` CLI surface confirmed ✅
+- `docker agent --help` examples: `docker agent run`, `docker agent run ./agent.yaml`, `docker agent run agentcatalog/pirate` ✅
+
+### Voice 2 (sota-researcher Sonnet stand-in — Docker SOTA repo deep-dive)
+- ARTIFACT: `tmp/wave141a-voice2-docker-sota-deepdive-2026-05-10.md`
+- 5 Docker SOTA repos line-by-line audited (mcp-gateway / docker-agent / docker-py / genai-stack / awesome-compose)
+- Cite anchors at file:line + HEAD SHA per finding
+- VERDICT: STUDY-COMPLETE (placeholder — fill from actual artifact post-return)
+
+### Voice 3 (architect Sonnet stand-in — Wave 141A design)
+- ARTIFACT: `tmp/wave141a-voice3-architect-design-2026-05-10.md`
+- Design covers: settings.json allow[] / safety_guard.py extension / state-outside-repo discipline / manifest §3+§10 additions / install-provenance entry
+- VERDICT: APPROVE-FOR-IMPLEMENTATION (placeholder — fill post-return)
+
+## Orchestrator-side proposed disposition (NARROWED SCOPE per Voice 1 NEEDS-REVISION)
+
+Split Wave 141A into 4 sub-fires (cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+
+### Wave 141A.1 — DOC-ONLY manifest additions (SHIP NOW)
+
+Files to commit:
+- `docs/sota-installed-manifest.md` §3 plugin row additions:
+  - `docker/mcp-gateway` (CLI plugin `docker-mcp` v0.40.4 — Docker Desktop pre-installed, runtime smoke ✅)
+  - `docker/docker-agent` (CLI plugin `docker-agent` v1.44.0 commit ded87330 — Docker Desktop pre-installed, runtime smoke ✅)
+- `docs/sota-installed-manifest.md` §10 CLI tools additions:
+  - Docker Engine (29.4.1) — INSTALLED-VIA-SYSTEM-PATH
+  - Docker CLI (29.4.1) — INSTALLED-VIA-SYSTEM-PATH
+  - docker-py (Python SDK 7.1.0) — INSTALLED in venv
+  - docker-compose (v5.1.3) — INSTALLED-VIA-SYSTEM-PATH
+- `docs/install-provenance.md` Wave 141A.1 entry (~150 LOC documenting scope split rationale)
+
+NOT shipping in 141A.1:
+- settings.json `permissions.allow[]` Docker entries (Wave 141A.3 per Voice 1)
+- safety_guard.py Docker deny pattern extensions (Wave 141A.2 per Voice 1)
+- PreToolUse volume-mount-discipline hook (Wave 141A.4 per Voice 1)
+
+### Wave 141A.2 (deferred — safety_guard.py extension)
+
+Per Voice 1 prescribed_edit list, ~15-20 NEW deny patterns:
+- Docker socket mounts (-v /var/run/docker.sock, /run/docker.sock, npipe equivalents)
+- Host/root/repo/sibling bind mounts
+- Dangerous --cap-add (SYS_ADMIN, NET_ADMIN, SYS_PTRACE, SYS_MODULE, SYS_RAWIO, SYS_BOOT, DAC_READ_SEARCH, ALL)
+- --security-opt seccomp=unconfined / apparmor=unconfined
+- Host namespaces (--userns=host, --cgroupns=host, --ipc=host, --uts=host, --pid=host, --network=host)
+- Remote-engine controls (-H/--host, DOCKER_HOST=, DOCKER_CONTEXT=, docker context use/create/import/update)
+- All-container takedown patterns
+- All prune variants (system/container/image/volume/network/builder/buildx)
+- Compose destructive forms (down -v, rm -f, run/exec --privileged)
+- docker plugin install --grant-all-permissions
+- docker mcp secret export, profile remove, client connect --global
+- docker agent serve on non-loopback
+
+Each deny needs regex + benign-pass test + dangerous-pattern test (per Voice 1 prescribed_edit #7).
+
+### Wave 141A.3 (deferred — settings.json narrow allow[])
+
+Subcommand-level (not blanket *) Docker allow entries paired with safety_guard denies. Per Voice 1: avoid blanket `docker run *` / `docker compose *` / `docker mcp *` / `docker agent *` / `docker network *`.
+
+Read-only class (LOW risk, can ship first):
+- `Bash(docker version*)` / `Bash(docker info*)` / `Bash(docker ps*)` / `Bash(docker logs*)` / `Bash(docker inspect*)` / `Bash(docker images*)` / `Bash(docker volume ls*)` / `Bash(docker volume inspect*)` / `Bash(docker network ls*)` / `Bash(docker network inspect*)` / `Bash(docker mcp tools)` / `Bash(docker mcp profile list)` / `Bash(docker agent --help)`
+
+Lifecycle class (MEDIUM risk, ships after 141A.2):
+- `Bash(docker run *)` paired with safety_guard.py deny patterns
+- `Bash(docker exec *)` paired with privileged exec deny
+- `Bash(docker stop *)` / `Bash(docker rm *)` paired with all-container takedown deny
+- `Bash(docker compose up *)` / `Bash(docker compose down *)` paired with destructive-form deny
+
+Build class (HIGH risk, ships after 141A.2):
+- `Bash(docker build *)` paired with secret/SSH/untrusted-context guard
+- `Bash(docker buildx *)` paired with prune deny
+
+### Wave 141A.4 (deferred — PreToolUse volume-mount hook)
+
+NEW hook `Z:/claude-sota-installed/.claude/hooks/scripts/docker_volume_discipline_guard.py`:
+- Parses Bash command for `-v`, `--volume`, `--mount` flags
+- Rejects mount source paths NOT under `Z:/claude-sota-installed-state/.docker-volumes/<container-name>/`
+- Rejects sibling paths (`Z:/claude-sota/`, `Z:/claude/`)
+- Rejects host root mounts (`/`, `C:/`, `/var/run/docker.sock`)
+
+Wired in settings.json hooks.PreToolUse[] for matcher `Bash`. Defense-in-depth for Section C enforcement.
+
+## Single-claim audit
+
+CLAIM: "The Wave 141A.1 narrowed-scope ship (DOC-ONLY manifest §3+§10 additions + provenance entry) is sufficient + necessary to faithfully report Voice 2 deep-dive evidence WITHOUT propagating false-claim risk into manifest. Wave 141A.2/.3/.4 are correctly DEFERRED per Voice 1 NEEDS-REVISION conf=0.91 prescribed_edits."
+
+Specifically classify:
+- (a) Is Wave 141A.1 scope narrowed correctly (manifest-only; no permission-class edits)? Y/N
+- (b) Are runtime smoke evidence (`docker mcp v0.40.4` + `docker agent v1.44.0` + `docker compose v5.1.3`) sufficient to claim INSTALLED on the Docker plugin manifest rows?
+- (c) Hidden risks from manifest §3+§10 additions (any way the manifest text COULD propagate to enable allow[] expansion silently)?
+- (d) Ship-shape: monolithic Wave 141A.1 SAFE OR should the manifest text itself be further bounded?
+- (e) Wave 141A.2/3/4 deferral correctly captures Voice 1's 8 P0 prescribed_edits (no orphan prescriptions)?
+
+## Output format (MANDATORY JSON at EOF)
+
+After analysis, emit final verdict as single JSON object on LAST line. Schema:
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "wave_141a_1_scope_correct": true,
+  "manifest_text_safe": true,
+  "ship_shape": "monolithic-safe | needs-further-narrowing",
+  "voice_1_prescriptions_orphaned": [],
+  "concerns": ["..."],
+  "prescribed_edits": ["..."]
+}
+```
+
+Be terse. ~30 LOC reasoning before JSON. Cite primary sources at file:line + HEAD SHA OR `https://docs.docker.com/...` URL.

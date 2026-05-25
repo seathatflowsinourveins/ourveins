@@ -1,0 +1,66 @@
+T1 PRE-COMMIT CONSULT — Wave 101 Ship 2Q (cwc commit-on-stop throttle wrapper)
+
+USER DIRECTIVE (verbatim):
+"continue with sota agent team workflow... gpt5.5 need to be fully unleashed, not sandboxed... always using gpt5.5 fully e2e before commit"
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Ship 2P 2026-05-08 commit b6dc7e5) — NO `--sandbox=read-only` flag; profile default `danger-full-access`.
+
+CONTEXT — Wave 101 fan-out:
+- Wave 101 Agent A (a7d30a485c10d68d9) APPROVE-DESIGN conf=0.88 — Option D HYBRID wrapper
+- Wave 101 Agent B (a2801feb66c9d8154) APPROVE-DESIGN conf=0.91 — Ship 2L anthropics/skills (queued AFTER Ship 2Q lands; n=5 cwc-bundled-drift codification URGENT)
+- Empirical n=5 cwc-bundled-drift across Wave 98-100 + 9 cwc auto-checkpoints in 3hrs = ~1 per 20min
+
+SHIP SCOPE — Wave 101 Ship 2Q (single ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+
+EDIT 1 (NEW): .claude/hooks/scripts/cwc/commit-on-stop-throttled.sh (~50 LOC bash)
+- Pattern P5 env kill-switch: CWC_COMMIT_ON_STOP_DISABLE=1
+- Pattern P3 hybrid throttle (time AND LOC):
+  - default 3600s (CWC_COMMIT_ON_STOP_MIN_INTERVAL_SEC) AND 50 LOC (CWC_COMMIT_ON_STOP_MIN_LOC)
+  - Skip ONLY if BOTH conditions hold (commit if EITHER threshold broken)
+- Delegates to upstream `${CLAUDE_PROJECT_DIR}/.local/cwc/claude-code-config/.claude/hooks/commit-on-stop.sh` verbatim per CR-12
+
+EDIT 2 (REWIRE): .claude/settings.json:234 Stop[1].command (1-line edit)
+- Before: `cd "$CLAUDE_PROJECT_DIR" && bash ".local/cwc/claude-code-config/.claude/hooks/commit-on-stop.sh"`
+- After: `cd "$CLAUDE_PROJECT_DIR" && bash ".claude/hooks/scripts/cwc/commit-on-stop-throttled.sh"`
+
+EDIT 3 (post-commit): docs/install-provenance.md Ship 2Q entry (~30 LOC) — AFTER atomic commit lands; provenance documenting cite chain + Outcome A continuity for prior n=5 bundled-drift commits.
+
+CITE CHAIN:
+- TIER-1-DIRECT: Z:/repos/deps/cwc-long-running-agents/claude-code-config/.claude/hooks/commit-on-stop.sh @ HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629 (Apache-2.0 Anthropic OFFICIAL; 17 LOC; wrapper preserves verbatim)
+- TIER-3-LOCAL-COMPOSITION: throttle predicate is sss-novel composition (Lamport timestamp + git porcelain shortstat) over TIER-1 cwc primitive
+- Sister rules: Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md Pattern A + closed-loop-recursive-narrowing.md Outcome A (cwc-bundled-drift forward-only doc) + port-note-discipline §6 (do NOT rewrite history)
+- Wave 101 Agent A artifact: tmp/wave101-A-ship2q-cwc-discipline-revision-2026-05-08.md
+
+CR-9 INSTALL-RISK ANALYSIS:
+- LOW (wrapper is pure orchestration; no @latest, no sibling-bleed, sibling REVERT-check clean)
+- Reversible: `rm .claude/hooks/scripts/cwc/commit-on-stop-throttled.sh` + revert settings.json:234
+- 2-round fix-forward expectation: per CR-9 mandate, expect Pattern A apply
+- Pre-cite-import REVERT check: `git -C Z:/claude-sota log --all --oneline -- '.claude/hooks/scripts/cwc/'` returns empty (no sibling REVERT precedent)
+- Sibling-bleed defense: zero `Z:/claude-sota/` paths; uses `${CLAUDE_PROJECT_DIR}` env var
+
+CR-12 UPSTREAM-INSTALL-PRIORITY VERIFICATION:
+- PRIMARY upstream-install: cwc commit-on-stop.sh @ HEAD ffd563d6 — UNTOUCHED
+- Wrapper is forward-only ADDITION; delegates to upstream verbatim when throttle predicate fails
+- NO sibling cite-import (cite-import-AMBER not used)
+
+OPERATIONAL ORDER OF Stop CHAIN POST-EDIT:
+1. auto_proceed_gate.py (5s sync) — block re-engagement if "ask-without-act"
+2. THROTTLED commit-on-stop wrapper (60s) — only commits if (>3600s elapsed OR >50 LOC) AND tree dirty AND not env-disabled
+3. stop-review-gate-hook.mjs (300s) — codex T6 reviews
+
+THROTTLE BEHAVIOR (default knobs):
+- Continuous active /loop with frequent small edits: cwc auto-checkpoint frequency drops from ~1/20min to ~1/hr (or sooner if >50 LOC accumulates)
+- Genuine session-end with pending tracked changes: still commits (either time threshold passes >1hr OR LOC threshold breaks)
+- Operator override: `CWC_COMMIT_ON_STOP_DISABLE=1` for sessions where checkpoint commits unwanted
+
+QUESTIONS (JSON ONLY):
+1. Default throttle 3600s + 50 LOC — too aggressive? too lax? Should defaults differ for autonomous /loop vs interactive session?
+2. Hybrid AND-logic correct (skip only if BOTH conditions hold)? OR should it be OR-logic (commit if EITHER threshold broken)?
+3. The wrapper delegates to upstream cwc — but cwc itself uses `git commit -am` (tracked-only). Should wrapper ALSO add untracked-but-significant files? (Beyond Ship 2Q scope per ONE-LOGICAL-UNIT-PER-FIRE.)
+4. CR-12 verification — wrapper preserves upstream cwc UNTOUCHED. Confirmed?
+5. Forward-only Outcome A continuity — prior cwc-bundled-drift commits (00d1bde + 72d257a + 68169d9 + 20785c5 + 4e5dc95 + ebb55a6) remain UNMODIFIED per port-note-discipline §6. Confirmed?
+6. CR-1 cite-class lattice — TIER-3-LOCAL-COMPOSITION effective_tier per rule #8. Constituents: TIER-1-DIRECT cwc upstream + TIER-3-LOCAL throttle predicate. Confirmed?
+7. Operator-discipline mandate post-Ship-2Q: should I codify "set CWC_COMMIT_ON_STOP_DISABLE=1 for any /loop fire that runs codex T1 e2e on hook-wire ships" as Wave 98 lesson n=2 successor? (Ship 2P retired n=2 sandbox=read-only; Ship 2Q's env-disable is the architectural successor.)
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

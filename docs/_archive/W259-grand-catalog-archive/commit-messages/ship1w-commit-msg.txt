@@ -1,0 +1,86 @@
+feat(poller): Wave 91 Ship 1W — Aperant-derived rate-limit poller (CLOSES 0/10 active-polling gap; NEEDS-REV 0.86 Pattern A fix-forward 4/4 closed)
+
+User directive 2026-05-08: "ship with convergence insights and repos
+offical docs guide etc, launch advance dagent team... please always
+using gpt5.5 fully e2e before commit."
+
+Wave 89 Ship 1Y unleash multiplier (codex CLI sandbox danger-full-access
++ network_access:true) + Wave 90 LIVE schema discovery (Anthropic uses
+five_hour/seven_day/extra_usage NOT primary_window/secondary_window)
+enabled this concrete production implementation.
+
+CROSS-MODEL T1 GATE (real GPT-5.5 codex T1 e2e BEFORE commit):
+  Smoke probe v1 (--dry-run): 8/8 polls succeeded
+  Codex T1 deep-review-exec 120s budget on actual code:
+    NEEDS-REVISION conf=0.86 / FIX-FORWARD-AND-PROCEED / 4 findings
+  Verdict-on-file: .claude/state/codex_consult_ship_1w_aperant_poller_OUT.txt
+
+PATTERN A FIX-FORWARD (4/4 findings closed in single atomic apply):
+  F-1 P2 Codex reset_at Unix→ISO-8601 normalization mismatch
+       → Added unix_to_iso8601() helper; primary/secondary_reset_at
+         now ISO-8601 UTC for SQLite consistency
+  F-2 P2 Windows SIGTERM not graceful (skips finally; can interrupt SQL)
+       → Cooperative shutdown via stop-sentinel file; --start loop
+         checks sentinel between iterations + every 1s during sleep
+  F-3 P3 update_cpa_sqlite false-positive on rowcount mismatch
+       → Capture cur.rowcount; track no_match counter; emit error
+         records for unmatched rows
+  F-4 P3 poll_codex doesn't capture credits (intentional — no SQLite
+       column — but should be in JSONL telemetry)
+       → Added credits_balance/unlimited/has_credits to PollResult +
+         JSONL records; explicitly documented SQLite-exclusion
+
+POST-FIX-FORWARD LIVE OPERATIONAL VERIFICATION:
+  python3 tools/aperant_rate_limit_poller.py --once
+  → {"polled":8, "ok":8, "errors":[],
+     "update_stats":{"updated":8, "no_match":0, "skipped":0}}
+  SQLite verified: 8/10 identities with rate-limit data
+  (was 0/10; closed the active-polling gap from Wave 87+90)
+
+REAL ANTHROPIC SCHEMA (Wave 90 discovery, supersedes Aperant doc):
+  /api/oauth/usage returns:
+    five_hour: {resets_at ISO-8601, utilization}
+    seven_day: {resets_at ISO-8601, utilization}
+    extra_usage: {currency, is_enabled, monthly_limit, used_credits, utilization}
+    seven_day_sonnet, seven_day_opus, omelette_promotional, ...
+  Aperant doc claimed primary_window/secondary_window (was OLDER
+  internal Codex schema). Codex /backend-api/wham/usage MATCHES
+  Aperant doc.
+
+EDITS (2 files atomic):
+  NEW tools/aperant_rate_limit_poller.py (~330 LOC post-fix-forward):
+    - Polls Anthropic + Codex usage APIs
+    - UPDATEs cpa-usage-keeper SQLite with rate-limit data
+    - Cooperative shutdown via stop-sentinel (Windows-safe)
+    - JSONL telemetry with credits + extra_usage
+    - --once / --start / --stop / --dry-run modes
+    - Token redaction discipline (raw OAuth never logged)
+  docs/install-provenance.md: +Wave 91 Ship 1W entry (~150 LOC)
+
+OPERATIONAL IMPACT (closes Wave 87+90 surfaced gap):
+  Pre:  cpa-usage-keeper SQLite rate-limit cols 0/10 populated
+        (passive proxy traffic counts only; reactive 429 detection)
+  Post: 8/10 populated continuously via 60s cron capability;
+        Ship 1X (cycle-aware-fill-first selector) now UNBLOCKED;
+        proactive routing decisions can use primary_window > 80%
+        threshold to skip MAXED accounts BEFORE 429
+
+TIER-1 SOTA CITE CHAIN:
+  Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+    (endpoints + OAuth client IDs §1.4 + §3.1; Codex schema correct;
+    Anthropic schema OUTDATED per Wave 90 LIVE-verification)
+  https://api.anthropic.com/api/oauth/usage (LIVE-verified)
+  https://chatgpt.com/backend-api/wham/usage (LIVE-verified)
+  https://console.anthropic.com/v1/oauth/token (token refresh per §3.1)
+  https://auth.openai.com/oauth/token (Codex token refresh)
+  Z:/repos/deps/codex/codex-rs/core/src/config/config_tests.rs:842,
+    1438,1572 @ HEAD 993e3f40 (Wave 89 Ship 1Y unleash enabler)
+
+NEXT-FIRE candidates (UNBLOCKED by Ship 1W):
+  Ship 1X P0: CLIProxyAPI cycle-aware-fill-first selector
+    (consume Ship 1W populated SQLite; skip accounts 7d > 80%)
+  Wire 60s cron via Windows Task Scheduler / cwc track-read.sh / pm2
+  Ship 1V refined: mr.euphoria capacity_score=0 misleading per
+    Wave 90 finding (account has 7d=12% headroom but burns paid)
+
+Satisfies cardinal-rule-1+3+7+9+10+11.

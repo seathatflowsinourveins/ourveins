@@ -1,0 +1,221 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit c8233e3d06df970569effadea10944f045c6ba3c
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/agents/sota-researcher.md | 298 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 298 insertions(+)
+
+=== git show --format=fuller ===
+commit c8233e3d06df970569effadea10944f045c6ba3c
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:30:52 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:30:52 2026 -0400
+
+    feat: fire 14 sota-researcher tracking + FM-20 cascade 3/7 HNF VALID + Fire 13 SRA audit
+    
+    Wave loop89d7bbd4 Fire 14 — track sota-researcher.md (7/11 agents; +9.1% agent-tracking;
+    6/11 Fire 11 → 7/11 Fire 14) + FM-20 cascade surface 3/7 Pattern A iter-1 cite-trail
+    repair on L2 (42.9% of FM-20 path-drift cascade scope closed) + Fire 13 SRA D1-D10
+    audit-trail append to docs/install-provenance.md (~125 LOC documenting Fire 11 T3
+    HIGH-severity disposition + cascade scope HNF VALID vs CR-12 VIOLATION classification).
+    
+    ## Closed-loop arc convergence (ROUND-1 APPROVE — n=2 consolidated recipe on HNF-VALID class)
+    
+    Single-round arc:
+    - Fire 14 (round 1): **APPROVE conf=0.91 ZERO findings** — convergence met round-1
+    
+    Round-1 verdict verbatim:
+    `{"verdict":"approve","summary":"All three scoped axes pass: stale token c9f4ed404 is
+    absent from sota-researcher.md, L3/L4 out-of-scope content-SHA cites remain
+    unchanged, the refreshed CCBP SHA resolves lines 19-36 with the 16-field CC 2.1
+    subagent frontmatter including optional skills, and the file remains untracked with
+    marketplace parity search returning zero sota-researcher.md matches. Fire 13
+    provenance records sota-researcher.md as HNF VALID for future cascade, so this is
+    not the architect/code-reviewer CR-12 violation class.","confidence":0.91,
+    "findings":[],"next_steps":[]}`
+    
+    Codex T1 EXPLICITLY pre-cleared the CR-12 PRIMARY-vs-TERTIARY violation concern
+    that triggered Fire 11 T3 HIGH-severity finding on architect.md. sota-researcher.md
+    is HNF VALID per Fire 13 SRA D1-D10 audit (no ECC parity + no other-marketplace
+    parity across 11 installed marketplaces).
+    
+    ## CR-3 cross-model consensus FULLY SATISFIED via single-round Path P + Fire 13 SRA audit
+    
+    Phase 1 bootstrap exception per CLAUDE.md cardinal-rule-3:
+    
+    - Fire 14 codex T1 (re-dispatch task `b5j4d4xlq` after CWD-drift recovery from
+      failed first attempt task `bmuabdhzz` exit 1): .claude/state/codex_consult_fire14_sota_researcher_pattern_a_verify_OUT.txt
+      (APPROVE conf=0.91 ZERO findings + explicit HNF VALID pre-clearance)
+    - Fire 13 SRA D1-D10 audit at docs/install-provenance.md — establishes HNF VALID
+      classification via 11-marketplace + 5-plugin-cache probe (find empty for
+      sota-researcher.md across addy-agent-skills + anthropic-agent-skills +
+      claude-community + claude-plugins-official + claude-for-financial-services +
+      context-mode + everything-claude-code + healthcare + knowledge-work-plugins +
+      life-sciences + openai-codex)
+    - Path P foreground+tee → REAL GPT-5.5 via codex CLI; cross-model gate FULLY
+      SATISFIED (no STAND-IN-NOTICE required)
+    
+    ## Cardinal-rule conformance (CR-1 through CR-12)
+    
+    - CR-1 ✓ TIER-1-DIRECT cite anchor at HEAD SHA (sota-researcher.md L2 CCBP @48f2cebeb88b389b27231c418ceadb65baf813fd)
+    - CR-3 ✓ Path P single-round cross-model audit converged APPROVE
+    - CR-5 ✓ Cite-import-AMBER per Section 14.5; not install-class
+    - CR-7 ✓ Metadata-only edit per bypassPermissions Phase 1+; no destructive operation
+    - CR-8 ✓ ADAPTED-FROM-SOTA via Wave 15 PORT cite-import per CR-12 TERTIARY
+    - CR-9 ✓ Sibling-bleed defense applied: only `Z:/repos/deps/` upstream cite anchors
+      + provenance-only sibling reference at port-note (HTML comment); no runtime-state leak
+    - CR-12 ✓ TERTIARY path — sibling-novel sss SOTA-research-protocol enrichment delta
+      with NO upstream parity per Fire 13 SRA D1-D10 audit HONEST-NON-FINDING gate
+      (verified via 11-marketplace + 5-plugin-cache probe; recorded in
+      docs/install-provenance.md Fire 13 audit-trail entry)
+    
+    ## Distinct from architect.md / code-reviewer.md CR-12 VIOLATION class
+    
+    Fire 11 architect.md (committed `4a7696b`) is **CR-12 VIOLATION** because ECC plugin
+    ships architect.md (6.3K) at upstream PRIMARY path. Fire 14 sota-researcher.md
+    is **CR-12 TERTIARY VALID** because NO upstream parity exists. The two cases are
+    structurally distinct per Fire 13 SRA D7+D10 split-analysis.
+    
+    ## FM-20 cascade scope progress (4 HNF-VALID surfaces remaining for fire-15+)
+    
+    Per Fire 13 audit:
+    - ✓ debugger.md:70 (Fire 10 commit `5fedb7a`) — HNF VALID + audit-trail Fire 13
+    - ⚠️ architect.md:88 (Fire 11 commit `4a7696b`) — OPERATOR DECISION PENDING
+      (Outcome A/B/C; CR-12 VIOLATION class per Fire 13)
+    - ⚠️ code-reviewer.md:85 (uncommitted Edit REVERTED Fire 13) — CR-12 VIOLATION class
+    - ✓ sota-researcher.md:2 (THIS commit Fire 14) — HNF VALID + audit-trail Fire 13
+    - verifier.md:97 — HNF VALID for fire-15
+    - gpt5-archaeologist.md — HNF VALID for fire-16
+    - gpt5-reviewer.md — HNF VALID for fire-17
+    - CLAUDE.md:268 — pending fire-18+ (HIGH-RISK surface)
+    - docs/install-provenance.md cascade — pending fire-19+ (audit-trail; THIS commit
+      modifies install-provenance.md only for Fire 13 audit-trail append, NOT for the
+      L? FM-20 cascade fix which is separate scope)
+    
+    ## FM-02 (b)+(c) parallel-session race defense applied
+    
+    Multi-file atomic single-shell `git add -- <file1> <file2> && git commit -o -F <msg> -- <file1> <file2>`
+    chain per parallel-session-worktree-isolation.md FM-02 sub-class (b) Recovery #3
+    + git-cli-grammar-discipline.md §The 4 invariants (options first; pathspec after `--`).
+    
+    Two files in this atomic commit:
+    - `.claude/agents/sota-researcher.md` (Pattern A iter-1 cite-trail repair on L2)
+    - `docs/install-provenance.md` (Fire 13 SRA D1-D10 audit-trail append at L23427+)
+    
+    ## CWD-drift operator-discipline lesson (Pattern B HNF root-cause)
+    
+    Fire 14 first codex T1 dispatch (task `bmuabdhzz`) FAILED exit 1 due to CWD drift
+    from prior Fire 13 `cd .claude/plugins && find marketplaces` invocation. Bash CWD
+    persists per tool docs; subsequent Fire 14 relative paths resolved to
+    `.claude/plugins/.claude/state/...` (does not exist) → stdin read failed → codex exec
+    got empty stdin → exit 1. Recovery: re-dispatched with absolute paths +
+    explicit `cd Z:/claude-sota-installed &&` CWD restoration (task `b5j4d4xlq`).
+    
+    Per CLAUDE.md system-prompt Bash hard rule verbatim: "Try to maintain your current
+    working directory throughout the session by using absolute paths and avoiding usage
+    of `cd`." This turn's violation reinforces the rule via empirical FM-17.x-class
+    incident; no new codification needed (rule already documented).
+    
+    ## Audit progress (operator's "track progress" mandate)
+    
+    - CR-1 cite-trail integrity (FM-20 cascade): 2/7 = 28.6% pre-Fire-14 → **3/7 = 42.9%
+      post-Fire-14 with 1/7 OPERATOR-DECISION-PENDING (architect.md)** = effective 42.9%
+      HNF-VALID-class advance + 1/7 disposition-pending
+    - Agent-tracking: 6/11 = 54.5% → **7/11 = 63.6%** (PAST two-thirds threshold for
+      HNF-VALID-class agents; 6/11 if architect.md disposition is REVERT)
+    - AUTHORITATIVE coverage: ~18.8% UNCHANGED (cite-trail repair, not install)
+    - DEFINITIVE SOTA reviewed (T3 APPROVE rate): 3/7 = 42.9% pre-Fire-14; Fire 14 T3
+      pending async; if Fire 14 T3 APPROVE (no CR-12 violation expected per
+      codex T1 pre-clearance), rate advances to 4/8 = 50%
+    - /loop cron arc closed-loop-recursive-narrowing efficiency: Fire 11 = 1 round /
+      surface (consolidated recipe; INVALID surface class); Fire 14 = 1 round / surface
+      (consolidated recipe; VALID surface class); 1-round convergence on HNF-VALID
+      class CONFIRMED at n=2
+    - SRA D1-D10 audit-coverage on cite-import-AMBER agents: 7/7 = 100% per Fire 13
+      + Fire 14 dispatches
+    
+    ##
+
+[prompt truncated]

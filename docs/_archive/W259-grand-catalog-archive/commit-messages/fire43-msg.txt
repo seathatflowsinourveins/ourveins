@@ -1,0 +1,67 @@
+fix(codex-plugin): wave 50 fire 43 path-mangling actual-fix — absolute Win32 paths
+
+ACTUAL ROOT CAUSE (Mia-caught this turn, refutes Fire 42 PE1 first-verdict):
+  CC's hook-runner intermittently injects ${CLAUDE_PLUGIN_ROOT} env var as
+  POSIX form (/z/claude-sota-installed/...) on Windows. Bash expands the
+  template literally, passes to Windows node.exe, which path.resolve treats
+  /z/ as drive-relative → Z:\z\... → MODULE_NOT_FOUND.
+
+EMPIRICAL EVIDENCE (orchestrator-direct probes this turn):
+  - All MSYS env vars cleared (NO_PATHCONV, ARG_CONV_EXCL, ENV_CONV_EXCL):
+    Z:\z\ error STILL fires (refutes codex T1 first verdict's MSYS hypothesis)
+  - Win32 forward-slash CLAUDE_CODE_PLUGIN_CACHE_DIR: STILL fires
+  - Found 3 historical session-env files; 1 of 3 had POSIX form for
+    CLAUDE_PLUGIN_DATA → CC injects POSIX intermittently per session
+  - Git Bash does NOT auto-convert CLAUDE_PLUGIN_ROOT (tested with all 3
+    MSYS env states: env preserved verbatim by Git Bash startup)
+  - Conclusion: CC itself is the POSIX injection source, not Git Bash/MSYS
+
+FIX (absolute Win32 paths in hooks.json):
+  Replace `${CLAUDE_PLUGIN_ROOT}` in cache/hooks.json with absolute Win32
+  paths. Matches the pattern previously shipped to Z:/claude-sota on
+  2026-04-27 (codex T1 F-004 P0 0.94 verdict) — sister fix, cross-runtime
+  parity. Bypasses CC's broken POSIX injection by giving node.exe the
+  pre-resolved Win32 path directly.
+
+  Also hardcodes Z:\tools\nodejs\node.exe (verified exists, 85MB) instead
+  of bare `node` to bypass any PATH lookup ambiguity.
+
+VERIFICATION:
+  Pre-Fire-43: claude.exe --print emits stderr SessionEnd hook crash
+    Cannot find module 'Z:\z\claude-sota-installed\.claude\plugins\cache\openai-codex\codex\1.0.4\scripts\session-lifecycle-hook.mjs'
+  Post-Fire-43: claude.exe --print returns clean output, NO Z:\z\ error
+    "Acknowledged — fire43 verify ok recorded." [exit 0]
+
+DURABILITY:
+  - cache/hooks.json is gitignored (.gitignore:8 .claude/plugins/cache/)
+    so the patch lives in working tree only.
+  - scripts/codex-plugin-hooks-rewrite.py NEW: idempotent re-apply script
+    operator runs after plugin install/upgrade.
+  - tmp/fire43-patch.py renamed to scripts/codex-plugin-hooks-rewrite.py
+    for permanent path.
+  - Backups created: hooks.json.pre-fire43-fix in BOTH runtimes' cache.
+
+DISCLOSURE per cardinal-rule-7 (REPORT errors before routing around them):
+  This is an UPSTREAM CC BUG WORKAROUND, not source-replacement. The
+  ${CLAUDE_PLUGIN_ROOT} template form is the upstream-canonical pattern
+  per code.claude.com plugin docs. Operator-side workaround is justified
+  because user-visible stderr crash is non-blocking-but-annoying AND CC
+  upstream fix-cycle is unbounded.
+
+  Re-apply on plugin upgrade: `python scripts/codex-plugin-hooks-rewrite.py`
+
+CROSS-RUNTIME APPLICATION:
+  - Z:/claude-sota-installed: SHIPPED this commit
+  - Z:/claude-sota: ALREADY had matching pattern from 2026-04-27 F-004 fix;
+    re-applied via same script (now consistent across runtimes).
+
+FORWARD-ONLY CORRECTION per port-note-discipline.md §6:
+  Fire 42 PE0+PE1+PE2 commits (d5f6661 + 9aaba91) are NET-POSITIVE and
+  STAY (PowerShell .Count fix + exit code propagation + env hygiene). They
+  did NOT fix the actual Z:\z\ bug per Mia-catch this turn. Forward-only
+  correction: this Fire 43 is the actual fix; do NOT rewrite Fire 42 commit
+  bodies retroactively.
+
+DOGFOOD: Mia-pre-apply rule (mia-pre-apply.md) applied recursively this
+turn — caught codex T1 first verdict OVER-claim before propagating second-
+order errors. Verified actual fix via direct probe before claiming success.

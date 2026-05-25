@@ -1,0 +1,246 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit e982cb497dddfd7fd8422eced9892f7a3065a497
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../00-tracker.md                                  |  72 +++++++
+ .../01-verbatim-external-research.md               | 219 +++++++++++++++++++++
+ .../02-cross-walk-vs-wave-134.md                   | 117 +++++++++++
+ .../03-net-new-candidates.md                       | 148 ++++++++++++++
+ .../04-opinionated-stack-comparison.md             | 178 +++++++++++++++++
+ .../99-fire23-close-synthesis.md                   | 160 +++++++++++++++
+ 6 files changed, 894 insertions(+)
+
+=== git show --format=fuller ===
+commit e982cb497dddfd7fd8422eced9892f7a3065a497
+Author:     42 <42@local>
+AuthorDate: Sun May 10 19:18:01 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 19:18:01 2026 -0400
+
+    docs(sota-audit): Wave 134 Fire 23 — external SOTA synthesis integration
+    
+    Integrates user-delivered May-2026 external SOTA research synthesis as
+    INDEPENDENT TRIANGULATION against Wave 134 cross-model verified inventory.
+    
+    ## Fire 23 deliverables (6 files, 894 LOC)
+    
+    - 00-tracker.md (72 LOC) — Fire 23 framing + 6-deliverable structure
+    - 01-verbatim-external-research.md (219 LOC) — user's 5-Tier pyramid captured VERBATIM
+    - 02-cross-walk-vs-wave-134.md (117 LOC) — 20-item Tier 0-5 cross-walk table
+    - 03-net-new-candidates.md (148 LOC) — 9 NET-NEW items with Probe DAG candidacy
+    - 04-opinionated-stack-comparison.md (178 LOC) — user 4-install vs eee 21-plugin head-to-head
+    - 99-fire23-close-synthesis.md (160 LOC) — aggregate findings + forward roadmap
+    
+    ## Triangulation verdict
+    
+    User research (community reviews: self.md / Redwerk / mejba.me / Firecrawl /
+    libhunt / Martin Fowler) compared against Wave 134's 8/8 cross-model verified
+    architecture dimensions:
+    
+    - CONVERGENT: 11 of 20 items (55%)
+    - DIVERGENT: 0 items (no direct contradiction)
+    - NET-NEW: 9 items (45%)
+      - PROBE-DAG-CANDIDATE: 5 (BMAD-METHOD / CCPM / Task Master / Agent OS v3 / Memory Bank)
+      - REJECT-FOR-FIT-LIKELY: 1 (Planning-with-files — eee equivalent exists)
+      - ADD-TO-DISCOVERY-SURFACE: 3 (travisvn awesome-list / claudemarketplaces / skillsmp)
+    
+    ## Critical disagreement assessed
+    
+    User: "2-3 active plugins, never more" (2026 consensus)
+    eee:  21 active plugins
+    
+    Resolution per Fire 18 cross-model verified AT-SOTA-INTENTIONAL-DIVERGENCE:
+    (1) progressive disclosure — skills consume ~100 tokens at session start;
+    (2) RTK + ccusage + repomix + CLIProxyAPI cache_control OFFSET per-task cost;
+    (3) Martin Fowler caveat applies symmetrically — eee's CLAUDE.md (cardinal
+    rules 1-12) IS the precisely-operator-authored CLAUDE.md, with 21 plugins
+    ON TOP of, NOT IN PLACE OF, it.
+    
+    Honest caveat: session-start token cost likely higher for eee vs user's 4-install
+    stack; UNVERIFIED quantitatively. Fire 25 candidate: ccusage measurement campaign.
+    
+    ## Forward fire roadmap
+    
+    - Tier 1 NEW (5 ships, Path P recipe ~2.5-7.5h): cross-model verify each
+      PROBE-DAG-CANDIDATE (F24-A through F24-E)
+    - Tier 2 NEW (3 ships ~45min): integrate discovery surfaces into
+      research-protocol.md curated catalogs
+    - Tier 3 NEW (4 ships, gated on F24 APPROVE): cite-pattern-extract candidates
+      (CCPM task-metadata schema / Planning-with-files hash-attestation /
+      Agent OS v3 /inject-standards / Memory Bank category structure)
+    - Tier 4 NEW (1 fire ~3h): quantitative token-budget audit
+    
+    ## Mia ladder advance
+    
+    n=1465 → n=1509 (+44 verifications across 6 Fire 23 files)
+    
+    ## Cumulative arc Fire 5-23 (23-fire arc)
+    
+    17 folders, ~110 files, ~16100 LOC
+    Mia ladder n=130 (pre-arc) → n=1509 (Fire 23 close) = +1379 verifications
+    
+    ## Discipline conformance
+    
+    - Cardinal-rule-1 cite trail: TIER-2 external user-curated (source class
+      explicitly declared at file 01 §Cite trail)
+    - Cardinal-rule-9 install-risk: ZERO install-debt added (verification-only;
+      9 NET-NEW items queued for Fire 24+ Probe DAG, not auto-installed)
+    - Cardinal-rule-11 META-process: synthesis-fire follows audit-action-loop
+      Wire/Surface/Close discipline; no commit landed without prior synthesis
+    - FM-02 sub-class (b) defense: atomic single-shell `git add -- <pathspec> &&
+      git commit --only -F <msg> -- <pathspec>` invocation
+    - Outcome A ACCEPT-WITH-DOC per closed-loop-recursive-narrowing.md
+      (Fire 23 is synthesis-only; no NEEDS-REVISION verdict to integrate)
+    
+    ## Source classification
+    
+    - This synthesis-fire processes TIER-2 external user-curated research
+    - The 9 NET-NEW items remain UNVERIFIED until Fire 24+ Path P codex T1 fires
+    - Independent triangulation at 55% convergence + 0% contradiction = robust signal
+    - Fire 23 commit landing does NOT auto-promote any item to install-class
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-23-external-sota-synthesis-integration/
+    Cite: TIER-2 external user-curated 2026-05-10
+    Verify: Mia n=1509 advances confirmed per file footers
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-23-external-sota-synthesis-integration/00-tracker.md b/docs/sota-architecture-audit/fire-23-external-sota-synthesis-integration/00-tracker.md
+new file mode 100644
+index 0000000..709ece0
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-23-external-sota-synthesis-integration/00-tracker.md
+@@ -0,0 +1,72 @@
++# 00 — Fire 23 Tracker (External SOTA Synthesis Integration — May 2026)
++
++> **Purpose**: capture, track, and cross-walk the user's external SOTA research synthesis
++> (delivered as turn input 2026-05-10) against Wave 134's cross-model verified inventory.
++> **Method**: SYNTHESIS-only — no new codex consults. Per user directive: "keep using
++> sota tracking via local files etc, with sota approach, it is essential for you to
++> tracking your research depth and wide comprehensive cover of all sota repos."
++
++## User directive (verbatim Fire 23 trigger)
++
++User delivered comprehensive SOTA synthesis covering:
++- Anthropic Agent Skills standard (Dec 2025 release; cross-tool adoption)
++- 5-Tier pyramid (Tier 0 foundation → Tier 5 reference)
++- "Pick ONE" methodology framework (Superpowers vs Spec-Kit vs BMAD)
++- "Pick ONE" PM layer (CCPM vs Task Master vs Planning-with-files)
++- Standards & memory layers (Agent OS v3 + Claude Memory Bank)
++- Curated skill libraries (ComposioHQ/travisvn/alirezarezvani awesome-* lists)
++- Opinionated 4-install stack: CLAUDE.md + Superpowers + CCPM + Agent OS v3
++- 2026 consensus on context bloat: "2-3 active plugins, never more"
++- Martin Fowler caveat: bigger context ≠ better attention
++
++## Fire 23 deliverables
++
++| File | Purpose |
++|---|---|
++| `00-tracker.md` | this file — Fire 23 framing + cross-walk strategy |
++| `01-verbatim-external-research.md` | capture user's synthesis VERBATIM for local tracking |
++| `02-cross-walk-vs-wave-134.md` | map each Tier 0-5 item to Wave 134 verified state |
++| `03-net-new-candidates.md` | identify items NOT yet in eee inventory + Probe DAG candidacy |
++| `04-opinionated-stack-comparison.md` | user's 4-install stack vs eee's actual stack |
++| `99-fire23-close-synthesis.md` | DEFINITIVE close + forward-fire queue |
++
++## Strategic context
++
++Wave 134 already cross-model verified 8/8 architecture dimensions (100% via Path P recipe
++n=8/8 reproducible). This external research provides INDEPENDENT confirmation /
++divergence signal for the existing audit, plus surfaces NET-NEW candidates not yet
++audited.
++
++**Hypothesis**: most of the user's Tier 0-5 items will be CONVERGENT with Wave 134's
++cross-model verified inventory (high overlap = independent triangulation = strong SOTA).
++NET-NEW items become Fire 24+ Probe DAG candidates.
++
++## Cross-walk methodology
++
++For each user-listed item:
++1. **EXISTS in eee?** — grep `.claude/plugins/cache/` + `.claude/skills/` + `.mcp.json`
++2. **Cross-model verified?** — search Fire 5-22 audit folders for prior cross-model verdict
++3. **Verdict alignment**: CONVERGENT (user-SOTA matches existin
+
+[prompt truncated]

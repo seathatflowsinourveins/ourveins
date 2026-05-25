@@ -1,0 +1,192 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 0f58c61b0d42ac7dab8e05ae9d2c3aaa7f14a6df
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 91 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)
+
+=== git show --format=fuller ===
+commit 0f58c61b0d42ac7dab8e05ae9d2c3aaa7f14a6df
+Author:     42 <42@local>
+AuthorDate: Sun May 10 10:10:57 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 10:10:57 2026 -0400
+
+    fix(wave-134-fire-3): hookify in-place upstream-canonical patch — closes Wave 134 Fire 1 Ship 1 forward-ref + silences mid-session spam
+    
+    User directive: "deep dive into the commit git and resolve all, why is our architecture having errors" + "all with sota references". Per CR-7 REPORT errors before routing around them.
+    
+    ## Root cause (architecture-level)
+    
+    Plugin-cache rotation race condition. Three hookify caches present at fire-start:
+    - 0e7bbeafaebc/ (mtime 2026-05-07; OLD broken from Wave 128 Ship A install era; never .in_use; orphan)
+    - 4ed5395b74d0/ (mtime 2026-05-09; .in_use marker + .orphaned_at marker — version CC actively loaded for THIS session; broken pretooluse.py emits systemMessage spam on ImportError)
+    - 80e3275da25f/ (mtime 2026-05-10; FIXED pretooluse.py with __file__ fallback per W134-F2 patch — canonical upstream)
+    
+    CC's plugin-cache-rotation correctly: (a) detected upstream content-SHA change, (b) created new cache 80e3275da25f, (c) marked old 4ed5395b74d0 as orphaned via .orphaned_at, (d) BUT could not delete because session-locked via .in_use. New session would correctly load 80e3275da25f; current session bound to broken 4ed5395b74d0.
+    
+    Wave 134 Fire 1 Ship 1 commit 77b73e3 disabled hookify in enabledPlugins (next-launch effective) but explicitly noted "current session has hookify hooks already loaded; the spam will continue until restart" + queued W134-F2 patch as forward-ref.
+    
+    ## Fix-forward (mid-session, no restart needed)
+    
+    1. rm -rf .claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc/ (orphan housekeeping)
+    2. cp upstream marketplace canonical hooks → broken cache 4ed5395b74d0/hooks/{pretooluse,posttooluse,stop,userpromptsubmit}.py
+    3. Verified BYTE-IDENTICAL via cmp -s for all 4 hooks
+    4. Verified mid-session SUCCESS via Bash probe — zero "Hookify import error" lines in subsequent output (silent ImportError exit per patched pretooluse.py:26-29)
+    
+    ## Cite trail (TIER-1-DIRECT — "all with sota references" mandate)
+    
+    - Marketplace canonical: Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/hooks/*.py @ commit cff82e9
+      - pretooluse.py blob 3227796dbb29e4462a91dc9ecfc229a284341573
+      - posttooluse.py blob cb5d8924a6fd6b07f3244d5a609dc2ac55491d6c
+      - stop.py blob a9576fe4316286f59e2c051dbcb0a0f24370c0cb
+      - userpromptsubmit.py blob 32eba9d468c39fc99afda93402dd81b6bd561d32
+    - Marketplace metadata: marketplace.json author.name="Anthropic" homepage="https://github.com/anthropics/claude-plugins-public/tree/main/plugins/hookify"
+    - Sister fire: Wave 134 Fire 1 Ship 1 commit 77b73e3 (.mcp.json unescape + hookify disable + W134-F2 forward-ref queued)
+    - Wave 128 Ship A install: commit 2b9dc42 (hookify enabled — origin of 0e7bbeafaebc orphan)
+    
+    ## Files changed: 1 (+88 LOC)
+    
+    - docs/install-provenance.md — Wave 134 Fire 3 entry appended at L11553+
+    
+    (Cache changes are gitignored per .gitignore .claude/plugins/cache/ rule — operational only)
+    
+    ## CR conformance
+    
+    - CR-1 cite-trail TIER-1-DIRECT: marketplace blob SHAs + Anthropic author/homepage
+    - CR-3 Phase 1 bootstrap exception: cmp -s byte-equality + Python import system are mechanical cross-model gate; no codex T1 fan-out warranted (mechanical-mirror exception 5/5 per codex-t1-fix-forward-pattern.md)
+    - CR-5 install-priority: NO new install — patch from already-installed marketplace canonical
+    - CR-6 fresh-from-github + official-native-channel: marketplace clone IS the official Anthropic upstream
+    - CR-7 REPORT errors before routing around them: diagnosed root cause + fixed systematically
+    - CR-8 ADAPTED-FROM-SOTA: byte-identical mirror of upstream Anthropic marketplace canonical; zero novel content
+    - CR-9 install-risk: ZERO-RISK — cache patch reversible; no REVERT precedent for hookify (only disabled at 77b73e3); sibling-bleed defense N/A; version-pin via marketplace blob SHAs
+    - CR-10 research-first: investigated marketplace state + cache mtimes + .in_use/.orphaned_at markers + diff-against-upstream BEFORE destructive action
+    - CR-11 META-process: minimal Pattern A fix in single atomic doc-commit
+    - CR-12 PRIMARY upstream-install-priority: cache state mirrors upstream marketplace byte-for-byte; NO sibling cite-import (PRIMARY path satisfied without falling to TERTIARY)
+    
+    ## Mia OVER ladder Wave 97-134
+    
+    UNCHANGED at n=134 (no apply-boundary OVER this fire — upstream-canonical mirror is byte-identical with verified marketplace SHAs).
+    
+    ## Architecture-level lesson (cardinal-rule-13 candidate at n=1)
+    
+    Plugin-cache-rotation race-condition class: when CC detects upstream content-SHA change → creates new cache → marks old .orphaned_at → CAN'T delete due to .in_use lock → CURRENT session bound to broken old cache. Recovery: in-place cp from upstream marketplace canonical silences mid-session spam without restart. Promotes at n=2+ per codification-threshold.md cycle-322.
+    
+    ## Operator-action summary
+    
+    - ✅ Hookify spam SILENCED mid-session (verified)
+    - ✅ Orphan cache 0e7bbeafaebc/ deleted
+    - ✅ Active cache 4ed5395b74d0/ byte-identical with upstream
+    - ✅ Settings stays disabled (Wave 134 Fire 1 Ship 1 disposition preserved)
+    - 📋 Cardinal-rule-13 candidate filed
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 8bb39a5..b3d1c23 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -11554,3 +11554,94 @@ NO install action this fire. Convergent HNF is the deliverable. Wave 134 Fire 2
+ 
+ n=129 → n=134 (5 catches in single fire). Strongest single-fire ladder advance since inception. Pattern: **agent ADOPT-NOW/STUDY-PILOT classifications on sub-100★ ecosystem-fringe candidates fail Mia P7 demand-absence probe at ~70-100% base rate**. Forward-ref codification candidate per `codification-threshold.md` cycle-322 jurisdiction (n=5 same-fire qualifies).
+ 
++---
++
++## 2026-05-10 — Wave 134 Fire 3 — hookify in-place upstream-canonical patch (closes Wave 134 Fire 1 Ship 1 forward-ref)
++
++### Trigger
++
++Live-session error spam: `Hookify import error: No module named 'core'` firing on every PreToolUse:Bash / PostToolUse:Bash / PreToolUse:mcp__plugin_context-mode_context-mode__ctx_batch_execute / PostToolUse:* / PreToolUse:TaskCreate / PostToolUse:TaskCreate / UserPromptSubmit. User directive: "deep dive into the commit git and resolve all, why is our architecture having errors" + "all with sota references". Per CR-7 REPORT errors before routing around them — investigation, not silent suppression.
++
++### Root cause
++
++Plugin-cache rotation race condition. Three hookify caches present at fire-start:
++- `0e7bbeafaebc/` (mtime 1778198489 = 2026-05-07; OLD broken pretooluse.py — emits systemMessage spam on ImportError)
++- `4ed5395b74d0/` (mtime 1778420601 = 2026-05-09; **`.in_use` marker + `.orphaned_at` marker** — version CC actively loaded for THIS session; broken pretooluse.py)
++- `80e3275da25f/` (mtime 1778421626 = 2026-05-10; FIXED pretooluse.py with `__file__` fallback per W134-F2 patch)
++
++CC's plugin-cache-rotation correctly: (a) detected upstream content-SHA change, (b) created new cache `80e3275da25f`, (c) marked old `4ed5395b74d0` as orphaned via `.orphaned_at`, (d) BUT could not delete because session-locked via `.in_use`. New session would correctly load `80e3275da25f`; current session bound to broken `4ed5395b74d0`.
++
++Wave 134 Fire 1 Ship 1 commit `77b73e3` correctly disabled hookify in `enabledPlugins` (next-launch effective) but explicitly noted "current session has hookify
+
+[prompt truncated]

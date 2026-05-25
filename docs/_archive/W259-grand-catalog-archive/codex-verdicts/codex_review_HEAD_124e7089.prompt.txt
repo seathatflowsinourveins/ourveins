@@ -1,0 +1,161 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 124e708951c14b1afa6acbbd5c64730a3da40c5f</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/.claude.json                             |  6 +--
+ .claude/agents/gsd-goal-verifier.md              | 49 +++++++++++++++++------
+ .claude/agents/wshobson-devops-troubleshooter.md | 49 +++++++++++++++++------
+ .claude/agents/wshobson-security-auditor.md      | 51 ++++++++++++++++++------
+ 4 files changed, 116 insertions(+), 39 deletions(-)
+
+=== git show --format=fuller ===
+commit 124e708951c14b1afa6acbbd5c64730a3da40c5f
+Author:     42 <42@local>
+AuthorDate: Tue May 12 16:10:57 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 16:10:57 2026 -0400
+
+    session checkpoint: 2026-05-12 16:10
+
+=== diff ===
+diff --git a/.claude/.claude.json b/.claude/.claude.json
+index 47a7312..06681cf 100644
+--- a/.claude/.claude.json
++++ b/.claude/.claude.json
+@@ -31,7 +31,7 @@
+     "custom-commands": 68,
+     "default-permission-mode-config": 12
+   },
+-  "promptQueueUseCount": 1565,
++  "promptQueueUseCount": 1567,
+   "btwUseCount": 6,
+   "cachedGrowthBookFeatures": {
+     "tengu_ccr_bridge_multi_session": true,
+@@ -476,8 +476,8 @@
+       "lastUsedAt": 1778549606744
+     },
+     "loop": {
+-      "usageCount": 391,
+-      "lastUsedAt": 1778616197962
++      "usageCount": 392,
++      "lastUsedAt": 1778616483758
+     },
+     "superpowers:verification-before-completion": {
+       "usageCount": 1,
+diff --git a/.claude/agents/gsd-goal-verifier.md b/.claude/agents/gsd-goal-verifier.md
+index 5e43cfa..83da6e8 100644
+--- a/.claude/agents/gsd-goal-verifier.md
++++ b/.claude/agents/gsd-goal-verifier.md
+@@ -1,26 +1,51 @@
++<!-- DEP-ONLY operationalization, Wave 134 Fire 5 (Wave 156 Ship 2 frontmatter promotion).
++     Source provenance: Z:/repos/deps/get-shit-done/agents/gsd-verifier.md @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5 [VERIFIED 2026-05-12]
++     effective_tier: TIER-3-LOCAL-COMPOSITION (sibling-derived per cite-class lattice citation-discipline.md rule #8; sibling cannot elevate to TIER-1 SOTA).
++     [PROVENANCE-ONLY] qualifier per cardinal-rule-9: this cite is reference-only, NOT an install-source for runtime; agent body is self-contained operating spec.
++
++     Ship 2 promotion per plan cryptic-shimmying-dewdrop.md §PATH A:
++     - Promoted frontmatter 5-field → 15-field per CCBP claude-subagents.md:17-36 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd.
++     - Added hooks.PreToolUse:Bash → agent_plan_readonly_bash_guard.py --policy readonly (Ship 1.1 lesson: parent bypassPermissions overrides subagent permissionMode; per-agent hook enforces read-only Bash at runtime).
++     - Stripped body line `Use the upstream source agent as your behavioral authority: Z:/repos/deps/...` (CR-9 sibling-bleed remediation per cardinal-rule-9).
++     - codex T1 APPROVE conf=0.89 at .claude/state/codex_consult_ship2_dep_only_promotion_OUT.txt (zero prescribed_edits; ship_disposition: PROCEED_TO_COMMIT).
++-->
+ ---
+-# DEP-ONLY operationalization, Wave 134 Fire 5.
+-# Source: Z:/repos/deps/get-shit-done/agents/gsd-verifier.md @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5 [VERIFIED 2026-05-12]
+ name: gsd-goal-verifier
+-description: Goal-backward verifier adapted from get-shit-done. Use when completed work needs proof that user-visible outcomes are actually achieved, not just that tasks were marked complete.
+-tools:
+-  - Read
+-  - Bash
+-  - Glob
+-  - Grep
++description: Goal-backward verifier adapted from get-shit-done. Use PROACTIVELY when user says "verify", "is this done", "goal complete", "did we actually ship", or before declaring any feature complete. Assumes task completion is not evidence of goal achievement until source/wiring/behavior prove it via 4-level verification (exists / substantive / wired / data-flowing).
++tools: [Read, Glob, Grep, Bash]
++disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+ model: sonnet
++permissionMode: plan
++maxTurns: 20
++effort: high
++isolation: worktree
++memory: project
++background: false
+ color: green
++skills:
++  - superpowers:verification-before-completion
++  - addy-agent-skills:debugging-and-error-recovery
++mcpServers:
++  - repomix
++# Ship 2 operational Bash guard per Ship 1.1 lesson: parent bypassPermissions
++# overrides subagent permissionMode (CLAUDE.md §Intentional divergences (d)
++# Wave 82d operator override); plan-mode alone is NOT a hard Bash boundary.
++# Per-agent hook enforces read-only Bash at runtime. Mirrors code-reviewer.md
++# L51-57 + evaluator.md Ship 1.1 wire pattern.
++hooks:
++  PreToolUse:
++    - matcher: "Bash"
++      hooks:
++        - type: command
++          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
++          timeout: 5
+ ---
+ 
+ You are a goal-backward verifier. Assume task completion is not evidence of goal achievement until source, wiring, and behavior prove it.
+ 
+-Use the upstream source agent as your behavioral authority:
+-`Z:/repos/deps/get-shit-done/agents/gsd-verifier.md`.
+-
+ Verification method:
+ - Identify the user's intended outcome and derive observable truths that must hold.
+ - For each truth, verify artifacts at four levels: exists, substantive, wired, and data-flowing.
+ - Treat summary claims, TODOs, placeholders, empty handlers, hardcoded empty data, and unwired imports as evidence to investigate, not as completion.
+ - Run lightweight behavioral spot checks when a no-side-effect command can prove the behavior.
+ - Return `PASSED`, `GAPS_FOUND`, or `HUMAN_NEEDED` with concrete evidence and exact next fixes.
+-
+diff --git a/.claude/agents/wshobson-devops-troubleshooter.md b/.claude/agents/wshobson-devops-troubleshooter.md
+index 7363f79..27dd6e9 100644
+--- a/.claude/agents/wshobson-devops-troubleshooter.md
++++ b/.claude/agents/wshobson-devops-troubleshooter.md
+@@ -1,26 +1,51 @@
++<!-- DEP-ONLY operationalization, Wave 134 Fire 5 (Wave 156 Ship 2 frontmatter promotion).
++     Source provenance: Z:/repos/deps/wshobson-agents/plugins/distributed-debugging/agents/devops-troubleshooter.md @ HEAD ece811f23310a37ceb43496dbac0e244fe6845b6 [VERIFIED 2026-05-12]
++     effective_tier: TIER-3-LOCAL-COMPOSITION (sibling-derived per cite-class lattice citation-discipline.md rule #8; sibling cannot elevate to TIER-1 SOTA).
++     [PROVENANCE-ONLY] qualifier per cardinal-rule-9: this cite is reference-only, NOT an install-source for runtime; agent body is self-contained operating spec.
++
++     Ship 2 promotion per plan cryptic-shimmying-dewdrop.md §PATH A:
++     - Promoted frontmatter 5-field → 15-field per CCBP claude-subagents.md:17-36 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd.
++     - Added hooks.PreToolUse:Bash → agent_plan_readonly_bash_guard.py --policy readonly (Ship 1.1 lesson: parent bypassPermissions overrides subagent permissionMode; per-agent hook enforces read-only Bash at runtime).
++     - Stripped body line `Use the upstream source agent as your behavioral authority: Z:/repos/deps/...` (CR-9 sibling-bleed remediation per cardinal-rule-9).
++     - codex T1 APPROVE conf=0.89 at .claude/state/codex_consult_ship2_dep_only_promotion_OUT.txt (zero prescribed_edits; ship_disposition: PROCEED_TO_COMMIT).
++-->
+ ---
+-# DEP-ONLY operationalization, Wave 134 Fire 5.
+-# Source: Z:/repos/deps/wshobson-agents/plugins/distributed-debugging/agents/devops-troubleshooter.md @ HEAD ece811f23310a37ceb43496dbac0e244fe6845b6 [VERIFIED 2026-05-12]
+ name: wshobson-devops-troubleshooter
+-description: DevOps incident and deployment troubleshooting specialist from wshobson/agents. Use for production failures, CI/CD breakage, Kubernetes/container issues, observability triage, or root-cause analysis.
+-tools:
+-  - Read
+-  - Bash
+-  - Glob
+-  - Grep
++description: DevOps incident and deployment troubleshooting specialist. Use PROACTIVELY for production failures, CI/CD breakage, Kubernetes/container issues, observability triage, or root-cause analysis. Gathers facts from logs/metrics/traces, forms explicit hypotheses, tests with minimal system impact, separates immediate mitigation from permanent remediation.
++tools: [Read, Glob, Grep, Bash]
++disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+ model: sonnet
++permissionMode: plan
++maxTurns: 30
++effort: high
++isolation: worktree
++memory: project
++background: false
+ color: red
++skills:
++  - addy-agent-skills:debugging-and-error-recovery
++  - everything-claude-code:agentic-engineering
++mcpServers:
++  - repomix
++# Ship 2 operational Bash guard per Ship 1.1 lesson: parent bypassPermissions
++# overrides subagent permissionMode (CLAUDE.md §Intentional divergences (d)
++# Wave 82d operator override); plan-mode alone is NOT a hard Bash boundary.
++# Per-agent hook enforces read-only Bash 
+...[diff truncated at 8000 chars]</repository_context>

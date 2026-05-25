@@ -1,0 +1,166 @@
+# .github/workflows/agentcontracts.yml
+#
+# W411c — declarative AGENT_CONTRACT.yaml validation + verdict gate on PRs.
+#
+# Closes W411 audit Gap-3 (Z:/claude-sota-installed-state/W411-CONVERGENCE-AUDIT-REPORT.md
+# §2.2 + §4 Deliverable-2). Mechanizes the declarative half of the defense-in-depth stack
+# atop the existing imperative block-rules B1-B10 (tools/eee-checks/block-rules.mjs).
+#
+# Trigger:  pull_request (opened, synchronize, reopened, ready_for_review)
+# Behavior:
+#   1. `aicontracts validate AGENT_CONTRACT.yaml` — schema-conformance gate (always).
+#   2. `aicontracts check-verdict <verdict.json>` — verdict gate (only when a verdict
+#      artifact exists from a runtime adapter run; absent = no-op pass).
+#   3. Block merge on validate-FAIL or verdict outcome ∈ {blocked, fail}.
+#   4. Upload any verdict.json found as a CI artifact (audit-trail).
+#
+# pyyush/agentcontracts v0.2.0 CLI contract (verified locally 2026-05-24):
+#   validate     <CONTRACT_PATH>      → exit 1 on schema violation
+#   check-verdict <VERDICT_PATH>      → exit 1 on outcome ∈ {blocked, fail}
+#   test         <CONTRACT_PATH>      → list postconditions; exit 1 if eval fails
+#   init [--template basic|coding]    → generate template
+#
+# Cite-anchors (3-org-distinct per CR-6):
+#   - pyyush/agentcontracts v0.2.0 (Apache-2.0, March 26 2026):
+#       https://github.com/pyyush/agentcontracts
+#       https://pypi.org/project/aicontracts/0.2.0/
+#   - actions/checkout (GitHub-owned, first-party):
+#       https://github.com/actions/checkout
+#   - actions/setup-python (GitHub-owned, first-party):
+#       https://github.com/actions/setup-python
+#   - actions/upload-artifact (GitHub-owned, first-party):
+#       https://github.com/actions/upload-artifact
+#   - W411 audit §4 Deliverable-2 (operator-curated):
+#       Z:/claude-sota-installed-state/W411-CONVERGENCE-AUDIT-REPORT.md
+#
+# Cardinal-rule alignment:
+#   - R1: SHA-pinned first-party Actions; aicontracts pinned to 0.2.0 (Apache-2.0).
+#   - R2: workflow uses direct-CLI invocation only.
+#   - R5: CI runs in operator-sandbox (GitHub-hosted runner, ephemeral).
+#   - R6: validate + verdict outputs are independently-reproducible probes.
+
+name: agentcontracts-verdict
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agentcontracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agentcontracts:
+    name: aicontracts validate + check-verdict (binding)
+    # Dependabot PRs are upstream version bumps governed by dependabot-auto-merge.yml's
+    # tiered policy, NOT the declarative contract gate. Same exemption pattern as
+    # codex-verdict-gate.yml. (W387 r2 P1#6 / DESIGN §9 precedent.)
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0 (W432-CI-STALE-BUMP; was v5.6.0, 394 days stale)
+        with:
+          python-version: '3.13'
+
+      - name: Install aicontracts CLI (pyyush/agentcontracts v0.2.0)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          # PyPI package name is `aicontracts` (NOT agentcontracts).
+          # Pinned per CR-1 R1 trust-tuple: Apache-2.0, March 26 2026, pyyush GitHub user.
+          # Cite: https://pypi.org/project/aicontracts/0.2.0/
+          pip install 'aicontracts==0.2.0'
+          # Sanity-probe (CR-6 verify-before-claim)
+          aicontracts --version || { echo '::error::aicontracts CLI failed to install'; exit 1; }
+
+      - name: Validate AGENT_CONTRACT.yaml schema
+        # Acceptance criterion (a): `aicontracts validate AGENT_CONTRACT.yaml` passes.
+        # Exit 1 on schema violation per cli.py:validate.
+        run: |
+          set -euo pipefail
+          if [ ! -f AGENT_CONTRACT.yaml ]; then
+            echo "::error::AGENT_CONTRACT.yaml missing at repo root"
+            exit 1
+          fi
+          aicontracts validate AGENT_CONTRACT.yaml
+
+      - name: List declared postconditions
+        # Advisory — surfaces the contract postconditions to the PR reviewer.
+        # `aicontracts test <contract>` without --eval-suite just lists postconditions.
+        run: |
+          set -euo pipefail
+          aicontracts test AGENT_CONTRACT.yaml || true
+
+      - name: Check verdict.json (if produced by runtime adapter)
+        id: verdict
+        # Acceptance criterion (d): block merge on outcome ∈ {blocked, fail}.
+        # The aicontracts runtime adapter writes verdict.json to the location
+        # configured in AGENT_CONTRACT.yaml:observability.run_artifact_path
+        # (default = `.agent-contracts/runs/{run_id}/verdict.json` relative-to-workspace).
+        # Per codex r2 finding: aicontracts v0.2.0 source has NO env-var redirect
+        # hook — we scan both (a) the workspace, AND (b) the runner-temp adapter
+        # scratch dir, to catch artifacts produced by any local adapter convention.
+        # If no verdict.json is present, the step is a no-op pass (runtime adapter
+        # integration is operator-staged for a later wave).
+        run: |
+          set -euo pipefail
+          # Scan locations:
+          #   (1) ./.agent-contracts/runs/**/verdict.json — relative-to-workspace
+          #       schema-canonical default per AGENT_CONTRACT.yaml.
+          #   (2) ${RUNNER_TEMP}/.agent-contracts/runs/**/verdict.json — if any future
+          #       adapter writes to runner-temp scratch.
+          verdicts=()
+          while IFS= read -r -d '' f; do
+            verdicts+=("$f")
+          done < <(find "$GITHUB_WORKSPACE/.agent-contracts/runs" "${RUNNER_TEMP}/.agent-contracts/runs" -type f -name 'verdict.json' -print0 2>/dev/null || true)
+          if [ "${#verdicts[@]}" -eq 0 ]; then
+            echo "::notice::No verdict.json found in workspace or runner-temp; check-verdict skipped (advisory pass — runtime adapter wiring is a follow-on wave)."
+            {
+              echo "verdict_count=0"
+              echo "outcome=no-verdict-artifact"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          fail=0
+          for v in "${verdicts[@]}"; do
+            echo "::group::check-verdict $v"
+            if ! aicontracts check-verdict "$v"; then
+              echo "::error::aicontracts check-verdict failed for $v (outcome ∈ {blocked, fail})"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          {
+            echo "verdict_count=${#verdicts[@]}"
+            if [ "$fail" -ne 0 ]; then
+              echo "outcome=blocked"
+            else
+              echo "outcome=pass"
+            fi
+          } >> "$GITHUB_OUTPUT"
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload verdict.json artifacts (if any)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agentcontracts-verdicts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .agent-contracts/runs/**/verdict.json
+            ${{ runner.temp }}/.agent-contracts/runs/**/verdict.json
+          if-no-files-found: ignore
+          retention-days: 30

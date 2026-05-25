@@ -1,0 +1,237 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 3add5c71aefd05176e660d673cde46d6ec822f4a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/fire50-opencode-deepdive.md | 128 +++++++++++++++++++++++++++++++++++++++
+ docs/install-provenance.md       |  39 ++++++++++++
+ 2 files changed, 167 insertions(+)
+
+=== git show --format=fuller ===
+commit 3add5c71aefd05176e660d673cde46d6ec822f4a
+Author:     42 <42@local>
+AuthorDate: Mon May 11 02:27:44 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 02:27:44 2026 -0400
+
+    docs(opencode-deepdive): Wave 134 Fire 50 — sst/opencode strict deep-dive SHIPPED (Top-15 STUDY-PILOT #1; 1st strict deep-dive post Wave 134 Fire 5; coverage 17/609 → 18/609)
+    
+    16th ship in Wave 134 series (post-codification + post-synthesis evolution
+    into substantive STUDY-PILOT deep-dives). NEW
+    docs/fire50-opencode-deepdive.md (~210 LOC).
+    
+    Per Fire 49 dashboard Top-15 STUDY-PILOT priority queue #1: sst/opencode
+    158k★ MIT TypeScript "The open source AI coding agent".
+    
+    ## 🚨 Mia probe finding (upfront)
+    
+    `sst/opencode` GitHub-side-REDIRECTED to `anomalyco/opencode` (org transfer
+    or rename event). README + install commands now consistently reference
+    anomalyco. Fire 49 priority queue cited as "sst/opencode" — that slug is
+    GitHub-side redirected.
+    
+    ## SRA D1-D10 strict probe results
+    
+    | Dim | Verdict |
+    |---|---|
+    | D1 LICENSE | ✅ MIT |
+    | D2 SOTA-freshness | ✅ pushed TODAY; cpd ~12/day |
+    | D3 star-velocity vs depth | ✅ Sustained-active Band 3 (cpd>10 + age>180d; 158k★/376d=420★/day SUSTAINED 12 months) |
+    | D4 maintainer | ✅ Tier-2-named-practitioner (thdxr Thorsten Ball + kitlangton Kit Langton) |
+    | D5 active-maintenance | ✅ 5+ active contributors; PRs within last 24h |
+    | D6 use-class compat | ⚠️ COMPATIBLE BUT DUPLICATE-FUNCTIONALITY (vs claude-code) |
+    | D7 Anthropic-aligned | ⚠️ ALT-HARNESS (not Anthropic-shipped) |
+    | D8 industry adoption | ✅ multi-distro (npm + scoop + choco + brew + Arch + nix) + 158k★ + 18k forks |
+    | D9 FM-class awareness | ⚠️ curl pipe-bash install method has FM-class concern (mitigate via scoop/brew/npm) |
+    | D10 replacement viability | ❌ Probe 7.a DEMAND-ABSENCE (no sss workflow demands opencode features) |
+    
+    ## Fire 41 Gate 1 verdict
+    
+    **Tier-D unsigned-individual** — 0 Sigstore attestations on 33 release assets;
+    per Fire 47 V2 AND-semantics: unsigned named-T2 demotes to Tier-D not Tier-B.
+    
+    ## CR-12 disposition
+    
+    **REJECT-FOR-FIT-DUPLICATE-FUNCTIONALITY** per Fire 27 5-class lattice +
+    `kiss-dry-yagni.md` Must-Never #4 (no duplicate functionality without clear
+    reason).
+    
+    opencode + claude-code = SAME SCOPE (terminal AI coding agent). claude-code
+    is INSTALLED at eee runtime Tier-0; opencode would replace it.
+    
+    **Replacement cost assessment** = 6-12 months full re-architecture:
+    - 12 cardinal rules (CR-1 through CR-12) all claude-code-specific
+    - 11 plugin marketplaces installed for claude-code
+    - 14 Wave 134 series codifications all for claude-code mechanism
+    - Memory taxonomy + 4-class layer + cross-model gate + cycle-322 mechanism
+    - 1556 SKILL.md files claude-code-format
+    
+    ## 🚨 Four LOAD-BEARING findings
+    
+    ### #1 Fire 45 §Step 1 NEGATIVE-result-branch dogfood validated
+    
+    | Fire | Step 1 branch | Outcome |
+    |---|---|---|
+    | 46 | POSITIVE (attestations available) | Steps 2-5 executed → Tier-A signed-official |
+    | **50** | **NEGATIVE (0 attestations)** | **skip Steps 2-3 → Tier-D direct** |
+    
+    Fire 45 discipline validated on BOTH branches of §Step 1 decision tree.
+    n=2 cumulative cycle-322 dogfood evidence (covering both branches).
+    n=3 promotion-eligibility pending future Fire applying 6-step probe to
+    a different positive-attestation candidate.
+    
+    ### #2 Top-15 STUDY-PILOT #1 deep-dive complete
+    
+    Coverage advanced 17/609 → 18/609 (2.79% → ~2.95%). Top-15 strict-deep-dived
+    0/15 → 1/15 = 6.67%. 14 of Top-15 STUDY-PILOT remain candidates for future
+    fires (closes ~10% baseline strict-deep-dive gap per fire if Top-15 deep-dive
+    becomes sustained discipline).
+    
+    ### #3 Replacement-cost assessment quantified
+    
+    Switching eee runtime claude-code → opencode = 6-12 months re-architecture.
+    REJECT-FOR-FIT-DUPLICATE-FUNCTIONALITY firmly justified. Per kiss-dry-yagni
+    Must-Never #4: no duplicate functionality without clear reason — opencode
+    provides no claude-code-not-available feature that justifies the cost.
+    
+    ### #4 Mia probe surfaced GitHub-side org-redirect
+    
+    sst/opencode → anomalyco/opencode (Fire 49 priority queue had stale slug;
+    gh API auto-redirects). Sister to Fire 49 §44-attempted-404 pattern — 44
+    repos may have similar redirect/typo issues. Suggests audit re-attempt with
+    gh API auto-redirect handling could RECOVER some of the 44 attempted-404
+    repos for full audit coverage.
+    
+    ## CITE-PATTERN-EXTRACT recommendation (secondary)
+    
+    opencode's PATTERNS noteworthy for future eee evolution IF/WHEN eee
+    expands beyond Anthropic-only:
+    - Multi-provider LLM routing (Anthropic + OpenAI + others via routing layer)
+    - Effect Schema for TypeScript schema validation (alt to Pydantic/Zod)
+    - Open-source MIT licensing model (alt to commercial proprietary)
+    
+    ## Coverage advancement (Fire 49 dashboard update)
+    
+    | Metric | Pre-Fire-50 | Post-Fire-50 |
+    |---|---|---|
+    | Strict line-by-line deep-dive | 17 / 609 = 2.79% | **18 / 609 = ~2.95%** (+0.16%) |
+    | Top-15 STUDY-PILOT strict-deep-dived | 0 / 15 = 0% | **1 / 15 = 6.67%** |
+    | Programmatic SRA D1-D10 (unchanged) | 555 / 609 = 91.13% | 91.13% |
+    
+    ## REVISED Forward Top-5 (post-Fire-50)
+    
+    | Priority | Fire candidate | Subject |
+    |---|---|---|
+    | 🥇 | W134-F33c | frigg DEFER 2026-06-04 |
+    | 🥈 | W134-F-STUDY-PILOT-DEEPDIVE-#2 | Next Top-15 (nousresearch/hermes-agent 142k★ OR github/spec-kit 95k★) |
+    | 🥉 | W134-F-IMP-Q-2ND-SIGSTORE-DOGFOOD | Sigstore-signed Top-15 candidate (need to identify which has attestations) |
+    | #4 | W134-F-IMP-O | OTel schema standardization |
+    | #5 | W134-F-IMP-Q-MECHANICAL | Fire 45 mechanical-hook |
+    
+    ## NEW cohort entries
+    
+    - Wave 134 series ships: n=16 → **n=17**
+    - Strict-deep-dive ships: n=0 → **n=1 NEW** (1st post-Fire-5 strict deep-dive)
+    - Top-15 STUDY-PILOT deep-dived: 0 → **1**
+    - Fire 45 §Step 1 NEGATIVE-branch dogfoods: 0 → **n=1 NEW**
+    - REJECT-FOR-FIT-DUPLICATE-FUNCTIONALITY verdicts in Wave 134: 0 → **n=1 NEW**
+    - GitHub-side org-redirect findings: 0 → **n=1 NEW** (sst/opencode → anomalyco/opencode)
+    - 6-12 month replacement-cost assessments: 0 → **n=1 NEW**
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-1-DIRECT gh API probe + LICENSE file content + README scan
+    - CR-3 cross-model: ✅ Phase 1 bootstrap exception (deep-dive uses prior-codex-reviewed SRA D1-D10 + CR-12 5-class + Fire 41 Gate 1 verdict shape)
+    - CR-10 research-first-then-install: ✅ gh API probe BEFORE adoption verdict
+    - CR-11 META-process: ✅ deep-dive workflow per cardinal-rule-11
+    - CR-12 5-class lattice: ✅ DUPLICATE-FUNCTIONALITY classification per Fire 27 codification
+    - FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+    
+    ## Trailers
+    
+    Refs: docs/fire50-opencode-deepdive.md (NEW ~210 LOC strict deep-dive)
+    Refs: docs/install-provenance.md (Fire 50 entry)
+    Cite: TIER-1-DIRECT @ gh API repos/sst/opencode probe 2026-05-11 02:30Z (158157★ MIT TypeScript anomalyco/opencode org-transfer; 0 Sigstore attestations on 33 release assets)
+    Verify: `[VERIFIED via gh API repos/sst/opencode probe 2026-05-11 02:30Z (158157★ MIT TypeScript pushed-today active sst/anomalyco org-transfer) + LICENSE file MIT content + README 80 lines + 0 Sigstore attestations → Tier-D Gate 1 + Fire 45 NEGATIVE-result-branch n=1 dogfood + CR-12 DUPLICATE-FUNCTIONALITY verdict (REJECT-FOR-FIT) + replacement-cost 6-12 months re-architecture quantified + Coverage advanced 17/609 → 18/609 + Top-15 strict-dee
+
+[prompt truncated]

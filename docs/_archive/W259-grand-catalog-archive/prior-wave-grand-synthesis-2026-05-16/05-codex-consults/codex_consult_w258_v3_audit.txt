@@ -1,0 +1,54 @@
+ROLE: SOTA agent-runtime architecture re-auditor (REAL GPT-5.5 via codex CLI).
+
+CONTEXT: First codex audit (`codex_consult_w258_e2e_audit_OUT.txt`) was on v2 of the synthesis. That audit returned NEEDS-REVISION → operator applied 22 corrections to produce v3. Now re-auditing the v3 document. CRITICAL: v3 added 6 NEW Anthropic-OFFICIAL Q1/Q2 primitives that v2 didn't have AND that you didn't audit before:
+- Claude Managed Agents (Apr 8 2026, Anthropic-OFFICIAL beta)
+- Advisor tool (Apr 9 2026)
+- Tool search tool (GA Feb 17 2026)
+- Adaptive thinking (`thinking:{type:"adaptive"}` on Opus 4.6+)
+- Server-side Compaction API
+- Claude Code auto mode (Mar 25 2026)
+
+Plus 6 REJECTs (Instructor/BAML/Mirascope/LMQL/TextGrad/Outlines+Guidance), Anthropic-native structured outputs replacing 3rd-party, SWE-Bench Pro replacing Verified, prefill deprecation Apr 2026, semgrep-mcp PyPI path correction, multica hard REJECT, Windows caveats for Live-SWE-agent + mini-SWE-agent + Docker Desktop+WSL2.
+
+DOCUMENT TO AUDIT: `Z:/claude-sota-installed/docs/architecture/W258-final-synthesis-2026-05-16-v3.md` (~46KB, 12 sections).
+
+CITE SOURCES for verification:
+- `Z:/claude-sota-installed/.claude/state/W258r30_codex_followups.md`
+- `Z:/claude-sota-installed/.claude/state/W258r31_frontier_scan.md`
+- `Z:/claude-sota-installed/.claude/state/W258r32_programmatic_prompting.md`
+- `Z:/claude-sota-installed/.claude/state/W258r33_anthropic_q1q2_blog.md`
+
+YOUR MISSION (maximally honest, adversarial):
+
+1. **Did v3 correctly internalize ALL 22 v2-codex-audit corrections?** Spot-check 5-7 of them.
+2. **Are the 6 new Anthropic-OFFICIAL Q1/Q2 primitives accurate?** Web-verify Claude Managed Agents beta exists / Advisor tool exists / Tool search tool GA Feb 17 / Adaptive thinking syntax / Compaction API / auto mode. Flag any fabricated primitives.
+3. **Architecture coherence after v3 revisions** — L5 three-way contest with Claude Managed Agents preferred for Windows — is this sound?
+4. **Operator-fit migrations** — autocompact → Compaction API / budget_tokens → adaptive thinking / bypassPermissions → auto mode. Are these actually available 2026-Q2 and accurately documented?
+5. **Anthropic-native structured outputs** — does the `output_config.format` + `strict:true` + 24h grammar cache claim hold against primary Anthropic API docs?
+6. **Prefill deprecation April 2026** — verify against primary source.
+7. **SWE-Bench Pro replaces Verified** — OpenAI + Anthropic both confirm Verified contaminated? Cite primary source.
+8. **Live-SWE-agent 79.2% Verified** — does this still hold under Verified contamination caveat? Should v3 explicitly downgrade the authority of this number?
+9. **Any NEW issues introduced by v3** that v2 didn't have? (e.g., over-eager integration of beta APIs that operator can't use yet?)
+10. **Ship readiness for v3** — APPROVE-SHIP or NEEDS-REVISION?
+
+OUTPUT (JSON-STRICT):
+
+```json
+{
+  "verdict": "APPROVE-SHIP | NEEDS-REVISION | REJECT",
+  "confidence": 0.XX,
+  "ship_readiness_score": "X / 10",
+  "v2_corrections_internalized": [{"correction": "...", "applied_correctly": true/false}],
+  "new_anthropic_primitives_verified": [
+    {"primitive": "<name>", "exists": true/false, "ga_or_beta": "...", "primary_source_url": "...", "fabrication_risk": "LOW/MEDIUM/HIGH"}
+  ],
+  "needs_revision": [
+    {"section": "...", "concern": "...", "suggested_fix": "...", "priority": "P0/P1/P2"}
+  ],
+  "newly_introduced_issues": [...],
+  "ship_blockers": [...],
+  "top_3_concrete_changes": [...]
+}
+```
+
+Be skeptical of v3 — the v2→v3 patch was applied by Sonnet (not GPT-5.5 audited at this stage). Apply same rigor as your first audit.

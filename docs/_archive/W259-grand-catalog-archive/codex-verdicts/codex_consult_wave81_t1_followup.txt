@@ -1,0 +1,46 @@
+# Wave 81 codex T1 follow-up consult — post-Wave-80 verification + 3 deferred edits
+
+Date: 2026-05-08
+
+## Context
+
+Wave 80 codex T1 (real GPT-5.5 deep-review-exec, 329K tokens) returned NEEDS-REVISION conf=0.91 with 10 prescribed_edits. 5 of 10 applied:
+- #2: codex_t5_plan_review_gate.py deep-review → deep-review-exec + DEVNULL → stream file ✅
+- #4: cwc/steer.sh PYTHON_BIN + remove 2>/dev/null swallow ✅
+- #5: cwc/verify-gate.sh BLOCK on JSON parse failure ✅
+- #6: eee.ps1 fail-closed when rewriter missing but plugin cache exists ✅
+- #7: settings.json skipAutoPermissionPrompt actually removed (Wave 77 regression) ✅
+
+Two parallel forks running NOW: hidden-errors deep-mining (retry from rate-limit) + codex-plugin-cc patch design (Wave 80 deferred items #1 + #3 + #8).
+
+## Your task — adversarial review of the Wave 80 fixes that landed
+
+Verify 5 specific Wave 80 fixes don't have hidden regressions or schema-class failures. Read each file at the cited line, verify the change is correct, and either APPROVE or flag specific concerns.
+
+## Files to review
+
+1. Z:/claude-sota-installed/.claude/hooks/scripts/codex_t5_plan_review_gate.py:46-90 — verify deep-review-exec profile + stream file works
+2. Z:/claude-sota-installed/.claude/hooks/cwc/steer.sh — verify PYTHON_BIN form
+3. Z:/claude-sota-installed/.claude/hooks/cwc/verify-gate.sh — verify BLOCK semantic
+4. Z:/claude-sota-installed/tools/eee.ps1 — verify fail-closed rewriter blocks (search for "HARD-FAIL")
+5. Z:/claude-sota-installed/.claude/settings.json — verify skipAutoPermissionPrompt is gone (just the disposal comment remains)
+
+## Specific Wave 81 questions
+
+Q1. Did Wave 80 prescribed_edit #2 introduce any race condition? The codex T5 stream file at `.claude/state/codex_t5_plan_stream.log` opens in append mode `ab`; concurrent ExitPlanMode events could interleave. Is that acceptable for a debug-only stream, or does it warrant per-event filenames?
+
+Q2. cwc/steer.sh edit removed `2>/dev/null` from the python invocation. If `${PYTHON_BIN}` is unset AND bare `python` is not on PATH, what's the failure mode now? Block/exit/silent? Verify against the steer-hook contract from anthropics/cwc-long-running-agents @ HEAD ffd563d6.
+
+Q3. cwc/verify-gate.sh BLOCK semantic: are there valid Edit/Write paths where the JSON parse legitimately returns empty `target` (e.g., a Write to a path that's not test-results.json)? Could the new BLOCK catch innocent writes?
+
+Q4. eee.ps1 fail-closed pattern (`HARD-FAIL: <plugin> cache exists at X but rewriter missing at Y`): does this pattern adequately handle the case where a USER intentionally removes a rewriter script to disable the patch chain? Is the error message clear enough that a user understands "remove the plugin from settings.json:enabledPlugins" is one valid path forward?
+
+Q5. settings.json `skipAutoPermissionPrompt` removal — any plugin or skill in this runtime read this key as a flag-style toggle? Any silent feature loss?
+
+Q6. Now that Wave 80 has landed, what's the highest-impact NEXT fix beyond the 3 deferred items (#1 sandbox override / #3 plugin patch extension / #8 eee.ps1 plugin sync)? Top 3 ranked by impact-to-effort ratio.
+
+## Verdict shape requested
+
+APPROVE per question OR specific concern. If concern: provide file:line + specific cited counter-example.
+
+OUTPUT_BUDGET: ≤1500 words artifact

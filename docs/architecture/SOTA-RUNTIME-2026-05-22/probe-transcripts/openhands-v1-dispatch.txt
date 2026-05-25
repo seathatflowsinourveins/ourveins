@@ -1,0 +1,45 @@
+# OpenHands V1 dispatch-contract probe transcript
+# Cited by: tmp/sota-runtime-v2-deepdive/LANDSCAPE-final-2026-05-22-all-sota-may.md §8.1 (Surfaces A/B/C)
+# Probe operator: orchestrator (claude-opus-4-7[1m])
+# Probe timestamp: 2026-05-22T17:17:24Z
+# Method: ctx_execute javascript fetch (HTTPS) on 3 docs.openhands.dev pages
+# Primary-source URLs:
+#   - https://docs.openhands.dev/openhands/usage/run-openhands/cli-mode
+#   - https://docs.openhands.dev/openhands/usage/run-openhands/local-setup
+#   - https://docs.openhands.dev/sdk
+
+## Verified facts (primary-source as of 2026-05-22)
+
+### Surface A: CLI
+- Install: pip install openhands
+- Invocation: openhands (binary on PATH after install)
+- Backend services bound: localhost:8001 + localhost:8002 (likely runtime + event services)
+
+### Surface B: Software Agent SDK
+- Repo: OpenHands/software-agent-sdk (separate from main OpenHands/OpenHands repo)
+- Docs: docs.openhands.dev/sdk
+- Backend services: localhost:8001 + localhost:8002
+
+### Surface C: Local GUI (the REST API surface)
+- Install: pip install openhands (then start GUI)
+- Docker variant: docker run -it --rm --pull=always \
+    -e AGENT_SERVER_IMAGE_REPOSITORY=ghcr.io/openhands/agent-server \
+    -e AGENT_SERVER_IMAGE_TAG=1.19.1-python \
+    -e LOG_ALL_EVENT... [truncated in probe]
+- GUI port: :3000 (still current — V0 -> V1 kept this port)
+- Backend services: :8001 + :8002
+- Important correction vs V1 catalog: image-org is openhands/ NOT all-hands-ai/ in current docs.
+
+## Versioning observation
+- OpenHands product version (e.g. v1.7.0) is DISTINCT from agent-server backend image tag (e.g. 1.19.1-python).
+- Implication for CR-9 pinning: pin BOTH the OpenHands product version AND the agent-server image SHA256 digest separately.
+
+## What was NOT surfaced by this probe (open items)
+- The exact REST endpoint path for 'start a new conversation/task' on Surface C — code blocks in the docs HTML used heavy MDX/SVG rendering that the crude HTML-strip didn't capture.
+- The exact CLI flags for headless/JSON-output dispatch on Surface A.
+- The exact Python API surface for Surface B (SDK).
+- These need a follow-up probe with deeper HTML parsing OR direct docs browser-read OR sibling-session-W374 verification before any production wire-in.
+
+## Reproducibility
+Replay via mcp__plugin_context-mode_context-mode__ctx_execute javascript fetch on the 3 URLs above.
+Or via: curl -sL <url> | sed 's/<[^>]*>/ /g' | grep -iE 'port|docker|install|ghcr'

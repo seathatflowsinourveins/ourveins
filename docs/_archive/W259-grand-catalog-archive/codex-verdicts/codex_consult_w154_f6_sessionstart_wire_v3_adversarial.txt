@@ -1,0 +1,66 @@
+SYSTEM: V3 ADVERSARIAL for W154 F6 SessionStart wire. V2 dispatched in PARALLEL. Per FM-09 28/28 firm 19th consecutive arc + 4 RECURSIVE catches in W154 (F1 glob-vs-regex / F3 overlap+actionability / F4 Machine-PATH-precedence / F5 trailing-slash) — find what V2 will overclaim THIS fire. Output JSON-strict at EOF.
+
+CONTEXT (same as V2):
+- W154 F3 cli_path_audit.py shipped + V3 SCOPED-DOWN deferred SessionStart wire
+- W154 F4 + F5 land — gh installed at Z + PATH-fix verified Tier-0 ALL PASS in simulated post-F5 shell
+- Cron `a83ecd8c` 3 iterations (~15min) no schema-drift signal
+- Predicates SATISFIED for SessionStart wire per V3 W154 F3 deferral conditions
+
+ADVERSARIAL QUESTIONS:
+A1: V2 will likely propose simple SessionStart entry with `python scripts/cli_path_audit.py --jsonl`. What scope-creep risks?
+   - V2 might propose stdout additionalContext mode (would put audit summary in every session's startup context — noise pollution per cycle-300 + audit-action-loop "noise budget")
+   - V2 might propose PostToolUse on Bash(npm install -g *) — premature; Phase 4 lock-discipline; deferred per V3 W154 F3
+   - V2 might propose adding non-Tier-0 CLIs to expanding the audit scope along with the wire — separate logical unit per cycle-300
+   - V2 might miss: SessionStart hook fires BEFORE eee.ps1 F5 PATH-fix takes effect for THIS session start — needs verification of timing
+   - V2 might miss: failure isolation — audit script throws (e.g., script syntax error) → hook fails — should fail-open advisory NOT BLOCK session
+
+A2: Hook timing — does SessionStart fire before eee.ps1 PATH-fix?
+   eee.ps1 starts → SessionStart hook fires DURING claude.exe init → PATH inherited from current Process PATH.
+   eee.ps1 sets $env:PATH BEFORE claude.exe launch (lines 148-167 happen BEFORE line 211+ claude.exe spawn).
+   So SessionStart hook inherits the modified Process PATH (Z .local/bin first).
+   cli_path_audit Tier-0 should report ALL PASS in fresh eee shell.
+   IF NOT PASS at SessionStart → red flag (drift signal).
+
+A3: Output discipline — stdout vs stderr?
+   - stdout in CC SessionStart hooks → additionalContext (visible to Claude in every session)
+   - stderr in CC SessionStart hooks → log only (NOT visible to Claude)
+   - cli_path_audit currently prints summary to stdout
+   - For SessionStart wire: prefer stderr-only (telemetry) UNLESS drift detected (then stdout to alert)
+   - V3 SCOPED-DOWN: stdout suppression OR -q flag for quiet mode
+
+A4: Failure mode isolation:
+   - audit script throws → exit non-zero → hook reports error
+   - Anthropic CC docs: SessionStart hook errors are advisory (don't block session)
+   - Just async 30s timeout protects against hang
+
+A5: Cross-model gate satisfaction (V2+V3 PARALLEL Path P REAL GPT-5.5)
+
+A6: SCOPED-DOWN vs V2 likely-broader scope:
+   - JUST SessionStart wire with --jsonl flag (capped append-only)
+   - NO PostToolUse on npm install (Phase 4 lock-discipline; defer to dedicated fire)
+   - NO MEDIUM-15 expansion of audit scope
+   - NO stdout-additionalContext (noise pollution)
+   - NO failure-blocking (advisory only)
+
+A7: Is "stdout suppression in audit script" a separate logical unit?
+   - cli_path_audit.py currently always prints summary to stdout
+   - Adding -q flag or default-stderr-on-PASS-only is a code change to scripts/cli_path_audit.py
+   - For SessionStart wire → could just redirect via shell: `python scripts/cli_path_audit.py --jsonl 2>&1` and accept summary in additionalContext (low noise — 6 lines)
+   - OR add --quiet flag to script (separate logical unit per cycle-300)
+   - V3 SCOPED-DOWN: accept current stdout summary; add --quiet later if noise becomes problem
+
+OUTPUT JSON-strict at EOF:
+{
+  "verdict": "F6-NEEDED | F6-NOT-NEEDED | F6-NEEDED-LIGHT",
+  "confidence": 0.0-1.0,
+  "v2_was_overclaimed": "TRUE | FALSE | PARTIAL",
+  "fm09_recursive_catch_triggered": "YES | NO",
+  "a1_scope_creep_risks": [...],
+  "a2_hook_timing_analysis": "...",
+  "a3_output_discipline": "...",
+  "a4_failure_mode": "...",
+  "a5_cross_model_gate_status": "...",
+  "a6_scope_down_recommendations": [...],
+  "a7_quiet_flag_decision": "DEFER | INCLUDE | INLINE",
+  "minimum_viable_f6_output": "..."
+}

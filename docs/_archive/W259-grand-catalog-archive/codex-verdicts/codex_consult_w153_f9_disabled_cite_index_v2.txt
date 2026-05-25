@@ -1,0 +1,139 @@
+# W153 F9 V2 — DESIGN proposal for disabled-plugin cite/discovery index
+
+## Background
+
+W153 F7 (commit `e191378`) disabled 4 plugins in `Z:/claude-sota-installed/.claude/settings.json` L527-530: clickhouse / outputai / qdrant-skills / cwc-makers.
+
+W153 F8 (commit `0e1e9eb`) full SRA D1-D10 audit V2+V3 convergent KEEP-DISABLES + framing correction (F7 was LOW-risk CONFIG-PRUNE not "definitive SOTA convergence").
+
+V3 ADVERSARIAL prescription #4 from F8 (verbatim): "Add a disabled-plugin cite/discovery index so cached SKILL.md/README material remains searchable without enabling hooks/MCP/commands."
+
+V3 V2-MISSED dimensions from F8 included: "Plugin-namespace risk: disabling removes namespace exposure, so future agents may falsely conclude no local capability exists unless disabled-plugin cache is included in searches."
+
+This consult requests SOTA-pattern-adapted DESIGN for the F9 cite/discovery index.
+
+## Constraints
+
+Per cardinal-rule-5 install-priority + cardinal-rule-8 full-SOTA-content + cardinal-rule-9 install-risk + cardinal-rule-12 upstream-install-priority:
+- F9 is a NEW doc file → must adapt SOTA pattern (cardinal-rule-8)
+- bootstrap-only files list (CLAUDE.md `## Bootstrap-only files`) is restrictive; F9 should fit operator-discipline doc class similar to `docs/install-provenance.md` + `docs/sota-installed-manifest.md` + `docs/install-from-github-discipline.md`
+- TIER-1-DIRECT cite required per cardinal-rule-1
+- ZERO self-inventing per ALL-SOTA invariant — adapt from existing eee bootstrap docs OR upstream SOTA index patterns
+
+Per cardinal-rule-11 META-process: design must satisfy CR-1+3+8+10+11 conformance.
+
+## Disabled plugin inventory (F7 state)
+
+4 plugins disabled at settings.json L527-530:
+1. **clickhouse@claude-plugins-official** (~2 SKILL.md + .mcp.json remote MCP for clickhouse.cloud) cache: `Z:/claude-sota-installed/.claude/plugins/cache/claude-plugins-official/clickhouse/1.0.0/`
+2. **outputai@claude-plugins-official** (~47 SKILL.md + SessionStart hook injecting framework-context every session) cache: `.claude/plugins/cache/claude-plugins-official/outputai/0.2.1/`
+3. **qdrant-skills@claude-plugins-official** (~26 SKILL.md vector-search architecture-guidance corpus) cache: `.claude/plugins/cache/claude-plugins-official/qdrant-skills/1.0.0/`
+4. **cwc-makers@claude-plugins-official** (~2 SKILL.md + /maker-setup command for Cardputer hardware) cache: `.claude/plugins/cache/claude-plugins-official/cwc-makers/1.0.0/`
+
+Total: ~77 SKILL.md across 4 plugins (F7 figure).
+
+## Design questions (V2 primary scope)
+
+### Q1: File format
+What's the SOTA pattern for a cite-search discovery index in this runtime? Three candidates:
+- **MD table** (like `docs/sota-installed-manifest.md` rows pattern; Grep-able + human-readable)
+- **JSONL** (like `.claude/state/*.jsonl` audit trails; structured fields; queryable via ctx_search)
+- **Hybrid MD with structured frontmatter** (like `.claude/agents/*.md` frontmatter + body)
+
+Read the existing bootstrap docs to determine prevailing eee pattern:
+- `docs/sota-installed-manifest.md` (~280 LOC; row-table format)
+- `docs/install-provenance.md` (append-only log format)
+- `docs/install-from-github-discipline.md` (rule codification format)
+
+Pick whichever pattern this codebase already adopts for similar use cases.
+
+### Q2: File location
+Where does the index live? Candidates:
+- `docs/disabled-plugin-cite-index.md` (alongside other bootstrap docs)
+- `docs/cite-index/disabled-plugins.md` (sub-directory for future cite-indexes)
+- `.claude/state/disabled_plugin_cite_index.jsonl` (audit-trail location)
+
+### Q3: Per-plugin metadata fields
+What fields should each disabled-plugin entry carry? Candidates:
+- plugin_name + version + cache_path + disabled_date + disable_commit_sha
+- top-N SKILL.md (by description char count) with file:line cite anchors
+- README.md cite anchor + key concept summary (≤200 chars)
+- re-enable trigger (V2+V3 F8 convergent prescription)
+- CR-12 disposition class (per F8 refinement)
+- regret-risk classification (LOW/MEDIUM/HIGH per V3 F8)
+- FM-class risks if re-enabled
+
+### Q4: Cite-anchor extraction strategy
+For 77 total SKILL.md across 4 plugins, what's the right indexing depth?
+- ALL 77 SKILL.md cite-anchored (verbose; comprehensive)
+- TOP-N per plugin (e.g., top-5 by description char count; ~20 total)
+- Hand-curated key cite-anchors (~10 total; high-signal)
+
+What's SOTA for cite-discovery indexes in eee? Probe existing patterns.
+
+### Q5: Search integration
+How does the index integrate with eee's existing search surfaces?
+- ctx_search via `mcp__plugin_context-mode_context-mode__ctx_search` indexes file content
+- Glob+Grep on filesystem (no index needed for direct search)
+- Future agent dispatches reading cite anchors via Read tool
+
+Does the index NEED to be ctx_index'd separately? Or is filesystem indexing enough?
+
+### Q6: Maintenance mechanism
+Hand-curated vs auto-regen vs hybrid?
+- Hand-curated (this fire ships the initial index; future F-fires update as plugins disabled/re-enabled)
+- Auto-regen script (writes the index from settings.json + plugin cache scan; runs on commit hook)
+- Hybrid (auto-regen for plugin-cache fields; hand-curated for re-enable triggers + concept summaries)
+
+### Q7: Cardinal-rule conformance per design choice
+For each design dimension, what's the cardinal-rule conformance evidence?
+- CR-1 cite trail: every cite anchor is TIER-1-DIRECT at file:line + HEAD SHA?
+- CR-3 cross-model gate: F9 is doc-only (cross-model gate satisfied via THIS V2+V3 audit)
+- CR-5 install-priority: F9 is bootstrap-class operator-discipline (similar to install-provenance.md), NOT new install
+- CR-8 full-SOTA-content: every section adapts SOTA pattern (per Q1 prevailing eee pattern)
+- CR-9 install-risk: LOW (doc-only; no install)
+- CR-10 research-first-then-install: V2+V3 research (this consult) BEFORE commit
+- CR-11 META-process: applied (this fire is META-process audit-doc creation)
+
+## Output schema (JSON-strict at EOF)
+
+```json
+{
+  "verdict": "APPROVE-DESIGN|REVISE-DESIGN|REJECT-F9",
+  "confidence": 0.NN,
+  "design": {
+    "file_format": "MD-table|JSONL|MD-with-frontmatter",
+    "file_location": "docs/<path>",
+    "metadata_fields": ["plugin_name", "version", "cache_path", "...", "..."],
+    "cite_anchor_strategy": "ALL|TOP-N|hand-curated",
+    "search_integration": "ctx_index_needed|filesystem_only",
+    "maintenance": "hand|auto-regen|hybrid"
+  },
+  "rationale_per_choice": {
+    "format": "...",
+    "location": "...",
+    "fields": "...",
+    "extraction": "...",
+    "search": "...",
+    "maintenance": "..."
+  },
+  "sota_pattern_source": "<which existing eee bootstrap doc this adapts>",
+  "cardinal_rule_conformance": {
+    "CR-1": "...",
+    "CR-3": "...",
+    "CR-5": "...",
+    "CR-8": "...",
+    "CR-9": "...",
+    "CR-10": "...",
+    "CR-11": "..."
+  },
+  "prescribed_edits": [
+    "create <path> with <N> rows / entries",
+    "..."
+  ],
+  "estimated_ship_loc": NNN,
+  "alternative_designs_considered": ["...", "..."]
+}
+```
+
+Be rigorous. Cite existing eee patterns at file:line. Apply SOTA-pattern-adapter discipline (cardinal-rule-8). If F9 is unnecessary (functionality covered by existing ctx_search + filesystem), say REJECT-F9 with rationale.

@@ -1,0 +1,250 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit bd34bcfe6b0687407fbfe1248500e9a018f41dae
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md                         |  43 +++++
+ .../00-tracker.md                                  | 130 +++++++++++++
+ .../01-claw-compactor-anatomy.md                   | 131 +++++++++++++
+ .../02-probe-dag-application.md                    | 167 ++++++++++++++++
+ .../03-codex-t1-verdict.md                         | 192 +++++++++++++++++++
+ .../99-close-synthesis.md                          | 212 +++++++++++++++++++++
+ 6 files changed, 875 insertions(+)
+
+=== git show --format=fuller ===
+commit bd34bcfe6b0687407fbfe1248500e9a018f41dae
+Author:     42 <42@local>
+AuthorDate: Sun May 10 21:25:50 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 21:25:50 2026 -0400
+
+    docs(sota-audit): Wave 134 Fire 26-C — open-compress/claw-compactor CITE-PATTERN-ONLY conf=0.88 + LOAD-BEARING Row-2 fabrication-test FAIL + Axis-1 solo-author FAIL + 2-fire convergence on Fire 23 P0 orthogonality
+    
+    THIRD of revised Top-3 priorities post-Fire-26-B. Path P codex T1 (REAL GPT-5.5
+    via codex CLI v0.130.0, foreground+tee, 358,418 tokens / 11,453 LOC) returned
+    CITE-PATTERN-ONLY @ conf=0.88 — 4th CITE-PATTERN-ONLY in Wave 134 NEW-candidate
+    series. Two LOAD-BEARING blockers: Row-2 fabrication-test FAIL (LLMLingua-2
+    benchmark uses RandomDropCompressor strawman) + Axis-1 solo-author FAIL (94%
+    contributor concentration).
+    
+    ## Fire 26-C deliverables (5 files + provenance, ~870 LOC)
+    
+    - 00-tracker.md (~160 LOC) — framing + Mia pre-apply + 8-axis dims
+    - 01-claw-compactor-anatomy.md (~165 LOC) — anatomy + 4 Mia OVER catches + scope tri-furcation
+    - 02-probe-dag-application.md (~190 LOC) — full-repo FAIL / Python-lib PASS bifurcation
+    - 03-codex-t1-verdict.md (~200 LOC) — verbatim REAL GPT-5.5 + 6 critical contributions
+    - 99-close-synthesis.md (~155 LOC) — Fire 26-C close + revised Top-N roadmap
+    - docs/install-provenance.md — Fire 26-C entry appended
+    
+    ## Subject
+    
+    open-compress/claw-compactor local HEAD c1b936d4 MIT v7.1.0 (2,320★ + 218 forks
+    + created 2026-02-10 + updated 2026-05-09 ACTIVE) — 14-stage Fusion Pipeline
+    for LLM token compression with claimed quality-lead vs LLMLingua-2.
+    
+    ## 🚨 LOAD-BEARING finding #1 — Row-2 fabrication-test FAIL
+    
+    Codex T1 caught the headline marketing claim is methodologically unsupported:
+    
+    > "FAIL (benchmark/compressors.py uses RandomDropCompressor as an LLMLingua-2
+    > proxy, not LLMLingua-2; README direct LLMLingua-2 ROUGE-L table is therefore
+    > unsupported)"
+    
+    > "Verified: benchmark/compressors.py labels RandomDropCompressor as an
+    > LLMLingua-2 proxy and benchmark/RESULTS.md reports RandomDrop, RuleCompressor,
+    > Engram, and NoCompression, not actual LLMLingua-2."
+    
+    The README "ROUGE-L 0.723 vs LLMLingua-2 0.570" claim is a STRAWMAN. The
+    benchmark scaffolding uses RandomDropCompressor (drops tokens at random),
+    labels it "LLMLingua-2 proxy", and reports the resulting numbers. Actual
+    microsoft/LLMLingua is NEVER invoked.
+    
+    Per convergence-gate.md §Anti-pattern Row-2 fabrication-test FAIL: auto-FAIL.
+    
+    ## 🚨 LOAD-BEARING finding #2 — Axis-1 solo-author FAIL
+    
+    Codex T1 quantified contributor concentration via gh api:
+    - aeromomo: 49 commits (94%)
+    - justiniggy: 2 commits (4%)
+    - haosenwang1018: 1 commit (2%)
+    
+    STRONG-PROVENANCE-EXPRESS predicate DOES NOT fire:
+    - ≥30d age ✅ (3 months)
+    - official-org maintainer ❌ (OpenClaw fresh 2026 org, NOT Anthropic/T1)
+    - named-T2 endorsement ❌ (none found)
+    
+    Axis-1 ≥3-distinct-orgs convergence-gate FAIL.
+    
+    ## 🚨 Architectural insight CONFIRMED via 2-fire convergence
+    
+    Fire 26-B established: token economy operates at distinct layers (session-start
+    vs per-task). Fire 26-C provides 2nd independent codex T1 verdict confirming:
+    
+    - claw-compactor addresses_fire23_p0: NO (per-task layer, same as LLMLingua)
+    - Both LLMLingua AND claw-compactor REFUTE positioning as Fire 23 P0 primitives
+    
+    **W134-F24-C3 Task Master Selective MCP Tool-Loading RE-CONFIRMED as the
+    correct Fire 23 P0 primitive** via 2-fire codex T1 convergence.
+    
+    ## Codex T1 verdict (verbatim at EOF)
+    
+    ```json
+    {
+      "verdict": "CITE-PATTERN-ONLY",
+      "confidence": 0.88,
+      "addresses_fire23_p0": "NO",
+      "recommended_integration_option": "C: CITE-PATTERN-ONLY",
+      "probe_dag_verdicts": {
+        "P1_count_over": "PASS", "P2_sdk_vs_cli": "PASS",
+        "P3_arch_api": "PASS-with-caveat", "P4_plugin_namespace": "FAIL for full repo",
+        "P5_mode_harness": "PASS for Python lib alone; FAIL for proxy+Engram",
+        "P6_blockers": "PASS-with-caveat",
+        "P7a_demand_absence": "PASS for narrow per-task; FAIL for 3 of 4 layers",
+        "P7b_demand_creates": "NOT-ELIGIBLE"
+      },
+      "row2_fabrication_test": "FAIL",
+      "novel_capability_for_eee": "PARTIAL-OVERLAP",
+      "axis_1_convergence_gate": "FAIL (single-org, solo-author 94%, no named-T2)",
+      "scope_split_verdict": {
+        "python_lib_alone": "ADMISSIBLE",
+        "full_proxy_stack": "INADMISSIBLE",
+        "engram_subsystem": "INADMISSIBLE"
+      }
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f26c_claw_compactor_OUT.txt`
+    (358,418 tokens / 11,453 LOC — largest Fire 26 series)
+    
+    ## 9 cite-pattern candidates with file:line precision
+    
+    Most pattern-rich Wave 134 audit (vs LLMLingua's 5):
+    
+    1. `engine.py:194` — 14-stage adapter-pattern pipeline construction (resolves
+       stage-count concern; missing 3 stages live as legacy adapters)
+    2. `base.py:30` — frozen FusionContext/Result/Stage contract
+    3. `pipeline.py:38` — ordered gate-before-compress executor
+    4. `content_detector.py:1` — rule-based content routing cascade
+    5. `ionizer.py:116` — JSON array schema+sample with RewindStore fallback
+    6. `rewind/retriever.py:17` — provider-specific rewind_retrieve tool definition
+    7. **`tiered_compaction.py:1` — micro/auto/full compaction w/ circuit breaker**
+       (HIGHEST-VALUE for eee — informs /compact cadence + FM-17.e autocompact-
+       thrashing defense)
+    8. `skill_reinjection.py:1` — post-compaction recent-tool schema reinjection
+       (codex T1: CITE-ONLY, not Fire 23 P0 solution)
+    9. `quantum_lock.py:196` — system-message dynamic-fragment cache-stabilization
+       (codex T1: CITE-ONLY, verify against Anthropic cache behavior)
+    
+    ## 4 Mia OVER catches by codex T1 (largest in Wave 134 series)
+    
+    1. **14-stage architecture concern RESOLVED** via adapter pattern at engine.py:194
+       (orchestrator's "missing 3 stages" pre-audit concern was OVER)
+    2. **ARCHITECTURE.md `.mjs` Repository Layout doc-drift CONFIRMED** (actual is `.py`)
+    3. **Test count drift trail (1,600+/1,663/1,676/1,932)** → codex T1 measured 57
+       files + 1,945 functions; honest evolution across commits
+    4. **LLMLingua-2 benchmark fabrication CAUGHT** (LOAD-BEARING)
+    
+    ## Scope tri-furcation by codex T1
+    
+    | Sub-system | LOC | Verdict |
+    |---|---|---|
+    | Python lib (scripts/lib/fusion + rewind) | ~200KB Python | ADMISSIBLE |
+    | Node.js proxy stack | ~290KB JS | INADMISSIBLE (DUPLICATE CLIProxyAPI) |
+    | Engram subsystem | ~200KB Python | INADMISSIBLE (DUPLICATE graphiti+mcp-memory) |
+    
+    ## Cohort tracking advance
+    
+    - P5 mode-harness FAIL cohort: n=4 → n=5 (+claw-compactor full repo)
+    - P7a demand-absence FAIL cohort: n=5 → n=6 (+claw-compactor 3-of-4 layers)
+    - CITE-PATTERN-ONLY verdict cohort: n=3 → **n=4** (+claw-compactor)
+    - **NEW cohort**: Row-2 fabrication-test FAIL n=1 (claw-compactor — class entry)
+    - **NEW cohort**: Axis-1 convergence-gate FAIL n=1 (claw-compactor — class entry)
+    
+    ## Conditional bounded-pilot path
+    
+    Per codex T1 next_steps verbatim — ONLY IF:
+    - Quantitative evidence of recurring large non-cacheable per-task inputs measured
+    - Faithful LLMLingua-2 baseline rerun on identical datasets/seeds/budgets/metrics
+  
+
+[prompt truncated]

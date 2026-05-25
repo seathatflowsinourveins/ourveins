@@ -1,0 +1,473 @@
+OpenAI Codex v0.130.0
+--------
+[2m2026-05-23T16:10:04.758467Z[0m [31mERROR[0m [2mrmcp::transport::worker[0m[2m:[0m worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer error=\"invalid_request\", error_description=\"No access token was provided in this request\", resource_metadata=\"https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/readonly\"" })
+[1mworkdir:[0m Z:\claude-sota-installed-W381
+[1mmodel:[0m gpt-5.5
+[1mprovider:[0m openai
+[1mapproval:[0m never
+[1msandbox:[0m workspace-write [workdir, /tmp, Z:\claude-sota-installed, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+[1mreasoning effort:[0m high
+[1mreasoning summaries:[0m none
+[1msession id:[0m 019e5599-cfe5-7022-9b9a-c7bb5443f31a
+--------
+[36muser[0m
+You are codex GPT-5.5 reviewing the W381 GitHub-governance + quality-gate SOTA hardening before it ships to `main` (a Windows-native Claude Code runtime, repo already has 24 workflows). Changes came from a 4-stream audit + were implementer-applied + locally verified. Review the diff for correctness + safety + regressions.
+
+## What each change does + its evidence
+1. `.gitleaks.toml` — added a global `[[allowlists]] paths` block for archived AI-output dumps (codex transcript .txt) + 2 verified-benign doc paths. ROOT CAUSE: the CI `gitleaks-action@v2` reads only this config (not the pre-commit `exclude:`), so the default `sourcegraph-access-token` rule false-matched bare-40-hex git SHAs in 1731 archive .txt files = 32806 FPs blocking PR #33. EVIDENCE: with this config, filesystem scan = **0 leaks** (was 32806); zero real secrets in any tracked source/config (grep+osv verified).
+2. `agents/requirements.txt` — `litellm>=1.45,<2.0` → `>=1.84.0,<2.0`. EVIDENCE: osv.dev confirmed HIGH/CRITICAL CVEs (CVE-2026-35029 priv-esc + password-hash-exposure) fixed in 1.83.0; trivy was correctly firing on the old range; installed=1.84.0.
+3. `code-quality.yml` PSScriptAnalyzer job — pin `-RequiredVersion 1.25.0`, `Set-PSRepository PSGallery Trusted`, per-file `-ErrorAction Continue` + post-loop aggregation, wire `-Settings PSScriptAnalyzerSettings.psd1`, add `actions/cache` (repo-attested SHA). ROOT CAUSE: CI failed not on findings (0 locally) but on the unpinned `Install-Module -Force` + global `$ErrorActionPreference=Stop` on lagging windows-runner PS versions (PSSA #2087).
+4. 8 action SHA-pins in supply-chain-watch.yml + session-jsonl-archive.yml — every SHA copied from a repo-attested adjacent pinned workflow (not invented). 0 unpinned `@vN` remain.
+5. `.github/dependabot.yml` — `cooldown: {default-days: 5}` ×4 ecosystems (2026 anti-malicious-update control). `PSScriptAnalyzerSettings.psd1` Rules block; `.psscriptanalyzer.psd1` duplicate deleted; `pyproject.toml` ruff `extend-select` (advisory).
+
+## YOUR JOB — review the diff. Specifically:
+1. gitleaks: are the allowlist path-globs correctly scoped (NOT over-broad — would they suppress a real secret in source/config)? The 2 doc paths (W259-grand-catalog, install-provenance.md) — acceptable?
+2. litellm pin: is `>=1.84.0` correct (does it actually exclude the vulnerable range), or should it be exact-pinned?
+3. PSScriptAnalyzer YAML: is the fix sound (will it actually green the CI), any YAML/PowerShell error?
+4. SHA-pins: any wrong/risky pin?
+5. Any P0/P1 regression or security weakening.
+
+## OUTPUT ONLY (<=350 words):
+VERDICT: <APPROVE|REVISE|BLOCK>
+CONFIDENCE: <0-1>
+PER_CHANGE:
+- gitleaks: <SOUND|ISSUE> — <=1 line
+- litellm-CVE: <SOUND|ISSUE> — <=1 line
+- pssa-ci: <SOUND|ISSUE> — <=1 line
+- sha-pins: <SOUND|ISSUE> — <=1 line
+- dependabot/ruff: <SOUND|ISSUE> — <=1 line
+FINDINGS: <[P0|P1|P2] cite | or none>
+SHIP: <yes/no to main>
+SUMMARY: <=3 sentences.
+
+## THE DIFF
+diff --git a/.github/dependabot.yml b/.github/dependabot.yml
+index ddee3de..7b83437 100644
+--- a/.github/dependabot.yml
++++ b/.github/dependabot.yml
+@@ -32,6 +32,11 @@ updates:
+         patterns:
+           - "@anthropic-ai/*"
+           - "@modelcontextprotocol/*"
++    # W381 Stream D §3 P1: cooldown defeats the auto-merge-compromised-patch attack class
++    # (event-stream/ua-parser-js pattern). 3-5d per GitGuardian/Safeguard.sh 2026.
++    # Schema verified vs docs.github.com dependabot.yml options reference (cooldown.default-days, 2026).
++    cooldown:
++      default-days: 5
+ 
+   # GitHub Actions — auto-update action SHA pins
+   - package-ecosystem: "github-actions"
+@@ -45,6 +50,9 @@ updates:
+       - "github-actions"
+     commit-message:
+       prefix: "ci"
++    # W381 Stream D §3 P1: cooldown (also mitigates the GitGuardian "bot rewrites pinned SHA" vector).
++    cooldown:
++      default-days: 5
+ 
+   # pip — covers any Python requirements.txt under harness/ or similar
+   - package-ecosystem: "pip"
+@@ -55,6 +63,9 @@ updates:
+     labels:
+       - "dependencies"
+       - "python"
++    # W381 Stream D §3 P1: cooldown (cool-off / minimum-release-age).
++    cooldown:
++      default-days: 5
+ 
+   # pip — root-level (for inspect-ai when W333 stands it up)
+   - package-ecosystem: "pip"
+@@ -65,3 +76,6 @@ updates:
+     labels:
+       - "dependencies"
+       - "python"
++    # W381 Stream D §3 P1: cooldown (cool-off / minimum-release-age).
++    cooldown:
++      default-days: 5
+diff --git a/.github/workflows/code-quality.yml b/.github/workflows/code-quality.yml
+index 5f46384..b79a6d4 100644
+--- a/.github/workflows/code-quality.yml
++++ b/.github/workflows/code-quality.yml
+@@ -100,32 +100,56 @@ jobs:
+           shellcheck --severity=error "${files[@]}"
+ 
+   powershell:
++    # W381 Stream C §1.4: root-cause = runner module-acquisition/import fragility
++    # (unpinned PSSA + PS7≥7.4.7 import floor [PSScriptAnalyzer#2087/#2106] +
++    #  $ErrorActionPreference='Stop' escalation), NOT a code defect (local = 0 Error,
++    #  0 throw, 0 parse-error across 38 files; PSGallery has no newer version).
++    # Fix = pin + trust PSGallery + import-pinned + aggregate-with-Continue + wire -Settings.
+     name: PSScriptAnalyzer (severity=Error)
+     runs-on: windows-latest
++    defaults:
++      run:
++        shell: pwsh
++    env:
++      PSSA_VERSION: '1.25.0'   # W381 Stream C §1.4: pinned (matches local; PSGallery latest 2026-03-20)
+     steps:
+       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+         with: { persist-credentials: false }
+-      - name: PSScriptAnalyzer on tracked .ps1 files
+-        shell: pwsh
++      # W381 Stream C §1.4: cache the pinned module so install-step can skip -Force reinstall
++      # over a loaded module (tablackburn/ScheduledTasksManager PR#30 NRE failure mode).
++      - name: Cache PSScriptAnalyzer
++        id: pssa-cache
++        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
++        with:
++          path: ${{ env.USERPROFILE }}\Documents\PowerShell\Modules\PSScriptAnalyzer
++          key: pssa-${{ runner.os }}-${{ env.PSSA_VERSION }}
++      # W381 Stream C §1.4: Set-PSRepository Trusted before install defeats the
++      # untrusted-PSGallery/NuGet-provider prompt escalation (github/docs PowerShell CI tutorial).
++      - name: Install PSScriptAnalyzer (pinned)
++        if: steps.pssa-cache.outputs.cache-hit != 'true'   # PR#30: skip -Force reinstall over cached module (avoids NRE)
+         run: |
+-          $ErrorActionPreference = 'Stop'
+-          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -SkipPublisherCheck
+-          $tracked = git ls-files '*.ps1' '*.psm1' '*.psd1'
+-          if (-not $tracked) {
+-            Write-Host 'no tracked PowerShell files; skipping'
+-            exit 0
+-          }
+-          $errs = @()
+-          foreach ($f in $tracked) {
+-            if (-not (Test-Path $f)) { continue }
+-            if ($f -match '\.claude/plugins/cache' -or $f -match '00-archive-from-prior-waves') { continue }
+-            $errs += Invoke-ScriptAnalyzer -Path $f -Severity Error
+-          }
+-          if ($errs.Count -gt 0) {
+-            $errs | Format-Table -AutoSize
+-            exit 1
++          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
++          Install-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Scope CurrentUser -Force -SkipPublisherCheck -ErrorAction Stop
++      # W381 Stream C §1.4: import the pinned version (defeats shadowing #2087), invoke per-file
++      # with -ErrorAction Continue (one bad file no longer kills the run), aggregate after loop,
++      # wire -Settings PSScriptAnalyzerSettings.psd1 (CI now matches the curated local ruleset).
++      - name: Run PSScriptAnalyzer (aggregate, never throw on findings)
++        run: |
++          Import-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Force   # defeat version shadowing (#2087)
++          $ver = (Get-Module PSScriptAnalyzer).Version
++          Write-Host "PSScriptAnalyzer $ver on PowerShell $($PSVersionTable.PSVersion)"
++          $settings = Join-Path $PWD 'PSScriptAnalyzerSettings.psd1'
++          $tracked = git ls-files '*.ps1' '*.psm1' '*.psd1' |
++            Where-Object { $_ -notmatch '\.claude/plugins/cache' -and $_ -notmatch '00-archive-from-prior-waves' -and (Test-Path $_) }
++          if (-not $tracked) { Write-Host 'no tracked PowerShell files; skipping'; exit 0 }
++          $findings = $tracked | ForEach-Object {
++            Invoke-ScriptAnalyzer -Path $_ -Settings $settings -ErrorAction Continue   # per-rule throw cannot kill the run
+           }
+-          Write-Host "PSScriptAnalyzer: 0 Error-severity findings across $($tracked.Count) tracked file(s)"
++          $errs = @($findings | Where-Object Severity -eq 'Error')
++          $warns = @($findings | Where-Object Severity -eq 'Warning')
++          Write-Host "Error=$($errs.Count)  Warning=$($warns.Count)  across $($tracked.Count) file(s)"
++          if ($errs.Count -gt 0) { $errs | Format-Table RuleName,ScriptName,Line,Message -AutoSize | Out-String -Width 200 | Write-Host; exit 1 }
++          Write-Host 'PSScriptAnalyzer: 0 Error-severity findings.'
+ 
+   json:
+     name: JSON parse-validation
+diff --git a/.github/workflows/session-jsonl-archive.yml b/.github/workflows/session-jsonl-archive.yml
+index eb230fd..133a936 100644
+--- a/.github/workflows/session-jsonl-archive.yml
++++ b/.github/workflows/session-jsonl-archive.yml
+@@ -32,12 +32,14 @@ jobs:
+     name: Roll old session JSONLs into tarballs
+     runs-on: ${{ inputs.runner-label || 'ubuntu-latest' }}
+     steps:
++      # W381 Stream D §1: SHA-pin straggler (egress-policy:audit retained per Stream A §3 #1 — flip to block needs allowed-endpoints allowlist).
+       - name: Harden runner
+-        uses: step-security/harden-runner@v2
++        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+         with: { egress-policy: audit }
+ 
++      # W381 Stream D §1: SHA-pin (was @v4; SHA per ci.yml:26).
+       - name: Checkout
+-        uses: actions/checkout@v4
++        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+         with:
+           persist-credentials: false
+           fetch-depth: 1
+@@ -72,9 +74,10 @@ jobs:
+             echo "file_count=$count"
+           } >> "$GITHUB_OUTPUT"
+ 
++      # W381 Stream D §1: SHA-pin (was @v4; SHA per provenance.yml:102 / scorecard.yml:48).
+       - name: Upload archive artifact
+         if: ${{ steps.build.outputs.tar_path != '' }}
+-        uses: actions/upload-artifact@v4
++        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+         with:
+           name: session-jsonl-archive-${{ github.run_number }}
+           path: ${{ steps.build.outputs.tar_path }}
+diff --git a/.github/workflows/supply-chain-watch.yml b/.github/workflows/supply-chain-watch.yml
+index d8d6f06..c6f4466 100644
+--- a/.github/workflows/supply-chain-watch.yml
++++ b/.github/workflows/supply-chain-watch.yml
+@@ -22,25 +22,29 @@ jobs:
+     name: IOC sweep + open issue on finding
+     runs-on: ubuntu-latest
+     steps:
++      # W381 Stream D §1: SHA-pin straggler (egress-policy:audit retained per Stream A §3 #1 — flip to block needs allowed-endpoints allowlist).
+       - name: Harden runner
+-        uses: step-security/harden-runner@v2
++        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+         with: { egress-policy: audit }
+ 
++      # W381 Stream D §1: SHA-pin (was @v4; SHA per ci.yml:26).
+       - name: Checkout
+-        uses: actions/checkout@v4
++        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+         with:
+           persist-credentials: false
+           fetch-depth: 0
+ 
++      # W381 Stream D §1: SHA-pin (was @v2; SHA per ci.yml:100).
+       - name: gitleaks scan
+         id: gitleaks
+         continue-on-error: true
+-        uses: gitleaks/gitleaks-action@v2
++        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
++      # W381 Stream D §1: SHA-pin (was @v4; SHA per ci.yml:32).
+       - name: Setup Node
+-        uses: actions/setup-node@v4
++        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+         with: { node-version: '22.22.0' }
+ 
+       - name: npm audit (HIGH/CRITICAL only)
+@@ -71,9 +75,10 @@ jobs:
+             echo "unpinned=0" >> "$GITHUB_OUTPUT"
+           fi
+ 
++      # W381 Stream D §1: SHA-pin (was @v7; SHA per codex-review.yml:72).
+       - name: Open issue on finding
+         if: ${{ steps.gitleaks.outcome == 'failure' || steps.npmaudit.outputs.high_critical != '0' || steps.mcppin.outputs.unpinned != '0' }}
+-        uses: actions/github-script@v7
++        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7.1.0
+         with:
+           script: |
+             const ts = new Date().toISOString();
+diff --git a/.gitleaks.toml b/.gitleaks.toml
+index 41bb89c..870d34a 100644
+--- a/.gitleaks.toml
++++ b/.gitleaks.toml
+@@ -21,6 +21,24 @@ title = "claude-sota-installed gitleaks config"
+ [extend]
+ useDefault = true
+ 
++# W381 Stream A fix: global path-allowlist for archived AI-output dumps. The CI `gitleaks-action@v2`
++# reads ONLY this config (not .pre-commit-config.yaml's `exclude:` block), so without these paths the
++# default `sourcegraph-access-token` rule false-matched bare 40-hex git SHAs across 1731 codex
++# transcript .txt files (32550 false-positives that blocked PR #33). Verified ZERO real secrets in any
++# tracked source/config (W381 Stream A; osv/grep cross-checked). Cite: github.com/gitleaks/gitleaks#allowlist.
++[[allowlists]]
++description = "Archived AI-output dumps + codex transcripts (false-positive class; no real secrets — W381-A)"
++paths = [
++  '''docs/architecture/.*00-archive-from-prior-waves/.*''',
++  '''.*codex.*_OUT\.txt$''',
++  '''.*codex-verdicts/.*''',
++  '''.*codex-rounds/.*''',
++  '''.*codex-consult.*\.txt$''',
++  '''\.claude/state/.*codex.*''',
++  '''docs/architecture/W259-grand-catalog/.*''',
++  '''docs/install-provenance\.md$''',
++]
++
+ [[rules]]
+ id = "curl-auth-header"
+ 
+diff --git a/.psscriptanalyzer.psd1 b/.psscriptanalyzer.psd1
+deleted file mode 100644
+index 4803be5..0000000
+--- a/.psscriptanalyzer.psd1
++++ /dev/null
+@@ -1,79 +0,0 @@
+-@{
+-    # .psscriptanalyzer.psd1 — root-level PSScriptAnalyzer settings (W326-F F-PS2)
+-    #
+-    # Cite-anchored: PowerShell/PSScriptAnalyzer @ main (PSGallery.psd1 template +
+-    # https://learn.microsoft.com/en-us/powershell/utility-modules/psscriptanalyzer/using-scriptanalyzer).
+-    # Invoke: `Invoke-ScriptAnalyzer -Path tools -Settings .psscriptanalyzer.psd1`.
+-    #
+-    # Cardinal-rule compliance: CR-2 (direct upstream-CLI lint config, no project-owned
+-    # hook bodies); CR-4 (operator-curated path-gated config at repo root). This file
+-    # is data-only — it does NOT fire automatically; pre-commit / CI invokes the linter.
+-
+-    # --- Severity gate ---------------------------------------------------------
+-    # Report Error and Warning. Information is too noisy on legitimate utility
+-    # scripts; Style is purely cosmetic and not worth blocking commits.
+-    Severity = @('Error', 'Warning')
+-
+-    # Include the default rule set as a baseline (so we only *subtract* below).
+-    IncludeDefaultRules = $true
+-
+-    # --- Exclusions ------------------------------------------------------------
+-    # Documented exclusions — each one cite-justified to the project context:
+-    #
+-    #   PSAvoidUsingWriteHost
+-    #     The eee*.ps1 launchers print human-facing status banners; Write-Host is
+-    #     the *correct* sink for that (Write-Output would pollute the pipeline).
+-    #
+-    #   PSUseShouldProcessForStateChangingFunctions
+-    #     tools/ are operator utility scripts, not reusable cmdlets in a module.
+-    #     ShouldProcess is a public-cmdlet contract; advisory rather than required
+-    #     for thin orchestration glue.
+-    #
+-    #   PSAvoidUsingPlainTextForPassword
+-    #     Project secrets live in CLAUDE.local.md (gitignored) per CCBP
+-    #     claude-memory.md:113; no plain-text passwords in tracked PowerShell.
+-    #     False-positive risk on variable names that contain "password".
+-    #
+-    #   PSAvoidUsingConvertToSecureStringWithPlainText
+-    #     Same rationale — gated to gitignored CLAUDE.local.md scope.
+-    #
+-    #   PSAvoidGlobalVars
+-    #     The launcher scripts deliberately set $env:* and a few session-scoped
+-    #     $script:* / $global:* mirrors of the Z:-portable ENV block per CCBP
+-    #     claude-settings.md:877-921.
+-    #
+-    #   PSUseSingularNouns
+-    #     hindsight-queue-janitor.ps1 and friends use plural nouns by domain
+-    #     convention (queue, tasks, recordings); cmdlet-naming heuristic only.
+-    ExcludeRules = @(
+-        'PSAvoidUsingWriteHost',
+-        'PSUseShouldProcessForStateChangingFunctions',
+-        'PSAvoidUsingPlainTextForPassword',
+-        'PSAvoidUsingConvertToSecureStringWithPlainText',
+-        'PSAvoidGlobalVars',
+-        'PSUseSingularNouns'
+-    )
+-
+-    # --- Per-rule tuning -------------------------------------------------------
+-    Rules = @{
+-        # Promote a Pester-friendly indent (4 spaces is the project default for
+-        # tools/*.ps1; the launcher banners use a mix and that is intentional).
+-        PSPlaceOpenBrace = @{
+-            Enable             = $true
+-            OnSameLine         = $true
+-            NewLineAfter       = $true
+-            IgnoreOneLineBlock = $true
+-        }
+-        PSPlaceCloseBrace = @{
+-            Enable             = $true
+-            NewLineAfter       = $true
+-            IgnoreOneLineBlock = $true
+-            NoEmptyLineBefore  = $false
+-        }
+-        # Encourage explicit verbosity over backtick line continuation
+-        # (PowerShell-recommended style; not a hard error).
+-        PSAvoidUsingDoubleQuotesForConstantString = @{
+-            Enable = $false
+-        }
+-    }
+-}
+diff --git a/PSScriptAnalyzerSettings.psd1 b/PSScriptAnalyzerSettings.psd1
+index c332ecc..c068569 100644
+--- a/PSScriptAnalyzerSettings.psd1
++++ b/PSScriptAnalyzerSettings.psd1
+@@ -55,17 +55,24 @@
+         'PSUseCorrectCasing',              # cosmetic
+         'PSAvoidLongLines',                # noise on PS oneliner hooks
+         'PSAvoidUsingDoubleQuotesForConstantString',  # cosmetic
+-        'PSAvoidTrailingWhitespace',       # delegated to editor + pre-commit gate
+-        'PSPlaceOpenBrace',                # cosmetic (allow both K&R and Allman)
+-        'PSPlaceCloseBrace'                # cosmetic
++        'PSAvoidTrailingWhitespace'        # delegated to editor + pre-commit gate
++        # W381 Stream C §1.5: PSPlaceOpenBrace/PSPlaceCloseBrace moved OUT of ExcludeRules
++        # and INTO the Rules block below (configured with IgnoreOneLineBlock=$true so the
++        # launcher one-liners are not penalized) — a rule cannot be both excluded and tuned.
+     )
+ 
+-    # Per-rule suppression for paths where the rule does not apply:
++    # Per-rule tuning + 2026 best-practice rules (W381 Stream C §1.5):
+     Rules = @{
+         PSUseDeclaredVarsMoreThanAssignments = @{
+             # eee.ps1 and similar launcher scripts declare env vars consumed by spawned processes;
+             # the assignments ARE the side effect.
+             Enable = $true
+         }
++        # W381 Stream C §1.5: PSUseCompatibleSyntax (Error-severity) pinned to the project's
++        # real PowerShell targets makes the gate catch genuine cross-version syntax bugs
++        # deterministically. Cite: learn.microsoft.com/powershell/utility-modules/psscriptanalyzer.
++        PSUseCompatibleSyntax = @{ Enable = $true; TargetVersions = @('5.1', '7.0', '7.4') }
++        PSPlaceOpenBrace      = @{ Enable = $true; OnSameLine = $true; NewLineAfter = $true; IgnoreOneLineBlock = $true }
++        PSPlaceCloseBrace     = @{ Enable = $true; NewLineAfter = $true; IgnoreOneLineBlock = $true }
+     }
+ }
+diff --git a/agents/requirements.txt b/agents/requirements.txt
+index d9749a4..31dee62 100644
+--- a/agents/requirements.txt
++++ b/agents/requirements.txt
+@@ -2,7 +2,9 @@
+ openhands-sdk==1.22.1
+ openhands-workspace[docker]>=1.23.0,<2.0
+ fastmcp>=3.2,<4.0
+-litellm>=1.45,<2.0
++# W381 Stream A (verified osv.dev 2026-05-23): floor raised past HIGH/CRITICAL CVEs fixed in
++# 1.83.0 (CVE-2026-35029 priv-esc, password-hash-exposure) — the <1.45 range trivy flagged.
++litellm>=1.84.0,<2.0
+ temporalio[opentelemetry]==1.27.2
+ opentelemetry-instrumentation-httpx
+ opentelemetry-exporter-otlp-proto-http
+diff --git a/pyproject.toml b/pyproject.toml
+new file mode 100644
+index 0000000..691c621
+--- /dev/null
++++ b/pyproject.toml
+@@ -0,0 +1,18 @@
++# pyproject.toml
++#
++# W381 Stream C §2.2 #2 (HIGH ROI, near-zero cost): the repo lints Python with bare
++# ruff defaults (E,F,W only) and has no ruff config. This adds an opt-in `extend-select`
++# ruleset — B (bugbear) catches real bugs; I enables import-sort; PTH/SIM/C4/UP/RUF are
++# high-signal. ADVISORY only — no fail-conditions are introduced here (per W381 spec
++# bullet 5 + the repo's advisory-first→bind discipline, CLAUDE.md CR-5 condition-(b)).
++# Cite: docs.astral.sh/ruff (extend-select, target-version); perplexity 3-org synthesis.
++
++[tool.ruff]
++target-version = "py313"          # matches pyrightconfig.json pythonVersion 3.13
++src = ["tools", "harness", "scripts", "evals", "accounts/scripts"]
++
++[tool.ruff.lint]
++extend-select = ["I", "UP", "B", "SIM", "C4", "PTH", "RUF"]
++
++[tool.ruff.lint.per-file-ignores]
++"tests/**" = ["S101", "B011"]
+
+[1mweb search:[0m 
+[1mweb search:[0m site:docs.github.com dependabot.yml cooldown default-days github-actions
+[35m[3mcodex[0m[0m
+VERDICT: REVISE
+CONFIDENCE: 0.82
+PER_CHANGE:
+- gitleaks: SOUND — scoped to archives/transcripts/docs, not source/config; doc exceptions are acceptable given the verified clean scan.
+- litellm-CVE: SOUND — `>=1.84.0,<2.0` excludes the vulnerable `<1.83.0` range; exact pin is reproducibility policy, not required for this CVE fix.
+- pssa-ci: ISSUE — aggregation only fails `Severity -eq 'Error'`, so PSSA `ParseError` diagnostics can pass.
+- sha-pins: SOUND — no risky pin visible in the diff; comments align with adjacent repo-attested pins.
+- dependabot/ruff: SOUND — `cooldown.default-days` is valid for version updates; ruff config is advisory-only.
+
+FINDINGS: [P2] `.github/workflows/code-quality.yml` PSScriptAnalyzer run step — `$errs = @($findings | Where-Object Severity -eq 'Error')` should also fail `ParseError` diagnostics, or syntax-broken PowerShell can green the gate after `-ErrorAction Continue`.
+
+SHIP: no to main until the PSSA parse-error fail condition is added.
+
+SUMMARY: The security hardening is broadly sound, and I do not see a P0/P1 regression. The one fix is small: treat `ParseError` as blocking alongside `Error` before shipping.
+SUCCESS: The process with PID 175168 (child process of PID 61256) has been terminated.
+SUCCESS: The process with PID 61256 (child process of PID 135580) has been terminated.
+SUCCESS: The process with PID 135580 (child process of PID 166296) has been terminated.
+[2mtokens used[0m
+34,951
+VERDICT: REVISE
+CONFIDENCE: 0.82
+PER_CHANGE:
+- gitleaks: SOUND — scoped to archives/transcripts/docs, not source/config; doc exceptions are acceptable given the verified clean scan.
+- litellm-CVE: SOUND — `>=1.84.0,<2.0` excludes the vulnerable `<1.83.0` range; exact pin is reproducibility policy, not required for this CVE fix.
+- pssa-ci: ISSUE — aggregation only fails `Severity -eq 'Error'`, so PSSA `ParseError` diagnostics can pass.
+- sha-pins: SOUND — no risky pin visible in the diff; comments align with adjacent repo-attested pins.
+- dependabot/ruff: SOUND — `cooldown.default-days` is valid for version updates; ruff config is advisory-only.
+
+FINDINGS: [P2] `.github/workflows/code-quality.yml` PSScriptAnalyzer run step — `$errs = @($findings | Where-Object Severity -eq 'Error')` should also fail `ParseError` diagnostics, or syntax-broken PowerShell can green the gate after `-ErrorAction Continue`.
+
+SHIP: no to main until the PSSA parse-error fail condition is added.
+
+SUMMARY: The security hardening is broadly sound, and I do not see a P0/P1 regression. The one fix is small: treat `ParseError` as blocking alongside `Error` before shipping.
+ERROR: The process "107588" not found.

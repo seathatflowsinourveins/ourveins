@@ -1,0 +1,28 @@
+ROLE: cross-model T1 reviewer (REAL GPT-5.5 BRIDGE-MODE foreground+tee, Path P).
+
+TASK: Review the diff to Z:/claude-sota-installed/tools/process_hygiene_audit.py adding 2 daemon-detection helpers + 2 exemptions to find_reap_candidates().
+
+VERIFY by reading the file directly. Then return VERDICT.
+
+DIFF SUMMARY:
+- list_processes_with_parent(): added "CommandLine" to Get-CimInstance Select + cmdline field to dict
+- NEW is_pidfile_daemon(pid, cmdline): regex `--pid-file[=\s]+([^\s]+)` extracts PID-file path, reads file, returns content==str(pid)
+- NEW is_namedpipe_daemon(cmdline): regex `(pipe:)?\\\\\.\\pipe\\` matches Win32 named-pipe argv pattern
+- find_reap_candidates(): added 2 EXEMPTIONS after port-LISTEN check (lines ~218-223): if is_pidfile_daemon → continue; if is_namedpipe_daemon → continue
+
+PURPOSE: Close 2nd FALSE-POSITIVE class. Empirical case: codex-plugin-cc app-server-broker.mjs PID 70384, dead parent, cmdline contains BOTH `--pid-file C:/Users/42/AppData/Local/Temp/cxc-FiuO6B/broker.pid` AND `pipe:\\.\pipe\cxc-FiuO6B-codex-app-server`. PID-file content == "70384". V1 port-LISTEN exemption MISSED it (named-pipe NOT TCP). V2 smoke-probe confirmed PID 70384 EXEMPT post-fix.
+
+REVIEW (TIGHT — 2 axes, ≤90s):
+
+AXIS-1: Are the regexes correct?
+  - is_pidfile_daemon: `r"--pid-file[=\s]+([^\s]+)"` correctly matches both `--pid-file PATH` and `--pid-file=PATH`. Edge case: PID-file path with spaces → regex stops at first space. Verdict: ACCEPTABLE for current case (Windows %TEMP% rarely has spaces in canonical convention), DEFER fix until n=2.
+  - is_namedpipe_daemon: `r"(pipe:)?\\\\\.\\pipe\\"` matches `pipe:\\.\pipe\` and `\\.\pipe\` literal patterns. False-positive risk: very low (Win32 device-namespace reserved).
+
+AXIS-2: Is the exemption-precedence ordering correct?
+  Current: target-name → age → dead-parent → port-LISTEN → PID-file → named-pipe
+  Per W121 SHIP A0-FP-FIX AXIS-3 ratified ordering: dead-parent first (preserves audit-trail visibility into "would have reaped but exempted"), then exemptions.
+
+VERDICT SHAPE: APPROVE | NEEDS-REVISION conf=N.NN + prescribed_edits | REJECT
+ONE-LINE: "[VERIFIED via direct read] <approach correct or needs adjust>"
+
+OUTPUT_BUDGET: 100 LOC.

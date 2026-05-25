@@ -1,0 +1,314 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e096b-c8c2-7561-94a8-f0906abc79e9
+--------
+user
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1L-followup (full-unleash env-var bumps per user mandate)
+
+CONTEXT:
+- Wave 97 Ship 1L landed at `a7adfb6` 4 belt-and-suspenders pins (MAX_MCP_OUTPUT_TOKENS=50000 / BASH_MAX_OUTPUT_LENGTH=50000 / BASH_MAX_TIMEOUT_MS=900000 / MCP_TOOL_TIMEOUT=120000)
+- User explicit Wave 97 mandate: "make sure we are fully unleash with sota harness, with our advacned workflow, what is the general limit should set? should we using higher limit?"
+- Trajectory: user has consistently directed "full advanced unleash of all performance, foundation level, and beyond" + cardinal-rule-7 graduated-unleash currently at Phase 3 (`defaultMode: bypassPermissions` per Wave 82d)
+- Ship 1L values were sized at 5-10× observed p95 per fan3-X1 analysis — operator question implies trajectory toward higher
+
+PROPOSED BUMPS (3 of 4 env vars; 1 KEEP per context-rot risk):
+
+| Env var | Ship 1L | Proposed bump | Rationale |
+|---|---|---|---|
+| BASH_MAX_TIMEOUT_MS | 900000 (15min) | **1800000 (30min)** | Covers full-repo gitleaks scans + large `git clone` of monorepos + edge cases beyond codex T6 900s |
+| BASH_MAX_OUTPUT_LENGTH | 50000 | **100000** | Moderate bump still under context-rot threshold (300-400K of 1M); covers larger codex verdict files |
+| MCP_TOOL_TIMEOUT | 120000 (2min) | **300000 (5min)** | Heavy ctx_batch_execute (8-10 concurrent commands) + repomix large-repo + gitnexus impact 10K+ symbol graph |
+| MAX_MCP_OUTPUT_TOKENS | 50000 | **KEEP 50000** | Going higher genuinely risks context-rot at 70% autocompact threshold; single MCP result >100K can flood context |
+
+PROPOSED EDIT (single file: `.claude/settings.json`):
+- L36 BASH_MAX_TIMEOUT_MS: "900000" → "1800000"
+- L34 BASH_MAX_OUTPUT_LENGTH: "50000" → "100000"
+- L38 MCP_TOOL_TIMEOUT: "120000" → "300000"
+- L32 MAX_MCP_OUTPUT_TOKENS: UNCHANGED at "50000"
+- Update _comment lines for the 3 bumped env vars to reflect new values + rationale
+
+WHY EACH BUMP IS SAFE:
+
+1. **BASH_MAX_TIMEOUT_MS 30min**: still under typical "user impatience" threshold (most users abandon after 30min); covers edge cases that Ship 1L 15min would kill (gitleaks full-history scan on large repos can run 10-30min; large monorepo `git clone` 5-15min). Anthropic auto-background trigger via BASH_DEFAULT_TIMEOUT_MS unchanged (kept at default).
+
+2. **BASH_MAX_OUTPUT_LENGTH 100000**: 100K chars ≈ 25K tokens. Single Bash output of 25K tokens fits within typical tool-result budget. Context-rot threshold per Karpathy 1M calibration is ~300-400K tokens; 25K per tool result × 4 = 100K is still well below rot threshold. CCBP doesn't document a hard maximum.
+
+3. **MCP_TOOL_TIMEOUT 5min**: still respects fan-out parallelism (5min cap means wedged tool eventually times out vs unbounded wait). Heavy ctx_batch_execute observed 30-60s p95; legitimate edge cases (8-10 concurrent + slow IO) could hit 2-3min — 5min cap = 1.5-2× safety margin on edge cases.
+
+4. **MAX_MCP_OUTPUT_TOKENS KEEP**: this is the one variable where higher GENUINELY risks context-rot. A single MCP tool returning 100K tokens (e.g., ctx_batch_execute with 12 commands × 10K each) would consume 10% of 1M context window per call. Multiple such calls in a session push autocompact firing earlier (70% threshold = 700K). KEEPING at 50000 = belt-and-suspenders against context-rot while still 2× CCBP default.
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT CCBP: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:822,824,825,979 @ HEAD 64fffd53` (same as Ship 1L)
+- TIER-1-DIRECT Anthropic CHANGELOG: `Z:/repos/deps/claude-code/CHANGELOG.md:3259,3311,2686` (same as Ship 1L)
+- TIER-1-DIRECT karpathy-adapted §5 1M calibration (context-rot at 300-400K threshold)
+- TIER-2 sister: Ship 1L provenance entry at `docs/install-provenance.md`
+- TIER-3 evidence: Wave 97 fan-3 X1 analysis at `tmp/wave97-fan3-X1-mcp-env-deep-dive-2026-05-08.md`
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1 cite chain identical to Ship 1L + karpathy-adapted §5 context-rot anchor
+- CR-3: this consult IS the cross-model gate (real GPT-5.5 e2e BEFORE commit)
+- CR-5: env-var-only addition; no hand-coded primitive
+- CR-7: Phase 3 graduated-unleash (cardinal-rule-7 current state) ALIGNED with full-unleash bump request
+- CR-8: ADAPTED-FROM-SOTA — values cite-anchored to CCBP defaults + context-rot risk analysis
+- CR-9: install-risk MED — timeout-misconfig risk class (each bump independently reversible)
+- CR-10: research-first — Wave 97 fan-3 X1 deep-dive established baseline; this followup is evidence-based bump trajectory
+- CR-11: META-process SOTA — Pattern A discipline + GPT-5.5 e2e + provenance + atomic commit per cycle-300
+
+LAUNCH-DISCIPLINE D1:
+- REVERSIBLE: 3 line edits + 3 _comment updates
+- OBSERVABLE: subsequent session Bash/MCP calls can run longer / produce larger output before truncation/timeout
+- INCREMENTAL: 3-line bump on existing 4-pin Ship 1L; no NEW env vars
+
+QUESTION (JSON ONLY):
+Is Wave 97 Ship 1L-followup (3 bumps + 1 KEEP per user "full unleash" mandate) APPROVE-COMMIT?
+
+Concerns to consider:
+1. Is BASH_MAX_TIMEOUT_MS=1800000 safe? Could a wedged-bash command actually run 30min and harm user?
+2. Is BASH_MAX_OUTPUT_LENGTH=100000 conservative enough vs context-rot?
+3. Is MCP_TOOL_TIMEOUT=300000 the right cap vs allowing fan-out parallelism to recover?
+4. Is KEEPING MAX_MCP_OUTPUT_TOKENS=50000 (NOT bumping) the right call vs user's "full unleash" trajectory?
+5. Any conflict with cardinal-rule-7 Phase 3 + bypassPermissions current mode?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git status --short' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/settings.json | Select-Object -First 90' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path docs/install-provenance.md | Select-Object -Last 80' in Z:\claude-sota-installed
+ succeeded in 308ms:
+ M .claude/.claude.json
+ M .claude/hooks/scripts/agent_spawn_gate.py
+ M .claude/hooks/scripts/codex_postcommit_review.py
+ M .claude/hooks/scripts/codex_prepush_review.py
+ M .claude/hooks/scripts/codex_t1_consult_gate.py
+ M .claude/hooks/scripts/codex_t5_plan_review_gate.py
+ M CLAUDE.md
+ M bin/eee.cmd
+ M docs/sota-installed-manifest.md
+ M scripts/codex-plugin-hooks-rewrite.py
+?? .bun/
+?? .ccs/
+?? .claude.json
+?? .claude/.last-cleanup
+?? .claude/agents/
+?? .claude/context-mode/
+?? .claude/hooks/context-mode-cache-heal.mjs
+?? .claude/hooks/cwc/
+?? .claude/hooks/scripts/__pycache__/
+?? .claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+?? .claude/hooks/scripts/cwc/
+?? .claude/hooks/scripts/safety_guard.py
+?? .claude/mcp-needs-auth-cache.json
+?? .claude/plugins/install-counts-cache.json
+?? .claude/rules/
+?? .claude/scheduled_tasks.lock
+?? .claude/session-data/
+?? .claude/session-env/
+?? .claude/settings.json.pre-fire45-fix
+?? .claude/settings.local.json
+?? .claude/shell-snapshots/
+?? .local/
+?? .ssh/
+?? .tmp-gitleaks-test/
+?? bin/eee-backup.cmd
+?? docs/eee-launch-design-cliproxyapi.md
+?? docs/operator-path-setup.md
+?? scripts/__pycache__/
+?? tools/__pycache__/
+?? tools/eee-backup.ps1
+?? tools/eee-status.ps1
+?? tools/eee.ps1.pre-fire46-fix
+
+ succeeded in 362ms:
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 60,
+  "env": {
+    "_comment": "CLAUDE_SOTA_INSTALLED_RUNTIME DROPPED Wave 50 Agent B P2 — was setter-no-reader hidden self-invention. Re-introduce only when a hook/script consumer lands.",
+    "_comment_disable_autoupdater_removed": "DISABLE_AUTOUPDATER=1 REMOVED Wave 62 2026-05-07 per user-trigger directive 'eee must be all sota, auto update with all offical sota native install methods'. Original Wave 53 pin (codex T1 b58s3u956 stable=119/latest=132 heuristic) was self-inventing against Anthropic's actual release cadence — CHANGELOG defines no 'stable channel'. Removal lets Anthropic in-place self-update flow per https://code.claude.com/docs/en/install. minimumVersion floor preserved as forward-only quality gate; updates above floor proceed automatically.",
+    "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "FM17_STALL_DETECTOR_DISABLE": "1",
+    "_comment_fm17d_disabled": "Wave 76 2026-05-08 — fm17d_stall_detector.py was writing 100% schema-rot observations (172 entries / 172 schema_missing across two sessions, 0 useful classifications). Hook honors FM17_STALL_DETECTOR_DISABLE=1 per its own _DISABLE_ENV constant at line 58. Re-enable after fixing the SubagentStop input-schema parsing (script expects stop_reason / tool_uses fields that CC v2.1.119 / 2.1.132 don't emit at the top level).",
+    "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force,pre:write:doc-file-warning,post:edit:design-quality-check,post:edit:console-warn,stop:format-typecheck,stop:check-console-log,pre:observe:continuous-learning,post:observe:continuous-learning,pre:edit-write:suggest-compact,post:session-activity-tracker,stop:evaluate-session,stop:cost-tracker,stop:desktop-notify",
+    "PYTHON_BIN": "Z:/venvs/claude/Scripts/python.exe",
+    "_comment_python_bin": "Wave 78 2026-05-08 — per real-GPT-5.5 codex T1 deep-review-exec verdict NEEDS-REVISION conf=0.78 finding F4 at .claude/state/codex_consult_wave77_full_audit_OUT.txt: cwc track-read.sh + verify-gate.sh call `python` (no full path). Git Bash on Windows may not resolve `python` — scripts then silent-no-op. Adding explicit PYTHON_BIN env that the .sh scripts can prefer via `${PYTHON_BIN:-python}` fallback. Cite: TIER-3-LOCAL-CODEX-T1-VERDICT (real GPT-5.5 BRIDGE-MODE; cross-model gate satisfied per cardinal-rule-3 Phase 1 bootstrap exception).",
+    "_comment_ecc_disabled_hooks": "Wave 76 baseline + Wave 77 expansion 2026-05-08. Wave 76: gateguard-fact-force (pre:bash + pre:edit-write) — costs round-trip per first-of-class action. Wave 77 (per fleet-arch-vs-official-2026-05-08.md §3 ECC-hooks triage): added 5 pure-overhead hook IDs that target JS/TS/frontend project workflows orthogonal to this Z-drive Anthropic-CC runtime — pre:write:doc-file-warning (warns on docs we intentionally create), post:edit:design-quality-check (frontend UI check, N/A), post:edit:console-warn (no JS edits), stop:format-typecheck (Biome/Prettier+tsc, no JS/TS source), stop:check-console-log (no JS). Each saves ~100-200ms node spawn per matched event. The hook's own recovery instructions document this env var. Other ECC hooks (pre-bash-dispatcher, pre-mcp-health-check, post-bash-dispatcher, governance-capture handled separately, etc.) remain ACTIVE.",
+    "ECC_GOVERNANCE_CAPTURE": "0",
+    "_comment_ecc_governance_capture": "Wave 76 2026-05-08 — ECC governance-capture hook spawns Node on every Edit/Write/MultiEdit pre + post (2 spawns × 100ms cold start = ~200ms/edit) writing to .claude/governance-capture/ which has zero downstream consumer in this runtime. Disable until a consumer wires in. Cite: ECC hooks.json plugin cache `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/hooks/hooks.json` governance-capture entries; control env per ECC plugin.json env.",
+    "ECC_HOOK_PROFILE": "standard",
+    "_comment_ecc_hook_profile": "Wave 76 2026-05-08 — explicit standard (default) profile to prevent surprise. ECC supports `off`/`standard`/`strict`; we hold at standard while we triage individual hooks via ECC_DISABLED_HOOKS rather than nuke all.",
+    "ANTHROPIC_SMALL_FAST_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "Haiku 4.5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "fast/cheap inline-judge",
+    "_comment_haiku_pin": "Wave 82a 2026-05-08 — pin small-fast-model to Haiku 4.5 per Anthropic CC CHANGELOG.md:929 ('ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL_SUPPORTS') + :3298 ('Bedrock ARN passed to ANTHROPIC_MODEL or ANTHROPIC_SMALL_FAST_MODEL'). TIER-1-DIRECT via Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD. Prevents inline-judge calls (session titles, classifier passes, away summaries, recap) from landing on Haiku 3.5 (~3× token cost). Source: wave52/iter2b #2 advanced-unadopted pattern.",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": "1",
+    "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1",
+    "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": "60000",
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "ENABLE_TOOL_SEARCH": "auto:5",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70",
+    "OTEL_LOG_TOOL_DETAILS": "1",
+    "OTEL_LOG_USER_PROMPTS": "1",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "_comment_max_mcp_output_tokens": "Wave 97 Ship 1L 2026-05-08 — 2× CCBP default 25000 (claude-settings.md:822 @ HEAD 64fffd53). Sized for ctx_batch_execute + repomix workloads (30-60K bytes returns observed Wave 97). Risk: LOW. Cross-model gate: real GPT-5.5 codex T1 APPROVE conf=0.88 single-round at .claude/state/codex_consult_wave97_ship1l_mcp_env_OUT.txt.",
+    "BASH_MAX_OUTPUT_LENGTH": "50000",
+    "_comment_bash_max_output_length": "Wave 97 Ship 1L 2026-05-08 — explicit pin per CCBP claude-settings.md:825 @ HEAD 64fffd53. Sized for codex T2 (~3-8K) + cwc kill-switch (~10K) + 5-10× headroom. Risk: LOW.",
+    "BASH_MAX_TIMEOUT_MS": "900000",
+    "_comment_bash_max_timeout_ms": "Wave 97 Ship 1L 2026-05-08 — 900s/15min ceiling per CCBP claude-settings.md:824 + Anthropic CHANGELOG.md:3311 (introduced env var) + L2686 (auto-background semantic). Covers codex T6 stop-gate 900s (longest sync gate per cross-model-consensus.md §Profile selection), cwc up to 600s, codex T1/T2 240-480s. Conflict-resolved with CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS=60000 (different scope: SessionEnd hooks-only ceiling vs Bash-tool-call ceiling). Risk: MED.",
+    "MCP_TOOL_TIMEOUT": "120000",
+    "_comment_mcp_tool_timeout": "Wave 97 Ship 1L 2026-05-08 — 120s per-MCP-tool-call ceiling per CCBP claude-settings.md:979 @ HEAD 64fffd53 (FM-20 cite-correction caught Wave 97 Fan-3 X1 Mia probe — Wave 97 Fan-2 B brief had stale L1071 which is mcpServers block) + Anthropic CHANGELOG.md:3259 (respect-bug fix). Sized for ctx_batch_execute p95 (~60s) × 2 safety margin. Prevents wedged-tool starvation. Orthogonal to MCP_TIMEOUT (server-startup, L821). Risk: MED.",
+    "CLAUDE_CODE_EFFORT_LEVEL": "xhigh",
+    "_comment_wave97_ship1g_effort_pin": "Wave 97 Ship 1G 2026-05-08 — env-precedence pin for max-thinking effort per user mandate 'set up your default thinking effort to max'. CLAUDE_CODE_EFFORT_LEVEL takes precedence over /effort runtime command + settings.json effortLevel key per CCBP `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:857 @ HEAD 64fffd53` (TIER-1-DIRECT). xhigh = max thinking effort for Opus 4.7 (v2.1.111+); manual MAX_THINKING_TOKENS budget_tokens NOT used per Anthropic Opus 4.7 adaptive-thinking architecture (real GPT-5.5 codex T1 NEEDS-REVISION conf=0.86 caught this Mia OVER — manual token ceilings deprecated, can produce 400 errors and cost amplification). effortLevel + alwaysThinkingEnabled + CLAUDE_CODE_EFFORT_LEVEL form the canonical 3-axis max-thinking pin for Opus 4.7. Verdict file: .claude/state/codex_consult_wave97_ship1g_max_thinking_OUT.txt.",
+    "_comment_wave82a_advanced_unleash": "Wave 82a 2026-05-08 — advanced unleashed-mode env block per wave52/iter2b TOP 10 + adoption baseline. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD: AGENT_TEAMS=1 (CCBP claude-cli-startup-flags.md:211 — feature gate); NO_FLICKER (CHANGELOG render perf); ENABLE_AWAY_SUMMARY (away-from-keyboard summary feature); FINE_GRAINED_TOOL_STREAMING (CHANGELOG streaming-grain feature); ATTRIBUTION_HEADER=0 (CHANGELOG suppress 'Generated with Claude Code'); USE_POWERSHELL_TOOL=1 (CHANGELOG.md:88,213,414 — Windows pwsh native tool primary shell, paired with defaultShell:powershell at L226); SESSIONEND_HOOKS_TIMEOUT_MS=60000 (CHANGELOG.md:1265 — 1.5s ceiling override; honors per-hook timeout:30s declared on 14+ SessionEnd audits); ENABLE_PROMPT_CACHING_1H=1 (1h cache extension feature); ENABLE_TOOL_SEARCH=auto:5 (deferred-tool-search auto-promote 5 tools per turn — present session-reminder evidence); CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70 (sibling-validated threshold; CR-3 cite chain through claude-sota CLAUDE.local.md ENV); OTEL_LOG_TOOL_DETAILS=1 (CHANGELOG OTel tool_result/tool_decision events); OTEL_LOG_USER_PROMPTS=1 (CHANGELOG.md:157 — 'user_system_prompt to LLM request spans'). DEFERRED: OTEL_LOG_RAW_API_BODIES (PII risk per iter2b #7; would leak full prompts to Langfuse — enable only with verified local-only Langfuse). Cardinal-rule-3 Phase 1 bootstrap exception cross-model gate satisfaction: T1 hook codex_t1_consult_gate.py at L58 fires on this Edit; T2 hook fires on commit. Cite source: wave52/iter2b advanced-unadopted patterns 1-10."
+  },
+  "permissions": {
+    "allow": [
+      "Edit(Z:/claude-sota-installed/.claude/settings.json)",
+      "Edit(Z:/claude-sota-installed/CLAUDE.md)",
+      "Edit(Z:/claude-sota-installed/docs/sota-installed-manifest.md)",
+      "Edit(Z:/claude-sota-installed/docs/install-provenance.md)",
+      "Bash(npm install -g *)",
+      "Bash(uv tool install *)",
+      "Bash(gh release download *)",
+      "Bash(git clone --depth 1 https://github.com/* *)",
+      "Bash(docker pull *)",
+      "Bash(cargo install *)",
+      "Bash(codex *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.pfx)",
+      "Read(**/*.key)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "_comment_deny_secrets_baseline": "Wave 75 2026-05-08 — kits-convergence cited (v5 SETTINGS_AND_HOOKS_REFERENCE.md:32-38, fleet-kits-convergence-2026-05-08.md §2 row 4) chained back to CCBP claude-mcp.md hard rule 'NEVER commit secrets'. Read-class deny floor; auto-mode classifier still gates everything else.",
+    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor preserved via safety_guard.py narrow deny-list + agent_plan_readonly_bash_guard.py + cardinal-rule deny-class.",
+    "_comment_deny": "Empty — auto-mode classifier handles risk-tiering; explicit deny[] only added when a SOTA primitive needs operation-level block.",
+    "_comment_phase3_transition": "Wave 61 fire-extension 2026-05-07 flipped defaultMode default→bypassPermissions; parallel-session refined to 'auto' Wave 61.5 per SOTA convergence. CCBP-CANONICAL per Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:251 @ HEAD 64fffd53 [VERIFIED 2026-05-07]: 'auto' mode 'Auto-approves tool calls with background safety checks... Classifier auto-approves read-only and file edits; sends everything else through a safety check. Falls back to prompting after 3 consecutive or 20 total blocks. In the default Shift+Tab permission-mode cycle since v2.1.111'. SOTA-superior to bypassPermissions because bypassPermissions STILL prompts for .git/.claude/.vscode/.idea/.husky paths per CCBP L250 — auto handles via classifier instead. User-trigger directive 'all setting must be fully unleashed with sota harness' + 'full premission unleashed' satisfied via auto-mode classifier (no per-action confirm for safe ops). TIER-1-DIRECT authority: https://code.claude.com/docs/en/settings + https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode. Reversal: change to 'default' (single-line edit). disableAutoMode setting could be set to 'disable' if auto mode misbehaves on this workload — currently NOT set (auto mode active)."
+  },
+  "disabledMcpjsonServers": [],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t1_consult_gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+
+ succeeded in 398ms:
+| MCP_TOOL_TIMEOUT | NO | "120000" |
+
+### TIER-1 SOTA cite chain (per fan3-X1 verification)
+
+- **TIER-1-DIRECT CCBP**: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:822,824,825,979 @ HEAD 64fffd53a7c6f8e2e0b1575fdd200b65cda04737`
+- **TIER-1-DIRECT Anthropic CHANGELOG**: `Z:/repos/deps/claude-code/CHANGELOG.md:3259,3311,2686`
+- **TIER-2 sister**: `cross-model-consensus.md §Profile selection rule` (T6 stop-gate 900s sizing anchor)
+- **TIER-3 evidence**: `tmp/wave97-fan3-X1-mcp-env-deep-dive-2026-05-08.md` (full Probe 7+8+9 deep-dive)
+
+### Edit (single file: `.claude/settings.json`)
+
+Inserted 4 env-var pins + 4 _comment lines after L35 (`OTEL_LOG_USER_PROMPTS`), before existing CLAUDE_CODE_EFFORT_LEVEL block at L36.
+
+### LAUNCH-DISCIPLINE D1
+
+✅ **REVERSIBLE**: 1-block revert in settings.json
+✅ **OBSERVABLE**: next session's MCP/Bash tool calls respect new ceilings; codex T6 stop-gate 900s sync-gate honors BASH_MAX_TIMEOUT_MS
+✅ **INCREMENTAL**: 4-line env addition; orthogonal to existing 33 env keys
+
+### CR-9 install-risk
+
+- LOW for MAX_MCP_OUTPUT_TOKENS + BASH_MAX_OUTPUT_LENGTH
+- MED for BASH_MAX_TIMEOUT_MS + MCP_TOOL_TIMEOUT (timeout-misconfig risk; values sized per fan3-X1 workload analysis)
+- All 4 pins are belt-and-suspenders per CCBP defaults; reversible via single-block edit
+
+### Operational impact
+
+| Layer | Pre-Wave-97-Ship-1L | Post-Wave-97-Ship-1L |
+|---|---|---|
+| MCP output cap | implicit 25000 (CCBP default) | explicit 50000 (2× headroom for ctx_batch_execute + repomix) |
+| Bash output cap | implicit (~30K observed) | explicit 50000 (5-10× headroom for codex T2 + cwc) |
+| Bash timeout ceiling | implicit | explicit 900s (covers codex T6 + cwc + T1/T2) |
+| MCP per-tool timeout | implicit | explicit 120s (prevents wedged-tool starvation; 2× ctx_batch_execute p95) |
+
+### Cardinal-rule compliance
+
+- **CR-1**: TIER-1-DIRECT cite chain at file:line + HEAD SHA (CCBP + Anthropic CHANGELOG)
+- **CR-3**: real GPT-5.5 codex T1 e2e BEFORE commit (APPROVE 0.88 single-round)
+- **CR-5**: env-var-only addition; no hand-coded primitive
+- **CR-6**: settings.json bootstrap-only file edit per cardinal-rule-5
+- **CR-7**: Phase 1 — env vars don't change permission scope
+- **CR-8**: ADAPTED-FROM-SOTA — values cite-anchored per fan3-X1 analysis
+- **CR-9**: install-risk LOW-MED; reversible via 1-block edit
+- **CR-10**: research-first via Wave 97 fan-3 X1 deep-dive + Mia 4/4 PASS BEFORE this ship
+- **CR-11**: META-process SOTA — 3-agent fan-3 parallel dispatch (replacing /loop) + Mia + Pattern-A-ready (no Pattern A needed) + GPT-5.5 e2e + provenance + atomic commit
+
+### Sister-rule integration
+
+- `cross-model-consensus.md` T1: real GPT-5.5 e2e BEFORE commit; APPROVE 0.88 single-round
+- `mia-pre-apply.md`: fan3-X1's Mia probe caught FM-20 path-drift in Agent B's L1071 cite (corrected to L979 forward-only per port-note-discipline.md §6)
+- `fm20-path-drift-cascade.md`: another instance of cite-propagation cascade prevented at fan-3 layer
+- `parallel-agent-wave.md §CADP rule 2`: 3-agent dispatch within max-3 cap
+
+### Wave 97 Ship 1L — 15th ship in this session arc
+
+| Wave | Commit | Ship |
+|---|---|---|
+| 86 | `824523f` | 1Q (CLIProxyAPI session-affinity; SUPERSEDED on strategy axis by Ship 1J) |
+| 89-96 | (8 ships per prior provenance) | |
+| 97-1A | `3c00615` | 1A — claude-md-management plugin enable |
+| 97-1B | `a1f19f0` | 1B — gitleaks v8.30.1 install |
+| 97-1G | `58be220` | 1G — CLAUDE_CODE_EFFORT_LEVEL=xhigh env-precedence pin |
+| 97-1C+1D | `0110a9f` | 1C+1D — gitleaks PreToolUse hook + .gitleaks.toml |
+| 97-1J | `88aa7b1` | 1J — CLIProxyAPI strategy fill-first → round-robin |
+| **97-1L** | **THIS** | **1L — 4 MCP/Bash env-var belt-and-suspenders pins** |
+
+### Update triggers
+
+Re-evaluate when:
+- ctx_batch_execute returns >50K bytes regularly (would justify MAX_MCP_OUTPUT_TOKENS bump)
+- BASH_MAX_TIMEOUT_MS hits 900s ceiling on legitimate operation (would bump to 1800000 or higher)
+- Anthropic CHANGELOG bumps any of the 4 env vars' default (would re-baseline)
+- A 5th MCP env var surfaces in CCBP that should be pinned
+
+### Ships pending in Wave 97 queue
+
+- **Ship 1N** (P2): github/spec-kit install per fan3-X2 ADOPT-NOW conf=0.92
+  - Operator-action: `LATEST_TAG=$(gh release list --repo github/spec-kit --limit 1 --json tagName -q '.[0].tagName') && uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@${LATEST_TAG} && specify init . --integration claude --integration-options="--skills"`
+- **Ship 1F** (P3): scripts/*-hooks-rewrite.py cite-trail headers + provenance per fan3-X3 KEEP-WITH-CITE-IMPORT-AMBER (Class B both)
+- **Ship 1J-followup** (operator-decision): equalize active Claude account priorities for TRUE round-robin burst-distribution
+
+**Refining prescribed edits**
+
+I’m considering whether the prescribed edits should include updates and a caveat about the default timeout remaining unchanged. They already have a proposal in place. The verdict might be to approve this with no changes to the prescribed edits. However, the user is asking for strict JSON format without any markdown. I need to deliver exactly that: precise JSON with numeric confidence and one clear sentence for rationale, avoiding any extra text.
+codex
+{"verdict":"APPROVE","confidence":0.86,"rationale":"The three bumps are bounded, reversible, aligned with the Phase 3 full-unleash mandate, and the decision to keep MAX_MCP_OUTPUT_TOKENS at 50000 is the correct context-rot guardrail while still increasing Bash and MCP headroom materially.","prescribed_edits":[]}
+tokens used
+10,627
+{"verdict":"APPROVE","confidence":0.86,"rationale":"The three bumps are bounded, reversible, aligned with the Phase 3 full-unleash mandate, and the decision to keep MAX_MCP_OUTPUT_TOKENS at 50000 is the correct context-rot guardrail while still increasing Bash and MCP headroom materially.","prescribed_edits":[]}

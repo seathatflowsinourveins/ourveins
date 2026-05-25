@@ -1,0 +1,179 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 2b9dc420fbe3f80a9b2df6aea355718d7bae88e0
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit 2b9dc420fbe3f80a9b2df6aea355718d7bae88e0
+Author:     42 <42@local>
+AuthorDate: Sat May 9 16:40:54 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 16:40:54 2026 -0400
+
+    feat(wave-128-ship-a): cwc-makers + code-modernization + hookify plugin batch enable per Wave 126 Agent F P0 + Wave 128 Agent G REAL GPT-5.5 Path P APPROVE conf=0.90
+    
+    Wave 128 Ship A — 3 Anthropic OFFICIAL plugin batch enable. **CROSS-MODEL GATE STRUCTURALLY SATISFIED** via REAL GPT-5.5 BRIDGE-MODE Path P codex T1 v2 (codex session `019e0e6f-ba84-7b21-a5b6-1c696a73d74f` model=gpt-5.5 profile=deep-review-exec; 0% stand-in penetration — FIRST true cross-model verification this session arc).
+    
+    ==== Pattern A apply per codex-t1-fix-forward-pattern.md ====
+    
+    **Wave 126 Agent F P0 prescription**: install cwc-makers + code-modernization + hookify plugin batch from claude-plugins-official marketplace.
+    
+    **Wave 128 Agent G REAL GPT-5.5 BRIDGE-MODE verification**:
+    - APPROVE conf=0.90 batch enable
+    - All 3 verified in OFFICIAL marketplace at `./plugins/<name>` paths
+    - Use `/plugin install` slash-command (or persistent enabledPlugins config — chosen here)
+    - Cite: `.claude/state/codex_consult_w128_top3_t1_v2_OUT.txt` JSON-strict verdict at EOF
+    - Artifact: `tmp/wave128-agentG-w126-top3-codex-t1-2026-05-09.md`
+    
+    ==== ENABLED 3 plugins ====
+    
+    | Plugin | Source | Description |
+    |---|---|---|
+    | `cwc-makers@claude-plugins-official` | ./plugins/cwc-makers v1.0.0 | Code-with-Claude Makers Cardputer onboarding via /maker-setup command |
+    | `code-modernization@claude-plugins-official` | ./plugins/code-modernization | Modernize legacy codebases (COBOL/legacy Java/C++/monolith web apps) |
+    | `hookify@claude-plugins-official` | ./plugins/hookify | Easily create custom hooks to prevent unwanted behaviors by analyzing conversations |
+    
+    Plugins auto-cache on next eee launch via marketplace local-clone source per Wave 82d marketplace HEAD pin.
+    
+    ==== Mia pre-apply Probe 4 (PASS) ====
+    
+    24 currently-enabled plugins probed; ALL 3 NEW (no namespace collision):
+    - cwc-makers@claude-plugins-official: NEW (safe to add)
+    - code-modernization@claude-plugins-official: NEW (safe to add)
+    - hookify@claude-plugins-official: NEW (safe to add)
+    
+    ==== Marketplace verify (PASS) ====
+    
+    All 3 EXIST in claude-plugins-official marketplace at expected ./plugins/<name> paths. Marketplace-clone snapshot-level pinning per Pattern A; per-plugin version pinning N/A (marketplace local-clone source).
+    
+    ==== Mia OVER #77 catch from Wave 126 Agent F (REJECT-prevented this fire) ====
+    
+    Agent F P0 prescription #1 (autoMode.hard_deny rules) was REJECTED by Wave 128 Agent G REAL GPT-5.5 conf=0.91: "Field DOES NOT EXIST. Agent F's CHANGELOG 2.1.136 entry cite is unverifiable in CCBP @ 64fffd53". Cite-fabrication caught at REAL GPT-5.5 gate BEFORE FM-20 cross-fire propagation. Safe alternative: ship `environment + allow + soft_deny` only — DEFERRED to W128 Ship C (separate fire per cycle-300 ONE-LU-PER-FIRE). Mia ladder advance n=76 → n=77.
+    
+    ==== Wave 128 Ship sequence per Agent G recommendation ====
+    
+    - **W128 Ship A** (THIS FIRE): cwc-makers + code-modernization + hookify batch APPROVE
+    - **W128 Ship B** (next fire): wshobson/agents marketplace-add only (APPROVE conf=0.86)
+    - **W128 Ship C** (separate fire): autoMode SAFE-ALTERNATIVE (environment + allow + soft_deny only — REJECT hard_deny per Mia OVER #77)
+    
+    ==== T3 cross-model gate test (this commit) ====
+    
+    Per Wave 128 Agent H ERROR-1 + Agent I D1 + my Mia probe: T3 codex_postcommit_review.py NOT firing for 2+ days due to compound-chain `Bash` matcher rejection (`if: Bash(git commit *)` requires command to START with "git commit"; my prior commits used `cat > /tmp/msg && git commit -F` heredoc compound chains which START with "cat" → matcher rejects). THIS commit uses Write tool for msg file (separate op per file_writing_policy) + SINGLE `git commit -o` Bash (no compound chain — STARTS with "git commit"). EXPECTED: T3 hook fires this time → verdict at `.claude/state/codex_review_HEAD_<sha>.txt`.
+    
+    If T3 fires: Agent H matcher hypothesis CONFIRMED + ERROR-1 root cause IDENTIFIED + operator-side fix VALIDATED (use Write tool + SINGLE git commit Bash going forward).
+    
+    If T3 still doesn't fire: Agent I subagent-context-bypass hypothesis stands + need deeper SOTA research per CR-10.
+    
+    ==== CR conformance ====
+    
+    - CR-1 cite-trail: TIER-1-DIRECT marketplace.json#cwc-makers + #code-modernization + #hookify + Agent G REAL GPT-5.5 v2 verdict at codex session 019e0e6f
+    - CR-3 cross-model gate: SATISFIED via REAL GPT-5.5 Path P (NOT stand-in) — first true satisfaction this session arc
+    - CR-5 install-priority: Path A native install (Anthropic OFFICIAL marketplace persistent enabledPlugins config)
+    - CR-9 install-risk: LOW (no @latest version-pin, marketplace-clone snapshot pinning, Probe 4 collision PASS); REVERT path = single-commit revert + remove 3 entries (~30 sec)
+    - CR-10 research-first: Agent G CR-10 mandate executed via Path P codex foreground+tee web-research per cross-model-consensus.md §"On codex unavailable"
+    - CR-11 META-process: 3-agent fan-out per advanced-agent-team-standing-directive + Mia pre-apply on each prescription + Pattern A apply at REAL GPT-5.5 conf=0.90 sweet spot
+    - CR-12 priority: Path A (Anthropic OFFICIAL marketplace install) per Agent G verification
+    
+    Forward-only per port-note-discipline §6: Wave 126 Agent F prescription artifact preserved at tmp/wave126-agentF-anthropic-ccbp-gap-2026-05-09.md (no rewrite; Mia OVER #77 caught at Wave 128 Agent G gate).
+
+=== diff ===
+diff --git a/.claude/settings.json b/.claude/settings.json
+index a94436c..1965c66 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -407,8 +407,12 @@
+     "mcp-server-dev@claude-plugins-official": true,
+     "clickhouse@claude-plugins-official": true,
+     "outputai@claude-plugins-official": true,
+-    "qdrant-skills@claude-plugins-official": true
++    "qdrant-skills@claude-plugins-official": true,
++    "cwc-makers@claude-plugins-official": true,
++    "code-modernization@claude-plugins-official": true,
++    "hookify@claude-plugins-official": true
+   },
++  "_comment_wave128_ship_a_cwc_makers_code_modernization_hookify": "Wave 128 Ship A 2026-05-09 — enable 3 NEW Anthropic OFFICIAL plugins per Wave 126 Agent F P0 ADOPT-NOW prescription verified by Wave 128 Agent G REAL GPT-5.5 BRIDGE-MODE Path P codex T1 v2 APPROVE conf=0.90 (cross-model gate STRUCTURALLY SATISFIED — 0% stand-in penetration; codex session 019e0e6f-ba84-7b21-a5b6-1c696a73d74f model gpt-5.5 deep-review-exec profile). (a) cwc-makers v1.0.0 src=./plugins/cwc-makers — Code-with-Claude Makers Cardputer onboarding via /maker-setup command. (b) code-modernization src=./plugins/code-modernization — modernize legacy codebases (COBOL/legacy Java/C++/monolith web apps). (c) hookify src=./plugins/hookify — easily create custom hooks to prevent unwanted behaviors by analyzing conversations. Mia pre-apply Probe 4: ALL 3 NEW (no namespace collision with 24 currently-enabled plugins). Marketplace verify: ALL 3 EXIST in claude-plugins-official marketplace at expected ./plugins/<name> paths. Plugins auto-cache on next eee launch via marketplace local-clone source per Wave 82d marketplace HEAD pin. CR-12 Path A native install (Anthropic OFFICIAL marketplace `/plugin install` slash-command equivalent via persistent enabledPlugins config). Cite: REAL GPT-5.5 codex T1 v2 verdict at .claude/state/codex_consult_w128_top3_t1_v2_OUT.txt + Agent G ARTIFACT-INLINE at tmp/wave128-agentG-w126-top3-codex-t1-2026-05-09.md + marketplace.json#cwc-makers + #code-modernization + #hookify at .claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.j
+
+[prompt truncated]

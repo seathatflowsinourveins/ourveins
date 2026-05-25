@@ -1,0 +1,140 @@
+You are reviewing a design document for setting up a Claude Code launcher (`eee`)
+backed by an 8-account CLIProxyAPI fleet. The user wants to run intensive
+multi-agent / subagent dispatches without hitting Anthropic rate limits, with
+maximum prompt-cache reuse, and with end-to-end SOTA practices.
+
+## DESIGN DOCUMENT UNDER REVIEW
+
+Read in full: `Z:/claude-sota-installed/docs/eee-launch-design-cliproxyapi.md`
+(currently ~1180 LOC across §0-§22 + §21 dogfood).
+
+## CONTEXT
+
+- Runtime: `Z:/claude-sota-installed/` — install-only Claude Code runtime
+  bootstrapping from CLAUDE.md cardinal rules 1-12.
+- CLIProxyAPI install pin: HEAD `785b00c3127eea6aa207f1207ead8a2aa93690a3` =
+  tag v6.10.9 (2026-05-07), MIT-licensed. Source at `Z:/repos/deps/CLIProxyAPI`.
+- Operator has 7 active OAuth profiles at parent `Z:/claude/ccc/auth/`
+  (sibling/parent profiles are EXPLICITLY tagged as outdated per design §3.0;
+  fresh re-onboarding required per cardinal-rule-6 + cardinal-rule-9).
+- Operator-reported 2026-05-08: hitting Anthropic 529 "Server is temporarily
+  limiting requests (not your usage limit)" error class — distinct from
+  per-account 5h-window quota.
+
+## REVIEW AXES (3 — narrow, per Pattern A discipline)
+
+### AXIS-1 — Operational soundness for 8-account intensive fan-out
+
+Question: does the design (§0-§20) actually deliver on the user goals?
+
+Specifically validate:
+1. **Routing strategy choice (§2 + §5)**: design picks `routing.strategy: fill-first`
+   over `round-robin` for 5h-rolling-window staggering. Cite at
+   `selector.go:34-35` upstream comment claims fill-first "burns one account
+   before moving to the next" → operator gets ~40h continuous capacity vs
+   round-robin's ~5h synchronized exhaustion. Is this analysis correct? Are
+   there any failure modes where fill-first is structurally worse than
+   round-robin for a 5-agent parallel fan-out (per §5.1)?
+
+2. **Session-affinity correctness (§2 + §5.4)**: design enables
+   `session-affinity: true` + `session-affinity-ttl: "1h"`. The claim is
+   per-session prompt-cache continuity → 90% cost reduction on cached prefix
+   per Anthropic prompt-caching docs. Verify against
+   `selector.go:430-499 SessionAffinitySelector` and Anthropic's prompt-cache
+   primitive (cache_control: ephemeral + 1h TTL). Are there edge cases where
+   session-affinity hurts the operator (e.g. if a sticky account hits
+   per-account quota mid-session)?
+
+3. **Cardinal-rule-9 install-risk discipline**: design pins to v6.10.9 / sha
+   `785b00c3`; install via `gh release download` from canonical
+   github.com/router-for-me/CLIProxyAPI. Per cardinal-rule-9, every install
+   needs version-pin + 2-round fix-forward budget + REVERT-check. Is there a
+   missing risk class? (e.g. binary signing, supply-chain, GitHub
+   compromise, etc.)
+
+4. **Throughput math (§1)**: design claims ~24,000 messages / 5h effective
+   throughput at 50% prompt-cache hit rate × 8 accounts × fill-first
+   stagger. Is this math correct? Does it double-count anything?
+
+### AXIS-2 — SOTA cite-anchor accuracy at HEAD 785b00c3
+
+The design has ~80+ file:line cite anchors at HEAD `785b00c3` (v6.10.9).
+Spot-check a representative sample for accuracy:
+
+5. `selector.go:34-35` — claimed verbatim "burns one account before moving
+   to the next, which can help stagger rolling-window subscription caps".
+   Verify by reading the file at HEAD 785b00c3. Is the cite accurate?
+
+6. `selector.go:432` — claimed Claude Code session ID regex
+   `_session_([a-f0-9-]+)$`. Verify accuracy.
+
+7. `claude_executor.go:1843-1867` — claimed `ensureCacheControl` injects on
+   LAST tool / LAST system / SECOND-TO-LAST user turn per Anthropic
+   hierarchy. Verify the order claim (last-tool vs first-tool, etc).
+
+8. `anthropic_auth.go:25-32` — claimed official Anthropic Claude Code
+   ClientID `9d1c250a-e61b-44d9-88ed-5944d1962f5e`. Verify this is the same
+   ClientID that ships with `claude.exe` (not a fork-specific impostor).
+
+9. `conductor.go:1320-1322` — claimed per-auth `roundTripperFor(auth)` returns
+   per-credential HTTP transport (enables per-account proxy-url egress
+   isolation). Verify this is REALLY per-auth-isolated, not per-provider.
+
+### AXIS-3 — Anthropic 529 / "Server temporarily limiting" gap analysis (§22)
+
+10. **Gap claim**: design §22.1 asserts proxy v6.10.9 has NO explicit 529
+    handler — falls into `default` branch at `conductor.go:2167-2169`. The
+    `shouldRetryAfterError` at `:2018` only retries on 429+Retry-After.
+    Verify the claim by reading `conductor.go:2106-2169` at HEAD 785b00c3.
+    Is 529 handling actually missing OR is there a path I missed (e.g. via
+    `disable-cooling`, antigravity-credits fallback at `:3103`, or some
+    other path)?
+
+11. **Mitigation taxonomy correctness (§22.2-§22.6)**: design enumerates 6
+    mitigations:
+    A. Per-credential proxy-url (residential IP isolation)
+    B. disable-cooling workaround / upstream PR / vendor fork
+    C. App-level circuit-breaker in eee.ps1
+    D. Sister-project CCS / 9Router alternative-account-switch
+    E. Exponential backoff (30s/1m/2m/5m/10m/30m ladder)
+    F. (implicitly): file PR upstream
+
+    Are there mitigations I'm missing? Are any of these classes structurally
+    wrong (e.g. proxy-url won't help if Anthropic 529 is per-OAuth-account
+    rather than per-IP)?
+
+12. **Recommended layered defense (§22.7)**: design recommends activating
+    §22.4 + §22.6 first (free), then §22.2 only if 529 frequency > 1/day.
+    Is this ordering optimal?
+
+## OUTPUT REQUIREMENT
+
+Return a single JSON object with this exact schema:
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "axis_findings": {
+    "AXIS-1": [
+      {"finding_id": "F-1.1", "severity": "P0|P1|P2|P3", "claim": "...",
+       "evidence_cite": "file:line @ SHA", "prescribed_edit": "concrete
+       edit spec for the design doc"},
+      ...
+    ],
+    "AXIS-2": [...],
+    "AXIS-3": [...]
+  },
+  "missing_concerns": ["list of issues outside the 3 axes that operator
+    should know about"],
+  "next_actions": "single sentence summarizing what should ship next"
+}
+```
+
+Do NOT paraphrase the design — quote verbatim from cites. If you cannot
+verify a cite, mark severity=P1 and label `[UNVERIFIABLE]`.
+
+## CITATION DISCIPLINE
+
+Every prescribed_edit MUST cite the actual file:line @ HEAD 785b00c3 you
+verified against. No "I recall X" — always read the source.

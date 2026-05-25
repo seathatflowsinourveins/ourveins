@@ -1,0 +1,132 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit ec87a6cf476a4f0f5203398df054bdf67f1e0c32
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+AGENTS.md | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+=== git show --format=fuller ===
+commit ec87a6cf476a4f0f5203398df054bdf67f1e0c32
+Author:     42 <42@local>
+AuthorDate: Mon May 11 17:44:45 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 17:44:45 2026 -0400
+
+    docs(agents): Wave 152 Fire 22-FF — AGENTS.md specify-CLI flag-inconsistency fix (Pattern A round-2 on T3 NEEDS-ATTENTION conf=0.86 on `7cdd0bd`)
+    
+    Round-2 fix-forward per closed-loop-recursive-narrowing.md §Application checklist step 1
+    (round < 5, distinct concern from R1 — new finding, not regression).
+    
+    Codex T3 round-2 verdict at .claude/state/codex_review_HEAD_7cdd0bdd.txt caught: my prior
+    fix-forward mixed mutually-exclusive `--integration <agent>` and `--ai claude/codex/...` flags
+    in same fallback (per `specify init --help`, --integration and --ai cannot coexist).
+    
+    Applied codex prescription verbatim: standardized on `--integration` (new system; my install
+    used it), listed exact `--integration` example values from spec-kit v0.8.7 help docs (claude /
+    codex / copilot / cursor-agent / codebuddy / gemini / vibe / generic), removed `--ai` confusion,
+    documented mutual exclusivity inline.
+    
+    T3 round-3 will fire on this commit; if APPROVE → Outcome A close. If escalates → §Outcome B.
+
+=== diff ===
+diff --git a/AGENTS.md b/AGENTS.md
+index f122a0f..c8d005d 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -171,9 +171,11 @@ A change ships clean when ALL hold:
+   filesystem artifacts — read `.specify/memory/constitution.md` (principles), edit
+   `.specify/templates/{constitution,spec,plan,tasks,checklist}-template.md` (templates),
+   consult `.specify/workflows/workflow-registry.json` (workflow definitions). Re-run
+-  `specify init --here --integration <agent>` to install agent-native commands for each tool
+-  (supports `--ai claude/codex/copilot/cursor-agent/gemini/aider/etc.` per
+-  `specify init --help`). Source: github/spec-kit v0.8.7.
++  `specify init --here --integration <agent>` to install agent-native commands; documented
++  `--integration` targets per spec-kit v0.8.7 examples: `claude` / `codex` / `copilot` /
++  `cursor-agent` / `codebuddy` / `gemini` / `vibe` / `generic` (full list: `specify init --help`).
++  Note `--integration` (new system) and `--ai` are mutually exclusive — prefer `--integration`.
++  Source: github/spec-kit v0.8.7.
+ - **PreToolUse:Bash hooks (7)**: safety_guard / block_no_verify_guard /
+   gitleaks_pre_commit_gate (×2 for git commit/push) / codex_t2_pre_commit_gate (×2)
+   / **rtk hook claude** (Wave 118 — 80% token-efficiency rewrite layer)
+</repository_context>

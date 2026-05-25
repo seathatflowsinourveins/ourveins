@@ -1,0 +1,216 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit c0c0d8b7a0531d1eeaa022562ac696a6dd256b28
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/audit-refresh-W160-F1-2026-05-12.md | 182 +++++++++++++++++++++++++++++++
+ 1 file changed, 182 insertions(+)
+
+=== git show --format=fuller ===
+commit c0c0d8b7a0531d1eeaa022562ac696a6dd256b28
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:40:29 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:40:29 2026 -0400
+
+    docs(audit): W160 Fire 1 — SOTA-cleanliness audit refresh (57.78% token-instance / 61% W146-F1 row-level baseline)
+    
+    Fire 1 of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md`
+    (operator-approved 2026-05-12 post-codification-fire close `7cb64a06`).
+    
+    ## What this commit contains
+    
+    NEW: `docs/audit-refresh-W160-F1-2026-05-12.md` (~11.7K / ~270 LOC; 10 sections)
+    
+    ## Methodology + headline result
+    
+    W146-F3 weighted SOTA-cleanliness % computation over `docs/sota-installed-manifest.md` HEAD `7cb64a06`:
+    
+    | Class | Tokens | Weight | Contribution |
+    |---|---:|---:|---:|
+    | FULLY-CLEAN (INSTALLED/INSTALLED-VIA-SYSTEM-PATH/INSTALLED-ACTIVE/INSTALLED-AMBER-WIRED-ACTIVE) | 183 | 1.0 | 183.0 |
+    | HALF-CLEAN (INSTALLED-AMBER/INSTALLED-DORMANT/INSTALLED-PARTIAL) | 35 | 0.5 | 17.5 |
+    | NOT-CLEAN (STAGED/STAGED-PENDING/PLANNED/CITE-IMPORT-AMBER/DEFERRED) | 129 | 0 | 0 |
+    | **Install-class %** | | | **200.5 / 347 = 57.78%** |
+    | CITE-ONLY (separate denominator) | 58 | 1.0 | 100% |
+    | EXCLUDED (REJECTED/HISTORICAL/DEPRECATED) | 11 | excluded | n/a |
+    
+    ## Method-shift disclosure (per W146-F3 mandate L34)
+    
+    - Token-instance basis (each verbatim status-token mention counted)
+    - vs W146-F1 Agent A row-level classification (1 row = 1 status)
+    - Delta -3.22pp reflects METHOD-SHIFT not regression
+    - Reproducibility predicate: same manifest + same `grep -cE` + same W146-F3 weights → same output
+    
+    ## STAND-IN-NOTICE (per cross-model-consensus.md §Env-funneled disclosure mandate)
+    
+    Phase 1 Explore agent dispatch FAILED twice with FM-17.502 systemic provider 502
+    unknown-provider on claude-haiku-4-5 (Agents `a94cb3f9d5d1058a7` + `a2ae242038457a2d4`,
+    both 0 tokens/0 tool_uses, 175-181s duration). Pivoted to orchestrator-direct
+    Path P analog per `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md §FM-17`
+    recovery. Cross-model gate satisfaction status: PARTIAL — Fire 1 SOTA research
+    conducted orchestrator-direct; execution-phase Fires 2-12 MUST satisfy CR-3
+    cross-model gate at their own commit time via T2/T3 PostToolUse hooks.
+    
+    ## Cardinal-rule conformance
+    
+    - CR-1: TIER-1-DIRECT cites to `docs/sota-installed-manifest.md` L33-46 (W146-F3 weight table) — PASS
+    - CR-3: Phase 1 bootstrap exception applied; STAND-IN-NOTICE inline — PASS
+    - CR-8: ADAPTED-FROM-SOTA throughout (cite-class lattice + W146-F3 method per manifest L33-46) — PASS
+    - CR-11: META-process — Fire 1 follows audit-action-loop Wire→Surface stage — PASS
+    
+    ## Cite class (per citation-discipline.md rule #8)
+    
+    constituents=[
+      TIER-1-DIRECT @ docs/sota-installed-manifest.md L33-46 (W146-F3 weight table — file-resident SOTA discipline),
+      TIER-1-DIRECT @ Z:/claude-sota/.claude/rules/audit-action-loop.md (Wire/Surface/Close/Re-fire pattern),
+      TIER-3-LOCAL-OPERATOR-DERIVED @ orchestrator-direct probe 2026-05-12
+    ];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per MIN_PRECEDENCE
+    
+    ## Highest-leverage gaps identified for Fires 2-12 (per §6 of audit-refresh)
+    
+    | Gap | Sub-fires | Est. % delta |
+    |---|---|---:|
+    | 2 OPEN HIGH-severity T3 findings | Fire 2 (DEFERRED — parallel-session FM-02 (b) collision risk per Pre-Fire-2 gate; operator-direct edit later per Option D) | +2-3 pp |
+    | 6 rule files >40K chars | Fire 3 (DEFERRED — sibling-mirrored; decomposition risks divergence + parallel session shipping similar audit scope per HEAD `4b0fa37`/`ff6f553`) | +1-2 pp |
+    | 178 stale-marker mentions across 23/26 rules | Fire 5 (proceed read-only sub-fires) | +3-5 pp |
+    | 1 absent SOTA repo (deepwiki-open MIT 16278★) | Fire 6 (proceed CR-12 PRIMARY install) | +1 pp |
+    | Plugin-namespace duplicates per kiss-dry-yagni Must-Never #4 | Fire 7 | +2-3 pp |
+    | ECC + CCBP line-by-line audit | Fire 8 (3-agent fan-out per advanced-agent-team-standing-directive; Path P fallback for FM-17.502) | +3-5 pp |
+    | Awesome-list top-K candidate extraction | Fire 9 (read-only) | +1-2 pp |
+    | GitNexus integration depth audit | Fire 10 (read-only) | +0-1 pp |
+    | Cumulative convergence ship | Fire 11 (T1 codex foreground+tee) | (closes cross-model gate) |
+    
+    ## Projected post-W160 SOTA-cleanliness %
+    
+    65-75% range (W146-F3 method, token-instance basis), contingent on Fires 5+6+9+10
+    read-only/install work + Fire 11 convergence ship.
+    
+    ## Forward direction
+    
+    - Pre-Fire-2 gate: operator selected Option D analog (defer Fire 2; auto-proceed
+      Fires 3-12 with cross-model convergence)
+    - Parallel session active per HEAD `4b0fa37`/`c8233e3` — sibling-mirror rule decomp
+      + Fire 3 deferred per FM-02 (c) collision risk
+    - Next: Fire 5 read-only stale-marker probe + Fire 9 awesome-list extraction +
+      Fire 10 GitNexus probe (all read-only, no parallel-session collision risk)
+
+=== diff ===
+diff --git a/docs/audit-refresh-W160-F1-2026-05-12.md b/docs/audit-refresh-W160-F1-2026-05-12.md
+new file mode 100644
+index 0000000..6b22608
+--- /dev/null
++++ b/docs/audit-refresh-W160-F1-2026-05-12.md
+@@ -0,0 +1,182 @@
++# SOTA-cleanliness audit refresh — Wave 160 Fire 1 (2026-05-12)
++
++> **Status**: AUTHORITATIVE — Fire 1 deliverable of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md` (approved 2026-05-12 post-codification-fire close).
++>
++> **Cite class** (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
++> `constituents=[TIER-1-DIRECT @ docs/sota-installed-manifest.md L33-46 (W146-F3 weight table — file-resident SOTA discipline), TIER-1-DIRECT @ Z:/claude-sota/.claude/rules/audit-action-loop.md (Wire/Surface/Close/Re-fire pattern), TIER-3-LOCAL-OPERATOR-DERIVED @ orchestrator-direct probe 2026-05-12]; effective_tier=TIER-3-LOCAL-COMPOSITION` per MIN_PRECEDENCE.
++>
++> **STAND-IN-NOTICE** (per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate`): Fire 1 Phase 1 explore-agent dispatch FAILED systemically (Agents `a94cb3f9d5d1058a7` + `a2ae242038457a2d4` both FM-17.502 provider 502 unknown-provider on claude-haiku-4-5, 0 tokens / 0 tool_uses / 175-181s duration). Pivoted to **orchestrator-direct Path P analog** per `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md §FM-17` recovery. Cross-model gate satisfaction status: PARTIAL — orchestrator-direct bounded read-only probes; Fire 11 convergence ship MUST satisfy CR-3 cross-model gate at that fire's commit time.
++
++---
++
++## §1 Methodology
++
++**Probe basis**: token-instance count via `grep -cE` across full `docs/sota-installed-manifest.md` (389.8K Sections 0-19+).
++
++**W146-F3 weighted % formula** (verbatim per manifest L33-46 SOTA-cleanliness scoring table):
++
++| Class | Weight | Verbatim from L36-46 |
++|---|---:|---|
++| `INSTALLED` / `INSTALLED-VIA-SYSTEM-PATH` / `INSTALLED-ACTIVE` (+`INSTALLED-AMBER-WIRED-ACTIVE` per W155 F13 extension) | +1.0 | "Fully clean" |
++| `INSTALLED-DORMANT` (W146-F3 NEW) | +0.5 | "Cleaner than PLANNED; deferred to wire-activation" |
++| `INSTALLED-AMBER` | +0.5 (W146-F3) / 0 (Agent A verbatim) | "Installed primitive with deferred P2/P3" |
++| `INSTALLED-PARTIAL` | +0.5 (W146-F3) / 0 (Agent A verbatim) | "Upstream substrate exists but wiring contract incomplete" |
++| `CITE-IMPORT-AMBER` | 0 | "non-clean until upstream-parity-promoted" |
++| `STAGED` / `STAGED-PENDING` / `PLANNED` / `DEFERRED-PENDING-FIX` | 0 | "Identified but not installed" |
++| `CITE-ONLY` | +1.0 (separate denominator) | "Research-only; no install artifact" |
++| `REJECTED-POST-PROBE` / `HISTORICAL-MACHINE-EXCLUDED` / `DEPRECATED` | excluded | "Not counted in denominator" |
++
++**Method-shift discl
+
+[prompt truncated]

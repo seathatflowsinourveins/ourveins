@@ -1,0 +1,231 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 750a3ce67a2be108b26f1da6b47a58fd40151460
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/4class-memory-taxonomy-discipline.md | 189 ++++++++++++++++++++++++++++++
+ 1 file changed, 189 insertions(+)
+
+=== git show --format=fuller ===
+commit 750a3ce67a2be108b26f1da6b47a58fd40151460
+Author:     42 <42@local>
+AuthorDate: Mon May 11 01:06:59 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 01:06:59 2026 -0400
+
+    docs(4class-memory-taxonomy): Wave 134 Fire 42 — IMP-N 4-class memory taxonomy SHIPPED (Pattern A 5-edit applied; 8th Forward Discipline #2 recursive dogfood; Path D direct-apply per Fire 41 lesson)
+    
+    11th Tier-2 codification ship in Wave 134 series. Codified IMP-N per Fire 28 +
+    Fire 29c GPT-5.5 Axis-4 + Fire 41 Gate 5 PARTIAL status. NEW
+    docs/4class-memory-taxonomy-discipline.md (189 LOC post Pattern A 5-edit).
+    
+    Detailed codification of Fire 41 evidence-governed-harness Gate 5 (Memory
+    Promotion). 4 mutually-exclusive + exhaustive classes per atomic record:
+    
+    | Class | Storage | Promotion | Decay |
+    |---|---|---|---|
+    | 1 SEMANTIC-FACT | mcp-memory sqlite-vec | AUTO | Marker Decay |
+    | 2 EPISODIC-TRACE | graphiti FalkorDB | AUTO | Historical-immutable |
+    | 3 PROCEDURAL-SKILL-OR-RULE | .claude/rules/ OR docs/*-discipline.md | **TEST-GATED via Gate 4 + cycle-322 n≥3** | Marker Decay |
+    | 4 OPERATIONAL-RUNBOOK | MEMORY.md + tmp/*.md + planning-with-files | AUTO low-friction | FAST |
+    
+    ## Codex T1 verdict (8th Forward Discipline #2 dogfood — Path D direct-apply)
+    
+    ```json
+    {
+      "verdict": "NEEDS-REVISION",
+      "confidence": 0.9,
+      "summary": "The 4-class taxonomy is sound, storage mappings are mostly correct, and Class 3 being the only gated destination is appropriate. The main defect is promotion-ladder wording: it implies memory objects transform RUNBOOK -> SEMANTIC -> PROCEDURAL, when procedural promotion should be evidence synthesis from repeated episodic/runbook observations, not direct reclassification of a single memory item.",
+      "four_class_exhaustive": "YES",
+      "class_boundaries_precise": "NEEDS-FIX",
+      "storage_layer_mapping_correct": "YES",
+      "promotion_gate_appropriate": "YES",
+      "decay_handling_appropriate": "YES",
+      "source_of_truth_clear": "YES",
+      "promotion_ladder_accurate": "NEEDS-FIX",
+      "anti_pattern_coverage": "COMPREHENSIVE",
+      "sister_rule_integration_correct": "YES",
+      "cite_class_correct": "YES",
+      "prescribed_edits": 5
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f42_4class_memory_taxonomy_OUT.txt`
+    ~150s wall-clock / 13,163 tokens / 222 LOC verdict.
+    
+    ## Pattern A 5-edit applied (single atomic fix-forward)
+    
+    1. ✅ NEW §Atomicity rule: if memory-write spans multiple truth types → split
+       into separate atomic records BEFORE classification; EXACTLY ONE class per
+       atomic record (NOT per human paragraph)
+    2. ✅ NEW §Boundary precedence: stable fact learned during episode = Class 1
+       for the fact + Class 2 for the discovery event (two atomic records);
+       codified discipline derived from repeated episodes = Class 3 for
+       codification + Class 2 constituents REMAIN; runbook stabilizing into
+       pattern = runbook stays Class 4 + separate Class 1/3 record triggered
+    3. ✅ Replaced "promotion ladder" with §Evidence-synthesis ladder: 3-stage
+       lattice (Stage 0 single observation → Stage 1 cross-arc n=2 NEW
+       SEMANTIC-FACT about recurrence → Stage 2 cross-arc n=3+ OR user-trigger
+       NEW PROCEDURAL); each stage CREATES new higher-synthesis-level record;
+       source records REMAIN at original class (NOT reclassified)
+    4. ✅ Updated anti-pattern "Auto-promote EPISODIC-TRACE to PROCEDURAL":
+       explicit NEVER auto-promotes; multiple episodic traces serve as Gate 4 /
+       cycle-322 evidence for SEPARATE procedural codification (NEW Class 3
+       record, NOT reclassification of Class 2 records)
+    5. ✅ NEW anti-pattern "Reclassify a memory record by changing its class
+       label" — refuted by storage-class-immutability: SEMANTIC-FACT record
+       once written stays Class 1; what changes is SEPARATE new record at
+       different class
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 Forward Discipline #2 ladder advance n=7→n=8 with Path D direct-apply
+    
+    | Fire | n | Dispatch | Verdict | Wall-clock |
+    |---|---|---|---|---|
+    | 27-E | 1 | Path P | APPROVE 0.91 | 18s |
+    | 27-F | 2 | Path P | APPROVE 0.91 | 183s |
+    | 28 | 3 | Path P | NEEDS-REVISION 0.89 | ~120s |
+    | 29a | 4 | Path P | NEEDS-REVISION 0.91 | ~120s |
+    | 37 | 5 | Path P | APPROVE 0.89 (PROMOTION) | 22s |
+    | 40 | 6 | Path P | NEEDS-REVISION 0.82 | ~150s |
+    | 41 | 7 | Path P HNF → Path D fallback | NEEDS-REVISION 0.89 | ~150s |
+    | **42** | **8** | **Path D direct (skipping Path P per Fire 41 lesson)** | **NEEDS-REVISION 0.9** | **~150s** |
+    
+    Fire 42 is the **first n=8 instance where Path D is applied directly without
+    trying Path P first**. Per Fire 41 lesson (Pattern B HNF on Path P + Path D
+    fallback recovery), Fire 42 codifies Path D as production-default for
+    codification fires. n=8 instance establishes Path D direct-apply as the
+    SOTA dispatch shape for Forward Discipline #2 codification reviews (sister
+    to ongoing Wave 137-142 Pattern D codification arc per task #137).
+    
+    ### #2 Atomicity + Boundary-precedence + Storage-class-immutability — class-boundary precision discipline
+    
+    Codex T1 caught semantic ambiguity at class boundaries:
+    - A single observation may span multiple classes (fact + episode + procedural
+      insight) → §Atomicity rule mandates pre-classification split
+    - Same conceptual content may resolve different classes in different contexts
+      → §Boundary precedence codifies tie-breaker (each atomic record gets own class)
+    - Promotion is NOT reclassification → §Storage-class-immutability principle
+      prevents historical-record-rewrite anti-pattern
+    
+    These 3 wording refinements upgrade the taxonomy from "category labels" to
+    "epistemically-disciplined record-classification system" with explicit
+    record-immutability invariant.
+    
+    ### #3 Evidence-synthesis ladder replaces reclassification ladder — fundamental refinement
+    
+    The most LOAD-BEARING codex T1 catch: prior framing "RUNBOOK → SEMANTIC →
+    PROCEDURAL" implied records mutate class. Refined framing "evidence
+    accumulates from RUNBOOK + EPISODIC traces → SEPARATE NEW SEMANTIC-FACT or
+    PROCEDURAL record with backlinks" preserves source-record-immutability while
+    enabling synthesis. The ladder is **evidence at the ARC level**, not
+    mutation at the RECORD level.
+    
+    ## Path P recipe ladder
+    
+    n=29 → **n=29** (Fire 42 dispatched Path D directly; skipped Path P attempt
+    per Fire 41 lesson)
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ships: n=10 → **n=11**
+    - Forward Discipline #2 evidence ladder beyond promotion gate: n=7 → **n=8**
+    - Pattern A multi-edit single-atomic-apply instances: n=4 → **n=5**
+    - Path D direct-apply (skipping Path P per Fire 41 lesson) instances: n=0 → **n=1 NEW**
+    - Memory-taxonomy class-codifications: n=0 → **n=1 NEW**
+    - Storage-class-immutability principle codifications: n=0 → **n=1 NEW**
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION disclosed (10 cite count)
+    - CR-3 cross-model: ✅ FULLY SATISFIED — REAL GPT-5.5 NEEDS-REVISION conf=0.9 + Pattern A 5-edit applied
+    - CR-9 install-risk: N/A (pure docs/ codification)
+    - CR-10 research-first-then-install: ✅ Research = Fire 29c GPT-5.5 Axis-4 + Fire 41 Gate 5 PARTIAL; result = docs/4class-memory-taxonomy-discipline.md
+    - CR-11 META-process: ✅ THIS FIRE IS the CR-11 dogfood
+    - CR-12 5-class lattice: ✅ GENUINELY-NEW disposition
+    - FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+    - Pattern A fix-forward: ✅ 5-edit single atomic apply
+    - Forward Discipline #2 (8th recursive dogfood post-cycle-322-promoti
+
+[prompt truncated]

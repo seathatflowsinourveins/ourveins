@@ -1,0 +1,203 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 00f43b038423eeaf4f806cd1fac6626b6ca8e8e9
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../scripts/agent_plan_readonly_bash_guard.py      | 937 +++++++++++++++++++++
+ .claude/hooks/scripts/safety_guard.py              | 337 ++++++++
+ docs/install-provenance.md                         |  63 ++
+ 3 files changed, 1337 insertions(+)
+
+=== git show --format=fuller ===
+commit 00f43b038423eeaf4f806cd1fac6626b6ca8e8e9
+Author:     42 <42@local>
+AuthorDate: Mon May 11 10:39:24 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 10:39:24 2026 -0400
+
+    feat(hooks): Wave 148 Fire 1 — track Wave 14b cite-import safety-floor hooks (DISPOSITION A conf=0.94)
+    
+    Per Wave 148 Fire 1 Agent A sota-researcher audit (task afa3b1d6f0c9a279f
+    414K tokens / 8 tool_uses / 127s; ARTIFACT-INLINE persisted at
+    tmp/wave148-agentA-untracked-hooks-audit-2026-05-11.md):
+    
+    Both scripts are Wave 14b verbatim cite-imports from sibling SOTA at pinned SHAs:
+    - safety_guard.py (337 LOC; +34 provenance header) ← sibling SHA `32fbcb0` Wave 29
+    - agent_plan_readonly_bash_guard.py (937 LOC; +45 provenance header) ← sibling SHA `f57c74d` Wave 11A
+    
+    CR-9 install-risk audit clean:
+    - Sibling-bleed: 7/7 occurrences = Class (a) cite-anchor comments in provenance
+      headers (ZERO runtime path deps; ZERO Class (b)/(c))
+    - REVERT-precedent: sibling REVERT list = bash_command_allowlist + fleet_health_start
+      + permission_request_auto_approve only; NEITHER audit target on REVERT list
+    - Import-clean: Python 3.13 IMPORT OK for both
+    - Wiring: both at .claude/settings.json:167+ PreToolUse Bash matcher
+    - Behavioral change: ZERO (byte-identical to current runtime state)
+    
+    Cardinal rule conformance:
+    - CR-1 cite-trail TIER-1-DIRECT + TIER-3-LOCAL-COMPOSITION per citation-discipline rule #8
+    - CR-5 install-priority: install-class via Wave 14b cite-import (not novel)
+    - CR-8 full-SOTA-content: HNF gate evidence in provenance headers
+    - CR-9 install-risk discipline: REVERT-precedent + sibling-bleed-defense + version-pin all PASS
+    - CR-12 upstream-install-priority: TERTIARY cite-import-AMBER properly invoked w/ HNF gate
+    - FM-02 b+c atomic single-shell git add + commit --only defense
+    - git-cli-grammar-discipline.md options before `--`
+    
+    Cross-model gate: Phase 1 bootstrap exception per CR-3 — Agent A sota-researcher
+    verdict + T2 codex_t2_pre_commit_gate hook fires on this commit. Path P codex exec
+    running background for W148-F1 Agent B 10-repo audit (task bdt601z41; FM-17.f
+    n=6 firm recovery from Wave 148 Fire 1 Agent B + C both pre-fired billing-class).
+    
+    Risk class: LOW (0 LOC content change; behaviorally invariant)
+    Ladders: FM-17.f n=4→n=6 firm (W148-F1 2× ladder advance same fire) /
+    Mia n=274 unchanged (Agent A audit no OVER catches) /
+    Pattern D n=20→n=21 (Path P bg dispatch in progress)
+    
+    Refs:
+    - tmp/wave148-agentA-untracked-hooks-audit-2026-05-11.md (full audit body)
+    - Z:/claude-sota/.claude/hooks/scripts/safety_guard.py @ 32fbcb0 (sibling pin)
+    - Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py @ f57c74d
+    - Z:/claude-sota-installed/CLAUDE.md cardinal-rule-9 + cardinal-rule-12
+    - Z:/claude-sota-installed/.claude/rules/fm19-readonly-guard-sidestep.md
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py b/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+new file mode 100644
+index 0000000..ef26569
+--- /dev/null
++++ b/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+@@ -0,0 +1,937 @@
++# ===================================================================
++# WAVE 14 PORT — claude-sota-installed cite-import per CR-12 TERTIARY
++# (HONEST-NON-FINDING-gated; manifest §13 row Path B HNF-confirmed)
++# ===================================================================
++# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
++# Source SHA (PINNED): f57c74dd68bb52771633d6ea76426842669fa499
++# Source bytes: 44974 (this target adds prepend block; body byte-for-byte port + 1 rewrite class)
++# Path-rewrites applied: 1 class × 2 occurrences ("in sss" -> "in eee" launcher-name)
++#
++# effective_tier: TIER-3-LOCAL-COMPOSITION
++# (per CLAUDE.md cardinal-rule-1 cite-class lattice; sibling-derived cannot elevate to TIER-1 SOTA
++#  per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8)
++#
++# HONEST-NON-FINDING evidence (per cardinal-rule-12 cite-import-AMBER gate):
++#   Wave 14 dispatch ID = "Wave 62 fire 13"
++#   Upstream-parity-probe scope: claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers
++#     + mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc — probed for
++#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
++#     ZERO upstream parity. Sibling-discovered/codified Wave 50 fire 11 row-7 verdict.
++#
++#   Probe DAG: P1 LICENSE PASS (sibling Apache-2.0 inheritance) / P2 registry-existence N/A
++#     (no install-class equivalent on npm/PyPI/cargo) / P3 namespace PASS (no collision in
++#     claude-sota-installed) / P4 plugin-namespace PASS (probe of all enabled plugins
++#     returned no equivalent hook) / P5 README/frontmatter PASS / P6 deep-audit PASS.
++#
++#   CR-9 sibling-bleed defense:
++#     - 6-class strict pattern grep: 0 hits on Z:/claude-sota[^-]/, Z:\claude-sota\, Z--claude-sota[^-],
++#       claude-sota-state, sss --, `sss`. PASS strict-pattern check.
++#     - Non-strict launcher-name leak: 2 occurrences "in sss" (docstring lines 5 + 65) rewritten
++#       to "in eee" at port time per cleanliness extension of CR-9 strictness.
++#     - All paths in body are RUNTIME-AGNOSTIC (.claude/state/..., .claude/rules/..., .codex/...)
++#       — relative paths interpreted from runtime CWD, not absolute sibling paths.
++#
++#   CR-9 sub-rules applied:
++#     - Pre-cite-import REVERT check: PASSED. Git log shows forward-only commit chain
++#       (b677669 creation -> 89fe24b/f7cc1f6/18586c8 fix-forwards -> f57c74d).
++#       Commit f57c74d title "Wave 11A REVERT-AND-REMOVE bash_command_allowlist" refers to
++#       a DIFFERENT file (bash_command_allowlist.py) — NOT this file. False-positive REVERT
++#       flag corrected per Wave 14 directive verification.
++#     - 2-round fix-forward expectation: budget acknowledged; first-round port carries
++#       0-rewrite + cleanliness-extension only.
++#
++# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
++# slot — this row promotes PLANNED-Path-B-HNF-confirmed -> INSTALLED-AMBER post-port.
++# ===================================================================
++# Reference: TIER-1 OFFICIAL Anthropic CC hooks docs https://code.claude.com/docs/en/hooks (PreToolUse JSON input/output contract; permissionDecision deny/allow/ask)
++# Reference: TIER-1 OFFICIAL Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents L463-493,520-548 (subagent frontmatter PreToolUse hooks; only fire while subagent active)
++# Reference: TIER-1 OFFICIAL Anthropic CC permissions docs https://code.claude.com/docs/en/permissions L130-137 (Bash(*) ≡ Bash) + L292-295 (hooks extend permissions and can deny tool calls before permission rules complete)
++# Reference: .claude/state/codex_consult_path_b_substantive_enforcement_design_OUT.txt (codex T1 APPROVE Path F conf=0.89 verdict — Q7 prescription verbatim drives this script's behavior)
++# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
++# Reference: .claude/rules/layered-gates-architecture.md §9 (HARD GATE for DENY-emitting hooks — tests/test_<hook>_security.py REQUIRED before commit)
++# Reference: .claude/rules/cross-model-consensus.md §Severity taxonomy mapping (this hook closes HIGH/P1 from arc-2 + arc-3 + arc-4 
+
+[prompt truncated]

@@ -1,0 +1,121 @@
+# W153 F11 V2 — ECC sub-category audit (REAL leverage target per F6 actual-loaded measurement)
+
+## Background
+
+W153 F6 measured ECC as 455 SKILL.md / 60,985 description chars / ~4× CCBP 15K budget for ECC alone. ECC = 76.1% of actual-loaded skill registry per F6 — DOMINANT context-budget pressure.
+
+W153 F11 (this fire) probes ECC structure to identify:
+1. Localization-duplicate vs canonical skill counts
+2. Per-skill CR-12 disposition (KEEP / DUPLICATE-FUNCTIONALITY-WITH-OTHER-PLUGINS / DEMAND-ABSENCE)
+3. Disable candidates ranked by leverage
+
+## F11 probe findings (orchestrator-side BEFORE this consult)
+
+Probed via `find` recursive scan against `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/`:
+
+- **Total SKILL.md (recursive)**: 455 (matches F6 figure)
+- **Top-level skills/ canonical**: 182 SKILL.md (each in own `<skill-name>/SKILL.md` subdir)
+- **docs/ subdir SKILL.md**: 212 + 61 = 273 (depth-11 + depth-10)
+- **Localization subdirs at docs/**: zh-CN / ja-JP / ko-KR / tr / zh-TW (5 languages)
+
+**Hypothesis**: 273 docs/<lang>/skills/ SKILL.md are localization COPIES of the canonical 182 skills (5 languages × ~55 skills translated = ~275; close to 273). They likely do NOT load into Claude's actual skill registry since Anthropic plugin convention reads only `skills/<name>/SKILL.md` (NOT `docs/<lang>/skills/...`).
+
+If hypothesis is TRUE:
+- F6's 455 figure is OVERCOUNT for actual-loaded context
+- Real ECC functional skill count = 182 (not 455)
+- Real ECC description char budget pressure = ~24,570 chars (182 × 135 mean) — only ~1.6× CCBP 15K, NOT ~4×
+- F11 action: cite-only finding correcting F6 over-measurement; NO disable action needed
+
+If hypothesis is FALSE (Claude DOES load docs/<lang>/skills/):
+- F6's 455 figure is correct
+- Localization disable could free ~36,750 chars (273 × 135)
+- F11 action: ship some localization-disable mechanism (TBD)
+
+## Authority cites
+
+- Anthropic CC plugin docs: `https://code.claude.com/docs/en/plugins-reference` (skills/ canonical directory)
+- ECC source repo: `affaan-m/everything-claude-code` HEAD `4220f1b0` (sibling claude-sota cite)
+- CCBP claude-skills.md: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-skills.md @ HEAD 4527f4d4` skill discovery semantics
+- F6 measurement: `docs/wave153-f6-actual-loaded-manifest-2026-05-11.md` 455 SKILL.md / 60,985 chars baseline
+
+## Constraints
+
+1. F11 is an AUDIT (no install-class mutation; doc-only ship)
+2. ECC is TIER-1 Anthropic OFFICIAL (affaan-m well-maintained fork) — disable decisions need careful justification per CR-12 + kiss-dry-yagni Must-Never #4
+3. Per cardinal-rule-10 research-first-then-install: no action until V2+V3 convergence
+4. Per port-note-discipline.md §6: forward-only; do NOT rewrite F6 measurement
+
+## Design questions
+
+### Q1: Does Claude load `docs/<lang>/skills/<name>/SKILL.md`?
+
+Probe Anthropic CC plugin specification:
+- `code.claude.com/docs/en/plugins-reference` — what's the canonical skill discovery path?
+- Plugin frontmatter conventions: does `skills/` directory have a glob limit?
+- Does Claude recursively scan plugin cache, OR only `<plugin>/skills/*/SKILL.md`?
+
+If only canonical `skills/` is loaded → 273 docs/<lang>/skills/ are NOT runtime-loaded → cite-only finding.
+
+### Q2: Top-N high-leverage ECC skills
+
+If 182 canonical skills are confirmed actually-loaded:
+- Which 20-50 are OPERATIONALLY ACTIVE in eee /loop arc usage? (probe MEMORY.md for fired skills; probe install-provenance for cite anchors)
+- Which 50-100 are likely DORMANT (no eee workflow demand)?
+- Which DUPLICATE functionality already in superpowers / addy-agent-skills / context-mode / other enabled plugins (KISS Must-Never #4)?
+
+### Q3: CR-12 disposition class per ECC skill
+
+For each of 182 canonical ECC skills, apply CR-12 6-class lattice:
+- GENUINELY-NEW: novel functionality
+- DUPLICATE-FUNCTIONALITY: duplicates another loaded plugin (REJECT-FOR-FIT)
+- PARTIAL-OVERLAP: shares scope but different mechanism (case-by-case)
+- ECOSYSTEM-IMPORT: brings unrelated framework
+- CITE-CLASS-CANONICAL: reference material
+- PROVIDER-COMPLEMENT: parallel-mechanism (both useful)
+
+### Q4: Disable mechanism if action needed
+
+If F11 finds disable candidates:
+- Per-skill: NOT supported by Anthropic CC (plugin-level enable/disable only; no per-skill granularity per docs)
+- Per-plugin: would require disabling ECC entirely (NOT recommended — too many useful skills)
+- Selective: fork ECC + remove unwanted skills? (CR-9 fork-bleed risk per `port-note-discipline.md §6` — sibling-clone modifications)
+- DEFER: cite-only audit; no action until Anthropic ships per-skill granularity
+
+### Q5: SRA D1-D10 awareness
+
+Per `Z:/claude-sota-installed/.claude/rules/sota-research-architecture.md`: F11 is operator-discipline state assessment, NOT new SOTA adoption. SRA D1-D10 NOT strictly required, but D6 (use-class compat) + D10 (replacement viability) apply if F11 prescribes disable.
+
+## Output schema (JSON-strict at EOF)
+
+```json
+{
+  "verdict": "APPROVE-CITE-ONLY-FINDING|APPROVE-SELECTIVE-DISABLE|REVISE-DESIGN|REJECT-F11",
+  "confidence": 0.NN,
+  "q1_localization_load": {
+    "anthropic_cc_canonical_skills_path": "skills/<name>/SKILL.md|other",
+    "docs_lang_skills_loaded": true|false,
+    "evidence_cite": "..."
+  },
+  "ecc_real_loaded_count": NNN,
+  "ecc_real_description_chars": NNN,
+  "ccbp_budget_multiplier_corrected": "Nx",
+  "high_leverage_skills_top_n": ["..."],
+  "duplicate_functionality_with_other_plugins": [
+    {"ecc_skill": "...", "duplicates_plugin": "...", "rationale": "..."}
+  ],
+  "demand_absent_skills": ["..."],
+  "cr12_disposition_summary": {
+    "GENUINELY-NEW": NNN,
+    "DUPLICATE-FUNCTIONALITY": NNN,
+    "PARTIAL-OVERLAP": NNN,
+    "PROVIDER-COMPLEMENT": NNN,
+    "CITE-CLASS-CANONICAL": NNN
+  },
+  "disable_mechanism_recommendation": "DEFER-NO-MECHANISM|PER-PLUGIN-DISABLE-ECC|FORK-AND-PRUNE",
+  "estimated_action_ship_loc": NNN,
+  "alternative_findings": ["..."],
+  "prescribed_edits": ["..."]
+}
+```
+
+Be rigorous. Cite Anthropic CC plugin docs at line numbers. Verify the localization-load hypothesis BEFORE recommending action. Apply CR-12 + kiss-dry-yagni + SRA awareness. Honest if F11 is just a cite-only correction (no action needed).

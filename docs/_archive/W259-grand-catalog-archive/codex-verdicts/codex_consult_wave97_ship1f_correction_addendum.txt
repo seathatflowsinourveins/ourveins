@@ -1,0 +1,66 @@
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1F-correction (forward-only addendum acknowledging Pattern A F1 violation discovered post-commit)
+
+CONTEXT:
+- Wave 97 Ship 1F (commit 22e58b3) was DESIGNED as doc-only cite-trail headers
+- Pattern A F1 prescribed: "Isolate Ship 1F so the commit contains only cite-trail/documentation changes; the current scripts/codex-plugin-hooks-rewrite.py diff also contains Wave 80 behavior edits and should be separated or separately gated"
+- Pattern A F1 apply attempted via `printf 'y\nq\n' | git add -p scripts/codex-plugin-hooks-rewrite.py`
+- POST-COMMIT VERIFICATION (this turn) reveals: Ship 1F commit 22e58b3 INCLUDES the Wave 80 patches — `printf y\nq\n` quit didn't actually skip subsequent hunks; they got included
+- Working tree is now CLEAN (git diff = 0); no uncommitted Wave 80 patches remain to ship separately
+
+VIOLATION SCOPE:
+Ship 1F commit 22e58b3 actual content:
+- 35 LOC cite-trail header (intended for Ship 1F)
+- 220 LOC Wave 80 patches (UNINTENTIONALLY included; was supposed to be separate ship)
+  - WAVE80_191_SENTINEL + WAVE80_245_SENTINEL markers
+  - find_mjs_files() helper
+  - patch_191_stop_review_gate_hook() function
+  - patch_245_session_lifecycle (or similar)
+
+CROSS-MODEL GATE STATUS FOR WAVE 80 PATCHES:
+The Wave 80 patches were ALREADY cross-model-gated in their ORIGINAL Wave 80 review:
+- Verdict file: `.claude/state/codex_consult_wave80_deep_audit_OUT.txt` (1,651,875 bytes)
+- Verdict Q3 (0.96 confidence): "codex-plugin-cc #191/#245: Patch now, do not wait. #191 still matches local stop-review-gate-hook.mjs:22 read-before-disabled-gate; #245 still matches broker-lifecycle.mjs:43-56 no shutdown timeout."
+- Wave 80 verdict prescribed_edit #3 (verbatim): "Z:/claude-sota-installed/scripts/codex-plugin-hooks-rewrite.py: extend rewriter/check to patch #191 and #245 in both cache + marketplace plugin sources; set Stop timeout consistently to 300, not 900."
+- This is the SAME script + SAME patches now committed in Ship 1F. Cross-model gate IS satisfied — just via WRONG commit boundary.
+
+PROPOSED ADDENDUM (forward-only per port-note-discipline.md §6 anti-pattern "Do not rewrite historical commit bodies"):
+
+Add to docs/install-provenance.md AFTER the Ship 1F entry — a "Ship 1F-correction" sub-section documenting:
+1. Pattern A F1 violation: selective `git add -p` quit didn't fully isolate Ship 1F to doc-only
+2. Wave 80 patches DID get committed in 22e58b3 alongside cite-trail headers
+3. Cross-model gate satisfied via Wave 80 prior verdict at codex_consult_wave80_deep_audit_OUT.txt Q3=0.96
+4. NO revert per Outcome A ACCEPT-WITH-DOC + port-note-discipline.md §6 forward-only
+5. Lesson: `git add -p` with `printf 'y\nq\n'` requires verifying staged-scope BEFORE commit (not just after edit)
+
+CHANGE SCOPE:
+- 1 file edit: docs/install-provenance.md +Ship 1F-correction addendum (~50 LOC)
+- ZERO behavior change (pure documentation)
+- ZERO code change
+- Working tree was CLEAN before this addendum (no other modifications)
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT: `Z:/claude-sota-installed/.claude/state/codex_consult_wave80_deep_audit_OUT.txt` Q3=0.96 (Wave 80 prior cross-model verdict for the patches that landed in Ship 1F)
+- TIER-2 sister: `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md §Outcome A ACCEPT-WITH-DOC` (cite-import-AMBER)
+- TIER-2 sister: `Z:/claude-sota/.claude/rules/port-note-discipline.md §6` anti-pattern (cite-import-AMBER) — forward-only, do NOT rewrite historical commit bodies
+- TIER-2 sister: `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A` F1 (selective-stage failure mode documented)
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1-DIRECT cite to Wave 80 verdict file
+- CR-3: this consult IS the cross-model gate for the addendum (real GPT-5.5 e2e BEFORE commit)
+- CR-7: Phase 1 — doc-only edit
+- CR-8: ADAPTED-FROM-SOTA — Outcome A ACCEPT-WITH-DOC discipline cited
+- CR-9: install-risk LOW (doc-only)
+- CR-10: research-first — investigated commit scope BEFORE writing addendum
+- CR-11: META-process SOTA — honest-disclosure of Pattern A F1 violation per cardinal-rule 7 "REPORT errors before routing around them"
+
+QUESTION (JSON ONLY):
+Is Wave 97 Ship 1F-correction (forward-only addendum acknowledging Pattern A F1 violation; documenting cross-model gate satisfaction via Wave 80 prior verdict) APPROVE-COMMIT?
+
+Concerns:
+1. Is Outcome A ACCEPT-WITH-DOC the right disposition vs Outcome B REVERT-AND-REMOVE?
+2. Should the addendum trigger a separate `--check` smoke probe to confirm the Wave 80 patches are operating correctly?
+3. Any forward-only audit trail expectations beyond the addendum?
+4. Should `codex-plugin-hooks-rewrite.py --check` be run to verify the Wave 80 patches actually still apply correctly (sanity check post-commit)?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

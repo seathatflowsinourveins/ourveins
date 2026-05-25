@@ -1,0 +1,76 @@
+CODEX T1 CONSULT — Fire 42 eee silent-hang root-cause + Tier 0 native install priority
+
+CONTEXT (claude-sota-installed runtime, foreground+tee per FM-17.d recovery):
+
+The operator runs the launcher `eee` (PowerShell entrypoint at Z:/claude-sota-installed/tools/eee.ps1, shim at bin/eee.cmd) with `$env:EEE_BOOTSTRAP="1"` to bypass hard-gate failures. The operator reports SILENT HANG — no output visible after `eee`. Earlier silent-hangs in this arc:
+- Fire 40: User Path entry was registry-persistent but operator's existing shell had stale Process Path; fixed via bin/install-path.ps1 self-diagnosing 4-probe + state-dir pre-create [5/5] block.
+- Fire 41: state-outside-repo dirs (Z:/claude-sota-installed-state/.claude/projects + .codex) took ~4 min to create on Z: drive; pre-created by install-path.ps1.
+- Fire 42 (current): operator ran install-path.ps1 (5/5 PASS), set EEE_BOOTSTRAP=1, ran `eee` again — STILL silent.
+
+DIAGNOSTIC PROBES JUST RUN:
+
+PROBE A — claude.exe --version under installed ENV:
+  Result: "2.1.119 (Claude Code)" exit=0 in <1s. claude.exe HEALTHY.
+
+PROBE B — claude.exe --print 'echo' under FULL installed ENV (loads .mcp.json + plugin hooks):
+  Result: "Hi! Ready when you are. What would you like to work on in `Z:\claude-sota`?"
+  ELAPSED: 20s; exit=0
+  STDERR ERROR (cosmetic, non-blocking):
+    SessionEnd hook [node "${CLAUDE_PLUGIN_ROOT}/scripts/session-lifecycle-hook.mjs" SessionEnd] failed:
+    Error: Cannot find module 'Z:\z\claude-sota-installed\.claude\plugins\cache\openai-codex\codex\1.0.4\scripts\session-lifecycle-hook.mjs'
+        at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+
+  ACTUAL FILE LOCATION (verified via ls):
+    Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/scripts/session-lifecycle-hook.mjs (7635 bytes, exists, +x).
+
+  PATH-MANGLING DIFF: Expected `Z:\claude-sota-installed\...`, got `Z:\z\claude-sota-installed\...` — duplicated `\z\` segment after drive letter. This is a Node-on-Windows artifact: a POSIX-form path starting with `/z/` is interpreted by Node's path.resolve as drive-relative → prepends current drive → `Z:\z\...`. Same root-cause class as the prior `feedback_hook_posix_path_drift.md` precedent at parent claude-sota.
+
+PROBE C — settings.json hooks shape:
+  Hook events configured: ['PreToolUse', 'PostToolUse', 'Stop', 'SubagentStop']
+  enabledPlugins: ['superpowers@claude-plugins-official', 'codex@openai-codex', 'everything-claude-code@everything-claude-code']
+
+PLUGIN HOOK SOURCE OF SessionEnd:
+  Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json:9 SessionStart command
+  Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json:20 SessionEnd command
+  Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json:31 Stop command
+  All 3 use literal `${CLAUDE_PLUGIN_ROOT}` template — the plugin expects per-plugin-context expansion.
+
+EEE.PS1 FORWARD CHAIN (confirmed via grep):
+  L91:  $nativeBin = 'Z:\claude-sota-installed\.local\bin\claude.exe'
+  L92:  $parentBin = 'Z:\claude\.local\bin\claude.exe'
+  L96-101: native-vs-parent fallback selection (currently parent fallback active — Tier 0 native install pending)
+  L144-146: T0.1 hard-gate — fails when claude.exe not native (bypassed by EEE_BOOTSTRAP=1)
+  L249-252: EEE_BOOTSTRAP gating (`if ($env:EEE_BOOTSTRAP -ne '1') { exit 1 }`)
+  L272: `& $claudeBin @Args`  ← interactive forward (no --print, no -p, full TUI mode)
+
+FIRE 42 SHIP CANDIDATES TO REVIEW:
+
+(a) DROP from .mcp.json the github HTTP MCP (Authorization: Bearer ${GITHUB_TOKEN}) when GITHUB_TOKEN is unset, since the MCP load may hang on long network timeout when expanding empty bearer token. Same for context7 with CONTEXT7_API_KEY.
+  Per FM-03 D5 Auth-Credential-needed: when API key missing, MCP fails fast with 401 not silent-hang — but expansion of empty `${GITHUB_TOKEN}` may produce malformed Authorization header that hangs at TLS-handshake.
+
+(b) FIX the SessionEnd path-mangling: source-of-truth is the codex plugin's hooks.json template `${CLAUDE_PLUGIN_ROOT}` — Anthropic CC is supposed to expand this per-plugin to the absolute Windows path. The fact that it expanded to `Z:\z\claude-sota-installed\...` instead of `Z:\claude-sota-installed\...` suggests CC saw a POSIX-form root somewhere. Possible triggers:
+   - HOME or USERPROFILE has POSIX form leaked
+   - CLAUDE_CODE_PLUGIN_CACHE_DIR='Z:/claude-sota-installed/.claude/plugins' (forward-slash) being normalized incorrectly by node
+   - Git Bash / MSYS path-conversion despite MSYS_NO_PATHCONV=1
+
+(c) PRIORITIZE Tier 0 native claude.exe install (anthropics/claude-code releases, gh release download) per cardinal-rule-5 install-priority + cardinal-rule-6 freshness. Currently fallback to parent `Z:\claude\.local\bin\claude.exe` (per eee.ps1 L99 yellow warning). Native install closes T0.1 hard-gate fail.
+
+(d) Most critically: INVESTIGATE if eee.ps1 itself is hanging silently. The operator pasted a terminal that shows `> eee` followed by NO output AT ALL. eee.ps1 should at minimum print [eee] colored lines per L93/96/99/101/108/etc. If the operator sees ZERO output, eee.ps1 may be exiting before reaching any Write-Host, OR PowerShell terminal is buffering, OR the issue is upstream of eee.ps1 (PATH lookup → eee.cmd shim → eee.ps1 entrypoint).
+
+QUESTIONS FOR T1 VERDICT (deep-review-exec, xhigh):
+
+Q1 — Path-mangling root cause: What is the most likely source of the `Z:\z\` prefix in the SessionEnd hook path? Is it (i) Anthropic CC hook-runner POSIX→Win32 conversion bug, (ii) Git Bash $CLAUDE_PLUGIN_ROOT leakage despite MSYS_NO_PATHCONV=1, (iii) Node's path.resolve treating `/z/...` as drive-relative? Where would you look in Z:/repos/deps/claude-code/ source to verify?
+
+Q2 — Silent-hang root cause: Given PROBE B confirms claude.exe with full ENV responds in 20s, what is the highest-likelihood cause of the operator's `eee` interactive showing NO OUTPUT? Rank: (i) eee.ps1 hangs before forward (verify by adding entry-point Write-Host), (ii) claude.exe interactive TUI not rendering in operator's terminal, (iii) plugin SessionStart hook crashes blocking startup, (iv) MCP load hang on bad bearer token, (v) other. What is the cheapest probe for each?
+
+Q3 — Fire 42 ship priority: Of (a)/(b)/(c)/(d) candidates above, which 1-2 should ship FIRST? Apply Karpathy P3 surgical-changes: minimum diff that fixes the user-visible silent-hang.
+
+Q4 — Tier 0 native claude.exe install: Per cardinal-rule-5, when should Tier 0 native install fire? Is it blocking Fire 42 ship? Should Fire 42 prioritize closing the user-visible hang before Tier 0?
+
+Q5 — Pattern A vs HNF disposition: Is Fire 42 a Pattern A NEEDS-REVISION fix-forward (apply prescriptions immediately) or HONEST-NON-FINDING (more diagnostic data needed before ship)? What additional probes if HNF?
+
+REPLY SHAPE (per cross-model-consensus.md §Verdict report shape):
+- VERDICT: APPROVE | NEEDS-REVISION conf=N.NN | NEEDS-ATTENTION conf=N.NN severity=low/medium/high | BLOCK
+- Q1-Q5 each with prescribed_edit if NEEDS-REVISION (file:line + old/new)
+- Disposition class: Pattern A (single-apply) | Pattern B (HNF) | Pattern C (T2-precision)
+- Risk class: low | medium | high

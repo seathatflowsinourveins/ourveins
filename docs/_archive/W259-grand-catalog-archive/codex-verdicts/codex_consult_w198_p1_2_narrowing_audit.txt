@@ -1,0 +1,74 @@
+CODIFICATION-CLASS AUDIT (W198 P1.2 — additional 4-rule narrowing of LEGITIMATE-KEEP set)
+
+You are reviewing a paths:-frontmatter narrowing decision applied to 4 sibling claude-sota rules. Forward Discipline #2 per `Z:/claude-sota-installed/.claude/rules/codex-t1-pattern-b-forward-discipline.md`: codification-class fire, TIGHT scope, 60-120s target budget.
+
+## CONTEXT (bounded — do NOT explore beyond cite anchors)
+
+W197 P1 commit `6a21217` narrowed 24 rule frontmatter `paths:` globs (24 STRIP/KEEP-narrow + 2 ADD = 26 files), preserving a "LEGITIMATE-KEEP" set of 9 rules untouched. W197 audit decision rationale: those 9 rules globbing `CLAUDE*.md` were assumed load-bearing for every CLAUDE.md edit.
+
+W198 P1.2 commit `a4c5f74` revises W197 LEGITIMATE-KEEP decision based on NEW measurement evidence: post-W197 preload was 25.73% on 200k base (not under the goal's <20% target). The 7 LEGITIMATE-KEEP rules globbing `CLAUDE*.md` accounted for ~94KB of remaining preload.
+
+W198 P1.2 narrowed 4 of the 7 rules by removing `CLAUDE*.md` from `paths:`:
+1. **cardinal-rule-7-graduated-unleash.md**: `["CLAUDE*.md", ".claude/settings.json", "docs/sota-installed-manifest.md"]` → `[".claude/settings.json", "docs/sota-installed-manifest.md"]`. Rule scope: permission-mode phase progression (auto→default→bypassPermissions). Used when settings.json or manifest is edited.
+2. **cardinal-rule-12-upstream-install-priority.md**: dropped `CLAUDE*.md`, kept `["docs/sota-installed-manifest.md", "docs/install-provenance.md", ".mcp.json", ".claude/agents/**", ".claude/skills/**", ".claude/plugins/**"]`. Rule scope: 6-class disposition lattice for upstream-install vs sibling-cite-import. Used on install-class edits.
+3. **sota-pin-discipline.md**: `["CLAUDE.md", "CLAUDE.local.md"]` → `["PINS.json", "tools-pin.txt", "manifests/services.yaml", ".mcp.json"]`. Rule scope: PIN drift audit (model SHAs, tool versions, MCP inventory). Pin-audited surfaces are the new paths.
+4. **auto-compact-discipline.md**: dropped `CLAUDE*.md`, kept `["MEMORY.md", ".claude/hooks/scripts/*compact*", ".claude/hooks/scripts/precompact*", ".claude/hooks/scripts/sessionstart*", ".claude/settings.json", ".claude/projects/*/memory/**", ".claude/skills/**/SKILL.md", "tmp/**", ".claude/rules/auto-compact-discipline.md"]`. Rule scope: SOTA auto-compact recipe. Compact-related surfaces kept.
+
+REMAINING LEGITIMATE-KEEP (still glob CLAUDE*.md): canonical.md, cardinal-rule-11-meta-process-sota.md, cross-model-consensus.md. Plus 2 no-paths: cardinal-rule-8-full-sota-content.md (universal content invariant per design), codex-t1-auto-wedge-recovery.md.
+
+## MEASUREMENT (post-narrowing, sandbox-computed)
+
+Pre-W198-P1.2: 25.73% on 200k / 5.15% on 1M (205,809 bytes / 51,452 tokens preload)
+Post-W198-P1.2: **18.86% on 200k / 3.77% on 1M (150,852 bytes / 37,713 tokens preload)**
+
+Reduction: 6.87 percentage points on 200k; 1.38pp on 1M. STOP gate target <20% MET on both denominators.
+
+## NOT-IN-SCOPE
+
+- DO NOT explore historical fire anatomies beyond the cite anchors above
+- DO NOT audit the W197 P1 narrowing itself (already shipped, codex Path P APPROVE conf=0.84)
+- DO NOT propose additional rule narrowings beyond the 4 listed (this is a verdict on the 4, not a discovery of more)
+- DO NOT explore broader repo state — focus on rule-soundness of these 4 specific paths edits
+
+## AUDIT DIMENSIONS (4 — apply to the 4-rule narrowing decision as a unit)
+
+(a) **Text soundness**: For each of the 4 narrowed rules, does the post-narrow `paths:` line still cover the rule's stated scope per its description/body? Or did dropping `CLAUDE*.md` orphan a use-case the rule needs to fire on?
+
+(b) **Cite-class correctness**: The decision rationale cites TIER-1-DIRECT @ CCBP `claude-memory.md:34-105 @ HEAD 48f2ceb` (lazy-load mechanism) + TIER-2 @ `ctff-mechanical-mirror.md` (mechanical-mirror exception) + TIER-3-LOCAL-OPERATOR-DERIVED @ W198 sandbox-preload-measurement. Is the constituents lattice correct per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE?
+
+(c) **Sister-rule integration**: Does W198 P1.2 cause any sister-rule reference orphaning? E.g., does any other rule body cite "loads automatically on CLAUDE.md edit" for these 4 rules? If yes, the cross-reference is now stale.
+
+(d) **Forward usability**: Would a future operator editing CLAUDE.md still discover these 4 rules when needed? Or does removal cause silent staleness (e.g., a security-impacting cardinal-rule-7 change to settings.json not surfacing the canonical permission-mode discipline)?
+
+## TARGET BUDGET
+
+60-120s wall-clock. NOT 300s research-fire budget. This is a codification-class verdict on a specific 4-rule narrowing, not a broad audit.
+
+## VERDICT SHAPE (JSON-strict at EOF)
+
+Emit final verdict as JSON-strict at file EOF:
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "audit_dimensions": {
+    "text_soundness": "PASS" | "FAIL: <evidence>",
+    "cite_class_correctness": "PASS" | "FAIL: <evidence>",
+    "sister_rule_integration": "PASS" | "FAIL: <evidence>",
+    "forward_usability": "PASS" | "FAIL: <evidence>"
+  },
+  "prescribed_edits": [
+    {"file": "<path>", "current": "<line>", "should_be": "<line>", "rationale": "<why>"}
+  ],
+  "per_rule_verdict": {
+    "cardinal-rule-7-graduated-unleash": "PASS" | "NARROW-TOO-AGGRESSIVE" | "OTHER",
+    "cardinal-rule-12-upstream-install-priority": "PASS" | "NARROW-TOO-AGGRESSIVE" | "OTHER",
+    "sota-pin-discipline": "PASS" | "NARROW-TOO-AGGRESSIVE" | "OTHER",
+    "auto-compact-discipline": "PASS" | "NARROW-TOO-AGGRESSIVE" | "OTHER"
+  },
+  "honest_non_finding_axes": []
+}
+```
+
+Do NOT bias toward NEEDS-REVISION. If APPROVE is valid, emit APPROVE. JSON at EOF; no trailing prose.

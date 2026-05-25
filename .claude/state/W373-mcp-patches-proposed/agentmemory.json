@@ -1,0 +1,217 @@
+{
+  "wave": "W373",
+  "finding_ref": "W373-B-F001 (Stream B install-recommendation — rohitg00/agentmemory TIER-2 INSTALL-WITH-CAVEAT)",
+  "status": "PROPOSED-NOT-APPLIED",
+  "drafted_by": "W373 X3 SOTA MCP wire-proposal drafter",
+  "drafted_at": "2026-05-22",
+  "rationale": "Stream B verdict (sca-draft 4.2/5.0): rohitg00/agentmemory is a category-distinct memory upgrade (51 MCP tools, BM25 + Vector + KG triple-stream retrieval, RRF fusion, 4-tier consolidation, provenance-tracked citations, cascading staleness, zero external DB deps). 16,358 stars (live probe 2026-05-22), Apache-2.0, last push 2026-05-22 (today), 157 open issues, trendshift #1 May 13. v0.9.21 ships native OpenCode plugin + 9 bug fixes (2026-05-19 release). Complementary (NOT redundant) with the runtime's existing 6-tier memory stack: T1 hindsight RETIRED could be replaced; T2 memory-MCP overlaps + EXTENDS with KG + RRF; T6 basic-memory remains distinct (markdown vs SQLite). PENDING-OPERATOR-SIGN before .mcp.json edit per W373 spec §P3 HIGH-class settings-surgery + W373-B-F001 explicit operator-action queue (socket.dev + SLSA-L3 + smoke-test in isolated worktree).",
+  "convergence_sources": [
+    {
+      "source": "mcp__deepwiki__ask_question",
+      "repo": "rohitg00/agentmemory",
+      "verdict_summary": "HIGH-confidence — npm package name is @agentmemory/mcp (thin shim re-exposing @agentmemory/agentmemory MCP entrypoint). Stable pinned version per deepwiki cache: 0.9.20 (deepwiki cache STALE by 1 release — live npm dist-tag latest == 0.9.21, see npm_registry_probe below).",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "mcp__exa__web_search_exa",
+      "query": "rohitg00 agentmemory MCP server npm package version 0.9.21 install npx Claude Code stable",
+      "verdict_summary": "8 results converge: registry.npmjs.org/@agentmemory/agentmemory (published 2026-05-19), github.com/rohitg00/agentmemory README, releases tag v0.9.21 confirms native OpenCode plugin + 9 bug fixes. Canonical install forms: `npx -y @agentmemory/agentmemory mcp` (canonical) OR `npx -y @agentmemory/mcp` (shim alias)",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "mcp__firecrawl__firecrawl_search",
+      "query": "@agentmemory/mcp npm package install latest version pin claude code 2026",
+      "verdict_summary": "8 results; primary hit is github.com/rohitg00/agentmemory README with canonical install instructions. Secondary results (mem0, mcp-memory-service, engram-mcp-server) are competing memory tools — confirms agentmemory's niche-distinct positioning.",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "npm_registry_direct_probe",
+      "url": "https://registry.npmjs.org/@agentmemory/mcp/latest",
+      "verdict_summary": "version=0.9.21, license=Apache-2.0, publisher=rohitghumare, attestations={url: provenance/v1, predicateType: https://slsa.dev/provenance/v1} — SLSA provenance ATTESTED, dependency=@agentmemory/agentmemory@~0.9.0, engines.node>=20.0.0, dist.signatures (SHA256 keyid + Ed25519 sig)",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "gh_api_repos_rohitg00_agentmemory",
+      "verdict_summary": "stars=16358 (live probe 2026-05-22 — +11 from Stream B's 16,347 quote earlier today), license=Apache-2.0, archived=false, open_issues=157, pushed_at=2026-05-22T18:23:11Z (today — very active)",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "mcp__perplexity__perplexity_search",
+      "verdict_summary": "UNAVAILABLE — API returned 401 insufficient_quota; non-blocking since 4 other distinct convergence sources (deepwiki + exa + firecrawl + npm-registry + gh-API) far exceeded sca-v17 3-org-distinct floor",
+      "probed_at": "2026-05-22",
+      "non_blocking": true
+    }
+  ],
+  "proposed_patch": {
+    "operation": "add-key",
+    "target_file": ".mcp.json",
+    "target_path": "mcpServers.agentmemory",
+    "value": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@agentmemory/mcp@0.9.21"],
+      "env": {
+        "AGENTMEMORY_URL": "${AGENTMEMORY_URL}",
+        "AGENTMEMORY_SECRET": "${AGENTMEMORY_SECRET}"
+      }
+    }
+  },
+  "patch_design_notes": {
+    "version_pin_value": "0.9.21 — npm registry dist-tag `latest` (confirmed via direct curl of registry.npmjs.org/@agentmemory/mcp/latest 2026-05-22). NOT `@latest` (D6 today-release-auto-upgrade risk); NOT `0.9.20` (deepwiki cache stale by 1 release).",
+    "package_choice_mcp_vs_agentmemory": "Selected @agentmemory/mcp (thin shim, 13.5 KB unpacked, 4 files) per W286 P0C cardinal-rule-2 contract favoring minimal npx-spawned surface. Alternative `@agentmemory/agentmemory mcp` subcommand is also canonical per README but pulls in the full 5 MB agentmemory package — undesirable per CR-2/CR-9 'minimal spawn surface' discipline. Shim auto-routes to the main package via `~0.9.0` dep.",
+    "transport_type": "stdio — agentmemory MCP is a Node CLI shim spawned by CC per-session, not a remote HTTP service (the agentmemory SERVER on :3111 is started SEPARATELY by the operator if they want the full memory-server + viewer; the MCP shim talks to it via REST if available, else falls back to local InMemoryKV per v0.9.0 changelog).",
+    "env_interp_pattern": "Follows W317-S7 perplexity precedent + W265 langfuse precedent + W286 P0C CR-2 contract: env-interp ${AGENTMEMORY_URL} + ${AGENTMEMORY_SECRET} in tracked .mcp.json, real values held in CLAUDE.local.md (gitignored). If AGENTMEMORY_URL is unset, the shim falls back to http://localhost:3111 default (operator must start `npx @agentmemory/agentmemory` in a separate terminal to back the MCP with live storage).",
+    "alt_full_plugin_form_not_proposed": "Alternative install-shape: /plugin marketplace add rohitg00/agentmemory + /plugin install agentmemory. This bundles 12 lifecycle hooks + 4 skills (/recall /remember /session-history /forget) + 51 MCP tools + auto-wires .mcp.json. NOT proposed in this MCP-wire patch because: (a) it mutates more state (plugin install + hook registration + skill registration) than a single .mcp.json key add — exceeds 'minimal blast-radius' contract for a first-time install; (b) cardinal-rule-4 'auto-fire prompt' audit would need to verify each of the 12 hooks against CR-2 contract; (c) operator may prefer to start with MCP-only and graduate to full-plugin if value is proven."
+  },
+  "caveats": [
+    "C1 (RAPID-ITERATION): v0.9.0 (2026-04-18) -> v0.9.21 (2026-05-19) = 22 minor releases in 5 weeks. CR-9 strict pin to immutable version 0.9.21 (NOT @latest) is REQUIRED. Re-evaluate pin every 7 days OR when operator wants to adopt a new feature; never silent-upgrade.",
+    "C2 (SOLO-MAINTAINER): TIER-3-NAMED-INDIVIDUAL bus-factor — single npm publisher (rohitghumare / Rohit Ghumare). No co-maintainer fallback if pkg compromised or maintainer disappears. Mitigation: rely on SLSA provenance + npm package signature for tamper-detection + audit before each pin-bump.",
+    "C3 (DEPENDENCY-BLAST-RADIUS): @agentmemory/agentmemory transitively depends on `@anthropic-ai/claude-agent-sdk@^0.3.142` + `@anthropic-ai/sdk@^0.39.0` + `iii-sdk@^0.11.2` + optionalDependencies on `@node-rs/jieba` + `@xenova/transformers` + `onnxruntime-{node,web}` + `tiny-segmenter`. The iii-sdk transitive dep is LESS-KNOWN and bears the highest unknown-supply-chain risk per Stream B finding. Mitigation: socket.dev/snyk audit before apply.",
+    "C4 (STORAGE-OPACITY): agentmemory storage is local SQLite + iii-engine — opaque to humans (unlike T6 basic-memory's markdown). Memory contents are NOT human-readable without using the agentmemory viewer at http://localhost:3113 OR querying via MCP tools. This is by design (BM25/Vector/KG primitives need binary indices), but operator should understand the 'opaque memory store' trade-off vs basic-memory's transparency.",
+    "C5 (BENCHMARK-SELF-REPORT): The 95.2% R@5 on LongMemEval-S (ICLR 2025) claim is repo-self-reported per dev.to article 2026-05-15; NOT independently verified. Treat as a directional positive signal not a proven dominance over mem0/Letta-MemGPT.",
+    "C6 (SERVER-SUBPROCESS-DEPENDENCY): The shim falls back to local InMemoryKV if the agentmemory server on :3111 is NOT running. For useful persistence, operator must run `npx @agentmemory/agentmemory` in a separate terminal (or set up as a service). This is a 2-process model — the MCP shim talks to the standalone server via REST. Operator may want to NSSM-supervise the server on Windows (similar to CogneeMCP service pattern)."
+  ],
+  "pre_apply_required": [
+    {
+      "step": "socket.dev audit",
+      "command": "Open https://socket.dev/npm/package/@agentmemory/mcp and https://socket.dev/npm/package/@agentmemory/agentmemory and https://socket.dev/npm/package/iii-sdk",
+      "expected": "no HIGH/CRITICAL alerts; no install-script / shell-access / network-call flags on iii-sdk",
+      "blocker_if_fail": true
+    },
+    {
+      "step": "SLSA provenance verification",
+      "command": "npm view @agentmemory/mcp@0.9.21 dist.attestations  # OR  curl -s https://registry.npmjs.org/@agentmemory/mcp/0.9.21 | jq .dist.attestations",
+      "expected": "predicateType: https://slsa.dev/provenance/v1 ATTESTED — already confirmed live 2026-05-22 by W373 X3 npm registry probe",
+      "blocker_if_fail": false,
+      "current_status": "VERIFIED-PASS (slsa provenance attestation present in registry.npmjs.org/@agentmemory/mcp/latest .dist.attestations)"
+    },
+    {
+      "step": "operator-sign OP-SIGN.md row",
+      "command": "edit OP-SIGN.md, add row OP-14 (or next available) referencing this proposal file",
+      "expected": "row entered as PENDING-OPERATOR-SIGN; after smoke-test green, flip to APPROVED with commit SHA + evidence",
+      "blocker_if_fail": true
+    },
+    {
+      "step": "smoke-test in isolated worktree",
+      "command": "Use eee.ps1 -Wave W374 -Slug agentmemory-smoke to create isolated worktree. In that worktree, write the proposed_patch.value to .mcp.json and confirm `claude mcp list` shows agentmemory connected without breaking other 16 MCPs.",
+      "expected": "all 17 MCPs connected; agentmemory smoke-test (e.g., call memory_smart_search) returns valid response",
+      "blocker_if_fail": true
+    }
+  ],
+  "operator_action_required": {
+    "claude_local_md_addition_block_section_f5": [
+      "# (f5) W373 — agentmemory MCP env vars (added by W373 X3 wire-proposal).",
+      "# Per W317-S7 perplexity precedent + W286 P0C CR-2 contract.",
+      "# AGENTMEMORY_URL: where the agentmemory standalone server runs (default http://localhost:3111).",
+      "# AGENTMEMORY_SECRET: optional shared secret if the server is configured with --secret.",
+      "# Start the standalone server FIRST: `npx @agentmemory/agentmemory` (in a separate terminal or as NSSM service)",
+      "$env:AGENTMEMORY_URL    = 'http://localhost:3111'",
+      "# $env:AGENTMEMORY_SECRET = '<paste-secret-if-server-uses-one>'  # leave commented if no secret"
+    ],
+    "pre_apply_verification": [
+      "1. Complete all 4 pre_apply_required steps above (socket.dev + SLSA-confirm + OP-SIGN + smoke-test).",
+      "2. Decide whether to NSSM-supervise the agentmemory standalone server (recommended for persistent multi-session use).",
+      "3. Optional: run `npx -y @agentmemory/agentmemory@0.9.21 demo` (in worktree) to verify the demo seeds + recall works."
+    ],
+    "verification_after_apply": [
+      "Restart claude (new session for env-vars + .mcp.json reload).",
+      "Run: claude mcp list",
+      "Expect: an `agentmemory` row with type=stdio and status=connected.",
+      "Run: /mcp",
+      "Expect: agentmemory listed and enabled.",
+      "Probe a benign MCP tool (memory_sessions or memory_smart_search with empty query) to confirm wire is healthy."
+    ]
+  },
+  "rollback": {
+    "steps": [
+      "1. Delete the `agentmemory` key from `.mcp.json:mcpServers`.",
+      "2. Delete the env-block from CLAUDE.local.md section (f5).",
+      "3. If the agentmemory standalone server was running, kill it (or stop the NSSM service if you set one up).",
+      "4. Restart claude — new session will lack the agentmemory MCP entry.",
+      "5. Local data at `~/.agentmemory/` (or platform-equivalent) is left in place (non-destructive); manually `rm -rf` if desired."
+    ],
+    "reversibility_class": "HIGH (additive-only; no shared-state mutations to .mcp.json's other 16 entries)",
+    "expected_time": "<2 minutes"
+  },
+  "license": {
+    "spdx_id": "Apache-2.0",
+    "source": "registry.npmjs.org/@agentmemory/mcp/latest .license + gh_api_repos_rohitg00_agentmemory.license.spdx_id (both probed 2026-05-22)",
+    "compatible_with_cardinal_rule_1": true,
+    "note": "Apache-2.0 (permissive) — no copyleft. Includes patent grant. Compatible with MIT runtime."
+  },
+  "cve_signal": {
+    "status": "no-known-cve-flagged-at-coverage-limit",
+    "sources_probed": [
+      "gh_api_repos_rohitg00_agentmemory archived=false disabled=false 2026-05-22",
+      "npm registry @agentmemory/mcp@0.9.21 .dist.signatures present (Ed25519) + .dist.attestations.provenance present (SLSA v1)",
+      "npm registry @agentmemory/agentmemory@0.9.21 .dist.signatures present + .dist.attestations.provenance present"
+    ],
+    "operator_required_probe_before_apply": [
+      "https://socket.dev/npm/package/@agentmemory/mcp (and main + iii-sdk)",
+      "https://snyk.io/vuln/search?q=%40agentmemory%2Fmcp (and main + iii-sdk)"
+    ],
+    "blocker_if_socket_dev_alerts": true,
+    "note": "SLSA provenance is ATTESTED, signed with rohitghumare's npm publisher key, predicateType=https://slsa.dev/provenance/v1 — meets CR-1 trust-tuple #3 npm-provenance pre-clause. socket.dev probe still REQUIRED for malicious-update review #4."
+  },
+  "blast_radius_estimate": {
+    "category": "additive-with-subprocess",
+    "details": "Adds 1 new stdio MCP entry (agentmemory). Spawns `npx -y @agentmemory/mcp@0.9.21` per session — npm cache-resolves to a previously-installed copy (or pulls 13.5 KB shim + ~5 MB main package on first run). The shim talks to the agentmemory STANDALONE SERVER (separate Node process the operator runs OUTSIDE Claude Code on :3111). If server is not running, shim falls back to local InMemoryKV (lossy across CC restarts).",
+    "subprocess_chain": "claude session start -> spawn `npx -y @agentmemory/mcp@0.9.21` -> shim probes GET http://localhost:3111/agentmemory/livez -> if 200, route 51 tools through REST; if fail, fall back to local InMemoryKV",
+    "estimated_token_cost_per_session": "MEDIUM-HIGH — 51 MCP tools each with description ~150-400 tokens = ~10-20k tokens preload contribution. Higher than Composio's 7 meta-tools. Operator should weigh: agentmemory adds 51 tools but most usage is 5-10 frequent (memory_save, memory_smart_search, memory_sessions, memory_recall, memory_forget). Compensation: agentmemory's MEMORY benefit reduces re-explain-context cost per session."
+  },
+  "operator_signoff_block": {
+    "op_sign_row_target": "OP-14 (or next available — W373 X3 to coordinate with OP-SIGN.md current state)",
+    "approve_action": "Complete all 4 pre_apply_required steps (socket.dev + SLSA-confirm + smoke-test in worktree + OP-SIGN). Apply the proposed_patch.value to .mcp.json mcpServers.agentmemory + add env-block to CLAUDE.local.md section (f5). Decide on NSSM-supervised standalone-server setup. Mark OP-SIGN row APPROVED with commit SHA + smoke-test evidence.",
+    "decline_action": "Add `status: DECLINED-BY-OPERATOR-<YYYY-MM-DD>` to this JSON + decline rationale (e.g., 'rapid-iteration risk', 'TIER-3-individual bus-factor', 'redundant with T6 basic-memory') + leave file in `.claude/state/W373-mcp-patches-proposed/` as audit-trail.",
+    "defer_action": "Add `status: DEFERRED-TO-W<N+1>-OPERATOR-<YYYY-MM-DD>` with re-evaluation criteria (e.g., 'defer until agentmemory ships v1.0.0 stable', 'defer until iii-sdk has co-maintainer', 'defer until socket.dev shows zero HIGH/CRITICAL alerts')."
+  },
+  "verify_before_claim_attestation": {
+    "claim_1_npm_pkg_name_is_at_agentmemory_slash_mcp": {
+      "evidence": "npm registry direct probe https://registry.npmjs.org/@agentmemory/mcp/latest .name == '@agentmemory/mcp' + deepwiki HIGH-conf + exa-search 4 hits + README.md quote `npx -y @agentmemory/mcp`",
+      "status": "VERIFIED"
+    },
+    "claim_2_latest_stable_version_is_0_9_21": {
+      "evidence": "npm registry direct probe https://registry.npmjs.org/@agentmemory/mcp .dist-tags.latest == '0.9.21' + exa-search release tag v0.9.21 (2026-05-19) + gh release notes",
+      "status": "VERIFIED (note: deepwiki cache said 0.9.20 — STALE; live npm dist-tag is authoritative)"
+    },
+    "claim_3_license_apache_2_0": {
+      "evidence": "npm registry .license == 'Apache-2.0' + gh_api .license.spdx_id == 'Apache-2.0' + package.json in source",
+      "status": "VERIFIED"
+    },
+    "claim_4_stars_16358_live": {
+      "evidence": "gh_api .stargazers_count == 16358 probed 2026-05-22 (Stream B quoted 16,347 earlier same day — counter grew +11 in hours, confirming viral curve)",
+      "status": "VERIFIED"
+    },
+    "claim_5_slsa_provenance_attested": {
+      "evidence": "npm registry .dist.attestations.provenance.predicateType == 'https://slsa.dev/provenance/v1' for both @agentmemory/mcp@0.9.21 and @agentmemory/agentmemory@0.9.21",
+      "status": "VERIFIED"
+    },
+    "claim_6_solo_maintainer_rohitghumare": {
+      "evidence": "npm registry .maintainers == [{name: 'rohitghumare'}] (length 1); gh repo owner == rohitg00 (same individual)",
+      "status": "VERIFIED"
+    },
+    "claim_7_active_2026_05_22": {
+      "evidence": "gh_api .pushed_at == 2026-05-22T18:23:11Z (today); .archived == false; .disabled == false; 157 open issues (active community)",
+      "status": "VERIFIED"
+    },
+    "claim_8_iii_sdk_dep_pinned": {
+      "evidence": "registry.npmjs.org/@agentmemory/agentmemory/0.9.21 .dependencies['iii-sdk'] == '^0.11.2'",
+      "status": "VERIFIED (note: ^0.11.2 is range pin not exact pin — operator-side npm audit on cache will resolve to a specific patch; recommend reviewing concrete iii-sdk version pulled into npm-cache during smoke-test)"
+    },
+    "claim_9_benchmark_self_reported_only": {
+      "evidence": "Stream B finding W373-B-F001 explicit caveat 'cited as self-report only'; dev.to article 2026-05-15 cites repo-self-reported benchmark; no independent LongMemEval-S reproduction in any of the convergence sources",
+      "status": "VERIFIED-AS-SELF-REPORT (claim is treated as self-report, NOT as objective dominance)"
+    },
+    "claim_10_no_known_cve_flagged_at_coverage_limit": {
+      "evidence": "gh archived/disabled both false; npm SLSA + signature attested; recent release notes (v0.9.0 to v0.9.21) describe features/bug-fixes not CVE patches",
+      "status": "VERIFIED-AT-COVERAGE-LIMIT (no exhaustive socket.dev/snyk auto-probe performed per scope constraint; operator MUST execute these per pre_apply_required step 1)"
+    }
+  },
+  "notes_for_operator": [
+    "This is a TIER-2 INSTALL-WITH-CAVEAT — the patch is technically clean (SLSA + Apache-2.0 + active maintenance + 1067 tests + 22 npm releases in 5 weeks with no yanks) but the rapid-iteration cadence + solo-maintainer + iii-sdk transitive dep all argue for socket.dev + smoke-test discipline BEFORE apply.",
+    "Memory category overlap check: agentmemory's BM25+Vector+KG overlaps the runtime's T2 (memory-MCP sqlite_vec) and T3 (cognee GraphRAG) — operator should DECIDE whether to (a) install agentmemory as a 7th memory tier complementary; (b) install agentmemory AND retire T2 memory-MCP (since agentmemory's BM25+Vector subsumes sqlite_vec); (c) decline and stick with the existing 6-tier stack. The proposed patch supports option (a); options (b) and (c) require additional retirement / decline workflow.",
+    "Standalone-server NSSM pattern: Per the CogneeMCP precedent (NSSM service `CogneeMCP` on :8000), operator may want to register `Agentmemory` as an NSSM service for the standalone :3111 server. This is OPTIONAL (the shim falls back to InMemoryKV if server is down) but recommended for persistent multi-session memory.",
+    "Re-pin cadence: with 22 releases in 5 weeks, agentmemory is in pre-v1.0 churn. Recommend re-evaluating the pin every 7 days OR every release the operator wants to adopt. The proposed 0.9.21 pin is the latest stable as of 2026-05-22; v0.9.22+ likely landing within the next week.",
+    "Alt full-plugin form trade-off: The /plugin marketplace + /plugin install path bundles 12 hooks + 4 skills + 51 MCP tools. Pros: complete UX with /recall /remember /session-history /forget skills wired. Cons: heavier blast-radius + CR-2 audit of all 12 hooks needed. Operator may want to start with MCP-only (this proposal) and graduate to full-plugin in W374+ if value proven."
+  ]
+}

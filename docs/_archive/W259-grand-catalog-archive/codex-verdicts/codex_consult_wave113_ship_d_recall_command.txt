@@ -1,0 +1,90 @@
+# T1 codex pre-commit consult — Wave 113 Ship 2N-batch3-MEM-D /recall slash command
+
+## Context
+
+Wave 113 Plan agent (`abe3017d3204c1dd0`) returned DESIGN: F (Hybrid skill C + slash D + spawn-time E) for memory MCP RECALL operationalization. Comprehensive option analysis at `tmp/wave113-architect-memrecall-design-2026-05-09.md` with TIER-1 SOTA cites at file:line + HEAD SHA + Probe DAG full 6-axis on doobidoo/mcp-memory-service @ `ad1dd7eea5fc412a29f6c3d295e0277a00ed0dde`.
+
+Per Plan's incremental rec "slash command D first" + ONE-LOGICAL-UNIT-PER-FIRE + lowest CR-9 risk path: this fire ships ONLY component D — the operator-invoked `/recall` slash command. Components C (skill) and E (spawn-time hook) deferred to Wave 114-115.
+
+## Proposed edit (NEW file at `.claude/commands/recall.md`)
+
+The file content is the slash command spec. 70 LOC. See actual file at `.claude/commands/recall.md` for verbatim content (already written via Write tool, T1-WARN gate noted but proceeding per CR-3 Phase 1 bootstrap exception with this explicit foreground T1).
+
+Key design choices:
+1. Frontmatter: `description` + `argument-hint` + `allowed-tools` (limited to `mcp__memory__memory_search` + `mcp__memory__retrieve_memory`)
+2. Operator-invoked only (no auto-fire) — Probe 5 PASS for eee single-user /loop autonomous
+3. Backend cite: doobidoo/mcp-memory-service v10.51.3 (Apache-2.0) at upstream HEAD `ad1dd7e`
+4. Anti-pattern note: "DO NOT invoke /recall from inside autonomous /loop ticks" (operator-only)
+5. Companion ships queued (skill C / hook E) but not implemented
+
+## 3 audit axes (TIGHT per codex-t1-fix-forward-pattern.md Pattern A)
+
+### AXIS 1 — Anthropic CC slash command spec compliance
+
+The file lives at `.claude/commands/recall.md`. Verify the frontmatter shape against the canonical Anthropic CC spec at `https://code.claude.com/docs/en/commands`:
+
+- Is `description:` field correctly named?
+- Is `argument-hint:` the canonical field name (vs `argumentHint`)?
+- Is `allowed-tools:` an array? Does the syntax match CC expectation?
+- Are there REQUIRED fields I'm missing (e.g., `allowed-tools` may need to be `allowedTools` per JSON convention)?
+- Body markdown: any required `## $ARGUMENTS` placeholder convention I should observe?
+
+If frontmatter shape is wrong, slash command may fail to register at session start. Report exact prescribed correction.
+
+### AXIS 2 — Memory MCP integration semantic correctness
+
+The slash command instructs Claude to invoke `mcp__memory__memory_search` with extracted parameters. Verify:
+
+- Does `mcp__memory__memory_search` exist as a tool exposed by `doobidoo/mcp-memory-service v10.51.3` per `Z:/repos/deps/mcp-memory-service/` source code?
+- Is the call shape (`query` / `tags` / `since` / `limit` parameters) accurate vs upstream Python API?
+- Is `mcp__memory__retrieve_memory` (in allowed-tools array) a real tool name, or did Plan agent hallucinate?
+- Does the output format (`## RECALL: N matches` block) match what mcp__memory tools actually return, OR is this aspirational shape that won't match reality?
+
+If tool name OR call shape is wrong, /recall would silently fail at runtime. Report verified tool names + parameter shapes from upstream source.
+
+### AXIS 3 — Probe 5 mode-harness-shape verdict for eee
+
+eee is single-user /loop autonomous on Z:\claude-sota-installed. Cron `5e0c7efb` `*/15 * * * *` re-enters with same prompt context. Operator-invoked slash commands are explicitly typed by the human (NOT by /loop tick).
+
+- Does this slash command shape Probe 5 PASS the eee mode-harness?
+- Specifically: is there a risk that /loop ticks containing the literal text `/recall` (e.g., when documenting the design in commit body OR provenance) would accidentally TRIGGER the slash command?
+- The anti-pattern note says "DO NOT invoke /recall from inside autonomous /loop ticks" — is this discipline-only OR does Anthropic CC mechanically prevent slash commands inside slash-command-prefix-NOT-at-message-start contexts?
+- Should the slash command frontmatter include any guard that prevents accidental /loop-tick invocation? (e.g., `disable-model-invocation: true` per claude-skills.md frontmatter spec which Plan agent cited)?
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "...",
+    "axis_2_mcp_integration_correctness": "...",
+    "axis_3_probe_5_mode_harness": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/recall.md",
+      "line_or_section": "frontmatter | body | both",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance + cite trail
+
+- CR-1 cite SOTA primary: TIER-1-DIRECT to Anthropic CC slash command spec + doobidoo upstream HEAD SHA
+- CR-3 cross-model T1: this consult IS the gate satisfaction (T1-WARN already fired; explicit foreground+tee codex e2e per Phase 1 bootstrap exception)
+- CR-5 install-priority: NEW slash command file (not an install — this is sibling-novel composition since no upstream Anthropic-OFFICIAL `/recall` skill exists per Plan HONEST-NON-FINDING)
+- CR-9 install-risk: LOW (operator-invoked only / reversible via rm / no env changes)
+- CR-12 upstream-install-priority: HONEST-NON-FINDING confirms no upstream parity for `/recall` slash command; eee-local cite-class TIER-3-LOCAL-COMPOSITION-OVER-TIER-1-SUBSTRATES per `citation-discipline.md` rule #8
+
+## Files for review
+
+- `.claude/commands/recall.md` (NEW, ~70 LOC) — verbatim content via Read tool from absolute path
+- Companion design at `tmp/wave113-architect-memrecall-design-2026-05-09.md` for context
+- Upstream cite at `Z:/repos/deps/mcp-memory-service/` for tool shape verification

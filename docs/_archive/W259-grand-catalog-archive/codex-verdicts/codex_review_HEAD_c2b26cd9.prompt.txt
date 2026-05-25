@@ -1,0 +1,151 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit c2b26cd9399d29c6a241f4de9f3ee2ff461a15df
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 167 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 167 insertions(+)
+
+=== git show --format=fuller ===
+commit c2b26cd9399d29c6a241f4de9f3ee2ff461a15df
+Author:     42 <42@local>
+AuthorDate: Mon May 11 01:47:49 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 01:47:49 2026 -0400
+
+    docs(install): Wave 146 Ship 3 — manifest reclassify addyosmani/agent-skills marketplace cache (3-voice agent team Pattern A apply; SAVED-SHIP via V3 adversarial; CR-12 PROVIDER-COMPLEMENT; CLAUDE.md L213+L267 path-drift correction same-ship)
+    
+    3-voice advanced agent team CONVERGENT verdict (V1↔V2↔V3 commits-behind-count + CR-9 disposition resolved by V3 SAVED-SHIP `gh api compare` direct probe + orchestrator empirical Mia probe of `.orphaned_at` cache marker):
+    
+    V1 sota-researcher (Sonnet stand-in via CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6 STAND-IN-NOTICE per CLAUDE.local.md ENV (g); agentId af9a93b095c457ced, 207s, 463,563 tokens, 2 tool_uses, ARTIFACT-INLINE 285 LOC):
+      PASS-DOCUMENT conf=0.93 — Probe DAG 7/7 PASS / SRA 9-PASS / 1-NOTE / CR-12 PARTIAL-OVERLAP (REVISED to PROVIDER-COMPLEMENT post-3-voice-synthesis) / CR-9 2-commits-docs-only (REFUTED by V3 — actually 12 commits + new feature SKILL) / 5 Mia self-OVERs
+      ARTIFACT-INLINE: tmp/wave146-ship3-v1-sota-researcher-addy-agent-skills-2026-05-11.md
+    
+    V2 codex T1 Path P REAL GPT-5.5 (codex CLI v0.130.0 DEFAULT profile + foreground+tee + 300s + --skip-git-repo-check --color never per Pattern D Forward Discipline #1+#2; 911 LOC, 64,863 tokens):
+      NEEDS-REVISION-DOCUMENT conf=0.92 ship_readiness=BLOCKED / CR-12 PROVIDER-COMPLEMENT / CR-9 false (BLOCKED on stale commits) / SRA 9 PASS / 4 prescribed_edits / 4 concerns
+      Verdict: .claude/state/codex_consult_w146_s3_v2_addy_skills_OUT.txt
+    
+    V3 codex T1 Path P REAL GPT-5.5 ADVERSARIAL (cardinal-rule-3 cross-model gate satisfaction; 1.6K LOC, 85,522 tokens):
+      NEEDS-REVISION conf=0.94 ship_readiness=RE-PULL-FIRST / v2_validation: PARTIAL / cr12_class_confirm: AGREE-PROVIDER-COMPLEMENT / cr9_stale: RE-PULL-FIRST / claude_md_path_drift_scope: MUST-INCLUDE-IN-SAME-SHIP / star_count_marker_decay: true
+      SAVED-SHIP catch (n=10 FM-09 ladder advance): caught V1+V2 commits-count OVER via direct `gh api repos/addyosmani/agent-skills/compare/742dca58...main` showing ahead_by=12 behind_by=0 total_commits=12 (NOT 2) including:
+        - 1 NEW FEATURE SKILL skills/doubt-driven-development/SKILL.md +243 LOC at upstream commit 0af1a5ef
+        - 1 NEW hook test hooks/session-start-test.sh +46 LOC
+        - meta-skill skills/using-agent-skills/SKILL.md +15/-12 LOC
+        - README/CLAUDE.md/CONTRIBUTING.md doc edits across 12 commits
+      .orphaned_at cache marker discovered: .claude/plugins/cache/addy-agent-skills/agent-skills/742dca58ae55/.orphaned_at = 1778294547061 Unix-epoch-ms = 2026-05-08T22:42:27Z UTC (orphaned 3 days ago)
+      Verdict: .claude/state/codex_consult_w146_s3_v3_addy_skills_adversarial_OUT.txt
+    
+    ORCHESTRATOR-SIDE MIA PROBES (independent verification 2026-05-11):
+      - gh API confirms 38,769★ MIT created 2026-02-15 push 2026-05-10T20:24Z (V3-aligned)
+      - .orphaned_at marker VERIFIED at .claude/plugins/cache/addy-agent-skills/agent-skills/742dca58ae55/.orphaned_at content 1778294547061 (V3 discovery confirmed)
+      - 4 existing CITE-IMPORTS confirm operational dependency: .claude/rules/{deprecation-discipline,launch-discipline,multi-source-discovery-breadth-discipline}.md + docs/install-provenance.md + docs/outer research/kits/v23/v25 references
+      - Skill name overlap: 20/21 ZERO collision; 1 (test-driven-development) overlaps with superpowers (CR-12 PARTIAL-OVERLAP signal but V3+V2 confirm broader engineering-phase-taxonomy scope = PROVIDER-COMPLEMENT)
+      - CLAUDE.md L213 + L267 path drift CONFIRMED: 2 instances of `marketplaces/agent-skills` should be `marketplaces/addy-agent-skills` per V3 MUST-INCLUDE-IN-SAME-SHIP
+    
+    CR-12 SYNTHESIS: PROVIDER-COMPLEMENT (3-voice consensus V2+V3 + V1 PARTIAL-OVERLAP refined to PROVIDER-COMPLEMENT lean). addyosmani/agent-skills provides engineering-phase taxonomy (21 skills + 3 agents); incumbent stack provides workflow-grammar (superpowers) + autonomous/research/safety (ECC) + skill-authoring (claude-skills). Different scope + mechanism per CLAUDE.md cardinal-rule-12 lattice → INSTALL as ALTERNATIVE; primary incumbent retains canonical position.
+    
+    CR-9 SYNTHESIS: STALE-INSTALLED-VIA-MARKETPLACE-CACHE per V3 alternative path. HEAD `742dca58` orphaned-since 2026-05-08; upstream `3ff4b518` is 12 commits ahead including 1 NEW FEATURE SKILL `doubt-driven-development`. Refresh requires resolving git safe.directory ownership in marketplace dir BEFORE re-pull AND re-extract plugin-cache (operator-action gated; queue as Wave 146 Ship 3a follow-up similar shape to Wave 142.B operator-Docker-restart precedent).
+    
+    Pattern A apply (per Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md Pattern A — single atomic apply on NEEDS-REVISION conf 0.88-0.94):
+      1. docs/sota-installed-manifest.md §3 row INSERT after L69 anthropics/claude-plugins-official with STALE-INSTALLED-VIA-MARKETPLACE-CACHE label + 12-commits-behind disclosure + .orphaned_at marker + CR-12 PROVIDER-COMPLEMENT + 38,769★ fresh cite [VERIFIED 2026-05-11] + Marker Decay note + Wave 146 Ship 3a refresh queued
+      2. CLAUDE.md L213 path correction: `marketplaces/agent-skills/skills/source-driven-development/SKILL.md` → `marketplaces/addy-agent-skills/skills/source-driven-development/SKILL.md` (V2 prescribed_edit #4 + V3 MUST-INCLUDE-IN-SAME-SHIP) + Marker Decay note added inline
+      3. CLAUDE.md L267 path correction: `marketplaces/agent-skills/skills/using-agent-skills/SKILL.md` → `marketplaces/addy-agent-skills/skills/using-agent-skills/SKILL.md` (same correction; second occurrence)
+      4. docs/install-provenance.md APPEND comprehensive Wave 146 Ship 3 entry (~225 LOC)
+    
+    Cross-model gate satisfaction: FULLY SATISFIED via 2× REAL GPT-5.5 codex CLI v0.130.0 dispatches (V2 conf=0.92 + V3 conf=0.94) per cardinal-rule-3 Phase 1 bootstrap exception (Tier 1a codex T1-T7 hooks NOT-yet-INSTALLED per manifest §Section 2 INSTALLED-PARTIAL status; Path P recipe satisfies cross-model invariant at zero degraded-mode risk).
+    
+    SAVED-SHIP class catch (V3 adversarial): V3 prevented shipping a misclassified manifest row that would have falsely claimed "2 commits behind docs-only" when actual delta is 12 commits including 1 NEW FEATURE SKILL `doubt-driven-development`. Same shape as Wave 142 V4 FM-20 cascade catch + Wave 146 Ship 2 V3 SAVED-SHIP catch on V2 CR-12 over-confidence. Cross-model gate adversarial value DEMONSTRATED.
+    
+    Cumulative ladder advances this ship:
+      - Mia n=217 → n=220 (+3: V1+V2+orchestrator commits-count OVER caught by V3 SAVED-SHIP via gh api compare)
+      - Pattern D candidate n=24 → n=26 (+2: V2 + V3 Path P DEFAULT-profile)
+      - FM-09 codex-rescue blind-spot 9/9 → 10/10 firm (V3 SAVED-SHIP shape catch on V1+V2 truncation OVER)
+      - FM-20 path-drift cascade demonstrates correction shape (orchestrator gh truncation propagated to V1+V2 → V3 caught + corrected via gh api compare)
+      - FM-15 + FM-02 (b)+(c) atomic single-shell defense maintained
+    
+    Cite class for this ship: constituents=[TIER-1-DIRECT @ github.com/addyosmani/agent-skills HEAD 742dca58 + 3ff4b518, TIER-3-LOCAL-CONFIG @ .claude/plugins/marketplaces/addy-agent-skills/ + .claude/plugins/cache/addy-agent-skills/agent-skills/742dca58ae55/.orphaned_at, TIER-2 @ multiple sister-rule cite-imports per CLAUDE.md §14.5, TIER-3-LOCAL-OPERATOR-DERIVED @ V1+V2+V3 verdicts + orchestrator Mia probes]; effective_tier=TIER-3-LOCAL-COMPOSITION per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE
+    
+    Wave 146 Ship 3 of 5 INSTALL/RECLASSIFY ships approved by Wave 145 Fire 7 V4 with version pins.
+    Next auto-proceed: Wave 146 Ship 4 — pip install opena
+
+[prompt truncated]

@@ -1,0 +1,89 @@
+# Codex T1 consult — W197 P1: preload-mechanism verification + glob-narrowing fix approval
+
+## Runtime
+claude-sota-installed (Z:/claude-sota-installed). Install-only SOTA runtime. 64 rule files in .claude/rules/.
+
+## Goal (W197 P1)
+Reduce per-session context preload from 28.2% (measured W196, commit 03471a2) to <=17%, so /compact and /goal can self-automate. Bounded ~45-60-file frontmatter edit, single atomic commit.
+
+## The /goal prompt's stated root cause is REFUTED — verify the real one
+The /goal prompt claimed: "63/64 rule files carry a self-referential `.claude/rules/**` paths: glob -> defeats CC lazy-load -> ~1.03MB cold-loads every session."
+Orchestrator direct grep of ALL 64 rule frontmatters REFUTES this: ZERO files contain the literal `.claude/rules/**` glob. Closest is deprecation-discipline.md with `.claude/rules/*.md` (single-star, matches rule files only when one is touched).
+
+## Empirically verified so far (orchestrator, this session)
+1. NO SessionStart hook injects rules. settings.json SessionStart block = [codex session-lifecycle-hook.mjs, context-mode-cache-heal.mjs, cli_path_audit.py (async), sessionstart_compact_hint_reader.py (matcher:"compact" only)]. None inject rule files.
+2. CC native `paths:` lazy-load WORKS. PROOF: orchestrator Read of `.claude/settings.json` caused exactly 5 rules to inject as system-reminders — precisely the 5 whose `paths:` glob matches `.claude/settings.json` (auto-compact-discipline, cardinal-rule-7-graduated-unleash, deprecation-discipline, launch-discipline, mcp-disconnect-recovery). Mechanism behaves exactly as CCBP claude-memory.md documents.
+3. 64 rules: 3 with NO `paths:` field (always-load: cardinal-rule-8-full-sota-content [intentional per its own comment], fm21-queue-time-prompt-freeze, named-failure-modes); 1 multi-line self-reference-only (codex-t1-auto-wedge-recovery — already correctly narrow); 60 with inline `paths:`.
+
+## The 64-rule paths: data (grep -H '^paths:' .claude/rules/*.md)
+advanced-agent-team-standing-directive: [".claude/agents/**",".claude/skills/**/SKILL.md",".claude/commands/**","CLAUDE*.md","tmp/wave**"]
+agent-harness-fit-verification: [".claude/agents/**",".claude/rules/ahfv-*.md",".claude/rules/agent-harness-fit-verification.md",".claude/state/codex_consult_*","reports/sota-*"]
+ahfv-codex-rescue-blind-spot / ahfv-probe-dag / ahfv-seven-sub-classes: [".claude/agents/**",".claude/state/codex_consult_*","reports/sota-*"]
+audit-action-loop: [".claude/state/*.jsonl","CLAUDE.md",".claude/settings.json",".claude/projects/*/memory/MEMORY.md"]
+auto-compact-discipline: ["CLAUDE*.md","MEMORY.md",".claude/hooks/scripts/*compact*",".claude/hooks/scripts/precompact*",".claude/hooks/scripts/sessionstart*",".claude/settings.json",".claude/projects/*/memory/**",".claude/skills/**/SKILL.md","tmp/**",".claude/rules/auto-compact-discipline.md"]
+canonical: ["CLAUDE*.md",".mcp.json",".claude/settings.json",".claude/agents/**",".claude/commands/**",".claude/hooks/**",".claude/skills/**/SKILL.md"]
+cardinal-rule-11-meta-process-sota: ["CLAUDE*.md",".claude/agents/**",".claude/skills/**",".claude/rules/cardinal-rule-*.md",".claude/rules/advanced-agent-team-standing-directive.md",".claude/rules/parallel-agent-wave.md",".claude/rules/synthesis-layer-verify.md",".claude/rules/codex-t1-fix-forward-pattern.md",".claude/rules/mia-pre-apply.md",".claude/rules/fm20-path-drift-cascade.md",".claude/rules/git-cli-grammar-discipline.md",".claude/rules/parallel-session-worktree-isolation.md",".claude/rules/audit-action-loop.md","docs/sota-installed-manifest.md","docs/install-provenance.md"]
+cardinal-rule-12-upstream-install-priority: ["CLAUDE*.md","docs/sota-installed-manifest.md","docs/install-provenance.md",".mcp.json",".claude/agents/**",".claude/skills/**",".claude/plugins/**"]
+cardinal-rule-7-graduated-unleash: ["CLAUDE*.md",".claude/settings.json","docs/sota-installed-manifest.md"]
+citation-discipline: [".claude/agents/**",".claude/skills/**",".claude/hooks/**",".claude/commands/**","docs/**","reports/**"]
+closed-loop-recursive-narrowing: [".claude/hooks/scripts/codex_*.py",".claude/state/codex_review_HEAD_*.txt",".claude/commands/santa-loop.md"]
+cmc-env-funneled-disclosure / cmc-t1-t7-lifecycle / cmc-verdict-shapes: [".claude/agents/**",".claude/commands/**",".claude/skills/**/SKILL.md",".claude/settings.json","CLAUDE*.md",".mcp.json",".claude/state/codex_consult_*.txt",".claude/state/codex_review_HEAD_*.txt"]
+codex-t1-auto-wedge-recovery: (multi-line) [".claude/rules/codex-t1-auto-wedge-recovery.md"]
+codex-t1-fix-forward-pattern: [".claude/state/codex_consult_*.txt",".claude/state/codex_consult_*_OUT.txt",".claude/rules/cross-model-consensus.md",".claude/rules/closed-loop-recursive-narrowing.md",".claude/rules/synthesis-layer-verify.md",".claude/rules/ctff-pattern-a.md",".claude/rules/ctff-pattern-b-and-t1-ops.md",".claude/rules/ctff-patterns-cd.md",".claude/rules/ctff-mechanical-mirror.md"]
+codex-t1-pattern-b-forward-discipline: [".claude/state/codex_consult_*.txt",".claude/rules/codex-t1-*.md",".claude/rules/ctff-*.md",".claude/rules/cardinal-rule-*.md",".claude/rules/codification-threshold.md",".claude/rules/citation-discipline.md","CLAUDE*.md",".claude/agents/**",".claude/skills/**/SKILL.md","docs/codex-*"]
+codex-t1-system-meta-review-fallback: [".claude/state/codex_consult_iter*_OUT.txt",".claude/rules/codex-t1-fix-forward-pattern.md",".claude/rules/cross-model-consensus.md",".claude/hooks/scripts/codex_t1_consult_gate.py"]
+codification-threshold: [".claude/projects/*/memory/**","evals/**","reports/**"]
+convergence-gate: ["reports/**",".claude/skills/**/SKILL.md",".claude/skills/sota-research/**"]
+coordination: [".claude/agents/**",".claude/commands/**",".claude/rules/coordination.md",".claude/rules/team-orchestration.md","reports/**"]
+cross-model-consensus: [".claude/agents/**",".claude/commands/**",".claude/skills/**/SKILL.md",".claude/settings.json","CLAUDE*.md",".mcp.json",".claude/state/codex_consult_*.txt",".claude/state/codex_review_HEAD_*.txt"]
+ctff-mechanical-mirror / ctff-pattern-a / ctff-pattern-b-and-t1-ops / ctff-patterns-cd: [".claude/state/codex_consult_*.txt",".claude/state/codex_consult_*_OUT.txt", + 4-5 sibling .claude/rules/ctff-*.md / codex-t1-fix-forward-pattern.md paths]
+deprecation-discipline: ["docs/sota-installed-manifest.md","docs/install-provenance.md","docs/**",".mcp.json",".claude/settings.json",".claude/plugins/installed_plugins.json",".claude/agents/**",".claude/commands/**",".claude/skills/**/SKILL.md",".claude/hooks/**",".claude/rules/*.md","scripts/**","tools/**"]
+evidence-policy: ["docs/**","reports/**",".claude/agents/**",".claude/commands/**",".claude/skills/**/SKILL.md",".claude/projects/*/memory/**","evals/**"]
+fm17-subagent-fleet-depletion: [".claude/agents/**",".claude/state/subagent_*.jsonl",".claude/state/agent_*.jsonl",".claude/rules/fm*.md","CLAUDE*.md","CLAUDE.local.md"]
+fm19-readonly-guard-sidestep: [".claude/agents/**",".claude/hooks/scripts/agent_plan_readonly_bash_guard.py",".claude/rules/fm*.md","tmp/wave**"]
+fm20-path-drift-cascade: [".claude/agents/**","tmp/wave**",".claude/state/codex_consult_*.txt",".claude/rules/fm*.md",".claude/projects/*/memory/**"]
+fm22-bridge-mode-refuse-as-injection-subclass: [".claude/agents/gpt5-*.md",".claude/agents/codex-rescue.md",".claude/hooks/scripts/agent_plan_readonly_bash_guard.py",".claude/rules/fm*.md",".claude/rules/cross-model-consensus.md",".claude/rules/cmc-*.md"]
+git-cli-grammar-discipline: ["CLAUDE*.md",".claude/rules/git-*.md",".claude/hooks/scripts/*.py",".claude/agents/**","tmp/*.txt","tmp/*-msg.txt"]
+karpathy-adapted: ["CLAUDE*.md",".claude/agents/**",".claude/commands/**",".claude/hooks/**",".claude/skills/**",".claude/settings.json",".mcp.json","scripts/**","tests/**","evals/**"]
+kiss-dry-yagni: ["scripts/**","tools/**","tests/**","evals/**",".claude/agents/**",".claude/commands/**",".claude/hooks/**",".claude/skills/**",".claude/settings.json",".mcp.json"]
+launch-discipline: ["tools/**","bin/**","scripts/**","deploy/**","ci/**",".claude/settings.json",".claude/agents/**",".claude/commands/**","CLAUDE.local.md",".claude/rules/launch-discipline.md"]
+layered-gates-architecture: [".claude/settings.json",".claude/hooks/scripts/**",".claude/agents/**",".codex/config.toml","CLAUDE*.md",".gitignore",".claude/rules/lga-*.md (3 specific)"]
+lga-async-rewake: [".claude/settings.json",".claude/hooks/scripts/**"]
+lga-five-layers: [".claude/settings.json",".claude/hooks/scripts/**",".codex/config.toml","tests/**"]
+lga-worktree-prereq: [".claude/settings.json",".claude/hooks/scripts/**",".gitignore"]
+mcp-disconnect-recovery: [".mcp.json",".claude/settings.json",".claude/rules/mcp-*.md",".claude/state/codex_mcp_healthcheck.jsonl","manifests/services.yaml"]
+mia-pre-apply: [".claude/agents/**",".claude/skills/**/SKILL.md",".claude/state/codex_consult_*","CLAUDE*.md","docs/**"]
+multi-perspective-subagents: [".claude/agents/**",".claude/commands/**",".claude/rules/multi-perspective-subagents.md",".claude/rules/team-orchestration.md","reports/**"]
+multi-source-discovery-breadth-discipline: [".claude/agents/sota-researcher.md",".claude/skills/sota-research/**",".claude/rules/*research*.md",".claude/rules/convergence-gate.md","docs/sota-*","tmp/wave**"]
+parallel-agent-wave: [".claude/agents/**",".claude/commands/**",".claude/hooks/scripts/agent_*",".claude/rules/parallel-*.md",".claude/rules/team-orchestration.md",".claude/rules/multi-perspective-subagents.md",".claude/rules/coordination.md",".claude/rules/codification-threshold.md",".claude/rules/synthesis-layer-verify.md"]
+parallel-session-worktree-isolation: ["CLAUDE.md","CLAUDE.local.md",".claude/agents/**",".claude/commands/**",".claude/rules/parallel-*.md",".claude/rules/team-orchestration.md",".claude/rules/coordination.md",".claude/rules/audit-action-loop.md",".claude/rules/closed-loop-recursive-narrowing.md","tools/sss.ps1","bin/sss.cmd"]
+parallel-sessions: ["CLAUDE*.md",".mcp.json",".claude/settings.json",".claude/agents/**",".claude/commands/**",".claude/hooks/**",".claude/rules/parallel*.md","tools/**","bin/**"]
+port-note-discipline: [".claude/hooks/scripts/**/*.py",".claude/agents/**",".claude/commands/**",".claude/skills/**/SKILL.md",".claude/settings.json","CLAUDE*.md","*.toml"]
+research-protocol: ["docs/**","reports/**",".claude/skills/sota-research/**",".claude/projects/*/memory/**","CLAUDE*.md"]
+sessionstart-preload-discipline: [".claude/hooks/scripts/sessionstart*.py",".claude/settings.json","CLAUDE*.md","MEMORY.md",".claude/projects/*/memory/**",".claude/state/*.jsonl","docs/install-provenance.md","tmp/wave*close-synthesis*.md",".claude/rules/sessionstart-preload-discipline.md"]
+skill-orchestration-discipline: [".claude/skills/**",".claude/agents/**","CLAUDE.md",".claude/plugins/**"]
+sota-pin-discipline: ["CLAUDE.md","CLAUDE.local.md"]
+sota-research-architecture: [".claude/agents/sota-researcher.md",".claude/skills/sota-research/**",".claude/rules/sota-research-architecture.md",".claude/rules/convergence-gate.md","docs/sota-*","docs/install-provenance.md","tmp/wave*-audit*.md"]
+synthesis-layer-verify: [".claude/agents/**",".claude/commands/**",".claude/agent-memory/**","reports/**",".claude/state/codex_consult_*.txt"]
+team-orch-experimental-teams / team-orch-frameworks / team-orch-patterns / team-orch-state-spawning: [".claude/agents/**",".claude/commands/team*.md",".claude/rules/team-orch-*.md",".claude/rules/team-orchestration.md",".claude/rules/parallel-agent-wave.md","reports/**"]
+team-orchestration: [".claude/agents/**",".claude/commands/team*.md",".claude/rules/team-orchestration.md",".claude/rules/team-orch-*.md",".claude/rules/parallel-agent-wave.md",".claude/rules/coordination.md","reports/**"]
+
+## QUESTIONS — answer each; cite CCBP claude-memory.md + Anthropic CC docs where possible
+
+Q1 MECHANISM: Per CC's documented `paths:` conditional/lazy-load (CCBP claude-memory.md:34-40), what EXACTLY makes a `paths:`-having rule preload into context at session start — for BOTH a fresh `claude` invocation AND a post-compact resume? Candidate mechanisms: (a) the rule's glob matches an always-present file — CLAUDE.md + CLAUDE.local.md are definitely always in context; ARE `.claude/settings.json` / `.mcp.json` also treated as "active" at startup? (b) post-compaction carryover of rules that were activated in the prior session; (c) something else. Is the trigger the SAME for fresh vs post-compact? This is the load-bearing unknown — W196 measured 28.2% preload but explicitly queued "cold-load mechanism investigation" because it was never established.
+
+Q2 FIX APPROVAL: Is "narrow each rule's `paths:` to remove always-present-file triggers (`CLAUDE*.md` / `CLAUDE.md` / `CLAUDE.local.md`, and `.claude/settings.json` / `.mcp.json` if those are startup-active), keeping only genuinely task-specific globs" the CORRECT + SAFE fix to drop preload 28.2%->17%? If the real mechanism is (b) post-compact carryover, would `paths:` narrowing even help? If not, what is the correct fix?
+
+Q3 SAFETY: General safe-narrowing rule + per-class guidance — which globs are safe to strip vs must-keep:
+ - cardinal-rule-7/8/11/12, sota-pin-discipline, audit-action-loop — ABOUT CLAUDE.md / settings.json content; do they legitimately need those triggers (would removing them silently disable a rule that SHOULD fire when CLAUDE.md is edited)?
+ - canonical, karpathy-adapted, kiss-dry-yagni, port-note-discipline, citation-discipline, evidence-policy — broad authoring/discipline rules with `.claude/agents/**`,`.claude/skills/**`,`docs/**`,`scripts/**` — what is the correct narrow set?
+ - cmc-* / cross-model-consensus — carry `CLAUDE*.md` + `.claude/settings.json` + `.mcp.json` simultaneously — correct narrow set?
+ - What is the GENERAL rule that reduces preload WITHOUT silently disabling a rule that should fire on a genuine task surface?
+
+## Output
+VERDICT: APPROVE | NEEDS-REVISION | REJECT  (on the glob-narrowing approach as the W197 P1 fix)
++ the precise safe-narrowing rule (general, applicable per-rule)
++ per-rule-class guidance (which globs strip, which keep)
++ if Q1 answer is "post-compact carryover" or "needs empirical test", say so explicitly + name the test
++ confidence 0.0-1.0
+JSON verdict block at END of output: {"verdict":"...","confidence":0.NN,"q1_mechanism":"...","q2_fix_approved":true/false,"narrowing_rule":"...","needs_empirical_test":true/false}

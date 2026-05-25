@@ -1,0 +1,189 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 5b32eb584e821a0bc5934f2c6a3c870d40acd931
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/rules/fm17-subagent-fleet-depletion.md | 144 ++++++-------------------
+ 1 file changed, 30 insertions(+), 114 deletions(-)
+
+=== git show --format=fuller ===
+commit 5b32eb584e821a0bc5934f2c6a3c870d40acd931
+Author:     42 <42@local>
+AuthorDate: Sat May 9 19:42:49 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 19:42:49 2026 -0400
+
+    refactor(fm17): in-place condensation 230→145 LOC per Wave 130 Fire 4 architect Option C verdict (sister-rule precedent INVERTS multi-file split trigger)
+    
+    Wave 130 Fire 4 Ship N — fm17-subagent-fleet-depletion.md condensed from 230 LOC (over 200 LOC ceiling per `Z:/claude-sota/.claude/rules/kiss-dry-yagni.md`) to 145 LOC (55 LOC under ceiling). Closes Task #92 (fm17 multi-file split mandate) per architect agent (`a27ce846`) APPROVE Option C verdict — REPLACES "split into per-sub-class files" with "in-place table-format compaction".
+    
+    ==== Wave 130 Fire 4 architect verdict ====
+    
+    Architect agent dispatched per cycle-300 ONE-LU-PER-FIRE design-only mandate. Verdict: **APPROVE Option C** (single-file condensation, NOT multi-file split). Key insight: sister-rule precedent INVERTS the split trigger:
+    
+    - `agent-harness-fit-verification.md` 240 LOC (over ceiling, NEVER split — uses table format)
+    - `cross-model-consensus.md` 354 LOC (over ceiling, NEVER split — verbose with sections)
+    - `codex-t1-fix-forward-pattern.md` 444 LOC (over ceiling, NEVER split)
+    
+    The fm17 rule's own §Update trigger said "split into multi-file taxonomy if LOC ceiling exceeded" — but informed by knowing 6-sub-class taxonomy didn't yet exceed ceiling at codification time. Now that 6 sub-classes DOES exceed ceiling, sister-rule precedent says CONDENSE in place via table format.
+    
+    ==== 12 active anchor cites preserved (zero cross-reference breakage) ====
+    
+    Architect cross-reference audit (rg `FM-17\.[abcdef]` across .claude/rules/ + docs/) found 233 matches across 17 files; 12 distinct anchor cite sites in active rules:
+    - `advanced-agent-team-standing-directive.md:116` — `§FM-17.d`
+    - `agent-harness-fit-verification.md:189` — generic FM-17 BLOCK
+    - `fm20-path-drift-cascade.md:101,110,123` — Wave 34 sister
+    - `named-failure-modes.md:45` — META-router (updated Wave 130 Fire 4 Ship M sha 30af6b9e)
+    - `docs/cliproxy-eee-sota-audit-2026-05-09.md:156,158,188,193,194,209` — FM-17.f Path D
+    - `docs/eee-launch-design-cliproxyapi.md:472,1193,1221,1249` — FM-17.b/.d
+    - `docs/fm17f-deep-dive-2026-05-09.md:240` — whole-file ref
+    - `.claude/hooks/scripts/fm17d_stall_detector.py` — code-level FM-17.d
+    - `docs/sota-installed-manifest.md:205,357` — Wave 46 codification
+    
+    Per `port-note-discipline.md §1` symbol-anchor stability — sub-class headers (`### FM-17.X`) are symbol anchors; line numbers shift but anchor names stable. ALL 12 anchor cites continue resolving via:
+    - L62 ### FM-17.a — Wrapper-truncation
+    - L65 ### FM-17.b — Pool-depletion 429
+    - L71 ### FM-17.c — Codex execution wedge
+    - L74 ### FM-17.d — BRIDGE-MODE wrapper stall
+    - L77 ### FM-17.e — Autocompact-thrashing
+    - L80 ### FM-17.f — 1M-context-entitlement billing-class blocker
+    
+    ==== 3 surgical Edits applied ====
+    
+    **Edit 1**: Replace L46-167 verbose ### sub-class sections with:
+    - L46 "## Sub-classes (a/b/c/d/e/f) — taxonomy" + summary table (10 rows × 4 columns: sub-class | signature | recovery | cite anchor)
+    - "## Sub-class detail (operator-runbook expansions)" with tightened ### per-sub-class paragraphs preserving load-bearing claims (Mia mandate, STAND-IN-NOTICE, cascade BLOCK gate, Wave-N evidence ladders)
+    
+    **Edit 2**: Update §Promotion threshold L123 — change "230 LOC EXCEEDS the 200 ceiling... split into multi-file taxonomy QUEUED" to "145 LOC under 200 ceiling per Wave 130 Fire 4 Ship N condensation per architect Option C verdict" + sister-rule precedent disclosure + Mia OVER #88 closure note.
+    
+    **Edit 3**: Update §Update triggers L133 — change "would split rule into 7-section structure OR mandate split into multi-file taxonomy if LOC ceiling exceeded" to "re-evaluate Option B 3-file split per Wave 130 Fire 4 architect design... Until then, condensation buffer (~55 LOC under ceiling) accommodates incremental 7th sub-class addition per Option C precedent" + add **SATISFIED Wave 130 Fire 4 (Ship N condensation)** trigger entry.
+    
+    ==== LOC verification ====
+    
+    Pre-Ship-N: 230 LOC (Wave 130 Fire 2 Ship G post FM-17.f addition)
+    Post-Ship-N: 145 LOC ([VERIFIED via `wc -l .claude/rules/fm17-subagent-fleet-depletion.md` 2026-05-09])
+    Reduction: 85 LOC (37% reduction)
+    Ceiling buffer: 55 LOC under 200 LOC `kiss-dry-yagni.md` ceiling
+    
+    Sub-class anchors: 6 of 6 preserved at L62/65/71/74/77/80 ([VERIFIED via `grep -n "### FM-17\.[abcdef]"`])
+    
+    ==== Pattern A scope-extension justification ====
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A: this Ship N is the apply of architect agent (`a27ce846`) APPROVE Option C verdict. Architect's Migration Plan steps 1+3+4 implemented:
+    - Step 1: Insert taxonomy table + tightened detail section (Edit 1)
+    - Step 3: Update §Promotion threshold (Edit 2)
+    - Step 4: Update §Update triggers (Edit 3)
+    
+    Step 5 (companion edit at named-failure-modes.md:45) was already shipped in Wave 130 Fire 4 Ship M sha `30af6b9e` per architect's separation-of-concerns design.
+    
+    ==== codex-t1-gate WARN acknowledgement ====
+    
+    Multiple WARNs fired during 3-edit apply ([no_valid_pairs reason; pairs_examined=0]). Per CR-3 Phase 1 bootstrap exception: WARN is non-blocking; STRICT mode would require `CODEX_T1_GATE_STRICT=1` env. Architect agent (`a27ce846`) APPROVE Option C + Cross-reference audit (rg-verified 12 cite sites) + sister-rule LOC-precedent verification serve as cross-model design verification per Pattern A scope-extension discipline.
+    
+    ==== Mia pre-apply ladder n=93 → n=94 (catch this fire) ====
+    
+    #94 (this fire pre-apply): initial sub-class detail draft preserved verbose "Distinct from FM-17.X" comparison sentences in each section — but the new taxonomy table at top NOW shows the discriminator structurally. Mia probe: the sentences are now redundant. Final sub-class detail removed redundant comparisons, achieving 145 LOC vs my pre-apply estimate ~200 LOC. Architect's 195 LOC target was conservative; actual is 145 LOC — significantly better than design target.
+    
+    ==== Ship sequence Wave 130 Fire 3+4 (full arc context) ====
+    
+    | Ship | SHA | Layer | T3 verdict |
+    |---|---|---|---|
+    | H | 2b3ff4f | Tier-A PostToolUse widening | APPROVE (retro) |
+    | I | 4a49994 | Tier-B `_guard_base.py` rtk-strip | APPROVE |
+    | J | fa9b3d4f | Tier-A PreToolUse T2+gitleaks scope-ext | APPROVE |
+    | K | 9d6f2383 | Tier-B `\<newline>` (buggy space-insert) | NEEDS-ATTENTION conf=0.86 |
+    | L | 121c403c | Pattern A fix-forward closes K bypass | APPROVE |
+    | M | 30af6b9e | META-router FM-17 5→6 sub-class fix | pending |
+    | N | (this commit) | fm17 condensation 230→145 LOC | pending |
+    
+    7 ships total in Wave 130 Fire 3+4 arc. Cross-model gate FULLY RESTORED + EMPIRICALLY VALIDATED + LOC discipline RESOLVED.
+    
+    ==== CR conformance ====
+    
+    - **CR-1 cite-trail**: TIER-3-LOCAL-COMPOSITION (architect agent verdict + cross-reference audit + sister-rule precedent verification) per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 lattice
+    - **CR-3 cross-model gate**: Pattern A scope-extension per architect APPROVE Option C verdict; codex T1 WARN acknowledged per Phase 1 bootstrap exception; T3 post-commit hook fires per restored Tier-A widening (Ship H/J)
+    - **CR-5 install-priority**: cite-import-AMBER NOT applicable — local rule refactor
+    - **CR-8 full-SOTA-content**: ADAPTED-FROM-SOTA — table format from sister rule precedent (`agent-harness-fit-verification.md` 7-probe taxonomy table at L46-58)
+    - **CR-9 install-risk**
+
+[prompt truncated]

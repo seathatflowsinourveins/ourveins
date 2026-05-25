@@ -1,0 +1,77 @@
+ROLE: GPT-5.5 adversarial reviewer. Audit Wave 124 codex hooks batch (HEAD=594ce28, 6 cite-imports + 1 fix-forward).
+
+USER DIRECTIVE: surface OVER claims / inherited bugs / wire-readiness gaps / sibling-bleed risks the orchestrator missed pre-commit. n=62 Mia ladder. 4/6 hooks INSTALLED-DORMANT pending wire fires.
+
+CONTEXT (per-commit summary):
+1. fd5c209 W124-A1 codex_failure_audit.py (81 LOC, PostToolUseFailure WIRED — observability)
+2. 9b239b9 W124-A2 codex_mcp_healthcheck.py (396 LOC, PostToolUse Edit|Write|MultiEdit WIRED)
+3. 6bc2141 W124-A2-FIX (Mia OVER #61 — invalid event 'PostToolUseEditFilter' → corrected PostToolUse array)
+4. b077afb W124-A3 codex_review_thread_bridge.py (309 LOC, LIBRARY no-wire, bridges CCC review-log + OpenAI broker)
+5. 210c135 W124-A4 codex_review_trace.py (210 LOC, INSTALLED-DORMANT, langfuse v4.2.0 ready, server :3000 UP)
+6. 1371ddd W124-A5 codex_stop_review_gate.py + review-output.schema.json (1268 LOC, INSTALLED-DORMANT, sync timeout=900 if wired)
+7. 594ce28 W124-A6 codex_stuck_detector.py (298 LOC, INSTALLED-DORMANT, A3 cross-hook integration verified)
+
+ALL imported from sibling Z:/claude-sota per CR-12 Path B cite-import-AMBER.
+
+KEY VERIFIED FACTS:
+- A3 → A5 → A6 import chain: A6 imports A3.bridge_unresolved_rows via try/except ImportError graceful-skip (L277-289 source); A3 INSTALLED commit b077afb pre-A6 commit 594ce28 — chain RESOLVES. A5 imports _codex_plugin_root.py (already at .claude/hooks/scripts/, 6204 bytes) — chain RESOLVES.
+- A2 dependency note: _guard_base.py "NOT present at runtime — try/except ImportError fallback at L76-98 activates with subprocess.run + minimal stderr fallback; functional but degraded — full _guard_base port queued"
+- Sibling-bleed grep: ONLY port-note headers contain "Z:/claude-sota/.claude/hooks/scripts/..." (cite-anchor by design — provenance, not runtime dep). Body uses Path(__file__).resolve().parents[3] for project-root.
+- Hardcoded SHAs: only in port-note headers as cite-anchors at HEAD <SHA>; no runtime dep on those SHAs.
+- A1+A2+A2-FIX WIRED in settings.json. A3+A4+A5+A6 dormant.
+- A5 ENV knobs: CODEX_STOP_REVIEW_GATE_DISABLE / DRY_RUN / STRICT / TIMEOUT_SEC. Sync timeout=900 sibling default.
+- A4 Langfuse: NO LANGFUSE_HOST set (defaults http://localhost:3000); LANGFUSE_PUBLIC_KEY+SECRET_KEY env-set; server v3.170.0 RUNNING.
+
+REVIEW AXES (verdict per axis P0/P1/P2/P3):
+
+AXIS-1 CROSS-HOOK INTEGRATION RISKS:
+- A6→A3 import chain: graceful-skip pattern correct? Any circular imports?
+- A5 schema dep: review-output.schema.json + _codex_plugin_root.py both present?
+- Risks of multiple hooks writing the same JSONL files concurrently?
+- Race conditions between A2 PostToolUse + A4 trace wrap on same Bash event?
+
+AXIS-2 WIRE-READINESS GAPS:
+- A4 wire: PostToolUse Bash + Agent + SubagentStop matchers — what should the proper config look like?
+- A5 wire: Stop sync timeout=900 — DRY_RUN env knob FIRST or DISABLE FIRST? Recommended sequence?
+- A6 wire: Stop + UserPromptSubmit async timeout=10 — race conditions with A5 sync Stop?
+- Order of wire-fire matters: A5 sync Stop before A6 async Stop = block A6 telemetry?
+
+AXIS-3 SIBLING-BLEED RE-AUDIT:
+- Did orchestrator miss subtle leaks? Hardcoded sibling commit SHAs in body (not port-note)?
+- Sibling-only env vars referenced as runtime deps?
+- File-paths like 'Z:/claude/...' or 'Z:/claude-sota/...' (without "-installed") in actual code paths?
+
+AXIS-4 FM-17 SUB-CLASS CANDIDATES:
+- A5 sync timeout=900 — qualifies as new FM-17.f or extends FM-17.d watchdog stall?
+- A4 langfuse trace wrap — does adding latency to codex CLI invocations create FM-17 risk?
+- A6 stuck detector + A3 bridge integration — recursive feedback loop possible?
+
+AXIS-5 CR CONFORMANCE SPOT-CHECK:
+- A1 commit fd5c209: TIER-1 cite trail valid (claude-agent-sdk-python types.py:219,284-292,387-391 @ b512f256)?
+- A5 commit 1371ddd: cite-class TIER-3-LOCAL-COMPOSITION lattice correct? (constituents declared)
+- A6 commit 594ce28: CR-9 install-risk discipline + REVERT check PASS evidence sufficient?
+
+DELIVERABLES:
+- Per-axis findings: P0/P1/P2/P3 + file:line + commit-SHA cites
+- Pattern A fix-forward prescriptions for next-fire (only if NEEDS-REVISION)
+- FM-17.g/h/i codification recommendation (Y/N + rationale)
+- VERDICT line at EOF: APPROVE conf=X.YZ | NEEDS-REVISION conf=X.YZ | REJECT conf=X.YZ
+
+OUTPUT FORMAT (JSON-strict at EOF):
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.XX,
+  "axes": {
+    "axis1_cross_hook": {"severity": "P0|P1|P2|P3|none", "findings": []},
+    "axis2_wire_readiness": {"severity": "P0|P1|P2|P3|none", "findings": []},
+    "axis3_sibling_bleed": {"severity": "P0|P1|P2|P3|none", "findings": []},
+    "axis4_fm17": {"severity": "P0|P1|P2|P3|none", "findings": []},
+    "axis5_cr_conformance": {"severity": "P0|P1|P2|P3|none", "findings": []}
+  },
+  "prescribed_edits": [],
+  "fm17_subclass_recommendation": "Y|N + rationale"
+}
+```
+
+Use direct file reads (rg/grep). Files at Z:/claude-sota-installed/.claude/hooks/scripts/codex_*.py (6 files) + Z:/claude-sota-installed/.claude/schemas/review-output.schema.json.

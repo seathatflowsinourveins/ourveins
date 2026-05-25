@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WinSW v2.12.0 (stable) service definition — NvidiaGpuExporter (utkuozdemir/nvidia_gpu_exporter v1.4.1)
+
+  Replaces the broken nvitop-exporter NSSM service (Python 3.13 socketserver.finish_request
+  incompat → SERVICE_EXIT_CODE 3) per W301 Stream B verdict (RECOMMENDED-INSTALL).
+
+  Schema: https://github.com/winsw/winsw/blob/v2.12.0/doc/xmlConfigFile.md
+  Per W301 Stream A §1 + codex r1 W301.H P2 correction (2026-05-19): TARGET v2.12.0 stable
+    (NOT v3-alpha). Required because this file uses <stopparentprocessfirst> which is v2-only
+    (PR #487 removed it in v3). Aligns with sibling IkLlamaServer.xml + LlamaSwap.xml.
+  Runtime requirement: .NET Framework 4.6.1+ (Win11 ships with 4.8 by default).
+
+  Pre-requisites (operator runs ONCE):
+    # 1. Scoop bucket + binary install (assumes scoop already installed; see W301 Stream B §2):
+    scoop install git
+    scoop bucket add nvidia_gpu_exporter https://github.com/utkuozdemir/scoop_nvidia_gpu_exporter.git
+    scoop install nvidia_gpu_exporter/nvidia_gpu_exporter --global
+
+    # 2. Firewall (allow Prometheus to scrape :9835 from off-box; skip if scrape is localhost-only):
+    New-NetFirewallRule -DisplayName "Nvidia GPU Exporter" -Direction Inbound `
+                        -Action Allow -Protocol TCP -LocalPort 9835
+
+  Apply (Stream A WinSW pattern):
+    1. Place this XML alongside winsw.exe:
+       Copy-Item .\NvidiaGpuExporter.xml Z:\tools\winsw\NvidiaGpuExporter.xml
+    2. Install service:    Z:\tools\winsw\winsw.exe install Z:\tools\winsw\NvidiaGpuExporter.xml
+    3. Start service:      Z:\tools\winsw\winsw.exe start   Z:\tools\winsw\NvidiaGpuExporter.xml
+    4. Smoke-test:         curl http://127.0.0.1:9835/metrics
+       Expect: Prometheus exposition with ~55 nvidia_smi_* metrics + nvidia_gpu_exporter_build_info
+
+  Rollback:
+    Z:\tools\winsw\winsw.exe stop      Z:\tools\winsw\NvidiaGpuExporter.xml
+    Z:\tools\winsw\winsw.exe uninstall Z:\tools\winsw\NvidiaGpuExporter.xml
+    Remove-NetFirewallRule -DisplayName "Nvidia GPU Exporter"
+    scoop uninstall nvidia_gpu_exporter/nvidia_gpu_exporter --global
+
+  NSSM-FALLBACK (if WinSW migration not yet applied — Stream A still pending):
+    nssm install NvidiaGpuExporter "C:\ProgramData\scoop\apps\nvidia_gpu_exporter\current\nvidia_gpu_exporter.exe"
+    nssm set NvidiaGpuExporter AppParameters "--web.listen-address=:9835 --query-field-names=AUTO --log.format=logfmt --log.level=info"
+    nssm set NvidiaGpuExporter AppDirectory  "C:\ProgramData\scoop\apps\nvidia_gpu_exporter\current"
+    nssm set NvidiaGpuExporter DisplayName   "Nvidia GPU Exporter (Prometheus, utkuozdemir)"
+    nssm set NvidiaGpuExporter Start         SERVICE_AUTO_START
+    nssm set NvidiaGpuExporter AppStdout     "Z:\claude-sota-installed-state\logs\NvidiaGpuExporter\stdout.log"
+    nssm set NvidiaGpuExporter AppStderr     "Z:\claude-sota-installed-state\logs\NvidiaGpuExporter\stderr.log"
+    Start-Service NvidiaGpuExporter
+
+  Verdict source: W301-STREAM-B-NVIDIA-GPU-EXPORTER.md §8 "RECOMMENDED-INSTALL — v1.4.1"
+-->
+<service>
+  <id>NvidiaGpuExporter</id>
+  <name>NvidiaGpuExporter (utkuozdemir nvidia_gpu_exporter, GPU metrics for Prometheus)</name>
+  <description>Go static binary that forks nvidia-smi.exe per scrape, parses CSV from --query-gpu=, emits 55 nvidia_smi_* Prometheus metrics on :9835/metrics. Replaces broken nvitop-exporter (Python 3.13 socketserver incompat). Cardinal-rule conformance: R1 upstream binary (1,480 stars, MIT, v1.4.1 2025-10-06), R2 direct CLI invocation (no script). Per-process VRAM gap — see W301-STREAM-B §5 Path A sidecar mitigation.</description>
+
+  <!-- Scoop installs the binary at this canonical path. If you used Option B (zip download)
+       instead, repoint to Z:\tools\nvidia_gpu_exporter\nvidia_gpu_exporter.exe. -->
+  <executable>C:\ProgramData\scoop\apps\nvidia_gpu_exporter\current\nvidia_gpu_exporter.exe</executable>
+
+  <!--
+    Arguments (verified against cmd/nvidia_gpu_exporter/main.go HEAD on master):
+      --web.listen-address=:9835      Default port — DO NOT change (Grafana dashboard 14574
+                                      and oregonpillow-class community guides hardcode :9835)
+      --web.telemetry-path=/metrics   Default; explicit for grep-ability
+      --query-field-names=AUTO        AUTO discovers nvidia-smi --help-query-gpu fields per
+                                      driver. If CUDA 12.9+ emits invalid metric names
+                                      (issue #332), swap to explicit list:
+                                        "name,driver_version,memory.used,memory.total,
+                                         utilization.gpu,utilization.memory,temperature.gpu,
+                                         power.draw,fan.speed,clocks.current.graphics,
+                                         clocks.current.memory,clocks.current.sm,uuid"
+      --log.format=logfmt             Structured logs for downstream parsing
+      --log.level=info                Default; bump to debug for issue investigation
+      (omitted) --shutdown-on-error   Default false — exporter logs the nvidia-smi error
+                                      as a metric instead of crashing the service.
+  -->
+  <arguments>--web.listen-address=:9835 --web.telemetry-path=/metrics --query-field-names=AUTO --log.format=logfmt --log.level=info</arguments>
+
+  <!-- WinSW v3 startmode: Automatic | DelayedAutoStart | Manual | Boot | System -->
+  <startmode>Automatic</startmode>
+
+  <!-- Logs to Z:\ (state-outside-repo) with rotation (10 MiB threshold, keep last 5). -->
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>Z:\claude-sota-installed-state\logs\NvidiaGpuExporter</logpath>
+
+  <!-- Exporter is I/O-bound (nvidia-smi subprocess fork every 30s); Normal priority is fine. -->
+  <priority>Normal</priority>
+
+  <!-- Restart policy: 5/15/60/300s back-off. Per-scrape nvidia-smi can hang transiently on
+       driver updates; brief retry storms are expected and recover cleanly. -->
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="15 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="300 sec"/>
+
+  <!-- Graceful stop: 10s is plenty — no KV-cache or persistent state to flush. -->
+  <stoptimeout>10 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+
+  <!-- Cardinal-rule-5: no secrets in env block. Empty by design.
+       (Exporter is unauthenticated by default; if HTTPS / basic-auth is needed, set
+       --web.config.file=<path> via arguments and use exporter-toolkit kingpinflag.) -->
+</service>

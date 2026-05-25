@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/seathatflowsinourveins/myvein/.claude/schemas/sca-v23-multi-angle-convergence.schema.json",
+  "title": "SOTA Convergence Audit v23 — Multi-Angle Verdict Schema",
+  "description": "Consolidates sca-v18..v22 into single canonical v23. 7 research angles × 12 scoring dimensions × adversarial codex GPT-5.5 review. Cite-anchored to Anthropic claude-cookbooks + assafelovic/gpt-researcher + lastmile-ai/mcp-agent + OpenSSF Scorecard + SLSA Framework + NIST SP 800-218.",
+  "type": "object",
+  "required": ["schema_version", "target", "research_angles", "scoring_dims", "composite_verdict_score", "decision_tier", "codex_verdict", "provenance"],
+  "properties": {
+    "schema_version": {
+      "const": "sca-v23",
+      "description": "Schema version pin. Supersedes sca-v18..v22 (all deprecated 2026-05-25 per W439)."
+    },
+    "target": {
+      "type": "object",
+      "required": ["kind", "identifier", "version"],
+      "properties": {
+        "kind": {
+          "enum": ["github-repo", "npm-package", "pypi-package", "mcp-server", "cc-plugin", "cc-skill", "agent-framework", "ide-extension"],
+          "description": "What is being scored."
+        },
+        "identifier": {
+          "type": "string",
+          "description": "Canonical identifier (e.g., 'affaan-m/ECC', '@upstash/context7-mcp', 'gpt-researcher')."
+        },
+        "version": {
+          "type": "string",
+          "description": "Pinned version or commit SHA being scored."
+        },
+        "homepage": { "type": "string", "format": "uri" },
+        "license": { "type": "string" }
+      }
+    },
+    "research_angles": {
+      "type": "object",
+      "description": "≥3 angles required for valid verdict (per §2.1); ≥5 recommended. Each angle records raw inputs + raw outputs for replay.",
+      "minProperties": 3,
+      "properties": {
+        "A1_perplexity_sonar": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "model": { "enum": ["sonar-deep-research", "sonar-reasoning", "sonar-pro"] },
+            "response_summary": { "type": "string" },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.18 }
+          }
+        },
+        "A2_exa_neural_search": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "neighbors_returned": { "type": "integer", "minimum": 0 },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.15 }
+          }
+        },
+        "A3_firecrawl_structured_crawl": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "markdown_chars": { "type": "integer", "minimum": 0 },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.12 }
+          }
+        },
+        "A4_tavily_curated_search": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "result_count": { "type": "integer", "minimum": 0 },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.10 }
+          }
+        },
+        "A5_cognition_deepwiki": {
+          "type": "object",
+          "properties": {
+            "repo": { "type": "string" },
+            "questions_asked": { "type": "integer", "minimum": 0 },
+            "response_summary": { "type": "string" },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.15 }
+          }
+        },
+        "A6_repomix_ingest": {
+          "type": "object",
+          "properties": {
+            "packed_output_path": { "type": "string" },
+            "files_packed": { "type": "integer", "minimum": 0 },
+            "patterns_extracted": { "type": "array", "items": { "type": "string" } },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.15 }
+          }
+        },
+        "A7_authoritative_registry": {
+          "type": "object",
+          "properties": {
+            "github_graphql_data": { "type": "object" },
+            "npm_or_pypi_data": { "type": "object" },
+            "signed_attestations": { "type": "boolean" },
+            "normalized_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "weight": { "const": 0.15 }
+          }
+        }
+      }
+    },
+    "scoring_dims": {
+      "type": "object",
+      "description": "12 mandatory dimensions per sca-v23 §2.2. All MUST be present (use 0.0 with rationale if N/A).",
+      "required": ["D1_popularity", "D2_license_safety", "D3_supply_chain_signed", "D4_maintainer_reputation", "D5_dependency_cleanliness", "D6_last_commit_recency", "D7_contributor_count", "D8_downloads_30d", "D9_openssf_scorecard", "D10_cc_pathway_support", "D11_mcp_readiness", "D12_composite_arch_quality"],
+      "properties": {
+        "D1_popularity": { "type": "object", "properties": { "value": { "type": "number", "minimum": 0, "maximum": 1 }, "weight": { "const": 0.05 }, "rationale": { "type": "string" } } },
+        "D2_license_safety": { "type": "object", "properties": { "value": { "type": "number", "enum": [0, 1] }, "weight": { "const": 0.08 }, "rationale": { "type": "string" } } },
+        "D3_supply_chain_signed": { "type": "object", "properties": { "value": { "type": "number", "enum": [0, 0.5, 1] }, "weight": { "const": 0.10 }, "rationale": { "type": "string" } } },
+        "D4_maintainer_reputation": { "type": "object", "properties": { "value": { "type": "number", "enum": [0, 0.5, 1] }, "weight": { "const": 0.06 }, "rationale": { "type": "string" } } },
+        "D5_dependency_cleanliness": { "type": "object", "properties": { "value": { "type": "number", "minimum": 0, "maximum": 1 }, "weight": { "const": 0.08 }, "rationale": { "type": "string" } } },
+        "D6_last_commit_recency": { "type": "object", "properties": { "value": { "type": "number", "enum": [0.1, 0.4, 0.7, 1.0] }, "weight": { "const": 0.06 }, "rationale": { "type": "string" } } },
+        "D7_contributor_count": { "type": "object", "properties": { "value": { "type": "number", "enum": [0.2, 0.5, 0.8, 1.0] }, "weight": { "const": 0.04 }, "rationale": { "type": "string" } } },
+        "D8_downloads_30d": { "type": "object", "properties": { "value": { "type": "number", "minimum": 0, "maximum": 1 }, "weight": { "const": 0.05 }, "rationale": { "type": "string" } } },
+        "D9_openssf_scorecard": { "type": "object", "properties": { "value": { "type": "number", "minimum": 0, "maximum": 1 }, "weight": { "const": 0.08 }, "rationale": { "type": "string" } } },
+        "D10_cc_pathway_support": { "type": "object", "properties": { "value": { "type": "number", "enum": [0, 0.5, 1] }, "weight": { "const": 0.10 }, "rationale": { "type": "string" } } },
+        "D11_mcp_readiness": { "type": "object", "properties": { "value": { "type": "number", "enum": [0, 0.5, 1] }, "weight": { "const": 0.10 }, "rationale": { "type": "string" } } },
+        "D12_composite_arch_quality": { "type": "object", "properties": { "value": { "type": "number", "minimum": 0, "maximum": 1 }, "weight": { "const": 0.20 }, "rationale": { "type": "string" } } }
+      }
+    },
+    "composite_verdict_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "CVS = sum(D_n.value * D_n.weight). Calculated, not asserted."
+    },
+    "decision_tier": {
+      "enum": ["INSTALL-HIGH", "INSTALL-STANDARD", "PATTERN-STUDY", "CITE-REFERENCE-ONLY", "REJECT", "HALT-REJECT", "MONITOR"],
+      "description": "Verdict tier per CVS bands in §2.3 + R1(a) trust-tuple override (HALT-REJECT)."
+    },
+    "trust_tuple_R1a": {
+      "type": "object",
+      "required": ["signed_releases", "license_safe", "malicious_update_review", "transitive_deps_clean"],
+      "properties": {
+        "signed_releases": { "type": "boolean", "description": "SLSA-L3 OR npm-provenance OR Sigstore for git tags." },
+        "license_safe": { "type": "boolean", "description": "MIT/Apache/BSD/ISC/MPL OK; AGPL/SSPL/proprietary case-by-case." },
+        "malicious_update_review": { "type": "boolean", "description": "≥1 commit older than 30d OR operator-pin." },
+        "transitive_deps_clean": { "type": "boolean", "description": "Socket.dev/Snyk-flagged: none." }
+      }
+    },
+    "codex_verdict": {
+      "type": "object",
+      "required": ["model", "round", "verdict", "log_path"],
+      "properties": {
+        "model": { "type": ["string", "null"] },
+        "round": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "verdict": { "enum": ["APPROVE", "REVISE", "REJECT", "BLOCK", "SKIPPED"] },
+        "include_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Z:/repos/deps/... paths included in adversarial review per C4 constraint."
+        },
+        "log_path": { "type": "string", "description": "Path to tmp/codex-verdicts/v23-<target>-r<N>.log" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "convergence_cache": {
+      "type": "object",
+      "properties": {
+        "langfuse_trace_id": { "type": "string" },
+        "cached_at": { "type": "string", "format": "date-time" },
+        "ttl_at": { "type": "string", "format": "date-time", "description": "30-day default; W439 §6 open-question." }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["wave", "branch", "session_id", "scored_at"],
+      "properties": {
+        "wave": { "type": "string", "pattern": "^W[0-9]+$", "description": "Wave provenance per naming-reform (commit-trailer only; no longer in branch names post-W439)." },
+        "branch": { "type": "string" },
+        "session_id": { "type": "string" },
+        "scored_at": { "type": "string", "format": "date-time" },
+        "operator_acceptance": { "type": "string", "description": "Operator sign-off SHA or timestamp." }
+      }
+    },
+    "supersedes": {
+      "type": "array",
+      "items": { "enum": ["sca-v18", "sca-v20", "sca-v21"] },
+      "description": "Prior schema versions this v23 supersedes. v22 was draft-only (W384/W431 docs) and never had a schema file."
+    }
+  }
+}

@@ -1,0 +1,165 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 90d01da66d10c848e29050bc6cd2817bee5dbb87</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/codex_postcommit_review.py | 22 ++++++++++++++--------
+ .claude/hooks/scripts/codex_prepush_review.py    | 12 +++++++++---
+ 2 files changed, 23 insertions(+), 11 deletions(-)
+
+=== git show --format=fuller ===
+commit 90d01da66d10c848e29050bc6cd2817bee5dbb87
+Author:     42 <42@local>
+AuthorDate: Tue May 12 22:47:49 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 22:47:49 2026 -0400
+
+    fix(wave160): SB8 round-2 — thread payload through _launch_review per T3 verdict
+    
+    Wave 160 SB8 round-2 Pattern A fix-forward closing T3 codex review
+    verdict on commit 65361fc.
+    
+    T3 VERDICT (round 1):
+    - File: .claude/state/codex_review_HEAD_65361fcf.txt
+    - verdict: needs-attention
+    - 1 finding: medium severity, conf=0.93
+    - Title: "Postcommit gate telemetry still loses agent context"
+    - Recommendation: "Extend `_launch_review` to accept optional `payload`,
+      update its caller(s) in `main()` to pass the hook payload, and restore
+      `payload=payload` on the `gate_review()` call."
+    - Plus next_steps: "Re-check any analogous helper-launch paths, especially
+      prepush if it has the same `_launch_review` shape"
+    
+    PATTERN A APPLY (single fix-forward atomic commit per closed-loop-recursive-narrowing.md):
+    - codex_postcommit_review.py:
+      - L382: _launch_review signature extended with `payload: dict | None = None`
+      - L473: gate_review call restored to thread `payload=payload`
+      - L909: main()'s _launch_review call updated to pass `payload=payload`
+    - codex_prepush_review.py (mirror per T3 next_steps):
+      - L433: _launch_review signature extended with `payload: dict | None = None`
+      - L498: gate_review call updated to thread `payload=payload`
+      - L861: main()'s _launch_review call updated to pass `payload=payload`
+    
+    OUTCOME:
+    - codex_gate.jsonl T3-postcommit rows now carry agent_id + agent_type
+    - codex_gate.jsonl T3-prepush rows now carry agent_id + agent_type
+    - Logical unit COMPLETE — all gate-emit paths under postcommit/prepush
+      callers thread SDK _SubagentContextMixin context end-to-end
+    
+    CARDINAL-RULE CONFORMANCE:
+    - CR-1 ✅ TIER-1-DIRECT SDK cite preserved (types.py:246-262 @ b512f256)
+    - CR-3 ✅ Path P codex T3 verdict integrated via Pattern A (round-2 fix-forward
+      per cross-model-consensus.md §The contract closed-loop discipline)
+    - CR-9 ✅ Sibling-bleed defense applied (no Z:/claude-sota/ paths)
+    - CR-11 ✅ META-process SOTA discipline (T3 verdict → Pattern A apply →
+      atomic commit; recursive closed-loop arc closure)
+    - CR-12 N/A (LOCAL-INSTALLED hook scripts; no upstream parity)
+    - cycle-300 ONE-LOGICAL-UNIT-PER-FIRE ✅ (single logical unit: agent_id
+      thread through _launch_review → gate_review pathway)
+    
+    CLOSED-LOOP ARC STATUS (per closed-loop-recursive-narrowing.md):
+    - Round 1: T3 needs-attention conf=0.93 medium severity
+    - Round 2 (this commit): Pattern A apply — extend signature + thread payload
+    - Round 3 (post-commit T3): expected APPROVE OR conf decline to confirm
+      Outcome A monotone-decline ACCEPT-WITH-DOC path
+    
+    FM-02 (b)+(c) defense: atomic single-shell `git add -- <2 paths> &&
+    git commit -o -F tmp/w160-sb8-r2-msg.txt -- <2 paths>`.
+    
+    Cite class:
+    constituents=[TIER-1-DIRECT @ claude-agent-sdk-python types.py:246-262
+    @ HEAD b512f256, TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 160 SB8 T3 codex
+    review needs-attention conf=0.93 + Pattern A fix-forward];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+    MIN_PRECEDENCE.
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/codex_postcommit_review.py b/.claude/hooks/scripts/codex_postcommit_review.py
+index 05c45e0..b559c12 100644
+--- a/.claude/hooks/scripts/codex_postcommit_review.py
++++ b/.claude/hooks/scripts/codex_postcommit_review.py
+@@ -379,11 +379,17 @@ def _build_prompt(sha: str, diff_context: str) -> str:
+     return f"{_GSTACK_BOUNDARY}\n\n{populated}"
+ 
+ 
+-def _launch_review(sha: str, root: Path = _ROOT) -> dict:
++def _launch_review(sha: str, root: Path = _ROOT, payload: dict | None = None) -> dict:
+     # iter-50.10.fix2 Class 4: `root` parameter threads actual repo root from
+     # _resolve_target_root() so cross-project commits review the correct repo.
+     # Default _ROOT preserves backward compat for direct-launch from project dir.
+     #
++    # Wave 160 SB8 round-2 fix-forward (codex T3 needs-attention conf=0.93
++    # medium severity on commit 65361fc): optional `payload` threads SDK
++    # _SubagentContextMixin agent_id/agent_type into gate_review() so
++    # codex_gate.jsonl T3-path rows ALSO carry agent attribution per
++    # Z:/claude-sota/.claude/rules/audit-action-loop.md §Hook telemetry contract.
++    #
+     # Cycle-451 preflight gate (gstack bin/gstack-codex-probe:19-50 + ECC
+     # codex-companion.mjs setup --json convergent T1 sources). Fails fast on
+     # missing-auth or CLI-not-on-PATH BEFORE spawning detached codex subprocess
+@@ -459,12 +465,12 @@ def _launch_review(sha: str, root: Path = _ROOT) -> dict:
+     # Symmetric closure of the cd-prefix-chain pattern: iter-50.10.fix2 (commit
+     # f151875) patched this file's local git invocations; iter-50.10.fix4 fixed
+     # parent's gate-layer; this fix5 mirrors that gate-layer fix into claude-sota.
+-    # Wave 160 SB8: gate_review's `payload=None` default applied — payload var
+-    # lives in main()'s scope only; threading through _launch_review() signature
+-    # is out of SB8 scope. codex_postcommit_reviews.jsonl receives agent_id via
+-    # _append_jsonl(payload=payload) in main(); codex_gate.jsonl receives None
+-    # for this T3 path (TIER-3-LOCAL-CONFIG limitation; deferred to follow-up).
+-    gate_ok, gate_reason = gate_review("T3", rev_spec=sha, command_preview=f"codex_postcommit_review {sha[:8]}", git_root=root)
++    # Wave 160 SB8 round-2: T3 codex review on 65361fc flagged gate_review's
++    # payload=None as agent-context loss for codex_gate.jsonl T3-path rows.
++    # Pattern A fix-forward: thread payload through _launch_review signature →
++    # gate_review(payload=) → codex_gate._append_jsonl(payload=) so the entire
++    # T3-postcommit chain carries SDK agent attribution top-level.
++    gate_ok, gate_reason = gate_review("T3", rev_spec=sha, command_preview=f"codex_postcommit_review {sha[:8]}", git_root=root, payload=payload)
+     if not gate_ok:
+         # Iter-2 fix-forward (codex T3 on f6522446 HIGH conf=0.82): surface gated
+         # decision to stderr so operators see it.
+@@ -900,7 +906,7 @@ def main() -> int:
+             print(f"codex_postcommit_review: rev-parse failed: {e!r}", file=sys.stderr)
+             return 0
+ 
+-    row = _launch_review(sha, root=_target_root)  # iter-50.10.fix2 Class 4
++    row = _launch_review(sha, root=_target_root, payload=payload)  # Wave 160 SB8 round-2: agent_id thread into gate_review
+     # iter-25.3.1 §4: enrich row with commit_duration_ms (main-entry-to-row latency)
+     # before append. Centralized per codex T1 NEEDS-REVISION 0.88 Option C —
+     # avoids touching every _launch_review return dict.
+diff --git a/.claude/hooks/scripts/codex_prepush_review.py b/.claude/hooks/scripts/codex_prepush_review.py
+index f3a814c..572da09 100644
+--- a/.claude/hooks/scripts/codex_prepush_review.py
++++ b/.claude/hooks/scripts/codex_prepush_review.py
+@@ -430,7 +430,13 @@ def _build_prompt(branch: str, base: str, diff_context: str) -> str:
+     return f"{_GSTACK_BOUNDARY}\n\n{populated}"
+ 
+ 
+-def _launch_review(branch: str, base: str, sha: str, root: Path = _ROOT) -> dict:
++def _launch_review(branch: str, base: str, sha: str, root: Path = _ROOT, payload: dict | None = None) -> dict:
++    # Wave 160 SB8 round-2 fix-forward (codex T3 needs-attention conf=0.93
++    # next_steps: "Re-check any analogous helper-launch paths, especially
++    # prepush"). Optional `payload` threads SDK _SubagentContextMixin
++    # agent_id/agent_type into gate_review() → codex_gate._append_jsonl so
++    # codex_gate.jsonl T3-prepush rows ALSO carry agent attribution per
++    # Z:/claude-sota/.claude/rules/audit-action-loop.md §Hook telemetry contract.
+     # Cycle-451 preflight gate — same gstack+ECC convergent T1 as cycle-437.
+     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+     from _codex_preflight import probe_codex  # noqa: E402
+@@ -495,7 +501,7 @@ def _launch_review(branch: str, base: str, sha: str, root: Path = _ROOT) -> dict
+     range_spec = f"{base}..HEAD"
+     # iter-50.10.fix7: pass cd-prefix-resolved git_root so gate's git diff-tree
+     # runs in the actual repo. Mirror of parent's iter-50.10.fix6 fix.
+-    gate_ok, gate_reason = gate_review("T3", rev_spec=range_spec, command_preview=f"codex_prepush_review {range_spec}", git_root=root)
++    gate_ok, gate_reason = gate_review("T3", rev_spec=range_spec, command_preview=f"codex_prepush_review {range_spec}", git_root=root, payload=payload)  # Wave 160 SB8 round-2: agent_id thread per T3 verdict next_steps
+     if not gate_ok:
+         # Iter-2 fix-forward (codex T3 on f6522446 HIGH conf=0.82): surface gated
+         # decision to stderr; mirrors codex_postcommit_review.py iter-2.
+@@ -858,7 +864,7 @@ def main() -> int:
+         print(f"codex_prepush_review: git failed: {e!r}", file=sys.stderr)
+         return 0
+ 
+-    row = _launch_review(branch, base, sha, root=_target_root)  # iter-50.10.fix7
++    row = _launch_review(branch, base, sha, root=_target_root, payload=payload)  # Wave 160 SB8 round-2: agent_id thread + iter-50.10.fix7
+     # iter-25.3.1 §4: enrich row with commit_duration_ms (main-entry-to-row latency)
+     # before append. Centralized per codex T1 NEEDS-REVISION 0.88 Option C.
+     row["commit_duration_ms"] = int((time.monotonic() - _main_start_ms) * 1000)</repository_context>

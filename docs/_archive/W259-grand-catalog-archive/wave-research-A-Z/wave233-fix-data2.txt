@@ -1,0 +1,193 @@
+=== gsd-session-state.sh full body (60 lines max) ===
+#!/usr/bin/env bash
+# gsd-hook-version: 1.42.2
+# gsd-session-state.sh — SessionStart hook: inject project state reminder
+# Outputs STATE.md head on every session start for orientation.
+#
+# OPT-IN: This hook is a no-op unless config.json has hooks.community: true.
+# Enable with: "hooks": { "community": true } in .planning/config.json
+
+# Check opt-in config — exit silently if not enabled
+if [ -f .planning/config.json ]; then
+  ENABLED=$(node -e "try{const c=require('./.planning/config.json');process.stdout.write(c.hooks?.community===true?'1':'0')}catch{process.stdout.write('0')}" 2>/dev/null)
+  if [ "$ENABLED" != "1" ]; then exit 0; fi
+else
+  exit 0
+fi
+
+# Build the additionalContext text and emit it as a structured JSON
+# envelope per the Claude Code SessionStart hook protocol (#2974). Tests
+# parse the JSON and assert on typed fields (state_present: bool,
+# config_mode: string, etc) rather than substring-matching free-form text.
+STATE_PRESENT="false"
+STATE_HEAD=""
+if [ -f .planning/STATE.md ]; then
+  STATE_PRESENT="true"
+  STATE_HEAD=$(head -20 .planning/STATE.md)
+fi
+
+CONFIG_MODE="unknown"
+if [ -f .planning/config.json ]; then
+  CONFIG_MODE=$(node -e "try{const c=require('./.planning/config.json');process.stdout.write(String(c.mode||'unknown'))}catch{process.stdout.write('unknown')}" 2>/dev/null)
+fi
+
+# Use Node for JSON encoding so embedded newlines/quotes are escaped correctly.
+# additionalContext is the text Claude Code injects at session start; the
+# typed fields (state_present, config_mode) let tests assert on the
+# structured contract without grepping the prose.
+node -e '
+  const [statePresent, stateHead, configMode] = process.argv.slice(1);
+  const headerLines = ["## Project State Reminder", ""];
+  if (statePresent === "true") {
+    headerLines.push("STATE.md exists - check for blockers and current phase.");
+    if (stateHead) headerLines.push(stateHead);
+  } else {
+    headerLines.push("No .planning/ found - suggest /gsd-new-project if starting new work.");
+  }
+  headerLines.push("");
+  headerLines.push("Config: \"mode\": \"" + configMode + "\"");
+  const additionalContext = headerLines.join("\n");
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext,
+      state_present: statePresent === "true",
+      config_mode: configMode,
+    },
+  }));
+' "$STATE_PRESENT" "$STATE_HEAD" "$CONFIG_MODE"
+
+exit 0
+
+=== serena upstream README install section (gh API fresh fetch) ===
+> Do not install Serena via an MCP or plugin marketplace! They contain outdated and suboptimal installation commands. 
+> Instead, follow our [Quick Start](#quick-start) instructions.
+
+## Quick Demo
+
+https://github.com/user-attachments/assets/8d11646e-b80e-4723-b9d7-32d6101b5f58
+
+:tv: Longer video: [Introduction to Serena in 5 Minutes (YouTube)](https://www.youtube.com/watch?v=5QN7gN1KYLA)
+
+## What Our "End Users" Say
+
+While it is humans who download and set up Serena, our end users are essentially AI agents.
+As the ones actually applying Serena's tools, they are in the best position to evaluate Serena.
+
+We crafted an unbiased evaluation prompt that leads the agent to perform ~20 routine coding tasks, 
+representative of everyday development work, 
+in order to estimate the value added by Serena's tools when used alongside its own built-ins. 
+
+Here's a one-sentence summary of what the agents had to say:
+
+**Opus 4.6 (high) in Claude Code on a large Python codebase:**
+> "Serena's IDE-backed semantic tools are the single most impactful addition to my toolkit – cross-file renames, moves, and reference lookups that
+would cost me 8–12 careful, error-prone steps collapse into one atomic call, and I would absolutely ask any developer I work with to set them up."
+
+**GPT 5.4 (high) in Codex CLI on a Java codebase:**
+> "As a coding AI agent, I would ask my owner to add Serena because it gives me the missing IDE-level understanding of symbols, references, and
+refactorings, turning fragile text surgery into calmer, faster, more confident code changes where semantics matter."
+
+**GPT 5.4 (medium) in Copilot CLI on a large, multi-language monorepo:**
+> "As a coding agent, I’d absolutely ask my owner to add Serena because it makes me noticeably sharper and calmer on
+real code – especially symbol-aware navigation, cross-file refactors, and monorepo dependency jumps – while I still lean
+on built-ins for tiny text edits and non-code work."
+
+Different agents in different settings independently converge on the same verdict.
+
+_Give your agent the tools it has been asking for and add Serena MCP to your client!_
+
+See our [documentation](https://oraios.github.io/serena/04-evaluation/000_evaluation-intro.html) for the full methodology and much more detailed evaluation results, or run your own evaluation on a project of your choice.
+ 
+
+## How Serena Works
+
+Serena provides the necessary [tools](https://oraios.github.io/serena/01-about/035_tools.html) for coding workflows, 
+but an LLM is required to do the actual work, orchestrating tool use.
+
+Serena can extend the functionality of your existing AI client via the **model context protocol (MCP)**.
+Most modern AI chat clients directly support MCP, including
+* terminal-based clients like Claude Code, Codex, OpenCode, or Gemini-CLI,
+* IDEs and IDE assistant plugins for VSCode, Cursor and JetBrains IDEs (Copilot, Junie, JetBrains AI Assistant, etc.),
+* desktop and web clients like Claude Desktop, Codex App, or OpenWebUI.
+
+<img src="resources/serena-block-diagram.svg">
+
+:tv: See also: [Introduction to Serena in 5 Minutes (YouTube)](https://www.youtube.com/watch?v=5QN7gN1KYLA)
+
+To connect the Serena MCP server to your client, you either
+  * provide the client with a launch command that allows it to start the MCP server, or
+  * start the Serena MCP server yourself in HTTP mode and provide the client with the URL.
+
+See the [Quick Start](#quick-start) section below for information on how to get started.
+
+## Programming Language Support & Semantic Analysis Capabilities
+
+Serena provides a set of versatile code querying and editing functionalities
+based on symbolic understanding of the code.
+Equipped with these capabilities, your agent discovers and edits code just like a seasoned developer
+making use of an IDE's capabilities would.
+Serena can efficiently find the right context and do the right thing even in very large and
+complex projects!
+
+There are two alternative technologies powering these capabilities:
+
+* **Language servers** implementing the language server protocol (LSP) — the free/open-source alternative 
+  which is used by default.
+* **The Serena JetBrains Plugin**, which leverages the powerful code analysis and editing
+  capabilities of your JetBrains IDE (paid plugin; free trial available).
+
+You can choose either of these backends depending on your preferences and requirements.
+
+### Language Servers
+
+=== fetch MCP-org current install (modelcontextprotocol/servers fetch dir) ===
+.python-version (file)
+Dockerfile (file)
+LICENSE (file)
+README.md (file)
+pyproject.toml (file)
+src (dir)
+tests (dir)
+uv.lock (file)
+--- fetch README install snippet ---
+## Installation
+
+Optionally: Install node.js, this will cause the fetch server to use a different HTML simplifier that is more robust.
+
+### Using uv (recommended)
+
+When using [`uv`](https://docs.astral.sh/uv/) no specific installation is needed. We will
+use [`uvx`](https://docs.astral.sh/uv/guides/tools/) to directly run *mcp-server-fetch*.
+
+### Using PIP
+
+Alternatively you can install `mcp-server-fetch` via pip:
+
+```
+pip install mcp-server-fetch
+```
+
+After installation, you can run it as a script using:
+
+```
+python -m mcp_server_fetch
+```
+
+## Configuration
+
+### Configure for Claude.app
+
+Add to your Claude settings:
+
+<details>
+<summary>Using uvx</summary>
+
+```json
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    }
+  }

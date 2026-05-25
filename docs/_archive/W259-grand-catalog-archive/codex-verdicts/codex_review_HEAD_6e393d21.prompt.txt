@@ -1,0 +1,229 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 6e393d21de15608a5d470473ee56793260d7ea09
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md                         |  46 +++++++
+ .../99-deepdive-and-close.md                       | 149 +++++++++++++++++++++
+ 2 files changed, 195 insertions(+)
+
+=== git show --format=fuller ===
+commit 6e393d21de15608a5d470473ee56793260d7ea09
+Author:     42 <42@local>
+AuthorDate: Mon May 11 00:07:17 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 00:07:17 2026 -0400
+
+    docs(sota-deepdive): Wave 134 Fire 30 — Sourcegraph MCP REJECT-FOR-FIT + bnomei/frigg spillover discovery (Mia probe REFUTED GPT-5.5 "open-source reversal" claim; multi-source-discovery-breadth-discipline.md dogfooded at first opportunity within-arc)
+    
+    6th Tier-2 codification ship in Wave 134 series. Deep-dive on TOP-1 GPT-5.5
+    Fire 29c candidate (Sourcegraph MCP); produced REJECT-FOR-FIT verdict +
+    surfaced LEGITIMATE alternative `bnomei/frigg`.
+    
+    Multi-source convergence per Fire 29a `multi-source-discovery-breadth-discipline.md`
+    DOGFOODED — n=5 source families queried (GitHub MCP + WebFetch
+    sourcegraph.com + GPT-5.5 insights + user-doc cross-ref + GitHub MCP
+    file_contents on alternative). n=5 > ≥4 gate satisfied within-arc validation.
+    
+    ## 🚨 LOAD-BEARING #1 — GPT-5.5 "open-source reversal" claim REFUTED
+    
+    GPT-5.5 Fire 29c cited Sourcegraph MCP as "open-source 2026-05-01-ish
+    reversal of prior closed-source pivot". DIRECT WebFetch on sourcegraph.com/mcp
+    REFUTED — Sourcegraph MCP IS REAL but is COMMERCIAL HOSTED SERVICE requiring
+    Sourcegraph subscription; NO open-source release; NO canonical
+    github.com/sourcegraph/mcp-server repo exists.
+    
+    Per FM-20 path-drift cascade defense — Mia caught BEFORE Fire 33a propagation
+    to install commitment. Reinforces Fire 29c honest_unknowns #4 (GPT-5.5 self-
+    flagged claims as PROVISIONAL).
+    
+    ## 🚨 LOAD-BEARING #2 — Fire 29a rule DOGFOODED at first opportunity
+    
+    Multi-source-discovery-breadth-discipline.md (shipped Fire 29a) was applied
+    within same arc (Fire 30). Counting rules confirmed: GitHub family counts
+    ONCE despite multiple tool calls; n=5 source families validates ≥4 gate.
+    
+    ## 🚨 LOAD-BEARING #3 — Spillover candidate bnomei/frigg PROMOTE
+    
+    Multi-source gate surfaced bnomei/frigg which GPT-5.5 DID NOT mention in
+    Fire 29c top-5 list. Demonstrates multi-source gate catches candidates AI
+    models miss when context-primed for specific candidates. PROMOTE frigg to
+    Fire 33b TOP-1 candidate (REPLACES Sourcegraph MCP).
+    
+    ## Sourcegraph MCP — Probe DAG verdict
+    
+    - Probe 1 N/A / Probe 2 PASS-CONDITIONAL / Probe 3 PASS / Probe 4 PASS / Probe 5 PASS
+    - **Probe 6 ❌ REJECT — COMMERCIAL LICENSE** (Sourcegraph subscription required;
+      not in eee permissive-license allowlist per SRA D1)
+    - **Probe 7 ❌ REJECT — DEMAND-ABSENCE** (eee covers code search via
+      Serena + ast-grep + Semgrep + RepoMix + DeepWiki + GitHub MCP)
+    
+    CR-12 disposition: **DUPLICATE-FUNCTIONALITY** → REJECT per
+    kiss-dry-yagni Must-Never #4.
+    
+    ## bnomei/frigg verified (Fire 30 spillover)
+    
+    - License: **MIT + MPL2.0 dual** (PERMISSIVE; passes SRA D1)
+    - Stack: Rust + local-first read-only MCP + SQLite + Tree-sitter AST + SCIP
+      + reranker + optional semantic (openai/google opt-in)
+    - 11 languages: Rust + PHP + Blade + TS/TSX + Python + Go + Kotlin/KTS +
+      Java + Lua + Roc + Nim
+    - Native integrations: Claude Code + OpenCode + Codex
+      (`claude mcp add --transport http frigg http://127.0.0.1:37444/mcp`)
+    - Bundled `skills/frigg-mcp-search-navigation/` skill
+    - 24+ MCP tools: search_hybrid + search_symbol + find_references +
+      go_to_definition + find_implementations + incoming_calls + outgoing_calls +
+      document_symbols + inspect_syntax_tree + search_structural + read_match +
+      explore + deep_search_run/replay/compose_citations + workspace_*
+    - Auto SCIP generation (Rust/Go/TS/Python/PHP/Kotlin)
+    - 3 official-native install channels: cargo + brew + GitHub Releases (CR-6)
+    - Created 2026-03-04, last push 2026-04-17 (~2mo; BORDERLINE Axis-3;
+      cpd calc queued for Fire 33b)
+    
+    Provisional CR-12: **PROVIDER-COMPLEMENT** vs Serena LSP-backed.
+    
+    ## 5-candidate verdict matrix
+    
+    | Candidate | Verdict |
+    |---|---|
+    | Sourcegraph MCP (GPT-5.5 TOP-1) | ❌ REJECT-FOR-FIT |
+    | bnomei/frigg (Fire 30 spillover) | ⏸️ FORWARD-REF FRESH-CANDIDATE-PROMOTE |
+    | najva-ai/sourcegraph-mcp (third-party wrapper) | ❌ REJECT-FOR-FIT |
+    | akbad/sourcegraph-mcp (third-party wrapper) | ❌ REJECT-FOR-FIT |
+    | radiovisual/zoekt-mcp (Zoekt wrapper) | ⏸️ DEFER |
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ships: n=5 → **n=6**
+    - Multi-source breadth gate dogfood instances: n=0 → **n=1 NEW** (within-arc)
+    - GPT-5.5 claim REFUTED via Mia probe: n=N+1
+    - Spillover discoveries (Mia found candidate AI missed): n=0 → **n=1 NEW**
+    - REJECT-FOR-FIT via Probe 6 commercial-license: n=N+1
+    
+    ## Mia ladder advance
+    
+    n=2153 (Fire 29a) → **n=2185** (Fire 30 close, +32)
+    
+    ## REVISED Forward Top-5
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F37 | Forward Discipline #1+#2 cycle-322 PROMOTION |
+    | 🥈 | W134-F30 | IMP-B: Weighted rubric codification |
+    | 🥉 | **W134-F33b** | **bnomei/frigg deep-dive Probe DAG 1-7** (PROMOTED from Sourcegraph MCP) |
+    | #4 | W134-F-IMP-P | Evidence-Governed Harness Promotion 8-gate |
+    | #5 | W134-F-IMP-N | 4-class memory taxonomy + promotion gate |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION disclosed
+    - CR-3 cross-model: DEFERRED to Fire 33b adoption decision per `cross-model-consensus.md §When NOT to apply` NAMED-candidate exemption (Sourcegraph MCP named target; multi-source convergence n=5 substitutes for codex T1)
+    - CR-9 install-risk: N/A (REJECT verdict)
+    - CR-10 research-first-then-install: Research = multi-source convergence; Result = REJECT + spillover
+    - CR-11 META-process: dogfood
+    - CR-12 5-class lattice: Sourcegraph MCP DUPLICATE-FUNCTIONALITY; frigg PROVIDER-COMPLEMENT provisional
+    - FM-02 sub-class (b) defense: atomic git add + commit --only -- pathspec
+    - FM-20 path-drift cascade: GPT-5.5 claim drift caught BEFORE install propagation
+    - Multi-source discovery breadth (Fire 29a rule!): ✅ DOGFOODED n=5 families
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-30-sourcegraph-mcp-deepdive/99-deepdive-and-close.md
+    Cite: TIER-3-LOCAL-COMPOSITION via multi-source convergence (sourcegraph.com/mcp WebFetch + GitHub MCP 5 probes + user-doc + Fire 29c GPT-5.5 + Fire 29a discipline DOGFOOD)
+    Verify: `[VERIFIED via direct sourcegraph.com/mcp WebFetch — COMMERCIAL hosted service confirmed (GPT-5.5 "open-source reversal" REFUTED) + bnomei/frigg README direct file_contents probe — MIT+MPL2.0 + 11-lang + 24-tool MCP surface verified + Sourcegraph MCP REJECT-FOR-FIT + bnomei/frigg PROMOTE Fire 33b TOP-1]`
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 0212498..31c8f85 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -14683,3 +14683,49 @@ Expected: `True` with no 404, no unsupported endpoint, no unsupported structured
+   - #5 W134-F-IMP-N — 4-class memory taxonomy + promotion gate (Fire 29c Axis 4)
+ 
+ - **Verdict cite**: `[VERIFIED via .claude/state/codex_consult_w134_f29a_multi_source_discovery_OUT.txt — REAL GPT-5.5 NEEDS-REVISION conf=0.91 + Pattern A 6-edit single fix-forward applied + Forward Discipline #2 evidence ladder n=3→n=4 advances beyond cycle-322 promotion gate + .claude/rules/multi-source-discovery-breadth-discipline.md ~210 LOC SHIPPED + .claude/state/codex_consult_w134_f29c_sota_convergence_insights_OUT.txt 479 LOC REAL GPT-5.5 fresh SOTA convergence insights delivered per user-directive 2026-05-10 + 5 NEW IMP candidates (IMP-N/O/P/Q/R) + dual-ship Path P parallel dispatch pattern validated]`
++
++---
++
++## 2026-05-11 — 
+
+[prompt truncated]

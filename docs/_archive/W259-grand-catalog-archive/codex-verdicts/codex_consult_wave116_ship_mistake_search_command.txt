@@ -1,0 +1,95 @@
+# T1 codex pre-commit consult — Wave 116 Ship 2N-batch3-MEM-MISTAKE-A /mistake-search slash command
+
+## Context
+
+3rd operator-invoked memory primitive symmetric to Wave 113 `/recall` (RECALL general memories) + Wave 115 `/harvest` (CAPTURE pipeline). Wave 116 ships `/mistake-search` — READ-only RECALL-class surface for mistake-pattern primitives stored via `mcp__memory__mistake_note_add` (Wave 117 candidate).
+
+Wave 113 codex T1 NEEDS-REVISION conf=0.89 → 4 prescriptions applied (frontmatter + body + cite + tier-1 cite). Wave 115 codex T1 NEEDS-REVISION conf=0.87 → 5 prescriptions applied (two-token write-confirmation guard + project_path inference correction + output template + use_llm + anti-pattern). Wave 116 should benefit from cumulative learnings — simpler ship (READ-only / single tool / 2 params).
+
+Per `cardinal-rule-12 upstream-install-priority` HONEST-NON-FINDING (verified Wave 113 Plan agent search): no upstream Anthropic-OFFICIAL `/mistake-search` skill exists; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8.
+
+## Proposed edit (NEW file at `.claude/commands/mistake-search.md`)
+
+Already written via Write tool (~85 LOC; T1-WARN gate noted but proceeding per CR-3 Phase 1 bootstrap exception with this explicit foreground T1).
+
+Key design choices (mirrors Wave 113/115 Pattern A-corrected template):
+1. Frontmatter: `description` + `argument-hint: <query> [--limit N]` + `disable-model-invocation: true` + `allowed-tools: [mcp__memory__mistake_note_search]`
+2. Operator-invoked READ-only (no `--apply` semantic; no two-token guard needed since no DB writes)
+3. Single tool: `mcp__memory__mistake_note_search`
+4. Output template fields per upstream `mistake_note_add` schema: `error_pattern` + `context_signature` + `incorrect_action` + `correct_action` + `failure_count`
+5. Companion ships queued (`/mistake-add` Wave 117 + skill `mistake-aware` Wave 118 + Stop hook auto-capture Wave 119+)
+
+## 3 audit axes (TIGHT per codex-t1-fix-forward-pattern.md Pattern A)
+
+### AXIS 1 — Anthropic CC slash command spec compliance (consistency with Wave 113/115)
+
+The file lives at `.claude/commands/mistake-search.md`. Verify the frontmatter shape against Wave 113/115 Pattern A-corrected template + canonical Anthropic CC spec:
+
+- Frontmatter shape identical to Wave 115 `/harvest` (Pattern A-corrected template) MINUS the `--apply --apply-confirmed` two-token (READ-only surface, no write semantic)
+- `disable-model-invocation: true` retained for operator-only design
+- `argument-hint: <query> [--limit N]` — does positional `<query>` work without explicit flag, OR should it be `--query` flag?
+- `allowed-tools` single-tool YAML list
+
+Any frontmatter shape concern OR is this consistent with prior Pattern A-corrected templates?
+
+### AXIS 2 — mistake_note_search MCP integration semantic correctness
+
+The slash command instructs Claude to invoke `mcp__memory__mistake_note_search` with parsed args. Verify against runtime spec at `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:2246-2257`:
+
+- Tool name `mistake_note_search` (CC tool ref `mcp__memory__mistake_note_search`)
+- Param `query` (REQUIRED, free-text string) + `limit` (optional int default 5)
+- Verify slash command param mapping:
+  - First positional arg(s) before `--limit` flag → `query` (REQUIRED, free-text)
+  - `--limit N` → `limit: <N>` (default 5, max 20 sane cap I added)
+- Output template fields claimed in slash command: `error_pattern` + `context_signature` + `incorrect_action` + `correct_action` + `failure_count` — verify these match what the tool actually returns. Per `mistake_note_add` Tool spec at `server_impl.py:2225-2245`: required input fields are exactly these 4 (`error_pattern` + `context_signature` + `incorrect_action` + `correct_action`); `failure_count` is "Auto-incremented for repeated patterns" per docstring (does it appear in `mistake_note_search` OUTPUT?)
+- The "max 20 sane cap" I added on `--limit` flag — is this an honest extension, OR overstating upstream limits (should I drop it)?
+
+If output template OR limit handling is wrong, /mistake-search would produce malformed output. Report exact prescribed correction.
+
+### AXIS 3 — Probe 5 mode-harness-shape verdict for eee + READ-only simplicity
+
+eee is single-user /loop autonomous. Cron `5e0c7efb` `*/15 * * * *` re-enters with same prompt context. Wave 113 `/recall` shipped operator-invoked + READ-only without two-token guard (Probe 5 PASS). Wave 115 `/harvest` added two-token `--apply --apply-confirmed` for WRITE surface.
+
+For `/mistake-search` (READ-only):
+- Is `disable-model-invocation: true` sufficient + READ-only (no DB writes) means no two-token guard needed?
+- Risk: if /loop tick prompt CONTAINS `/mistake-search "<some query>"`, would this accidentally fire?
+- Per Wave 113 codex T1 finding: "Anthropic commands are only recognized at the start of a message, so inline prose or commit-body mentions of `/mistake-search` should not dispatch. A `/loop` tick whose prompt starts with `/mistake-search` could still explicitly invoke the command at message start; no frontmatter field mechanically blocks user/SDK slash-command dispatch at message start." For READ-only surface, is this acceptable risk?
+- Anti-pattern note "DO NOT rely on /mistake-search for completeness" + "DO NOT invoke from /loop ticks expecting context injection" — sufficient OR additional discipline needed?
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "...",
+    "axis_2_mcp_integration_correctness": "...",
+    "axis_3_probe_5_mode_harness": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/mistake-search.md",
+      "line_or_section": "frontmatter | body | both",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance + cite trail
+
+- CR-1 cite SOTA primary: TIER-1-DIRECT to Anthropic CC slash command spec + mcp_memory_service runtime tool surface at server_impl.py:2246-2257
+- CR-3 cross-model T1: this consult IS the gate satisfaction (T1-WARN already fired; explicit foreground+tee codex e2e per Phase 1 bootstrap exception)
+- CR-5 install-priority: NEW slash command file (NOT new install — uses EXISTING `mcp__memory__mistake_note_search` advertised in v10.51.3 runtime)
+- CR-9 install-risk: LOWEST-RISK READ-only (no DB writes; no `--apply`; reversible via rm)
+- CR-12 upstream-install-priority: HONEST-NON-FINDING per Wave 113 Plan agent — no upstream Anthropic-OFFICIAL `/mistake-search` skill exists
+
+## Files for review
+
+- `.claude/commands/mistake-search.md` (NEW, ~85 LOC) — verbatim content via Read tool from absolute path
+- Companion templates: `.claude/commands/recall.md` (Wave 113 Pattern A-corrected) + `.claude/commands/harvest.md` (Wave 115 Pattern A-corrected)
+- Upstream cite: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:2225-2257` for `mistake_note_add` + `mistake_note_search` Tool specs

@@ -1,0 +1,1487 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e0b4a-9062-74a2-a208-ad970919906f
+--------
+user
+# T1 codex pre-commit consult — Wave 115 Ship 2N-batch3-MEM-CAPTURE /harvest slash command
+
+## Context
+
+Wave 113 codex T1 e2e on /recall slash command surfaced full mcp-memory-service v10.51.3 runtime tool surface (10+ tools advertised) including `memory_harvest` — "Extract learnings from Claude Code session transcripts". Wave 113 close-synthesis at `docs/install-provenance.md:9119-9224` queued Ship 2N-batch3-MEM-CAPTURE as Wave 115 candidate; this fire ships it.
+
+Per Wave 113 close-synthesis + cardinal-rule-12 upstream-install-priority: NO new install needed; `mcp__memory__memory_harvest` MCP tool ALREADY advertised in runtime per `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` Tool definition. Plus full `harvest/` Python pipeline (SessionHarvester + TranscriptParser + PatternExtractor + HarvestClassifier + HarvestCandidate/Result/Config models).
+
+Symmetric to Wave 113 `/recall` slash command D — `/harvest` is the CAPTURE companion (operator-invoked CAPTURE surface).
+
+## Proposed edit (NEW file at `.claude/commands/harvest.md`)
+
+The file content is the slash command spec. ~120 LOC. Already written via Write tool (T1-WARN gate noted but proceeding per CR-3 Phase 1 bootstrap exception with this explicit foreground T1).
+
+Key design choices (mirrors Wave 113 /recall Pattern A-corrected template):
+1. Frontmatter: `description` + `argument-hint` + `disable-model-invocation: true` + `allowed-tools: [mcp__memory__memory_harvest]`
+2. Operator-invoked only (Probe 5 PASS for eee single-user /loop autonomous)
+3. SAFETY DEFAULT: `dry_run: true` — preview only; operator MUST pass `--apply` for actual DB writes
+4. Anti-pattern note: "DO NOT invoke /harvest --apply from inside autonomous /loop ticks"
+5. Companion ships queued (skill C / hook E for Wave 116-117)
+
+## 3 audit axes (TIGHT per codex-t1-fix-forward-pattern.md Pattern A)
+
+### AXIS 1 — Anthropic CC slash command spec compliance
+
+The file lives at `.claude/commands/harvest.md`. Verify the frontmatter shape against the canonical Anthropic CC spec at `https://code.claude.com/docs/en/slash-commands` + `https://code.claude.com/docs/en/agent-sdk/slash-commands`:
+
+- Mirrors Wave 113 /recall frontmatter (Pattern A-corrected): `description` + `argument-hint` + `disable-model-invocation: true` + `allowed-tools` as YAML list
+- Single tool in allowed-tools: `mcp__memory__memory_harvest`
+- Body uses `$ARGUMENTS` placeholder convention in prose (no required `## $ARGUMENTS` heading)
+
+Are there frontmatter fields I should add OR drop? Is `disable-model-invocation: true` the right choice for an operator-only CAPTURE surface (vs operator-only RECALL where /recall used same)? Any difference for CAPTURE vs RECALL surfaces?
+
+### AXIS 2 — memory_harvest MCP integration semantic correctness
+
+The slash command instructs Claude to invoke `mcp__memory__memory_harvest` with parsed args. Verify against runtime spec at `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057`:
+
+- Tool name `memory_harvest` (CC tool ref `mcp__memory__memory_harvest`) — confirmed via my earlier probe
+- Param shape: `sessions` (int default 1) / `session_ids` (array<string>) / `types` (array<enum decision/bug/convention/learning/context>) / `min_confidence` (number default 0.6) / `dry_run` (bool default TRUE) / `project_path` (string) / `use_llm` (bool default false; requires GROQ_API_KEY)
+- Slash command param mapping correctness:
+  - `--sessions N` → `sessions: <N>`
+  - `--session-ids <id1,id2>` → `session_ids: ["<id1>", "<id2>"]`
+  - `--types decision,bug` → `types: ["decision", "bug"]` filtered to enum
+  - `--min-confidence 0.7` → `min_confidence: 0.7`
+  - `--apply` → `dry_run: false` (overrides default TRUE)
+  - `--project-path <path>` → `project_path: "<path>"`
+- DELIBERATELY OMITTED: `use_llm: true` per "do NOT pass without GROQ_API_KEY" — eee has no Groq key set; default false honored
+
+Is the `--apply` semantic (override `dry_run: true` → `dry_run: false`) clear enough? Does the safety default match upstream intent? Any param mapping I got wrong?
+
+### AXIS 3 — Probe 5 mode-harness-shape verdict for eee + symmetric to /recall
+
+eee is single-user /loop autonomous. Cron `5e0c7efb` `*/15 * * * *` re-enters with same prompt context. Wave 113 /recall slash command shipped operator-invoked-only + `disable-model-invocation: true` per Probe 5 PASS.
+
+For /harvest specifically:
+- `dry_run: true` default vs `dry_run: false` opt-in via `--apply` — is this the right safety shape?
+- Risk: if /loop tick prompt CONTAINS the literal `/harvest --apply` (e.g., when documenting the design in commit body OR provenance OR when the cron prompt mentions "harvest"), would this accidentally fire?
+- Per Wave 113 codex T1 finding: "Anthropic commands are only recognized at the start of a message, so inline prose or commit-body mentions of `/harvest` should not dispatch. A `/loop` tick whose prompt starts with `/recall` could still explicitly invoke the command; no frontmatter field mechanically blocks user/SDK slash-command dispatch at message start."
+- For /harvest with `--apply` (destructive — writes to memory DB), is the operator-discipline anti-pattern note SUFFICIENT, OR should the slash command have additional safety (e.g., require an explicit confirmation token like `--apply-confirmed`)?
+- Companion ships queued: skill `mem-harvest` (Wave 116) + Stop hook auto-harvest (Wave 117) — should the slash command's design ANTICIPATE these (e.g., shared param-parsing helper) OR keep them strictly separate?
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "...",
+    "axis_2_mcp_integration_correctness": "...",
+    "axis_3_probe_5_mode_harness": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "frontmatter | body | both",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance + cite trail
+
+- CR-1 cite SOTA primary: TIER-1-DIRECT to Anthropic CC slash command spec + mcp_memory_service runtime tool surface at server_impl.py:1979-2057
+- CR-3 cross-model T1: this consult IS the gate satisfaction (T1-WARN already fired; explicit foreground+tee codex e2e per Phase 1 bootstrap exception)
+- CR-5 install-priority: NEW slash command file (NOT new install — uses EXISTING `mcp__memory__memory_harvest` advertised in v10.51.3 runtime)
+- CR-9 install-risk: LOW-RISK reversible (operator-invoked + dry_run TRUE default + --apply opt-in)
+- CR-12 upstream-install-priority: HONEST-NON-FINDING per Wave 113 Plan agent — no upstream Anthropic-OFFICIAL `/harvest` skill exists; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8
+
+## Files for review
+
+- `.claude/commands/harvest.md` (NEW, ~120 LOC) — verbatim content via Read tool from absolute path
+- Companion: `.claude/commands/recall.md` (Wave 113 Pattern A-corrected; symmetric design pattern)
+- Upstream cite: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` for `memory_harvest` Tool spec
+- Upstream pipeline: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/` for SessionHarvester + 5-type extraction modules
+
+codex
+I’ll verify the local command spec against the installed tool surface and the current Anthropic docs, then return only the requested JSON object.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -LiteralPath Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest | Select-Object Name,Length,LastWriteTime' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw -LiteralPath .claude/commands/harvest.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw -LiteralPath .claude/commands/recall.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py'; "'$lines=Get-Content -LiteralPath $p; for($i=1978; $i -le 2057; $i++){ if($i -le $lines.Length){ '"'{0}: {1}' -f ("'$i+1), $lines[$i] } }' in Z:\claude-sota-installed
+ succeeded in 325ms:
+---
+description: Search persistent memory for prior decisions / ship verdicts / FM-class recoveries / named-failure-mode catalog rows / Wave-N artifact references via mcp__memory__memory_search.
+argument-hint: <natural-language query> [--tag <tag>] [--since <YYYY-MM-DD>] [--limit <N>]
+disable-model-invocation: true
+allowed-tools:
+  - mcp__memory__memory_search
+---
+
+# /recall
+
+Operator-invoked semantic search against the eee persistent memory store. Wave 113 Ship 2N-batch3-MEM-D component (slash D of Hybrid Option F per `tmp/wave113-architect-memrecall-design-2026-05-09.md` DESIGN: F).
+
+## Backend (TIER-1-DIRECT cite — runtime distinguished from local repo)
+
+- **Server (runtime)**: `mcp-memory-service v10.51.3` installed at `Z:/venvs/claude/Scripts/memory.exe` per `.mcp.json:38-46` (Apache-2.0 / 1809★ doobidoo/mcp-memory-service)
+- **Local source clone**: `Z:/repos/deps/mcp-memory-service @ HEAD 0cf4e09fe75535dff0f73ce799d68b6b37537c6a` (v10.47.2 — distinct from runtime; do NOT cite as upstream-source verification for runtime call shape)
+- **Storage**: sqlite_vec at `Z:/claude-sota-installed-state/.mcp-memory/memory.db`
+- **Schema**: 14 tables — `memories` + `memory_embeddings` (vector chunks) + `memory_content_fts` (FTS5) + `memory_graph`
+
+## Usage
+
+- `/recall <query>` — semantic search, top 5 results by default
+- `/recall --tag <tag> <query>` — tag-filtered semantic search
+- `/recall --since <YYYY-MM-DD> <query>` — time-range filter
+- `/recall --limit <N> <query>` — result count override (default 5, max 20)
+
+## Implementation behavior
+
+When invoked with `$ARGUMENTS`, parse flags first:
+
+- `--tag <tag>`: collect one or more tags and pass as `tags: [...]`
+- `--since <YYYY-MM-DD>`: pass as `after: "<YYYY-MM-DD>"` (mcp-memory-service uses `after`/`before`/`time_expr`, NOT `since`)
+- `--limit <N>`: pass as `limit` after clamping to command max (default 5, max 20)
+- Remainder: pass as `query`
+
+Invoke `mcp__memory__memory_search` with `mode: "semantic"`, `query`, optional `tags`, optional `after`, and `limit`. Do NOT call `retrieve_memory` — it is a deprecated compatibility route in mcp-memory-service and is not advertised as a Claude Code MCP tool.
+
+Raw tool output is `Found N memories (mode: ...)` plus numbered `content/Hash/Created/tags` blocks. Reformat top-N results as:
+
+```
+## RECALL: N matches
+1. [tag1, tag2] 2026-05-09: <content excerpt 200 chars>
+   memory_id: <hash>
+2. ...
+```
+
+(The `## RECALL: N matches` block is the post-processing presentation shape — not raw MCP output.)
+
+If 0 matches: report HONEST-NON-FINDING per `.claude/rules/synthesis-layer-verify.md §Reporting categories` with the query verbatim and suggest broadening.
+
+## When to use
+
+- Pre-task: search memory before planning a complex ship — surface prior similar work
+- Post-incident: locate prior similar incidents (FM-class recoveries / Mia OVER catches)
+- Wave-close synthesis: verify HONEST-NON-FINDING saturation by querying for prior wave verdicts on same axis
+- Cardinal-rule-11 META-process RECALL operationalization (CLAUDE.md §"NEW Cardinal Rule cardinal-rule-11")
+
+## Companion ships (queued, not active)
+
+- **Skill `mem-recall`** (Wave 114 Ship 2N-batch3-MEM-C candidate): description-triggered auto-promote when context matches recall keywords
+- **PreToolUse:Agent spawn-time hook** (Wave 115 Ship 2N-batch3-MEM-E candidate): subagent context enrichment via `additionalContext` JSON field
+
+## TIER-1 SOTA cite trail
+
+- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter; supports `description` / `argument-hint` / `disable-model-invocation` / `allowed-tools` fields per Wave 113 codex T1 verdict at `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt`)
+- **mcp-memory-service runtime tool surface (verified)**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1810-2247` advertises `memory_search` + `memory_consolidation` + `memory_ingest` + `memory_harvest` + `memory_quality` + `memory_graph` + `memory_conflicts` + `memory_resolve` + `mistake_note_add` + `mistake_note_search` (10+ tools). `memory_search` real param shape: `query` / `mode` / `time_expr` / `after` / `before` / `tags` / `quality_boost` / `limit` / `include_debug` / `max_response_chars` / `include_superseded` (NO `since` parameter)
+- **Wave 113 codex T1 verdict**: NEEDS-REVISION conf=0.89 [VERIFIED via `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt` 2026-05-09] — corrections applied per `codex-t1-fix-forward-pattern.md` Pattern A
+
+## Anti-patterns
+
+- **DO NOT** invoke `/recall` from inside autonomous /loop ticks — explicit operator-invocation only (Probe 5 mode-harness-shape per `.claude/rules/agent-harness-fit-verification.md`)
+- **DO NOT** chain `/recall` followed by `/recall` repeatedly — single-fire usage; if no match, broaden query or check capture-side wire (memory CAPTURE may be missing per Wave 113 Plan finding)
+
+
+ succeeded in 354ms:
+---
+description: Extract learnings from Claude Code session transcripts (decisions / bugs / conventions / learnings / context) via mcp__memory__memory_harvest. Default dry-run preview; --apply stores candidates.
+argument-hint: [--sessions N] [--types <decision|bug|convention|learning|context>] [--apply] [--min-confidence 0.6]
+disable-model-invocation: true
+allowed-tools:
+  - mcp__memory__memory_harvest
+---
+
+# /harvest
+
+Operator-invoked CAPTURE primitive. Wave 115 Ship 2N-batch3-MEM-CAPTURE — closes RECALL prerequisite gap surfaced Wave 113 (DB had 0 entries pre-harvest). Symmetric companion to Wave 113 `/recall` (RECALL surface) — `/harvest` is the CAPTURE surface.
+
+## Backend (TIER-1-DIRECT cite — runtime distinguished from local repo)
+
+- **Server (runtime)**: `mcp-memory-service v10.51.3` installed at `Z:/venvs/claude/Scripts/memory.exe` per `.mcp.json:38-46` (Apache-2.0 / 1809★ doobidoo/mcp-memory-service)
+- **Local source clone**: `Z:/repos/deps/mcp-memory-service @ HEAD 0cf4e09fe75535dff0f73ce799d68b6b37537c6a` (v10.47.2 — distinct from runtime; cite separately)
+- **MCP tool spec**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` (`memory_harvest` Tool registration + inputSchema)
+- **Harvest pipeline**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/` — `SessionHarvester` (harvester.py) + `TranscriptParser` (parser.py) + `PatternExtractor` (extractor.py) + `HarvestClassifier` (classifier.py — LLM Phase 2 47%→80% precision)
+- **Storage**: sqlite_vec at `Z:/claude-sota-installed-state/.mcp-memory/memory.db` (14 tables — `memories` + `memory_embeddings` + `memory_content_fts` + `memory_graph`)
+
+## Usage
+
+- `/harvest` — dry-run preview top recent session, all memory types
+- `/harvest --sessions 3` — preview last 3 sessions
+- `/harvest --types decision,bug` — filter by memory types (allowed: `decision` / `bug` / `convention` / `learning` / `context`)
+- `/harvest --min-confidence 0.7` — confidence threshold (default 0.6)
+- `/harvest --apply` — STORE candidates (overrides default `dry_run: true`)
+- `/harvest --apply --sessions 5 --types decision,convention` — composite
+
+**Safety default**: `dry_run: true` — preview only, no DB writes. Operator MUST pass `--apply` explicitly to commit memories. Per cardinal-rule-9 install-risk LOW-with-explicit-confirmation pattern.
+
+## Implementation behavior
+
+When invoked with `$ARGUMENTS`, parse flags:
+
+- `--sessions N`: pass as `sessions: <N>` (default 1)
+- `--session-ids <id1,id2>`: pass as `session_ids: ["<id1>", "<id2>"]`
+- `--types <list>`: parse comma-separated list, pass as `types: [...]` filtered to {`decision`, `bug`, `convention`, `learning`, `context`}
+- `--min-confidence N`: pass as `min_confidence: <N>` (default 0.6)
+- `--apply`: pass as `dry_run: false` (override default `dry_run: true`)
+- `--project-path <path>`: pass as `project_path: "<path>"` (default uses CLAUDE_PROJECT_DIR)
+
+Invoke `mcp__memory__memory_harvest` with assembled params. Do NOT pass `use_llm: true` — it requires `GROQ_API_KEY` env var which eee does not have set; LLM Phase 2 classification not enabled this fire.
+
+Reformat returned `HarvestResult` candidates as:
+
+```
+## HARVEST: N candidates (sessions: <list>, dry_run: <bool>, min_confidence: <N>)
+1. [<type>] confidence=<N>: <content excerpt 200 chars>
+   session_id: <id>
+   timestamp: <ts>
+2. ...
+```
+
+Distinguish dry-run vs apply outcomes:
+- `dry_run: true` → "PREVIEW (no DB writes)"
+- `dry_run: false` → "STORED N candidates as tagged memories"
+
+If 0 candidates: report HONEST-NON-FINDING per `.claude/rules/synthesis-layer-verify.md §Reporting categories` with the session range probed and suggest broader scope OR larger session count.
+
+## When to use
+
+- Post-wave: harvest current session learnings (decision/bug/convention/learning/context) into persistent memory before session ends
+- Pre-incident-replay: harvest prior session looking for similar contexts before starting analogous work
+- Cardinal-rule-11 META-process operationalization (CLAUDE.md §"NEW Cardinal Rule cardinal-rule-11"): closes the CAPTURE half so /recall has actual data to surface
+- Compounding learning per Karpathy `§5 Wiki Compounding Surface` discipline + user mandate "compounding learning"
+
+## Companion ships (queued, not active)
+
+- **Skill `mem-harvest`** (Wave 116 Ship 2N-batch3-MEM-HARVEST-C candidate): description-triggered auto-promote on session-end-imminent context detection (use_llm=false safe default)
+- **Stop hook auto-harvest** (Wave 117 Ship 2N-batch3-MEM-HARVEST-E candidate): SessionEnd hook calls `python -c "from mcp_memory_service.harvest import SessionHarvester; ..."` for autonomous-loop CAPTURE without operator typing — Probe 5 mode-harness-shape design needed (slash uses MCP tool, hook uses Python class direct — different code paths)
+- **`/recall`** (Wave 113 Ship 2N-batch3-MEM-D): symmetric RECALL surface — operator types `/recall <query>` to surface prior harvested memories
+
+## TIER-1 SOTA cite trail
+
+- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter incl. `disable-model-invocation`)
+- **mcp-memory-service runtime tool surface (verified)**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` advertises `memory_harvest` MCP tool with full inputSchema
+- **Harvest pipeline source**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/{__init__,classifier,extractor,harvester,models,parser}.py` — SessionHarvester orchestrator + 5-type extraction
+- **Wave 113 codex T1 surfacing**: `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt` discovered `memory_harvest` primitive among 10+ advertised tools; closed Wave 113 close-synthesis "CAPTURE missing" Mia OVER #41 self-catch — primitive EXISTS; `/harvest` is just the operational wire
+
+## Anti-patterns
+
+- **DO NOT** invoke `/harvest --apply` from inside autonomous /loop ticks — operator-explicit only; `dry_run: false` is destructive (writes to memory DB; reverting requires DB rollback per `.mcp-memory/memory.db` backup); per Probe 5 mode-harness-shape per `agent-harness-fit-verification.md`
+- **DO NOT** chain `/harvest --apply` repeatedly on same session — duplicates memories (no idempotency in v10.51.3 runtime; deduplication is via `memory_consolidation` separate primitive)
+- **DO NOT** pass `use_llm: true` without explicit operator approval — Groq API call costs ~$0.001/candidate; without GROQ_API_KEY env var the call FAILS silently per upstream docs
+
+## Cardinal-rule conformance per ship
+
+- CR-1: TIER-1-DIRECT cites at file:line (mcp_memory_service/server_impl.py:1979-2057 + harvest/__init__.py + Anthropic CC slash command spec URL)
+- CR-3: codex T1 e2e foreground+tee mandatory before commit (per CR-3 + user mandate "always using gpt5.5 fully e2e before commit")
+- CR-5: NEW slash command file using EXISTING upstream primitive (`mcp__memory__memory_harvest`) — install-priority satisfied (no new install needed; primitive already advertised in v10.51.3 runtime)
+- CR-9: LOW-RISK reversible — operator-invoked + `dry_run: true` default + `--apply` opt-in; reversible via `rm .claude/commands/harvest.md` + DB rollback if applied
+- CR-12: HONEST-NON-FINDING — no upstream Anthropic-OFFICIAL `/harvest` skill exists per Wave 113 Plan agent search; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8 (effective_tier=TIER-3-LOCAL-COMPOSITION-OVER-TIER-1-SUBSTRATES)
+
+
+ succeeded in 379ms:
+
+[32;1mName         [0m[32;1m Length[0m[32;1m LastWriteTime[0m
+[32;1m----         [0m [32;1m------[0m [32;1m-------------[0m
+__pycache__          5/8/2026 3:30:49 AM
+__init__.py   503    5/8/2026 3:30:49 AM
+classifier.py 11178  5/8/2026 3:30:49 AM
+extractor.py  3867   5/8/2026 3:30:49 AM
+harvester.py  7148   5/8/2026 3:30:49 AM
+models.py     2752   5/8/2026 3:30:49 AM
+parser.py     3344   5/8/2026 3:30:49 AM
+
+
+ succeeded in 406ms:
+1979:                         name="memory_harvest",
+1980:                         description="""Extract learnings from Claude Code session transcripts.
+1981: 
+1982: USE THIS WHEN:
+1983: - End of session — auto-capture decisions, bugs, conventions, learnings
+1984: - User asks to "harvest" or "extract learnings" from sessions
+1985: - Building knowledge base from past sessions
+1986: 
+1987: MODES:
+1988: - dry_run=true (DEFAULT): Preview candidates without storing
+1989: - dry_run=false: Store candidates as tagged memories
+1990: 
+1991: MEMORY TYPES EXTRACTED:
+1992: - decision: Architectural choices, tool selections
+1993: - bug: Issues encountered and root causes
+1994: - convention: Patterns/rules established
+1995: - learning: Insights, mistakes learned from
+1996: - context: Session state for continuity
+1997: 
+1998: LLM CLASSIFICATION (Phase 2):
+1999: - use_llm=true: Validate candidates with Groq LLM (higher precision, ~$0.001/candidate)
+2000: - Filters conversation fragments, deduplicates, refines content
+2001: - Requires GROQ_API_KEY environment variable
+2002: 
+2003: Examples:
+2004: {"sessions": 1, "dry_run": true}
+2005: {"sessions": 3, "types": ["decision", "bug"]}
+2006: {"session_ids": ["abc123"], "dry_run": false}
+2007: {"min_confidence": 0.7, "sessions": 1}
+2008: {"sessions": 1, "use_llm": true, "dry_run": true}
+2009: """,
+2010:                         inputSchema={
+2011:                             "type": "object",
+2012:                             "properties": {
+2013:                                 "sessions": {
+2014:                                     "type": "integer",
+2015:                                     "default": 1,
+2016:                                     "description": "Number of recent sessions to harvest"
+2017:                                 },
+2018:                                 "session_ids": {
+2019:                                     "type": "array",
+2020:                                     "items": {"type": "string"},
+2021:                                     "description": "Specific session IDs to harvest"
+2022:                                 },
+2023:                                 "types": {
+2024:                                     "type": "array",
+2025:                                     "items": {"type": "string", "enum": ["decision", "bug", "convention", "learning", "context"]},
+2026:                                     "description": "Filter by memory types (default: all)"
+2027:                                 },
+2028:                                 "min_confidence": {
+2029:                                     "type": "number",
+2030:                                     "default": 0.6,
+2031:                                     "description": "Minimum confidence threshold (0.0-1.0)"
+2032:                                 },
+2033:                                 "dry_run": {
+2034:                                     "type": "boolean",
+2035:                                     "default": True,
+2036:                                     "description": "Preview candidates without storing (default: true)"
+2037:                                 },
+2038:                                 "project_path": {
+2039:                                     "type": "string",
+2040:                                     "description": "Override Claude Code project directory path"
+2041:                                 },
+2042:                                 "use_llm": {
+2043:                                     "type": "boolean",
+2044:                                     "default": False,
+2045:                                     "description": "Use LLM to validate and refine candidates (requires GROQ_API_KEY)"
+2046:                                 }
+2047:                             }
+2048:                         },
+2049:                         annotations=types.ToolAnnotations(
+2050:                             title="Harvest Session Learnings",
+2051:                             destructiveHint=False,
+2052:                         ),
+2053:                     )
+2054:                 ]
+2055:                 tools.extend(harvest_tools)
+2056:                 logger.info(f"Added {len(harvest_tools)} harvest tools")
+2057: 
+2058:                 # Quality system tools
+
+web search: 
+web search: https://code.claude.com/docs/en/slash-commands
+web search: 
+web search: https://code.claude.com/docs/en/agent-sdk/slash-commands
+**Exploring command recognition**
+
+I need to consider how to handle descriptions and slash command recognition. I think it’s essential to search the documentation for anything about the command “start” or how commands are recognized. There’s a specific note about commands starting with a forward slash on line 110. However, the user specifically wants inline prose. I should verify this against the docs, which mention prompts beginning with `/`. Maybe I could do a search for clarification?
+web search: 
+web search: 'start with `/`' in https://code.claude.com/docs/en/agent-sdk/slash-commands
+**Documenting model invocation information**
+
+I see that the docs have two pages, and I need to consider adding lines about disable-model-invocation on the main page. There are existing references on lines 207, 243, and 300. I should ensure there are enough sources to support this. I may also need to inspect the local file for the specific line numbers. It’s important to run with line numbers so I can accurately cite the relevant sections.
+codex
+The current docs now frame `.claude/commands/` as legacy but still supported, with skills preferred. The command’s frontmatter is using fields documented in the current skills/custom-command surface, so I’m checking whether there’s any safety gap rather than a shape mismatch.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content -LiteralPath .claude/commands/harvest.md | ForEach-Object { $i++; '"'{0}: {1}' -f "'$i, $_ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "memory_harvest|dry_run|use_llm|HarvestResult|def .*harvest|session_ids|project_path" Z:/venvs/claude/Lib/site-packages/mcp_memory_service -S' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/models.py'; "'$i=0; Get-Content -LiteralPath $p | ForEach-Object { $i++; '"'{0}: {1}' -f "'$i, $_ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/harvester.py'; "'$i=0; Get-Content -LiteralPath $p | ForEach-Object { $i++; if($i -le 260){ '"'{0}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+ succeeded in 329ms:
+1: """Data models for session harvest."""
+2: 
+3: import logging
+4: import os
+5: from dataclasses import dataclass, field
+6: from typing import List, Dict, Optional
+7: 
+8: HARVEST_TYPES = ["decision", "bug", "convention", "learning", "context"]
+9: 
+10: # Maximum characters for candidate content preview in MCP tool output
+11: MAX_CANDIDATE_PREVIEW_LENGTH = 200
+12: 
+13: 
+14: @dataclass
+15: class HarvestCandidate:
+16:     """A single extracted memory candidate."""
+17:     content: str
+18:     memory_type: str  # One of HARVEST_TYPES
+19:     tags: List[str] = field(default_factory=list)
+20:     confidence: float = 0.5
+21:     source_line: str = ""  # Original text that triggered extraction
+22: 
+23: 
+24: @dataclass
+25: class HarvestResult:
+26:     """Result of a harvest operation."""
+27:     candidates: List[HarvestCandidate]
+28:     session_id: str
+29:     total_messages: int
+30:     found: int
+31:     by_type: Dict[str, int]
+32:     stored: int = 0  # Only set when dry_run=False
+33: 
+34: 
+35: @dataclass
+36: class HarvestConfig:
+37:     """Configuration for harvest operation."""
+38:     sessions: int = 1
+39:     session_ids: Optional[List[str]] = None
+40:     types: List[str] = field(default_factory=lambda: list(HARVEST_TYPES))
+41:     min_confidence: float = 0.6
+42:     dry_run: bool = True
+43:     project_path: Optional[str] = None  # Override project dir
+44:     use_llm: bool = False  # Phase 2: LLM-based classification
+45:     # P4: Harvest evolution — evolve existing memories instead of duplicating
+46:     similarity_threshold: float = 0.85  # Cosine similarity to trigger evolution
+47:     min_confidence_to_evolve: float = 0.3  # Skip evolution for very stale memories
+48: 
+49: 
+50: def harvest_config_from_env(**overrides) -> HarvestConfig:
+51:     """Create HarvestConfig with environment variable overrides.
+52: 
+53:     Environment variables (invalid values are logged and ignored):
+54:         MCP_HARVEST_SIMILARITY_THRESHOLD: float (0.0-1.0) — cosine similarity
+55:             above which harvest evolves an existing memory instead of creating
+56:             a new one. Higher = fewer evolutions, more duplicates.
+57:         MCP_HARVEST_MIN_CONFIDENCE_TO_EVOLVE: float (0.0-1.0) — minimum
+58:             staleness-adjusted confidence to consider a memory for evolution.
+59:             Very stale memories below this threshold get a fresh copy instead.
+60:     """
+61:     defaults = {}
+62:     for env_var, field_name in [
+63:         ("MCP_HARVEST_SIMILARITY_THRESHOLD", "similarity_threshold"),
+64:         ("MCP_HARVEST_MIN_CONFIDENCE_TO_EVOLVE", "min_confidence_to_evolve"),
+65:     ]:
+66:         raw = os.environ.get(env_var)
+67:         if raw is not None:
+68:             try:
+69:                 defaults[field_name] = float(raw)
+70:             except ValueError:
+71:                 logging.getLogger(__name__).warning(
+72:                     f"Invalid {env_var}={raw!r}, using default"
+73:                 )
+74:     defaults.update(overrides)
+75:     return HarvestConfig(**defaults)
+
+ succeeded in 333ms:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\ingestion.py:179:                    chunk_size: int, max_files: int, storage_backend: str, verbose: bool, dry_run: bool):
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\ingestion.py:200:            storage = None if dry_run else await get_storage(storage_backend)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\ingestion.py:239:            if dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1263:            memory_update, memory_consolidate, memory_ingest, memory_harvest,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1600:- Bulk deletion with safety preview (dry_run=true)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1609:- dry_run=true: Preview what will be deleted without deleting
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1619:{"tags": ["cleanup"], "before": "2024-01-01", "dry_run": true}""",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1655:                                "dry_run": {
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1979:                        name="memory_harvest",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1988:- dry_run=true (DEFAULT): Preview candidates without storing
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1989:- dry_run=false: Store candidates as tagged memories
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1999:- use_llm=true: Validate candidates with Groq LLM (higher precision, ~$0.001/candidate)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2004:{"sessions": 1, "dry_run": true}
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2006:{"session_ids": ["abc123"], "dry_run": false}
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2008:{"sessions": 1, "use_llm": true, "dry_run": true}
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2018:                                "session_ids": {
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2033:                                "dry_run": {
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2038:                                "project_path": {
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2042:                                "use_llm": {
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2077:{"action": "maintain", "dry_run": false}
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2111:                                "dry_run": {
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2326:                elif name == "memory_harvest":
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2327:                    logger.info("Calling handle_memory_harvest")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2328:                    return await self.handle_memory_harvest(arguments)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2588:    async def handle_memory_harvest(self, arguments: dict) -> List[types.TextContent]:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2589:        """Handle memory_harvest tool calls — extract learnings from session transcripts."""
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2596:        project_path = arguments.get("project_path")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2597:        if not project_path:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2603:            project_path = claude_projects / project_dir_name
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2605:            project_path = _Path(project_path)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2607:        if not project_path.exists():
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2610:                text=json.dumps({"error": f"Project directory not found: {project_path}"})
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2615:            session_ids=arguments.get("session_ids"),
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2618:            dry_run=arguments.get("dry_run", True),
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2619:            project_path=str(project_path),
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2620:            use_llm=arguments.get("use_llm", False),
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2624:        if not config.dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2629:            project_dir=project_path,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2633:        if config.dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2639:            "dry_run": config.dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:10:from .models import HarvestCandidate, HarvestConfig, HarvestResult
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:34:    def harvest(self, config: HarvestConfig) -> List[HarvestResult]:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:46:    async def harvest_and_store(self, config: HarvestConfig) -> List[HarvestResult]:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:63:            if not config.dry_run and self.memory_service and result.candidates:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:135:        if config.session_ids:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:138:                for sid in config.session_ids
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:143:    def _harvest_file(self, filepath: Path, config: HarvestConfig) -> HarvestResult:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:161:        if config.use_llm and filtered:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\harvester.py:173:        return HarvestResult(
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:25:class HarvestResult:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:32:    stored: int = 0  # Only set when dry_run=False
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:39:    session_ids: Optional[List[str]] = None
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:42:    dry_run: bool = True
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:43:    project_path: Optional[str] = None  # Override project dir
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:44:    use_llm: bool = False  # Phase 2: LLM-based classification
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\models.py:50:def harvest_config_from_env(**overrides) -> HarvestConfig:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\__init__.py:3:from .models import HarvestCandidate, HarvestResult, HarvestConfig
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\harvest\__init__.py:10:    "HarvestCandidate", "HarvestResult", "HarvestConfig",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\sync\importer.py:53:        dry_run: bool = False
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\sync\importer.py:62:            dry_run: If True, analyze imports without actually storing
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\sync\importer.py:79:            "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\sync\importer.py:87:                    json_file, existing_hashes, add_source_tags, dry_run
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\sync\importer.py:123:        dry_run: bool
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\sync\importer.py:174:                if not dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\memory.py:725:            dry_run=arguments.get("dry_run", False)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\memory.py:731:            if result.get("dry_run"):
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:798:    async def _detect_and_sync_drift(self, dry_run: bool = False) -> Dict[str, int]:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:806:            dry_run: If True, detect drift but don't apply changes (preview mode)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:818:        logger.info(f"Starting drift detection scan (dry_run={dry_run})...")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:851:                        if not dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:875:                            if not dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:899:                            if not dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:922:            if not dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:355:    dry_run=true (default): report only, no mutations.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:358:    dry_run = arguments.get("dry_run", True)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:370:        "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:379:        if dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:381:            report["steps"]["cleanup"] = {"skipped_dry_run": True, "current_total": stats.get("total_memories", 0)}
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:403:                and not dry_run
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server\handlers\quality.py:449:                detail["action"] = "skipped" if dry_run else "below_threshold"
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:424:        dry_run: bool = False
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:438:            dry_run: If True, preview deletions without executing (default: False)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:444:                - deleted_hashes: List[str] (if dry_run, shows what would be deleted)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:445:                - dry_run: bool
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:453:            - dry_run: Preview deletions without executing
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:473:            await storage.delete_memories(tags=["test"], dry_run=True)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:482:                    "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:488:                if dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:496:                            "dry_run": True,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:504:                            "dry_run": True,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:514:                    "dry_run": False,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:525:                    "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:537:                if hasattr(self, 'delete_by_tags') and not dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:543:                        "dry_run": False,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:547:                    # Use optimized query for dry_run
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:578:                            "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:617:                                    "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:631:                                    "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:639:            if dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:645:                    "dry_run": True,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:674:                    "dry_run": False,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:683:                "dry_run": False,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\base.py:692:                "dry_run": dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:20:the ``memory_harvest`` MCP tool over HTTP.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:44:    session_ids: Optional[List[str]] = Field(default=None, description="Specific session IDs to harvest")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:45:    use_llm: bool = Field(default=False, description="Enable LLM-based classification (Phase 2)")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:46:    dry_run: bool = Field(default=True, description="Preview candidates without storing")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:52:    project_path: Optional[str] = Field(default=None, description="Override project directory")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:74:    """Response model mirroring the ``memory_harvest`` MCP tool output."""
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:75:    dry_run: bool
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:80:    "project_path must be a directory name under ~/.claude/projects/ "
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:85:def _resolve_project_path(override: Optional[str]) -> Path:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:92:    so ``project_path`` is required.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:94:    ``project_path`` is treated as a *relative name* under
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:101:            detail="project_path is required for HTTP harvest (CWD inference only works in MCP context)",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:115:async def harvest_sessions(
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:122:    When ``dry_run`` is true (default), returns candidates without storing.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:137:    project_path = _resolve_project_path(request.project_path)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:138:    if not project_path.exists():
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:141:            detail=f"Project directory not found: {project_path}",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:146:        session_ids=request.session_ids,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:149:        dry_run=request.dry_run,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:150:        project_path=str(project_path),
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:151:        use_llm=request.use_llm,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:155:    if not config.dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:165:    harvester = SessionHarvester(project_dir=project_path, memory_service=memory_service)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:168:        if config.dry_run:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\web\api\harvest.py:178:        "dry_run": config.dry_run,
+
+ succeeded in 378ms:
+1: ---
+2: description: Extract learnings from Claude Code session transcripts (decisions / bugs / conventions / learnings / context) via mcp__memory__memory_harvest. Default dry-run preview; --apply stores candidates.
+3: argument-hint: [--sessions N] [--types <decision|bug|convention|learning|context>] [--apply] [--min-confidence 0.6]
+4: disable-model-invocation: true
+5: allowed-tools:
+6:   - mcp__memory__memory_harvest
+7: ---
+8: 
+9: # /harvest
+10: 
+11: Operator-invoked CAPTURE primitive. Wave 115 Ship 2N-batch3-MEM-CAPTURE — closes RECALL prerequisite gap surfaced Wave 113 (DB had 0 entries pre-harvest). Symmetric companion to Wave 113 `/recall` (RECALL surface) — `/harvest` is the CAPTURE surface.
+12: 
+13: ## Backend (TIER-1-DIRECT cite — runtime distinguished from local repo)
+14: 
+15: - **Server (runtime)**: `mcp-memory-service v10.51.3` installed at `Z:/venvs/claude/Scripts/memory.exe` per `.mcp.json:38-46` (Apache-2.0 / 1809★ doobidoo/mcp-memory-service)
+16: - **Local source clone**: `Z:/repos/deps/mcp-memory-service @ HEAD 0cf4e09fe75535dff0f73ce799d68b6b37537c6a` (v10.47.2 — distinct from runtime; cite separately)
+17: - **MCP tool spec**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` (`memory_harvest` Tool registration + inputSchema)
+18: - **Harvest pipeline**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/` — `SessionHarvester` (harvester.py) + `TranscriptParser` (parser.py) + `PatternExtractor` (extractor.py) + `HarvestClassifier` (classifier.py — LLM Phase 2 47%→80% precision)
+19: - **Storage**: sqlite_vec at `Z:/claude-sota-installed-state/.mcp-memory/memory.db` (14 tables — `memories` + `memory_embeddings` + `memory_content_fts` + `memory_graph`)
+20: 
+21: ## Usage
+22: 
+23: - `/harvest` — dry-run preview top recent session, all memory types
+24: - `/harvest --sessions 3` — preview last 3 sessions
+25: - `/harvest --types decision,bug` — filter by memory types (allowed: `decision` / `bug` / `convention` / `learning` / `context`)
+26: - `/harvest --min-confidence 0.7` — confidence threshold (default 0.6)
+27: - `/harvest --apply` — STORE candidates (overrides default `dry_run: true`)
+28: - `/harvest --apply --sessions 5 --types decision,convention` — composite
+29: 
+30: **Safety default**: `dry_run: true` — preview only, no DB writes. Operator MUST pass `--apply` explicitly to commit memories. Per cardinal-rule-9 install-risk LOW-with-explicit-confirmation pattern.
+31: 
+32: ## Implementation behavior
+33: 
+34: When invoked with `$ARGUMENTS`, parse flags:
+35: 
+36: - `--sessions N`: pass as `sessions: <N>` (default 1)
+37: - `--session-ids <id1,id2>`: pass as `session_ids: ["<id1>", "<id2>"]`
+38: - `--types <list>`: parse comma-separated list, pass as `types: [...]` filtered to {`decision`, `bug`, `convention`, `learning`, `context`}
+39: - `--min-confidence N`: pass as `min_confidence: <N>` (default 0.6)
+40: - `--apply`: pass as `dry_run: false` (override default `dry_run: true`)
+41: - `--project-path <path>`: pass as `project_path: "<path>"` (default uses CLAUDE_PROJECT_DIR)
+42: 
+43: Invoke `mcp__memory__memory_harvest` with assembled params. Do NOT pass `use_llm: true` — it requires `GROQ_API_KEY` env var which eee does not have set; LLM Phase 2 classification not enabled this fire.
+44: 
+45: Reformat returned `HarvestResult` candidates as:
+46: 
+47: ```
+48: ## HARVEST: N candidates (sessions: <list>, dry_run: <bool>, min_confidence: <N>)
+49: 1. [<type>] confidence=<N>: <content excerpt 200 chars>
+50:    session_id: <id>
+51:    timestamp: <ts>
+52: 2. ...
+53: ```
+54: 
+55: Distinguish dry-run vs apply outcomes:
+56: - `dry_run: true` → "PREVIEW (no DB writes)"
+57: - `dry_run: false` → "STORED N candidates as tagged memories"
+58: 
+59: If 0 candidates: report HONEST-NON-FINDING per `.claude/rules/synthesis-layer-verify.md §Reporting categories` with the session range probed and suggest broader scope OR larger session count.
+60: 
+61: ## When to use
+62: 
+63: - Post-wave: harvest current session learnings (decision/bug/convention/learning/context) into persistent memory before session ends
+64: - Pre-incident-replay: harvest prior session looking for similar contexts before starting analogous work
+65: - Cardinal-rule-11 META-process operationalization (CLAUDE.md §"NEW Cardinal Rule cardinal-rule-11"): closes the CAPTURE half so /recall has actual data to surface
+66: - Compounding learning per Karpathy `§5 Wiki Compounding Surface` discipline + user mandate "compounding learning"
+67: 
+68: ## Companion ships (queued, not active)
+69: 
+70: - **Skill `mem-harvest`** (Wave 116 Ship 2N-batch3-MEM-HARVEST-C candidate): description-triggered auto-promote on session-end-imminent context detection (use_llm=false safe default)
+71: - **Stop hook auto-harvest** (Wave 117 Ship 2N-batch3-MEM-HARVEST-E candidate): SessionEnd hook calls `python -c "from mcp_memory_service.harvest import SessionHarvester; ..."` for autonomous-loop CAPTURE without operator typing — Probe 5 mode-harness-shape design needed (slash uses MCP tool, hook uses Python class direct — different code paths)
+72: - **`/recall`** (Wave 113 Ship 2N-batch3-MEM-D): symmetric RECALL surface — operator types `/recall <query>` to surface prior harvested memories
+73: 
+74: ## TIER-1 SOTA cite trail
+75: 
+76: - **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter incl. `disable-model-invocation`)
+77: - **mcp-memory-service runtime tool surface (verified)**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` advertises `memory_harvest` MCP tool with full inputSchema
+78: - **Harvest pipeline source**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/{__init__,classifier,extractor,harvester,models,parser}.py` — SessionHarvester orchestrator + 5-type extraction
+79: - **Wave 113 codex T1 surfacing**: `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt` discovered `memory_harvest` primitive among 10+ advertised tools; closed Wave 113 close-synthesis "CAPTURE missing" Mia OVER #41 self-catch — primitive EXISTS; `/harvest` is just the operational wire
+80: 
+81: ## Anti-patterns
+82: 
+83: - **DO NOT** invoke `/harvest --apply` from inside autonomous /loop ticks — operator-explicit only; `dry_run: false` is destructive (writes to memory DB; reverting requires DB rollback per `.mcp-memory/memory.db` backup); per Probe 5 mode-harness-shape per `agent-harness-fit-verification.md`
+84: - **DO NOT** chain `/harvest --apply` repeatedly on same session — duplicates memories (no idempotency in v10.51.3 runtime; deduplication is via `memory_consolidation` separate primitive)
+85: - **DO NOT** pass `use_llm: true` without explicit operator approval — Groq API call costs ~$0.001/candidate; without GROQ_API_KEY env var the call FAILS silently per upstream docs
+86: 
+87: ## Cardinal-rule conformance per ship
+88: 
+89: - CR-1: TIER-1-DIRECT cites at file:line (mcp_memory_service/server_impl.py:1979-2057 + harvest/__init__.py + Anthropic CC slash command spec URL)
+90: - CR-3: codex T1 e2e foreground+tee mandatory before commit (per CR-3 + user mandate "always using gpt5.5 fully e2e before commit")
+91: - CR-5: NEW slash command file using EXISTING upstream primitive (`mcp__memory__memory_harvest`) — install-priority satisfied (no new install needed; primitive already advertised in v10.51.3 runtime)
+92: - CR-9: LOW-RISK reversible — operator-invoked + `dry_run: true` default + `--apply` opt-in; reversible via `rm .claude/commands/harvest.md` + DB rollback if applied
+93: - CR-12: HONEST-NON-FINDING — no upstream Anthropic-OFFICIAL `/harvest` skill exists per Wave 113 Plan agent search; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8 (effective_tier=TIER-3-LOCAL-COMPOSITION-OVER-TIER-1-SUBSTRATES)
+
+ succeeded in 378ms:
+1: """Orchestrator for session harvest operations."""
+2: 
+3: import asyncio
+4: import logging
+5: from collections import Counter
+6: from datetime import datetime, timezone
+7: from pathlib import Path
+8: from typing import List
+9: 
+10: from .models import HarvestCandidate, HarvestConfig, HarvestResult
+11: from .parser import TranscriptParser
+12: from .extractor import PatternExtractor
+13: 
+14: logger = logging.getLogger(__name__)
+15: 
+16: 
+17: class SessionHarvester:
+18:     """Orchestrates parsing, extraction, and optional storage of harvest candidates."""
+19: 
+20:     def __init__(self, project_dir: Path, memory_service=None):
+21:         self.project_dir = Path(project_dir)
+22:         self.memory_service = memory_service
+23:         self.parser = TranscriptParser()
+24:         self.extractor = PatternExtractor()
+25:         self._classifier = None
+26: 
+27:     def _get_classifier(self):
+28:         """Lazy-init LLM classifier."""
+29:         if self._classifier is None:
+30:             from .classifier import HarvestClassifier
+31:             self._classifier = HarvestClassifier()
+32:         return self._classifier
+33: 
+34:     def harvest(self, config: HarvestConfig) -> List[HarvestResult]:
+35:         """Parse sessions and extract candidates (synchronous, no storage)."""
+36:         session_files = self._resolve_sessions(config)
+37:         if not session_files:
+38:             return []
+39: 
+40:         results = []
+41:         for filepath in session_files:
+42:             result = self._harvest_file(filepath, config)
+43:             results.append(result)
+44:         return results
+45: 
+46:     async def harvest_and_store(self, config: HarvestConfig) -> List[HarvestResult]:
+47:         """Parse, extract, and store candidates via MemoryService.
+48: 
+49:         P4 Evolution: Before storing, checks for semantically similar active
+50:         memories. If found above similarity_threshold, evolves via versioned
+51:         update instead of creating a duplicate.
+52:         """
+53:         session_files = self._resolve_sessions(config)
+54:         if not session_files:
+55:             return []
+56: 
+57:         results = []
+58:         for filepath in session_files:
+59:             # _harvest_file does synchronous file I/O — offload so the event
+60:             # loop stays responsive when harvest_and_store is called from HTTP.
+61:             result = await asyncio.to_thread(self._harvest_file, filepath, config)
+62: 
+63:             if not config.dry_run and self.memory_service and result.candidates:
+64:                 stored = 0
+65:                 for candidate in result.candidates:
+66:                     try:
+67:                         evolved = await self._try_evolve(candidate, config)
+68:                         if evolved:
+69:                             stored += 1
+70:                         else:
+71:                             tags = ["session-harvest"] + candidate.tags
+72:                             resp = await self.memory_service.store_memory(
+73:                                 content=candidate.content,
+74:                                 tags=tags,
+75:                                 memory_type=candidate.memory_type,
+76:                                 metadata={
+77:                                     "confidence": candidate.confidence,
+78:                                     "source": "harvest",
+79:                                 },
+80:                             )
+81:                             if isinstance(resp, dict) and resp.get("success"):
+82:                                 stored += 1
+83:                             elif hasattr(resp, "success") and resp.success:
+84:                                 stored += 1
+85:                     except Exception as e:
+86:                         logger.warning(f"Failed to store harvest candidate: {e}")
+87:                 result.stored = stored
+88: 
+89:             results.append(result)
+90:         return results
+91: 
+92:     async def _try_evolve(self, candidate, config: "HarvestConfig") -> bool:
+93:         """Check for similar active memory; if found, evolve it.
+94: 
+95:         Returns True if an existing memory was evolved, False if caller
+96:         should fall back to store_memory().
+97:         """
+98:         if not hasattr(self.memory_service, "storage") or not self.memory_service.storage:
+99:             return False
+100: 
+101:         try:
+102:             similar = await self.memory_service.storage.retrieve(
+103:                 candidate.content,
+104:                 n_results=1,
+105:                 min_confidence=config.min_confidence_to_evolve,
+106:             )
+107:         except Exception as e:
+108:             logger.debug(f"Similarity check failed, falling back to store: {e}")
+109:             return False
+110: 
+111:         if not similar or similar[0].relevance_score <= config.similarity_threshold:
+112:             return False
+113: 
+114:         existing_hash = similar[0].memory.content_hash
+115:         try:
+116:             ok, msg, new_hash = await self.memory_service.storage.update_memory_versioned(
+117:                 existing_hash,
+118:                 candidate.content,
+119:                 new_tags=["session-harvest"] + candidate.tags,
+120:                 new_memory_type=candidate.memory_type,
+121:                 reason=f"Session harvest: {datetime.now(timezone.utc).isoformat()}",
+122:             )
+123:             if ok:
+124:                 logger.info(f"Evolved memory {existing_hash[:8]}→{new_hash[:8] if new_hash else '?'}")
+125:                 return True
+126:             else:
+127:                 logger.debug(f"Evolution failed ({msg}), falling back to store")
+128:                 return False
+129:         except Exception as e:
+130:             logger.debug(f"Evolution error, falling back to store: {e}")
+131:             return False
+132: 
+133:     def _resolve_sessions(self, config: HarvestConfig) -> List[Path]:
+134:         """Find session files based on config."""
+135:         if config.session_ids:
+136:             return [
+137:                 self.project_dir / f"{sid}.jsonl"
+138:                 for sid in config.session_ids
+139:                 if (self.project_dir / f"{sid}.jsonl").exists()
+140:             ]
+141:         return self.parser.find_sessions(self.project_dir, count=config.sessions)
+142: 
+143:     def _harvest_file(self, filepath: Path, config: HarvestConfig) -> HarvestResult:
+144:         """Extract candidates from a single session file."""
+145:         messages = self.parser.parse_file(filepath)
+146:         session_id = filepath.stem
+147: 
+148:         all_candidates: List[HarvestCandidate] = []
+149:         for msg in messages:
+150:             candidates = self.extractor.extract(msg)
+151:             all_candidates.extend(candidates)
+152: 
+153:         # Apply regex-level filters
+154:         filtered = [
+155:             c for c in all_candidates
+156:             if c.confidence >= config.min_confidence
+157:             and c.memory_type in config.types
+158:         ]
+159: 
+160:         # Phase 2: LLM classification
+161:         if config.use_llm and filtered:
+162:             context_texts = [m.text for m in messages]
+163:             classifier = self._get_classifier()
+164:             before_count = len(filtered)
+165:             filtered = classifier.classify(filtered, context_messages=context_texts)
+166:             logger.info(
+167:                 f"LLM classification: {before_count} → {len(filtered)} candidates "
+168:                 f"({before_count - len(filtered)} rejected)"
+169:             )
+170: 
+171:         by_type = dict(Counter(c.memory_type for c in filtered))
+172: 
+173:         return HarvestResult(
+174:             candidates=filtered,
+175:             session_id=session_id,
+176:             total_messages=len(messages),
+177:             found=len(filtered),
+178:             by_type=by_type,
+179:         )
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py'; "'$lines=Get-Content -LiteralPath $p; for($i=2587; $i -le 2658; $i++){ if($i -le $lines.Length){ '"'{0}: {1}' -f ("'$i+1), $lines[$i] } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/web/api/harvest.py'; "'$i=0; Get-Content -LiteralPath $p | ForEach-Object { $i++; if($i -le 190){ '"'{0}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/classifier.py'; "'$i=0; Get-Content -LiteralPath $p | ForEach-Object { $i++; if($i -le 120){ '"'{0}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "GROQ|api_key|fail|silently|class HarvestClassifier|raise|warning" Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/classifier.py -S' in Z:\claude-sota-installed
+ succeeded in 344ms:
+1: # Copyright 2024 Heinrich Krupp
+2: #
+3: # Licensed under the Apache License, Version 2.0 (the "License");
+4: # you may not use this file except in compliance with the License.
+5: # You may obtain a copy of the License at
+6: #
+7: #     http://www.apache.org/licenses/LICENSE-2.0
+8: #
+9: # Unless required by applicable law or agreed to in writing, software
+10: # distributed under the License is distributed on an "AS IS" BASIS,
+11: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+12: # See the License for the specific language governing permissions and
+13: # limitations under the License.
+14: 
+15: """
+16: Session Harvest API endpoint.
+17: 
+18: Extracts learnings (decisions, bugs, conventions, learnings, context) from
+19: Claude Code session transcripts. Wraps :class:`SessionHarvester` to mirror
+20: the ``memory_harvest`` MCP tool over HTTP.
+21: """
+22: 
+23: import asyncio
+24: import logging
+25: import os
+26: from pathlib import Path, PurePosixPath
+27: from typing import Any, Dict, List, Optional
+28: 
+29: from fastapi import APIRouter, Depends, HTTPException
+30: from pydantic import BaseModel, Field
+31: 
+32: from ...harvest.harvester import SessionHarvester
+33: from ...harvest.models import HARVEST_TYPES, HarvestConfig, MAX_CANDIDATE_PREVIEW_LENGTH
+34: from ..oauth.middleware import AuthenticationResult, require_write_access
+35: 
+36: logger = logging.getLogger(__name__)
+37: 
+38: router = APIRouter(prefix="/api/harvest", tags=["harvest"])
+39: 
+40: 
+41: class HarvestRequest(BaseModel):
+42:     """Request model for session harvest."""
+43:     sessions: int = Field(default=1, ge=1, description="Number of recent sessions to harvest")
+44:     session_ids: Optional[List[str]] = Field(default=None, description="Specific session IDs to harvest")
+45:     use_llm: bool = Field(default=False, description="Enable LLM-based classification (Phase 2)")
+46:     dry_run: bool = Field(default=True, description="Preview candidates without storing")
+47:     min_confidence: float = Field(default=0.6, ge=0.0, le=1.0, description="Minimum confidence threshold")
+48:     types: List[str] = Field(
+49:         default_factory=lambda: list(HARVEST_TYPES),
+50:         description="Candidate memory types to include",
+51:     )
+52:     project_path: Optional[str] = Field(default=None, description="Override project directory")
+53: 
+54: 
+55: class HarvestCandidateModel(BaseModel):
+56:     """A single extracted candidate in the response."""
+57:     type: str
+58:     content: str
+59:     confidence: float
+60:     tags: List[str]
+61: 
+62: 
+63: class HarvestSessionResult(BaseModel):
+64:     """Per-session harvest result."""
+65:     session_id: str
+66:     total_messages: int
+67:     found: int
+68:     stored: int
+69:     by_type: Dict[str, int]
+70:     candidates: List[HarvestCandidateModel]
+71: 
+72: 
+73: class HarvestResponse(BaseModel):
+74:     """Response model mirroring the ``memory_harvest`` MCP tool output."""
+75:     dry_run: bool
+76:     results: List[HarvestSessionResult]
+77: 
+78: 
+79: _INVALID_PROJECT_PATH = (
+80:     "project_path must be a directory name under ~/.claude/projects/ "
+81:     "(no '..', no absolute paths, no path separators beyond nested project dirs)"
+82: )
+83: 
+84: 
+85: def _resolve_project_path(override: Optional[str]) -> Path:
+86:     """Resolve the Claude project directory.
+87: 
+88:     Unlike the MCP tool (which can infer the project from CWD because it
+89:     runs inside the Claude Code process), the HTTP endpoint runs in a
+90:     long-lived web server whose CWD is typically the repo root or ``/``.
+91:     CWD-based inference there would silently point at the wrong directory,
+92:     so ``project_path`` is required.
+93: 
+94:     ``project_path`` is treated as a *relative name* under
+95:     ``~/.claude/projects/``. Absolute paths, ``..`` components, and
+96:     escape via symlinks are rejected with HTTP 400 (CodeQL #383/#384).
+97:     """
+98:     if not override:
+99:         raise HTTPException(
+100:             status_code=400,
+101:             detail="project_path is required for HTTP harvest (CWD inference only works in MCP context)",
+102:         )
+103:     claude_projects = (Path.home() / ".claude" / "projects").resolve()
+104:     relative = override.strip()
+105:     pure = PurePosixPath(relative.replace(os.sep, "/"))
+106:     if pure.is_absolute() or ".." in pure.parts or not pure.parts:
+107:         raise HTTPException(status_code=400, detail=_INVALID_PROJECT_PATH)
+108:     candidate = (claude_projects / Path(*pure.parts)).resolve()
+109:     if not candidate.is_relative_to(claude_projects):
+110:         raise HTTPException(status_code=400, detail=_INVALID_PROJECT_PATH)
+111:     return candidate
+112: 
+113: 
+114: @router.post("", response_model=HarvestResponse)
+115: async def harvest_sessions(
+116:     request: HarvestRequest,
+117:     user: AuthenticationResult = Depends(require_write_access),
+118: ) -> Dict[str, Any]:
+119:     """
+120:     Extract learnings from Claude Code session transcripts.
+121: 
+122:     When ``dry_run`` is true (default), returns candidates without storing.
+123:     When false, stores high-confidence candidates as memories (evolves existing
+124:     similar memories where possible).
+125: 
+126:     Raises:
+127:         HTTPException: 400 for invalid input, 404 if project directory missing,
+128:             500 for harvest failures.
+129:     """
+130:     invalid_types = [t for t in request.types if t not in HARVEST_TYPES]
+131:     if invalid_types:
+132:         raise HTTPException(
+133:             status_code=400,
+134:             detail=f"Invalid types: {invalid_types}. Must be subset of {HARVEST_TYPES}",
+135:         )
+136: 
+137:     project_path = _resolve_project_path(request.project_path)
+138:     if not project_path.exists():
+139:         raise HTTPException(
+140:             status_code=404,
+141:             detail=f"Project directory not found: {project_path}",
+142:         )
+143: 
+144:     config = HarvestConfig(
+145:         sessions=request.sessions,
+146:         session_ids=request.session_ids,
+147:         types=request.types,
+148:         min_confidence=request.min_confidence,
+149:         dry_run=request.dry_run,
+150:         project_path=str(project_path),
+151:         use_llm=request.use_llm,
+152:     )
+153: 
+154:     memory_service = None
+155:     if not config.dry_run:
+156:         try:
+157:             from ...services.memory_service import MemoryService
+158:             from ..dependencies import get_storage
+159:             storage = get_storage()
+160:             memory_service = MemoryService(storage)
+161:         except Exception:
+162:             logger.error("Failed to initialize memory service for harvest", exc_info=True)
+163:             raise HTTPException(status_code=500, detail="Failed to initialize storage for harvest")
+164: 
+165:     harvester = SessionHarvester(project_dir=project_path, memory_service=memory_service)
+166: 
+167:     try:
+168:         if config.dry_run:
+169:             # harvest() does synchronous file I/O — offload to avoid blocking the event loop.
+170:             results = await asyncio.to_thread(harvester.harvest, config)
+171:         else:
+172:             results = await harvester.harvest_and_store(config)
+173:     except Exception:
+174:         logger.error("Session harvest failed", exc_info=True)
+175:         raise HTTPException(status_code=500, detail="Harvest failed")
+176: 
+177:     return {
+178:         "dry_run": config.dry_run,
+179:         "results": [
+180:             {
+181:                 "session_id": r.session_id,
+182:                 "total_messages": r.total_messages,
+183:                 "found": r.found,
+184:                 "stored": r.stored,
+185:                 "by_type": r.by_type,
+186:                 "candidates": [
+187:                     {
+188:                         "type": c.memory_type,
+189:                         "content": c.content[:MAX_CANDIDATE_PREVIEW_LENGTH],
+190:                         "confidence": round(c.confidence, 2),
+
+ succeeded in 373ms:
+2588:     async def handle_memory_harvest(self, arguments: dict) -> List[types.TextContent]:
+2589:         """Handle memory_harvest tool calls — extract learnings from session transcripts."""
+2590:         import os
+2591:         from pathlib import Path as _Path
+2592:         from .harvest.harvester import SessionHarvester
+2593:         from .harvest.models import HarvestConfig, MAX_CANDIDATE_PREVIEW_LENGTH
+2594: 
+2595:         # Resolve project directory
+2596:         project_path = arguments.get("project_path")
+2597:         if not project_path:
+2598:             # Default: ~/.claude/projects/ — auto-detect from cwd
+2599:             cwd = _Path.cwd()
+2600:             claude_projects = _Path.home() / ".claude" / "projects"
+2601:             # Convert cwd to Claude's project dir naming: replace path sep with -
+2602:             project_dir_name = str(cwd).replace(os.sep, "-")
+2603:             project_path = claude_projects / project_dir_name
+2604:         else:
+2605:             project_path = _Path(project_path)
+2606: 
+2607:         if not project_path.exists():
+2608:             return [types.TextContent(
+2609:                 type="text",
+2610:                 text=json.dumps({"error": f"Project directory not found: {project_path}"})
+2611:             )]
+2612: 
+2613:         config = HarvestConfig(
+2614:             sessions=arguments.get("sessions", 1),
+2615:             session_ids=arguments.get("session_ids"),
+2616:             types=arguments.get("types", ["decision", "bug", "convention", "learning", "context"]),
+2617:             min_confidence=arguments.get("min_confidence", 0.6),
+2618:             dry_run=arguments.get("dry_run", True),
+2619:             project_path=str(project_path),
+2620:             use_llm=arguments.get("use_llm", False),
+2621:         )
+2622: 
+2623:         memory_service = None
+2624:         if not config.dry_run:
+2625:             await self._ensure_storage_initialized()
+2626:             memory_service = self.memory_service
+2627: 
+2628:         harvester = SessionHarvester(
+2629:             project_dir=project_path,
+2630:             memory_service=memory_service
+2631:         )
+2632: 
+2633:         if config.dry_run:
+2634:             results = harvester.harvest(config)
+2635:         else:
+2636:             results = await harvester.harvest_and_store(config)
+2637: 
+2638:         output = {
+2639:             "dry_run": config.dry_run,
+2640:             "results": [
+2641:                 {
+2642:                     "session_id": r.session_id,
+2643:                     "total_messages": r.total_messages,
+2644:                     "found": r.found,
+2645:                     "stored": r.stored,
+2646:                     "by_type": r.by_type,
+2647:                     "candidates": [
+2648:                         {
+2649:                             "type": c.memory_type,
+2650:                             "content": c.content[:MAX_CANDIDATE_PREVIEW_LENGTH],
+2651:                             "confidence": round(c.confidence, 2),
+2652:                             "tags": c.tags,
+2653:                         }
+2654:                         for c in r.candidates
+2655:                     ]
+2656:                 }
+2657:                 for r in results
+2658:             ]
+2659:         }
+
+ succeeded in 308ms:
+78:class HarvestClassifier:
+85:    def __init__(self, groq_api_key: Optional[str] = None):
+87:        self._api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
+94:        if not self._api_key:
+95:            logger.warning("No GROQ_API_KEY — LLM classification unavailable")
+100:            self._groq_bridge = _GroqClassifierBridge(api_key=self._api_key)
+104:            logger.warning("groq package not installed — LLM classification unavailable")
+107:            logger.warning(f"Failed to init Groq bridge for harvest classifier: {e}")
+169:                        logger.warning(f"Rate limit on {model}, trying next")
+171:                    logger.warning(f"Groq error on {model}: {result.get('error')}")
+176:                logger.warning(f"Classification failed with {model}: {e}")
+179:        logger.warning("All LLM models failed — keeping candidate unfiltered")
+199:                    logger.warning(f"Could not parse LLM response: {text[:200]}")
+202:                logger.warning(f"Could not parse LLM response: {text[:200]}")
+255:            logger.warning(f"Deduplication failed: {e}")
+267:    def __init__(self, api_key: str):
+269:        self._client = Groq(api_key=api_key)
+
+ succeeded in 369ms:
+1: """LLM-based classification layer for harvest candidates.
+2: 
+3: Phase 2 enhancement: validates regex-extracted candidates using LLM,
+4: improving precision from ~47% to ≥80% by filtering false positives,
+5: refining content, and deduplicating similar candidates.
+6: """
+7: 
+8: import json
+9: import logging
+10: import os
+11: import re
+12: from dataclasses import dataclass
+13: from typing import List, Optional
+14: 
+15: from .models import HarvestCandidate
+16: 
+17: logger = logging.getLogger(__name__)
+18: 
+19: SYSTEM_PROMPT = (
+20:     "You are a memory classifier for an AI coding assistant. "
+21:     "You evaluate candidate memories extracted from coding session transcripts. "
+22:     "Be strict — only approve candidates that are genuinely useful as standalone memories."
+23: )
+24: 
+25: CLASSIFY_PROMPT_TEMPLATE = """Evaluate this candidate memory extracted from a coding session transcript.
+26: 
+27: CANDIDATE:
+28: - Type: {memory_type}
+29: - Content: {content}
+30: - Regex confidence: {confidence}
+31: 
+32: CONTEXT (surrounding messages):
+33: {context}
+34: 
+35: Answer these questions (respond ONLY with the JSON object, no other text):
+36: {{
+37:   "keep": true/false,
+38:   "reason": "one-line explanation",
+39:   "refined_content": "improved standalone version of the content (or null if keep=false)",
+40:   "memory_type": "{memory_type}" or corrected type,
+41:   "confidence": 0.0-1.0
+42: }}
+43: 
+44: REJECTION CRITERIA (keep=false if ANY apply):
+45: - Fragment: doesn't make sense without surrounding conversation
+46: - Conversation noise: describes what's happening rather than capturing an insight
+47: - Tool/system output: skill definitions, system reminders, CI output
+48: - Too generic: "we should test this" without specifics
+49: - Duplicate of another candidate (check context)
+50: 
+51: APPROVAL CRITERIA (keep=true if ALL apply):
+52: - Self-contained: makes sense as a standalone memory
+53: - Actionable or informative: captures a decision, bug root cause, convention, or learning
+54: - Specific: contains concrete details (names, versions, reasons)
+55: """
+56: 
+57: DEDUP_PROMPT_TEMPLATE = """Given these candidate memories, identify duplicates or near-duplicates.
+58: Return a JSON array of indices to KEEP (0-based). Remove duplicates, keeping the highest quality version.
+59: 
+60: CANDIDATES:
+61: {candidates_text}
+62: 
+63: Respond ONLY with a JSON array of indices to keep, e.g. [0, 2, 4]
+64: """
+65: 
+66: 
+67: @dataclass
+68: class ClassificationResult:
+69:     """Result of LLM classification for a single candidate."""
+70:     keep: bool
+71:     reason: str
+72:     refined_content: Optional[str] = None
+73:     memory_type: Optional[str] = None
+74:     confidence: float = 0.0
+75:     original: Optional[HarvestCandidate] = None
+76: 
+77: 
+78: class HarvestClassifier:
+79:     """LLM-based classifier for harvest candidates.
+80: 
+81:     Uses Groq API (fast, cheap) with fallback to skip classification
+82:     if no LLM is available. Integrates with existing GroqAgentBridge.
+83:     """
+84: 
+85:     def __init__(self, groq_api_key: Optional[str] = None):
+86:         self._groq_bridge = None
+87:         self._api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
+88: 
+89:     def _ensure_initialized(self):
+90:         """Lazy-init Groq bridge."""
+91:         if self._groq_bridge is not None:
+92:             return True
+93: 
+94:         if not self._api_key:
+95:             logger.warning("No GROQ_API_KEY — LLM classification unavailable")
+96:             return False
+97: 
+98:         try:
+99:             from groq import Groq
+100:             self._groq_bridge = _GroqClassifierBridge(api_key=self._api_key)
+101:             logger.info("Harvest classifier: Groq bridge initialized")
+102:             return True
+103:         except ImportError:
+104:             logger.warning("groq package not installed — LLM classification unavailable")
+105:             return False
+106:         except Exception as e:
+107:             logger.warning(f"Failed to init Groq bridge for harvest classifier: {e}")
+108:             return False
+109: 
+110:     def classify(
+111:         self,
+112:         candidates: List[HarvestCandidate],
+113:         context_messages: Optional[List[str]] = None,
+114:     ) -> List[HarvestCandidate]:
+115:         """Classify candidates using LLM, return filtered and refined list.
+116: 
+117:         Args:
+118:             candidates: Regex-extracted candidates to validate.
+119:             context_messages: Optional surrounding messages for context.
+120: 
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py'; "'$lines=Get-Content -LiteralPath $p; for($i=2658; $i -le 2670; $i++){ if($i -le $lines.Length){ '"'{0}: {1}' -f ("'$i+1), $lines[$i] } }' in Z:\claude-sota-installed
+ succeeded in 360ms:
+2659:         }
+2660: 
+2661:         return [types.TextContent(type="text", text=json.dumps(output, indent=2))]
+2662: 
+2663:     async def handle_ingest_document(self, arguments: dict) -> List[types.TextContent]:
+2664:         """Handle document ingestion requests (delegates to handler)."""
+2665:         from .server.handlers import documents as document_handlers
+2666:         return await document_handlers.handle_ingest_document(self, arguments)
+2667: 
+2668:     async def handle_ingest_directory(self, arguments: dict) -> List[types.TextContent]:
+2669:         """Handle directory ingestion requests (delegates to handler)."""
+2670:         from .server.handlers import documents as document_handlers
+2671:         return await document_handlers.handle_ingest_directory(self, arguments)
+
+**Verifying tool behavior**
+
+I’ve looked into the runtime handler and noticed that the MCP tool defaults the `dry_run` setting to true, only initializing storage when it's set to false. There's a crucial detail in the documentation: while `allowed-tools` pre-approves tools for the skill, it's not a strict allowlist by itself. The overall body instruction still plays an important role in this process. It's interesting how these nuances can really affect how the tools function!
+**Checking final JSON response**
+
+I need to make sure I respond with the final JSON in a strict format. First, I should probably inspect the classifier, since it seems like there's no return from groq, which might explain why I'm seeing the "FAILS silently" line. That part seems inaccurate. Okay, I’ll continue looking through lines 110-140 to see what I can gather from that. It's important I get this right!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/classifier.py'; "'$lines=Get-Content -LiteralPath $p; for($i=110; $i -le 140; $i++){ '"'{0}: {1}' -f "'$i, $lines[$i-1] }' in Z:\claude-sota-installed
+ succeeded in 330ms:
+110:     def classify(
+111:         self,
+112:         candidates: List[HarvestCandidate],
+113:         context_messages: Optional[List[str]] = None,
+114:     ) -> List[HarvestCandidate]:
+115:         """Classify candidates using LLM, return filtered and refined list.
+116: 
+117:         Args:
+118:             candidates: Regex-extracted candidates to validate.
+119:             context_messages: Optional surrounding messages for context.
+120: 
+121:         Returns:
+122:             Filtered list of validated candidates with refined content/confidence.
+123:         """
+124:         if not candidates:
+125:             return []
+126: 
+127:         if not self._ensure_initialized():
+128:             logger.info("LLM unavailable — returning regex candidates unfiltered")
+129:             return candidates
+130: 
+131:         context = "\n".join(context_messages[-6:]) if context_messages else "(no context)"
+132: 
+133:         # Step 1: Classify each candidate
+134:         classified = []
+135:         for candidate in candidates:
+136:             result = self._classify_single(candidate, context)
+137:             if result and result.keep:
+138:                 classified.append(self._apply_result(candidate, result))
+139: 
+140:         # Step 2: Deduplicate if multiple candidates remain
+
+**Evaluating project path default**
+
+I’m considering an edit to clarify that it "falls back to regex candidates unfiltered" to prevent operators from overestimating precision. There’s an inconsistency with project_path; it seems like the command default mentions CLAUDE_PROJECT_DIR, but this isn't being used correctly at runtime. It actually infers the path from the current working directory.
+
+Since this could lead to functionality issues, I need to decide if it requires revision. It's crucial to ensure the documentation accurately reflects the code behavior.
+**Reviewing project path parameters**
+
+I see that the guidance says to pass `project_path`, defaulting to CLAUDE_PROJECT_DIR, but in reality, the assembled parameters wouldn't include that. The tool handler utilizes the current working directory instead. The command instructs to "Invoke with assembled params," so if the user doesn’t provide a path, there won’t be a `project_path`. While the parenthetical notes are inaccurate, they’re not breaking the command functionality. I should consider making a fix for clarity.
+**Considering agent loop behavior**
+
+I think the agent might not realize it's inside a loop. There’s no mechanical check in place, so maybe I should suggest requiring an explicit confirmation token for clarity. Should we revise the requirements to specify that a token is needed? The user is asking if having an anti-pattern is enough, or if they need additional safety measures for the logic. It’s an interesting consideration, and I want to be thorough!
+**Considering filtering types**
+
+I’m thinking about how the HarvestConfig filters candidates based on types. Invalid types can lead to no candidates for that type, which is something the user asked about when they mentioned “types filtered to enum.” I believe it’s okay to handle this, but from a safety perspective, I should avoid just ignoring invalid types silently. It might be worth including an option to report these ignored invalid types, while clarifying there’s no blocker.
+**Considering command safety**
+
+I’m thinking about the best way to handle the command options, especially regarding filtering and confirming actions. There’s a concern about whether we need additional safety measures, like a confirmation token for destructive writes. Since commands are only dispatched at the start of the message and default to dry runs, using something like `--apply` feels explicit. 
+
+However, adding a confirmation token might prevent accidental examples and ensure users are deliberate. But I'm weighing whether it’s necessary given the low risks involved.
+**Evaluating command execution risks**
+
+I'm considering how to prevent issues with repeated loops that could lead to unintended duplications. If the command starts with `/harvest --apply`, it could run every 15 minutes, and simply noting an anti-pattern might not be enough to safeguard against accidental triggers. For a single user, perhaps operator discipline is adequate, but since this involves destructive writes, good practice suggests needing a two-factor acknowledgment, like `/harvest --apply --i-understand-this-writes-memory`. This could enhance safety but might also add friction, possibly complicating things for users. I need to weigh the risks versus practicality.
+**Considering confirmation requirements**
+
+I’m thinking about whether requiring a confirmation token could strengthen safety when using commands. Maybe I should set it to "NEEDS-REVISION" when using `--apply-confirmed` as mandatory for non-dry runs. However, I’m questioning if that would be overkill and if it goes against upstream tool examples, where non-dry runs can simply be explicit without needing extra confirmation. I need to assess if this approach adds value or unnecessarily complicates things.
+**Considering command structure**
+
+We can create a mechanical requirement so that if the arguments contain `--apply-confirmed ${CLAUDE_SESSION_ID}`, then the dry_run is false; otherwise, it remains true, showing a preview. This ensures that users include the session ID. Operators could use a command like `/harvest --apply --confirm <session-id>`. If `--apply` is there without a confirm-write, the command should dry-run first. A simpler approach might be to require the `--apply-confirmed` flag instead, along with possibly disabling automatic model triggers in certain contexts.
+**Refining command execution**
+
+The Stop hook shouldn’t call the slash command; I should use Python directly instead. It seems better not to have a shared parameter-parsing helper because command parsing relates to model instruction. Future hooks should implement a deterministic parser or use HarvestConfig and keep them separate. For the final JSON, I think I need to include "prescribed_edits" with maybe five items, such as including the frontmatter argument hints like `--session-ids`, `--project-path`, and a confirmation token if it’s adopted.
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.87,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "Shape is compliant. Current Anthropic docs say .claude/commands/*.md remains supported though legacy/prefer skills, filename becomes command name, optional YAML frontmatter is valid, argument-hint is valid, allowed-tools accepts YAML list, and $ARGUMENTS is valid. Sources: https://code.claude.com/docs/en/slash-commands and https://code.claude.com/docs/en/agent-sdk/slash-commands. Keep disable-model-invocation: true: docs explicitly recommend it for manually triggered workflows with side effects. No frontmatter field needs to be dropped. Do not treat allowed-tools as a hard sandbox; docs say it pre-approves listed tools, not restricts all others.",
+    "axis_2_mcp_integration_correctness": "Tool name and main parameter mapping are correct against Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057 and handler lines 2588-2661. dry_run default true and --apply -> dry_run false matches upstream. types enum, sessions, session_ids, min_confidence, project_path, and use_llm omission are correct. Three semantic fixes are needed: project_path default is not CLAUDE_PROJECT_DIR; handler infers ~/.claude/projects/<cwd-with-separators-replaced> from Path.cwd() when project_path is omitted. Output candidates do not include timestamp, only type/content/confidence/tags. use_llm without GROQ_API_KEY does not fail the harvest; classifier logs unavailable and returns regex candidates unfiltered.",
+    "axis_3_probe_5_mode_harness": "dry_run true default is the right safety default. However, for eee scheduled /loop reentry, an anti-pattern note is advisory only; if a prompt starts with /harvest --apply, slash dispatch can still occur. Because dry_run false writes/evolves memory DB state and repeated ticks can create duplicate or evolved memories, require an additional explicit confirmation flag before setting dry_run false. Keep future skill and Stop-hook designs separate; do not anticipate them with shared slash-command parsing. The hook should call the Python API directly with its own deterministic guardrails."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "frontmatter",
+      "change_summary": "Expose supported flags and add a second write-confirmation token.",
+      "verbatim_replacement_or_addition": "argument-hint: [--sessions N] [--session-ids <id1,id2>] [--types <decision|bug|convention|learning|context>] [--min-confidence 0.6] [--project-path <path>] [--apply --apply-confirmed]"
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Make write mode mechanically two-step instead of relying only on operator discipline.",
+      "verbatim_replacement_or_addition": "Replace the /harvest --apply usage and safety text with: `/harvest --apply --apply-confirmed` — STORE candidates. `--apply` without `--apply-confirmed` MUST remain `dry_run: true` and report that write confirmation is required. Safety default: `dry_run: true`; actual DB writes require both `--apply` and `--apply-confirmed`."
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Correct parameter semantics for project_path and apply handling.",
+      "verbatim_replacement_or_addition": "Replace implementation bullets for --apply and --project-path with: `--apply --apply-confirmed`: pass `dry_run: false`; if `--apply` appears without `--apply-confirmed`, pass `dry_run: true` or do not call the tool and report confirmation required. `--project-path <path>`: pass as `project_path: \"<path>\"`; if omitted, the MCP handler infers the Claude project transcript directory from the server CWD under `~/.claude/projects/`."
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Remove unavailable timestamp field from the output template.",
+      "verbatim_replacement_or_addition": "Replace the candidate template with: `1. [<type>] confidence=<N> tags=<tags>: <content excerpt 200 chars>\\n   session_id: <id>`"
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Correct use_llm failure behavior.",
+      "verbatim_replacement_or_addition": "Replace `without GROQ_API_KEY env var the call FAILS silently` with `without GROQ_API_KEY, LLM classification is unavailable and the classifier falls back to regex candidates unfiltered`."
+    }
+  ],
+  "risks_if_shipped_as_is": "Main functional path works, but docs would misstate project_path inference, ask Claude to display a timestamp the tool does not return, and overstate use_llm failure behavior. The bigger harness risk is that /harvest --apply at the start of a scheduled /loop prompt can still write memory despite disable-model-invocation; the current anti-pattern note is not a mechanical guard.",
+  "blockers_remaining": "Pre-commit blocker: apply the semantic doc fixes above, especially the write confirmation guard if this is intended to be safe under eee autonomous /loop conditions."
+}
+tokens used
+62,269
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.87,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "Shape is compliant. Current Anthropic docs say .claude/commands/*.md remains supported though legacy/prefer skills, filename becomes command name, optional YAML frontmatter is valid, argument-hint is valid, allowed-tools accepts YAML list, and $ARGUMENTS is valid. Sources: https://code.claude.com/docs/en/slash-commands and https://code.claude.com/docs/en/agent-sdk/slash-commands. Keep disable-model-invocation: true: docs explicitly recommend it for manually triggered workflows with side effects. No frontmatter field needs to be dropped. Do not treat allowed-tools as a hard sandbox; docs say it pre-approves listed tools, not restricts all others.",
+    "axis_2_mcp_integration_correctness": "Tool name and main parameter mapping are correct against Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057 and handler lines 2588-2661. dry_run default true and --apply -> dry_run false matches upstream. types enum, sessions, session_ids, min_confidence, project_path, and use_llm omission are correct. Three semantic fixes are needed: project_path default is not CLAUDE_PROJECT_DIR; handler infers ~/.claude/projects/<cwd-with-separators-replaced> from Path.cwd() when project_path is omitted. Output candidates do not include timestamp, only type/content/confidence/tags. use_llm without GROQ_API_KEY does not fail the harvest; classifier logs unavailable and returns regex candidates unfiltered.",
+    "axis_3_probe_5_mode_harness": "dry_run true default is the right safety default. However, for eee scheduled /loop reentry, an anti-pattern note is advisory only; if a prompt starts with /harvest --apply, slash dispatch can still occur. Because dry_run false writes/evolves memory DB state and repeated ticks can create duplicate or evolved memories, require an additional explicit confirmation flag before setting dry_run false. Keep future skill and Stop-hook designs separate; do not anticipate them with shared slash-command parsing. The hook should call the Python API directly with its own deterministic guardrails."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "frontmatter",
+      "change_summary": "Expose supported flags and add a second write-confirmation token.",
+      "verbatim_replacement_or_addition": "argument-hint: [--sessions N] [--session-ids <id1,id2>] [--types <decision|bug|convention|learning|context>] [--min-confidence 0.6] [--project-path <path>] [--apply --apply-confirmed]"
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Make write mode mechanically two-step instead of relying only on operator discipline.",
+      "verbatim_replacement_or_addition": "Replace the /harvest --apply usage and safety text with: `/harvest --apply --apply-confirmed` — STORE candidates. `--apply` without `--apply-confirmed` MUST remain `dry_run: true` and report that write confirmation is required. Safety default: `dry_run: true`; actual DB writes require both `--apply` and `--apply-confirmed`."
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Correct parameter semantics for project_path and apply handling.",
+      "verbatim_replacement_or_addition": "Replace implementation bullets for --apply and --project-path with: `--apply --apply-confirmed`: pass `dry_run: false`; if `--apply` appears without `--apply-confirmed`, pass `dry_run: true` or do not call the tool and report confirmation required. `--project-path <path>`: pass as `project_path: \"<path>\"`; if omitted, the MCP handler infers the Claude project transcript directory from the server CWD under `~/.claude/projects/`."
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Remove unavailable timestamp field from the output template.",
+      "verbatim_replacement_or_addition": "Replace the candidate template with: `1. [<type>] confidence=<N> tags=<tags>: <content excerpt 200 chars>\\n   session_id: <id>`"
+    },
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "body",
+      "change_summary": "Correct use_llm failure behavior.",
+      "verbatim_replacement_or_addition": "Replace `without GROQ_API_KEY env var the call FAILS silently` with `without GROQ_API_KEY, LLM classification is unavailable and the classifier falls back to regex candidates unfiltered`."
+    }
+  ],
+  "risks_if_shipped_as_is": "Main functional path works, but docs would misstate project_path inference, ask Claude to display a timestamp the tool does not return, and overstate use_llm failure behavior. The bigger harness risk is that /harvest --apply at the start of a scheduled /loop prompt can still write memory despite disable-model-invocation; the current anti-pattern note is not a mechanical guard.",
+  "blockers_remaining": "Pre-commit blocker: apply the semantic doc fixes above, especially the write confirmation guard if this is intended to be safe under eee autonomous /loop conditions."
+}

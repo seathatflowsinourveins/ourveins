@@ -1,0 +1,350 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e0dc4-133c-7e60-b554-86540f4df07f
+--------
+user
+ROLE: cross-model T1 reviewer (REAL GPT-5.5 BRIDGE-MODE foreground+tee, Path P).
+
+TASK: Review the diff to Z:/claude-sota-installed/tools/process_hygiene_audit.py adding 2 daemon-detection helpers + 2 exemptions to find_reap_candidates().
+
+VERIFY by reading the file directly. Then return VERDICT.
+
+DIFF SUMMARY:
+- list_processes_with_parent(): added "CommandLine" to Get-CimInstance Select + cmdline field to dict
+- NEW is_pidfile_daemon(pid, cmdline): regex `--pid-file[=\s]+([^\s]+)` extracts PID-file path, reads file, returns content==str(pid)
+- NEW is_namedpipe_daemon(cmdline): regex `(pipe:)?\\\\\.\\pipe\\` matches Win32 named-pipe argv pattern
+- find_reap_candidates(): added 2 EXEMPTIONS after port-LISTEN check (lines ~218-223): if is_pidfile_daemon → continue; if is_namedpipe_daemon → continue
+
+PURPOSE: Close 2nd FALSE-POSITIVE class. Empirical case: codex-plugin-cc app-server-broker.mjs PID 70384, dead parent, cmdline contains BOTH `--pid-file C:/Users/42/AppData/Local/Temp/cxc-FiuO6B/broker.pid` AND `pipe:\\.\pipe\cxc-FiuO6B-codex-app-server`. PID-file content == "70384". V1 port-LISTEN exemption MISSED it (named-pipe NOT TCP). V2 smoke-probe confirmed PID 70384 EXEMPT post-fix.
+
+REVIEW (TIGHT — 2 axes, ≤90s):
+
+AXIS-1: Are the regexes correct?
+  - is_pidfile_daemon: `r"--pid-file[=\s]+([^\s]+)"` correctly matches both `--pid-file PATH` and `--pid-file=PATH`. Edge case: PID-file path with spaces → regex stops at first space. Verdict: ACCEPTABLE for current case (Windows %TEMP% rarely has spaces in canonical convention), DEFER fix until n=2.
+  - is_namedpipe_daemon: `r"(pipe:)?\\\\\.\\pipe\\"` matches `pipe:\\.\pipe\` and `\\.\pipe\` literal patterns. False-positive risk: very low (Win32 device-namespace reserved).
+
+AXIS-2: Is the exemption-precedence ordering correct?
+  Current: target-name → age → dead-parent → port-LISTEN → PID-file → named-pipe
+  Per W121 SHIP A0-FP-FIX AXIS-3 ratified ordering: dead-parent first (preserves audit-trail visibility into "would have reaped but exempted"), then exemptions.
+
+VERDICT SHAPE: APPROVE | NEEDS-REVISION conf=N.NN + prescribed_edits | REJECT
+ONE-LINE: "[VERIFIED via direct read] <approach correct or needs adjust>"
+
+OUTPUT_BUDGET: 100 LOC.
+
+codex
+I’ll verify against the actual file, focusing only on the helper regexes and their placement in `find_reap_candidates()`.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "list_processes_with_parent|is_pidfile_daemon|is_namedpipe_daemon|find_reap_candidates|pid-file|pipe" tools/process_hygiene_audit.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git diff -- tools/process_hygiene_audit.py' in Z:\claude-sota-installed
+ succeeded in 273ms:
+ succeeded in 290ms:
+54:def list_processes_with_parent():
+143:def is_pidfile_daemon(pid, cmdline):
+147:    --pid-file <path> argv where the file content == this PID are intentionally
+154:    (rejects any process that happens to mention --pid-file in unrelated context).
+156:    if not cmdline or "--pid-file" not in cmdline:
+158:    # Extract --pid-file <path> argv pattern (whitespace OR =)
+159:    m = re.search(r"--pid-file[=\s]+([^\s]+)", cmdline)
+171:def is_namedpipe_daemon(cmdline):
+172:    r"""Detect daemon-by-named-pipe convention via argv marker.
+174:    Wave 121 fire-4 EXEMPTION sub-class: Win32 named-pipe IPC servers
+175:    (pattern ``pipe:\\.\pipe\<name>`` or ``\\.\pipe\<name>`` in argv) are
+176:    daemon-by-design — they listen on named-pipe endpoint instead of TCP
+178:    app-server-broker.mjs uses ``pipe:\\.\pipe\cxc-FiuO6B-codex-app-server``.
+180:    Per codex T1 W121 AXIS-2: "UNIX socket/named pipe daemon: not covered
+182:    explicit named-pipe argv-marker allowlist.
+186:    # Match Win32 named-pipe argv patterns: pipe:\\.\pipe\<name> or \\.\pipe\<name>
+187:    return bool(re.search(r"(pipe:)?\\\\\.\\pipe\\", cmdline))
+190:def find_reap_candidates(processes, target_names, min_age_hours):
+196:    EXEMPTION (Wave 121 fire-4): processes with --pid-file argv + matching
+197:    on-disk PID-file content OR named-pipe argv marker are daemon-by-design
+221:        # Wave 121 fire-4 EXEMPTION: named-pipe + PID-file daemon detection.
+223:        # PID 70384 — uses named-pipe IPC NOT TCP, so port-LISTEN exemption missed it.
+227:        if is_pidfile_daemon(p["pid"], cmdline):
+229:        if is_namedpipe_daemon(cmdline):
+288:    processes = list_processes_with_parent()
+293:    candidates = find_reap_candidates(processes, target_names, args.min_age_hours)
+
+**Reading file content**
+
+I’m noticing that the `git diff` might be empty, which makes me think the file is possibly already committed. I need to read the actual lines in the file. PowerShell seems not to handle new lines well, so I’ll use `$i`. It might also make sense to use `Select-Object`. I should focus on reading lines 45-65 and 135-235 from the file. Let's clarify that!
+codex
+The working tree diff is empty for this file, so I’m reviewing the current checked-in contents directly rather than relying on unstaged diff output.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content -LiteralPath tools/process_hygiene_audit.py | ForEach-Object { $i++; if ($i -ge 45 -and $i -le 70) { '"'{0,4}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content -LiteralPath tools/process_hygiene_audit.py | ForEach-Object { $i++; if ($i -ge 135 -and $i -le 235) { '"'{0,4}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+ succeeded in 350ms:
+  45:     """Return subprocess kwargs for Windows-windowless invocation."""
+  46:     if sys.platform != "win32":
+  47:         return {}
+  48:     si = subprocess.STARTUPINFO()
+  49:     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+  50:     si.wShowWindow = subprocess.SW_HIDE
+  51:     return {"creationflags": subprocess.CREATE_NO_WINDOW, "startupinfo": si}
+  52: 
+  53: 
+  54: def list_processes_with_parent():
+  55:     """Returns list of dicts with PID, name, parent_pid, age_seconds.
+  56: 
+  57:     Uses powershell Get-CimInstance for parent + creation date (tasklist alone
+  58:     lacks parent info on Windows).
+  59:     """
+  60:     if sys.platform != "win32":
+  61:         return []
+  62:     ps_cmd = (
+  63:         "Get-CimInstance Win32_Process | Select-Object "
+  64:         "Name, ProcessId, ParentProcessId, CreationDate, CommandLine | "
+  65:         "ConvertTo-Json -Compress"
+  66:     )
+  67:     try:
+  68:         result = subprocess.run(
+  69:             ["powershell", "-NoProfile", "-Command", ps_cmd],
+  70:             capture_output=True,
+
+ succeeded in 404ms:
+ 135:         )
+ 136:         if result.returncode != 0:
+ 137:             return set()
+ 138:         return {int(line.strip()) for line in result.stdout.splitlines() if line.strip().isdigit()}
+ 139:     except (OSError, subprocess.TimeoutExpired, ValueError):
+ 140:         return set()
+ 141: 
+ 142: 
+ 143: def is_pidfile_daemon(pid, cmdline):
+ 144:     """Detect daemon-by-PID-file convention via argv marker + on-disk PID-file PID match.
+ 145: 
+ 146:     Wave 121 fire-4 EXEMPTION (n=2 FALSE-POSITIVE class): daemons spawned via
+ 147:     --pid-file <path> argv where the file content == this PID are intentionally
+ 148:     detached (Win32 detached-process convention) — NOT zombies. Caught on
+ 149:     codex-plugin-cc app-server-broker.mjs PID 70384 (Z:/claude-sota-installed/.claude/
+ 150:     plugins/cache/openai-codex/codex/1.0.4/scripts/app-server-broker.mjs).
+ 151: 
+ 152:     Per codex T1 W121 SHIP A0-FP-FIX AXIS-2 guidance: "should be handled by
+ 153:     explicit allowlist" — argv-marker + content-match is precise allowlist
+ 154:     (rejects any process that happens to mention --pid-file in unrelated context).
+ 155:     """
+ 156:     if not cmdline or "--pid-file" not in cmdline:
+ 157:         return False
+ 158:     # Extract --pid-file <path> argv pattern (whitespace OR =)
+ 159:     m = re.search(r"--pid-file[=\s]+([^\s]+)", cmdline)
+ 160:     if not m:
+ 161:         return False
+ 162:     pidfile = m.group(1).strip("\"'")
+ 163:     try:
+ 164:         content = Path(pidfile).read_text(encoding="utf-8", errors="ignore").strip()
+ 165:         # PID-file content == this PID OR a stringified PID; literal match
+ 166:         return content == str(pid)
+ 167:     except (OSError, ValueError):
+ 168:         return False
+ 169: 
+ 170: 
+ 171: def is_namedpipe_daemon(cmdline):
+ 172:     r"""Detect daemon-by-named-pipe convention via argv marker.
+ 173: 
+ 174:     Wave 121 fire-4 EXEMPTION sub-class: Win32 named-pipe IPC servers
+ 175:     (pattern ``pipe:\\.\pipe\<name>`` or ``\\.\pipe\<name>`` in argv) are
+ 176:     daemon-by-design — they listen on named-pipe endpoint instead of TCP
+ 177:     so port-LISTEN exemption misses them. Empirical case: codex-plugin-cc
+ 178:     app-server-broker.mjs uses ``pipe:\\.\pipe\cxc-FiuO6B-codex-app-server``.
+ 179: 
+ 180:     Per codex T1 W121 AXIS-2: "UNIX socket/named pipe daemon: not covered
+ 181:     (acceptable for this TCP HTTP daemon)" — fire-4 closes that gap with
+ 182:     explicit named-pipe argv-marker allowlist.
+ 183:     """
+ 184:     if not cmdline:
+ 185:         return False
+ 186:     # Match Win32 named-pipe argv patterns: pipe:\\.\pipe\<name> or \\.\pipe\<name>
+ 187:     return bool(re.search(r"(pipe:)?\\\\\.\\pipe\\", cmdline))
+ 188: 
+ 189: 
+ 190: def find_reap_candidates(processes, target_names, min_age_hours):
+ 191:     """Find processes matching target_names with dead parent + age > min_age_hours.
+ 192: 
+ 193:     "Dead parent" = parent_pid does not appear in current process list.
+ 194:     EXEMPTION (Wave 121 fire-3): processes owning a LISTENING TCP port are
+ 195:     intentionally-detached daemons, NOT zombies — exempt from reap.
+ 196:     EXEMPTION (Wave 121 fire-4): processes with --pid-file argv + matching
+ 197:     on-disk PID-file content OR named-pipe argv marker are daemon-by-design
+ 198:     via non-TCP IPC mechanism — exempt from reap.
+ 199:     """
+ 200:     pids = {p["pid"] for p in processes}
+ 201:     listening = listening_pids()
+ 202:     min_age_seconds = min_age_hours * 3600
+ 203:     candidates = []
+ 204:     for p in processes:
+ 205:         if p["name"] not in target_names:
+ 206:             continue
+ 207:         if p["age_seconds"] < min_age_seconds:
+ 208:             continue
+ 209:         # Dead-parent check: parent PID not in current process list
+ 210:         # (excluding the standard System Idle Process pid=0)
+ 211:         parent_alive = p["parent_pid"] in pids and p["parent_pid"] != 0
+ 212:         if parent_alive:
+ 213:             continue
+ 214:         # Wave 121 fire-3 EXEMPTION: detached-daemon port-listening check.
+ 215:         # Process owning LISTENING TCP port is daemon-by-design (Win32 detached
+ 216:         # process convention) — NOT zombie. False-positive caught on cnighswonger
+ 217:         # v3.5.4 :19801 PID 103408 (parent shell exited but daemon still serves
+ 218:         # /health HTTP 200 + ESTABLISHED connections to claude.exe).
+ 219:         if p["pid"] in listening:
+ 220:             continue
+ 221:         # Wave 121 fire-4 EXEMPTION: named-pipe + PID-file daemon detection.
+ 222:         # Closes 2nd FALSE-POSITIVE class caught on codex-plugin-cc app-server-broker.mjs
+ 223:         # PID 70384 — uses named-pipe IPC NOT TCP, so port-LISTEN exemption missed it.
+ 224:         # Per codex T1 W121 SHIP A0-FP-FIX AXIS-2 guidance: explicit argv-marker
+ 225:         # allowlist (NOT broadened ESTABLISHED-connection match per codex caution).
+ 226:         cmdline = p.get("cmdline", "")
+ 227:         if is_pidfile_daemon(p["pid"], cmdline):
+ 228:             continue
+ 229:         if is_namedpipe_daemon(cmdline):
+ 230:             continue
+ 231:         candidates.append(p)
+ 232:     return candidates
+ 233: 
+ 234: 
+ 235: def reap_process(pid):
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content -LiteralPath tools/process_hygiene_audit.py | ForEach-Object { $i++; if ($i -ge 70 -and $i -le 120) { '"'{0,4}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+ succeeded in 337ms:
+  70:             capture_output=True,
+  71:             text=True,
+  72:             timeout=30,
+  73:             **_windowless_kwargs(),
+  74:         )
+  75:         if result.returncode != 0:
+  76:             return []
+  77:         data = json.loads(result.stdout)
+  78:         if isinstance(data, dict):
+  79:             data = [data]
+  80:         now = datetime.now(timezone.utc)
+  81:         out = []
+  82:         for p in data:
+  83:             cd_raw = p.get("CreationDate", "")
+  84:             age_s = -1
+  85:             if cd_raw:
+  86:                 # PowerShell ConvertTo-Json returns CIM dates as
+  87:                 # "/Date(epoch_ms)/" OR ISO string depending on version
+  88:                 m = re.search(r"\\?/Date\((\d+)\)\\?/", cd_raw)
+  89:                 if m:
+  90:                     epoch_ms = int(m.group(1))
+  91:                     created = datetime.fromtimestamp(epoch_ms / 1000, tz=timezone.utc)
+  92:                     age_s = int((now - created).total_seconds())
+  93:                 else:
+  94:                     try:
+  95:                         created = datetime.fromisoformat(cd_raw.replace("Z", "+00:00"))
+  96:                         age_s = int((now - created).total_seconds())
+  97:                     except ValueError:
+  98:                         pass
+  99:             out.append({
+ 100:                 "name": p.get("Name", "").lower(),
+ 101:                 "pid": int(p.get("ProcessId", 0)),
+ 102:                 "parent_pid": int(p.get("ParentProcessId", 0)),
+ 103:                 "age_seconds": age_s,
+ 104:                 "cmdline": p.get("CommandLine", "") or "",
+ 105:             })
+ 106:         return out
+ 107:     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+ 108:         return []
+ 109: 
+ 110: 
+ 111: def listening_pids():
+ 112:     """Return set of PIDs that own at least one LISTENING TCP port.
+ 113: 
+ 114:     Wave 121 fire-3 enrichment per FALSE-POSITIVE catch on cnighswonger v3.5.4
+ 115:     daemon (PID 103408 dead-parent BUT serves :19801 + ESTABLISHED connections).
+ 116:     Detached daemons spawned via Start-Process -WindowStyle Hidden outlive
+ 117:     parent shells by Win32 design — NOT zombies if they still serve traffic.
+ 118: 
+ 119:     SOTA pattern: port-listening detection per Microsoft NetTCPIP PowerShell cmdlet
+ 120:     Get-NetTCPConnection (TIER-1-DIRECT https://learn.microsoft.com/powershell/module/nettcpip/get-nettcpconnection).
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content -LiteralPath tools/process_hygiene_audit.py | ForEach-Object { $i++; if ($i -ge 1 -and $i -le 25) { '"'{0,4}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+ succeeded in 320ms:
+   1: #!/usr/bin/env python3
+   2: """process_hygiene_audit.py — identify + (optionally) reap leaked subprocesses
+   3: spawned by hook scripts that didn't get cleaned up.
+   4: 
+   5: Per user directive 2026-05-03 ("monitor why the terminals keep spawning" +
+   6: "resolve all with sota practice"). Investigation revealed 635 git.exe + 211
+   7: node.exe + 19 codex.exe + 192 conhost.exe accumulated across 10 long-running
+   8: parallel claude.exe sessions (oldest 23h 50m).
+   9: 
+  10: Most subprocess accumulation is BENIGN (claude.exe-bound MCP node.exe servers,
+  11: git fsmonitor daemons that auto-cleanup). The reap targets are:
+  12: 
+  13: 1. codex.exe processes orphaned by dead parent (hook fired, parent exited,
+  14:    codex.exe didn't reap) — idle for >REAP_AGE_HOURS hours
+  15: 2. cmd.exe + conhost.exe with dead/unknown parents (zombie console wrappers)
+  16: 3. NOT touching claude.exe (user may have unsaved work in any session)
+  17: 
+  18: Output: JSONL audit trail + advisory stderr summary. Default --dry-run mode for
+  19: safety per Ship 8.6 v1 F-001 race-safety pattern; operator must add --apply
+  20: to execute taskkill.
+  21: 
+  22: Windows-specific: uses tasklist + taskkill CLI (cross-Windows-version safe);
+  23: no PowerShell dependency.
+  24: """
+  25: 
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content -LiteralPath tools/process_hygiene_audit.py | ForEach-Object { $i++; if ($i -ge 25 -and $i -le 44) { '"'{0,4}: {1}' -f "'$i, $_ } }' in Z:\claude-sota-installed
+ succeeded in 327ms:
+  25: 
+  26: import argparse
+  27: import json
+  28: import re
+  29: import subprocess
+  30: import sys
+  31: from datetime import datetime, timedelta, timezone
+  32: from pathlib import Path
+  33: 
+  34: SCHEMA_VERSION = "process_hygiene_audit.v1"
+  35: 
+  36: # Reap criteria — conservative defaults
+  37: REAP_AGE_HOURS_DEFAULT = 1  # only reap subprocesses idle >1h
+  38: REAP_TARGET_NAMES = {"codex.exe"}  # explicit allowlist; NOT touching claude.exe
+  39: 
+  40: # Windows process spawning info via tasklist /v (verbose)
+  41: TASKLIST_CMD = ["tasklist", "/V", "/FO", "CSV", "/NH"]
+  42: 
+  43: 
+  44: def _windowless_kwargs():
+
+codex
+VERDICT: APPROVE
+
+[VERIFIED via direct read] Approach correct: `CommandLine` is captured into `cmdline`, both daemon helpers are present, the PID-file and named-pipe regexes match the intended empirical patterns, and exemption ordering preserves dead-parent gating before daemon exemptions.
+
+Checked:
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:63) captures `CommandLine`
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:143) PID-file helper
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:171) named-pipe helper
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:204) ordering: target/age → dead-parent → TCP LISTEN → PID-file → named-pipe
+
+Minor accepted limitation: PID-file paths with spaces are not handled by the current regex, but that is acceptable for the stated case and defer-until-n=2 policy.
+tokens used
+10,025
+VERDICT: APPROVE
+
+[VERIFIED via direct read] Approach correct: `CommandLine` is captured into `cmdline`, both daemon helpers are present, the PID-file and named-pipe regexes match the intended empirical patterns, and exemption ordering preserves dead-parent gating before daemon exemptions.
+
+Checked:
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:63) captures `CommandLine`
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:143) PID-file helper
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:171) named-pipe helper
+- [tools/process_hygiene_audit.py](Z:/claude-sota-installed/tools/process_hygiene_audit.py:204) ordering: target/age → dead-parent → TCP LISTEN → PID-file → named-pipe
+
+Minor accepted limitation: PID-file paths with spaces are not handled by the current regex, but that is acceptable for the stated case and defer-until-n=2 policy.

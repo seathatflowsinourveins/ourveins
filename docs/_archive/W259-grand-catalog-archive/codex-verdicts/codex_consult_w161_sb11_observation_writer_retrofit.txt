@@ -1,0 +1,130 @@
+## W161 SB11 — `_observation_writer.append_observation` retrofit to use `atomic_append`
+
+Audit the proposed retrofit of `_observation_writer.py:append_observation` to use the cite-imported `atomic_append()` from `scripts/_atomic_jsonl_append.py` per W161 SB10 install. Bundle 1 phase 2 retrofit per `docs/architecture-audit-scorecard.md` P1 #2 priority queue.
+
+### Context
+
+- **SB10 just landed** (commits ed38d2a + fdbd73e round-2): cite-imported `scripts/_atomic_jsonl_append.py` (423 LOC) with Round-3-7b cumulative invariants (O_CREAT|O_APPEND|O_WRONLY + lock + os.write + fsync + mode 0o600 + RecordTooLarge + Windows lock-via-sidecar)
+- **Sibling Ship 2a + Ship 2b precedent** (n=2): `Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52` + `memory_persist_sessionend.py:40-49` use identical retrofit pattern (sys.path.insert + try/except import + fail-open `atomic_append = None`)
+
+### Current state (`_observation_writer.py`)
+
+```python
+# L34-45 imports
+from __future__ import annotations
+import hashlib, json, os, re, sys
+from datetime import UTC, datetime
+from pathlib import Path
+sys.path.insert(0, os.path.dirname(__file__))
+from _guard_base import _parse_stdin_json
+from utils import log_swallow
+
+# L51-53 path resolution
+OBSERVATIONS_JSONL = (
+    Path(__file__).resolve().parent.parent.parent / "state" / "observations.jsonl"
+)
+
+# L206-232 target function
+def append_observation(obs: dict, ctx: str, payload: dict | None = None) -> bool:
+    try:
+        OBSERVATIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
+        row = _externalize_stop_reason_if_needed(obs, ctx)
+        row = merge_agent_context(row, payload)
+        with OBSERVATIONS_JSONL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        return True
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.observations_append")
+        return False
+```
+
+### Proposed retrofit (mirrors sibling Ship 2a/2b R2 pattern)
+
+```python
+# Add after line 45 (after existing _guard_base + utils imports):
+# Wave 161 SB11: import atomic_append() from cite-imported _atomic_jsonl_append
+# module (W161 SB10). Mirrors sibling Ship 2a/2b R2 codex T3 pattern at
+# Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52.
+# Per Ship 2a R2 codex T3 conf=0.82: wrap import in try/except to prevent
+# helper-failure (missing / syntax / runtime / version-skew) from breaking
+# module load. atomic_append=None triggers fail-open legacy fallback in
+# append_observation.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+try:
+    from _atomic_jsonl_append import atomic_append, RecordTooLarge  # noqa: E402
+except Exception:  # noqa: BLE001 — fail-open import per Ship 2a R2 codex T3
+    atomic_append = None  # type: ignore[assignment]
+    RecordTooLarge = type("RecordTooLarge", (Exception,), {})  # type: ignore[assignment]
+
+# Replace L206-232:
+def append_observation(obs: dict, ctx: str, payload: dict | None = None) -> bool:
+    """Append one JSONL row. Returns True on success, False on I/O error.
+
+    Fail-open: any OSError is log_swallow'd. Callers can still return 0.
+
+    Wave 161 SB11: uses atomic_append() from cite-imported _atomic_jsonl_append
+    module (W161 SB10) — Round-3-7b cumulative invariants (O_CREAT|O_APPEND
+    |O_WRONLY + lock + os.write + fsync + mode 0o600 + RecordTooLarge bound +
+    Windows lock-via-sidecar). Falls back to legacy with-open path when
+    atomic_append is None (helper missing/skew/syntax error).
+    """
+    try:
+        OBSERVATIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
+        row = _externalize_stop_reason_if_needed(obs, ctx)
+        row = merge_agent_context(row, payload)
+        if atomic_append is not None:
+            try:
+                atomic_append(OBSERVATIONS_JSONL, row)
+            except RecordTooLarge as exc:
+                log_swallow(exc, f"{ctx}.observations_append.record_too_large")
+                return False
+        else:
+            # Fail-open legacy fallback when atomic_append unavailable
+            with OBSERVATIONS_JSONL.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(row) + "\n")
+        return True
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.observations_append")
+        return False
+```
+
+### Audit dimensions
+
+1. **Path resolution correctness**: `Path(__file__).resolve().parents[3]` — verify resolves to `Z:/claude-sota-installed/` (not `.claude/` or `hooks/`). Layout: file at `.claude/hooks/scripts/_observation_writer.py` → parents[0]=scripts/, parents[1]=hooks/, parents[2]=.claude/, parents[3]=Z:/claude-sota-installed/.
+
+2. **Fail-open import discipline**: try/except wraps import per sibling Ship 2a R2. Stub `RecordTooLarge = type(...)` when import fails ensures the `except RecordTooLarge` branch doesn't raise NameError. Acceptable shape?
+
+3. **Backward compatibility**: legacy code path preserved as fallback when atomic_append is None. Byte-for-byte JSONL output identical to pre-SB11 (atomic_append uses same `json.dumps(row) + "\n"` shape per source body inspection).
+
+4. **RecordTooLarge handling**: Round-5 F-5 invariant raises RecordTooLarge for records exceeding PIPE_BUF_BYTES=4096. New `except RecordTooLarge` branch log_swallows and returns False. This is correct per Round-5 F-5 "RecordTooLarge raises; do NOT silently truncate".
+
+5. **Cycle-300 ONE-LOGICAL-UNIT scope**: single-file retrofit (~25 LOC delta). SB12+ retrofits deferred per scorecard P1 #2 priority queue.
+
+6. **Hook critical-path safety**: append_observation is called from observer hooks (subagent_start_observer, subagent_stop_telemetry, task_completed_observer). atomic_append takes a lock + fsyncs — performance impact acceptable (~1-5ms overhead per call)?
+
+7. **FM-02 (b)+(c) defense**: single-shell `git add -- <path> && git commit -o -F <msg> -- <path>` atomic commit.
+
+### Verdict shape (JSON-strict at EOF — NO prose preamble)
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "prescribed_edits": [
+    {"file": "<path>", "edit": "<verbatim text or diff hunk>", "reason": "<one line>"}
+  ],
+  "audit_dimensions": {
+    "path_resolution": "PASS|NEEDS-REVISION",
+    "fail_open_import": "PASS|NEEDS-REVISION",
+    "backward_compat": "PASS|NEEDS-REVISION",
+    "record_too_large_handling": "PASS|NEEDS-REVISION",
+    "cycle300_scope": "PASS|NEEDS-REVISION",
+    "hook_critical_path_safety": "PASS|NEEDS-REVISION",
+    "fm02_defense": "PASS|NEEDS-REVISION"
+  },
+  "sibling_precedent_fidelity": "FULL|PARTIAL|DIVERGED"
+}
+```
+
+Budget: 60-120s per codex-t1-pattern-b-forward-discipline.md Forward Discipline #2. Do NOT explore historical fire deliverables beyond cite anchors. Verdict at EOF.

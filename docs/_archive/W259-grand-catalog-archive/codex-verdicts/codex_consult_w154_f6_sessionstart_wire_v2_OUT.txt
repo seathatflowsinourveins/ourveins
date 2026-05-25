@@ -1,0 +1,621 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1a48-6582-7dc1-be7c-b0c929024cfc
+--------
+user
+SYSTEM: V2 designer for W154 F6 cli_path_audit.py SessionStart hook wire. Output JSON-strict at EOF.
+
+CONTEXT:
+- W154 F3 shipped scripts/cli_path_audit.py (commit 80f9765) with V3 SCOPED-DOWN: NO hook wire until "script proves clean schema/noise pattern across multiple cron iterations + PATH-fix lands"
+- W154 F4 gh install (7662cca) + F5 PATH-fix (a44b48c) landed; cli_path_audit Tier-0 3/3 PASS in simulated post-F5 shell
+- Cron `a83ecd8c` 3 iterations no schema-drift signal
+- Predicates SATISFIED for SessionStart wire
+- F6 = wire cli_path_audit.py as SessionStart hook in .claude/settings.json with --jsonl flag (capped append-only drift records)
+
+ANTHROPIC CC SessionStart hook docs (TIER-1-DIRECT cite anchor):
+- https://code.claude.com/docs/en/hooks ["SessionStart"]: fires at session start; can emit additionalContext via stdout JSON
+- Existing settings.json SessionStart hooks: claude_md_count_audit (async 30s) + cite_drift_audit (async 30s) + mcp_self_audit (async 30s) + mcp_overhead_audit (async 30s) + agent_frontmatter_audit (async 30s) + tmp_md_inventory (async 30s) + tmp_promote_authoritative (async 30s) + process_hygiene_audit (async 30s) etc — pattern: async 30s for non-blocking advisory
+- W154 F5 V3 SCOPED-DOWN inheritance: cli_path_audit at SessionStart should be ASYNC + advisory (NOT blocking)
+
+QUESTIONS:
+Q1: minimum_viable_f6_wire? (settings.json SessionStart entry for `python scripts/cli_path_audit.py --jsonl` async 30s)
+Q2: noise discipline? (only emit JSONL on drift via --jsonl flag — already capped per W154 F3 design)
+Q3: stdout vs stderr? (stdout = additionalContext to Claude / stderr = telemetry; cli_path_audit currently prints to stdout — should we suppress or pipe to stderr-only mode for the hook?)
+Q4: failure mode? (audit script throws → hook fails → log; advisory not blocking)
+Q5: reversibility per CR-9?
+Q6: scope per cycle-300 - JUST SessionStart wire OR also PostToolUse on `Bash(npm install -g *)` to catch new CLI installs?
+
+OUTPUT JSON-strict at EOF:
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.0,
+  "minimum_viable_f6_wire": "...",
+  "noise_discipline": "...",
+  "stdout_vs_stderr": "...",
+  "failure_mode": "...",
+  "reversibility_path": "...",
+  "scope_discipline": "...",
+  "prescribed_edits": [...],
+  "risk_class": "LOW | MEDIUM | HIGH"
+}
+
+
+codex
+I’ll verify the existing hook shape and the script’s output behavior before giving the F6 design verdict, so the recommendation matches the repo’s current settings schema.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "SessionStart|cli_path_audit|claude_md_count_audit|process_hygiene_audit" .claude/settings.json scripts/cli_path_audit.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path scripts/cli_path_audit.py -TotalCount 240' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/settings.json -TotalCount 260' in Z:\claude-sota-installed
+ succeeded in 334ms:
+scripts/cli_path_audit.py:2:"""cli_path_audit.py — Tier-0 CLI PATH conformance audit (CR-5/6 "all native install indisk z").
+scripts/cli_path_audit.py:6:  "Ship script-only/manual cli_path_audit for Tier-0 codex+gh+claude with capped JSONL and
+scripts/cli_path_audit.py:7:  printed per-CLI fix hints; do not wire SessionStart/PostToolUse yet."
+scripts/cli_path_audit.py:14:    (2) V2 q2 hook event C (BOTH SessionStart+PostToolUse) too eager → V3 E (no hook wire)
+scripts/cli_path_audit.py:33:  python scripts/cli_path_audit.py            # default: pretty-printed summary
+scripts/cli_path_audit.py:34:  python scripts/cli_path_audit.py --json     # JSON array stdout
+scripts/cli_path_audit.py:35:  python scripts/cli_path_audit.py --jsonl    # append drift records ONLY to
+scripts/cli_path_audit.py:36:                                              # .claude/state/cli_path_audit.jsonl (capped)
+scripts/cli_path_audit.py:110:        "schema": "cli_path_audit.v1",
+scripts/cli_path_audit.py:143:    """Append drift records ONLY to .claude/state/cli_path_audit.jsonl (V3 a3 capped schema)."""
+scripts/cli_path_audit.py:151:    jsonl_path = state_dir / "cli_path_audit.jsonl"
+scripts/cli_path_audit.py:166:        help="Append drift records ONLY to .claude/state/cli_path_audit.jsonl (capped)",
+.claude/settings.json:465:    "SessionStart": [
+.claude/settings.json:471:            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionStart",
+.claude/settings.json:613:  "_comment_wave97_ship1A": "Wave 97 Ship 1A 2026-05-08 — enable claude-md-management (Anthropic-authored: SKILL claude-md-improver audits CLAUDE.md drift on user request + COMMAND /revise-claude-md captures session learnings; complements existing claude_md_count_audit.py PostToolUse hook with QUALITATIVE drift report). NOTE: claude-md-improver CAN edit CLAUDE.md after user approval — NOT strictly read-only. Cite: marketplaces/claude-plugins-official/plugins/claude-md-management/.claude-plugin/plugin.json + skills/claude-md-improver/SKILL.md + commands/revise-claude-md.md. Source: wave52/iter2b TOP-10 #5. DROPPED FROM SHIP per real GPT-5.5 codex T1 NEEDS-REVISION conf=0.94 Pattern A fix-forward: (a) explanatory-output-style — its SessionStart hook always injects explanatory-mode instructions + adds token/output cost; NOT dormant when outputStyle unset (my OVER claim caught by codex); (b) session-report — upstream marketplace lacks plugin.json (Mia probe verified). Cross-model gate satisfied via real GPT-5.5 codex T1 foreground+tee e2e BEFORE commit per CR-3; verdict at .claude/state/codex_consult_wave97_ship1a_enable_plugins_OUT.txt.",
+
+ succeeded in 332ms:
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 60,
+  "env": {
+    "_comment": "CLAUDE_SOTA_INSTALLED_RUNTIME DROPPED Wave 50 Agent B P2 — was setter-no-reader hidden self-invention. Re-introduce only when a hook/script consumer lands.",
+    "_comment_disable_autoupdater_removed": "DISABLE_AUTOUPDATER=1 REMOVED Wave 62 2026-05-07 per user-trigger directive 'eee must be all sota, auto update with all offical sota native install methods'. Original Wave 53 pin (codex T1 b58s3u956 stable=119/latest=132 heuristic) was self-inventing against Anthropic's actual release cadence — CHANGELOG defines no 'stable channel'. Removal lets Anthropic in-place self-update flow per https://code.claude.com/docs/en/install. minimumVersion floor preserved as forward-only quality gate; updates above floor proceed automatically.",
+    "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "FM17_STALL_DETECTOR_DISABLE": "1",
+    "_comment_fm17d_disabled": "Wave 76 2026-05-08 — fm17d_stall_detector.py was writing 100% schema-rot observations (172 entries / 172 schema_missing across two sessions, 0 useful classifications). Hook honors FM17_STALL_DETECTOR_DISABLE=1 per its own _DISABLE_ENV constant at line 58. Re-enable after fixing the SubagentStop input-schema parsing (script expects stop_reason / tool_uses fields that CC v2.1.119 / 2.1.132 don't emit at the top level).",
+    "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force,pre:write:doc-file-warning,post:edit:design-quality-check,post:edit:console-warn,stop:format-typecheck,stop:check-console-log,pre:observe:continuous-learning,post:observe:continuous-learning,pre:edit-write:suggest-compact,post:session-activity-tracker,stop:evaluate-session,stop:cost-tracker,stop:desktop-notify",
+    "PYTHON_BIN": "Z:/venvs/claude/Scripts/python.exe",
+    "_comment_python_bin": "Wave 78 2026-05-08 — per real-GPT-5.5 codex T1 deep-review-exec verdict NEEDS-REVISION conf=0.78 finding F4 at .claude/state/codex_consult_wave77_full_audit_OUT.txt: cwc track-read.sh + verify-gate.sh call `python` (no full path). Git Bash on Windows may not resolve `python` — scripts then silent-no-op. Adding explicit PYTHON_BIN env that the .sh scripts can prefer via `${PYTHON_BIN:-python}` fallback. Cite: TIER-3-LOCAL-CODEX-T1-VERDICT (real GPT-5.5 BRIDGE-MODE; cross-model gate satisfied per cardinal-rule-3 Phase 1 bootstrap exception).",
+    "_comment_ecc_disabled_hooks": "Wave 76 baseline + Wave 77 expansion 2026-05-08. Wave 76: gateguard-fact-force (pre:bash + pre:edit-write) — costs round-trip per first-of-class action. Wave 77 (per fleet-arch-vs-official-2026-05-08.md §3 ECC-hooks triage): added 5 pure-overhead hook IDs that target JS/TS/frontend project workflows orthogonal to this Z-drive Anthropic-CC runtime — pre:write:doc-file-warning (warns on docs we intentionally create), post:edit:design-quality-check (frontend UI check, N/A), post:edit:console-warn (no JS edits), stop:format-typecheck (Biome/Prettier+tsc, no JS/TS source), stop:check-console-log (no JS). Each saves ~100-200ms node spawn per matched event. The hook's own recovery instructions document this env var. Other ECC hooks (pre-bash-dispatcher, pre-mcp-health-check, post-bash-dispatcher, governance-capture handled separately, etc.) remain ACTIVE.",
+    "ECC_GOVERNANCE_CAPTURE": "0",
+    "_comment_ecc_governance_capture": "Wave 76 2026-05-08 — ECC governance-capture hook spawns Node on every Edit/Write/MultiEdit pre + post (2 spawns × 100ms cold start = ~200ms/edit) writing to .claude/governance-capture/ which has zero downstream consumer in this runtime. Disable until a consumer wires in. Cite: ECC hooks.json plugin cache `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/hooks/hooks.json` governance-capture entries; control env per ECC plugin.json env.",
+    "ECC_HOOK_PROFILE": "standard",
+    "_comment_ecc_hook_profile": "Wave 76 2026-05-08 — explicit standard (default) profile to prevent surprise. ECC supports `off`/`standard`/`strict`; we hold at standard while we triage individual hooks via ECC_DISABLED_HOOKS rather than nuke all.",
+    "ANTHROPIC_SMALL_FAST_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "Haiku 4.5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "fast/cheap inline-judge",
+    "_comment_haiku_pin": "Wave 82a 2026-05-08 — pin small-fast-model to Haiku 4.5 per Anthropic CC CHANGELOG.md:929 ('ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL_SUPPORTS') + :3298 ('Bedrock ARN passed to ANTHROPIC_MODEL or ANTHROPIC_SMALL_FAST_MODEL'). TIER-1-DIRECT via Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD. Prevents inline-judge calls (session titles, classifier passes, away summaries, recap) from landing on Haiku 3.5 (~3× token cost). Source: wave52/iter2b #2 advanced-unadopted pattern.",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": "1",
+    "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1",
+    "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": "60000",
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "ENABLE_TOOL_SEARCH": "auto:5",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70",
+    "OTEL_LOG_TOOL_DETAILS": "1",
+    "OTEL_LOG_USER_PROMPTS": "1",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
+    "OTEL_TRACES_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://127.0.0.1:14317",
+    "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "grpc",
+    "OTEL_RESOURCE_ATTRIBUTES": "openinference.project.name=eee",
+    "_comment_otel_phoenix_wire": "Wave 109 Ship 2P-pilot-REVISED 2026-05-08 — wire eee OTel TRACES to existing Phoenix container (arizephoenix/phoenix:13.15.0 at 127.0.0.1:14317 OTLP gRPC + :16006 UI). Phoenix Apache-2.0 OpenInference auto-instrumentation; no auth needed for local. Trace-SPECIFIC OTLP envs only (Phoenix doesn't accept logs/metrics on :4317). CLAUDE_CODE_ENABLE_TELEMETRY=1 + CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1 required per CC docs (telemetry enablement gate; traces beta-gated). OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=eee for Phoenix project grouping (does NOT override CC's documented service.name=claude-code default). DECISION PIVOT: Wave 109 Agent E originally proposed openlit install; Mia probe via `docker ps` revealed eee already runs langfuse + phoenix + grafana + prometheus + 7 supporting containers — openlit install REJECTED as 4th duplicate stack (kiss-dry-yagni Must-Never #4). Phoenix-first chosen (no auth; immediate); Langfuse parallel-sink DEFERRED to followup ship pending operator LANGFUSE_PUBLIC_KEY+SECRET_KEY OR OTel Collector fan-out design. Logs/metrics deferred (Phoenix trace-only). Retirement audit of unwired containers (qdrant + grafana + prometheus) DEFERRED to separate fire per deprecation-discipline.md §The deprecation decision 5-question gate. **PII note**: OTEL_LOG_USER_PROMPTS=1 (Wave 82a) persists full prompt text in Phoenix — local-only Phoenix container at 127.0.0.1 is acceptable for solo eee runtime. CR-9 install-risk LOW (env-add only; reversible; Phoenix container ALREADY running). Codex T1 NEEDS-REVISION conf=0.93 9-prescription Pattern A applied per .claude/state/codex_consult_wave109_ship2p_pilot_phoenix_wire_OUT.txt. TIER-1-DIRECT cites: Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD L45+L157+L308+L568+L909 (CC OTel env support) + https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/ (OTel SDK trace-specific env). Activates on next eee restart.",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
+    "_comment_gateway_model_discovery": "Wave 106 Ship 2N-batch3-F 2026-05-08 — opt-in gateway /v1/models discovery for /model picker per CC 2.1.129 CHANGELOG.md:14. eee uses ANTHROPIC_BASE_URL=http://127.0.0.1:8317 (CLIProxyAPI v6.10.9 10-account fleet) — gateway DOES expose /v1/models; without this flag the model picker won't see gateway's enumeration. Was automatic in 2.1.126-2.1.128; opt-in since 2.1.129. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD. Codex T1 APPROVE conf=0.95 single-round per .claude/state/codex_consult_wave106_ship2n_batch3f_gateway_discovery_OUT.txt.",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "_comment_max_mcp_output_tokens": "Wave 97 Ship 1L 2026-05-08 — 2× CCBP default 25000 (claude-settings.md:822 @ HEAD 64fffd53). Sized for ctx_batch_execute + repomix workloads (30-60K bytes returns observed Wave 97). Risk: LOW. Cross-model gate: real GPT-5.5 codex T1 APPROVE conf=0.88 single-round at .claude/state/codex_consult_wave97_ship1l_mcp_env_OUT.txt.",
+    "BASH_MAX_OUTPUT_LENGTH": "100000",
+    "_comment_bash_max_output_length": "Wave 97 Ship 1L 2026-05-08 (50000) → Ship 1L-followup 2026-05-08 (100000) per user mandate 'full unleash with sota harness' + Phase 3 graduated-unleash. Cite: CCBP claude-settings.md:825 @ HEAD 64fffd53. 100K chars ≈ 25K tokens; well below context-rot threshold (~300-400K tokens per Karpathy 1M calibration). Covers larger codex verdict files + cwc + repomix CLI outputs. Risk: LOW. Real GPT-5.5 codex T1 R1 APPROVE conf=0.86 single-round per .claude/state/codex_consult_wave97_ship1l_followup_unleash_bumps_OUT.txt.",
+    "BASH_MAX_TIMEOUT_MS": "1800000",
+    "_comment_bash_max_timeout_ms": "Wave 97 Ship 1L 2026-05-08 (900000=15min) → Ship 1L-followup 2026-05-08 (1800000=30min) per user 'full unleash' mandate + Phase 3. Cite: CCBP claude-settings.md:824 + Anthropic CHANGELOG.md:3311 (introduced) + L2686 (auto-background). Covers codex T6 stop-gate 900s (longest sync gate per cross-model-consensus.md §Profile selection), cwc up to 600s, codex T1/T2 240-480s + edge cases (full-repo gitleaks scans, large monorepo git clone 5-15min). BASH_DEFAULT_TIMEOUT_MS auto-background trigger UNCHANGED at Anthropic default. Conflict-resolved with CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS=60000 (different scope: SessionEnd hooks ceiling vs Bash-tool-call ceiling). Risk: MED.",
+    "MCP_TOOL_TIMEOUT": "300000",
+    "_comment_mcp_tool_timeout": "Wave 97 Ship 1L 2026-05-08 (120000=2min) → Ship 1L-followup 2026-05-08 (300000=5min) per user 'full unleash' mandate + Phase 3. Cite: CCBP claude-settings.md:979 @ HEAD 64fffd53 (FM-20 cite-correction Wave 97 Fan-3 X1 — fan-2 B brief had stale L1071 which is mcpServers block) + Anthropic CHANGELOG.md:3259 (respect-bug fix). Sized for heavy ctx_batch_execute (8-10 concurrent commands could hit 2-3min p99) + repomix large-repo + gitnexus impact 10K+ symbol graph. 5min cap preserves fan-out parallelism (wedged tools eventually time out vs unbounded). Orthogonal to MCP_TIMEOUT (server-startup, L821). Risk: MED.",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+    "_comment_wave126_effort_max_user_trigger": "Wave 126 user-trigger 2026-05-09 — bumped xhigh→max per directive 'using max more proactively as we are focuing quality and advanced workflow max, rather than cost'. Overrides Wave 97 Ship 1G Mia OVER framing (Wave 97 claimed xhigh = operational-max for Opus 4.7 per adaptive-thinking architecture; user-trigger explicit override per cycle-322 jurisdiction n=1 automatic gate). Adaptive-thinking remains ON for Opus 4.7 per `https://code.claude.com/docs/en/env-vars` CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING note ('has no effect on Opus 4.7, which always uses adaptive reasoning') — `max` adds extra reasoning headroom on top of adaptive. Per local-command behavior 'max is session-only (nothing saved)' for /effort slash → env-pin tested as forward-only by user directive (if claude CLI rejects 'max' env value at startup, REVERT to xhigh per CR-9 install-risk discipline). Cite: TIER-1-DIRECT `https://code.claude.com/docs/en/env-vars` + CCBP `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:857 @ HEAD 64fffd53`. Both eee.ps1 + eee-backup.ps1 launchers read this env block; single edit covers both. Wave 97 Ship 1G _comment_wave97_ship1g_effort_pin RETIRED forward-only per port-note-discipline.md §6 anti-pattern (do NOT rewrite historical commit bodies; comment retirement is forward-only).",
+    "_comment_wave82a_advanced_unleash": "Wave 82a 2026-05-08 — advanced unleashed-mode env block per wave52/iter2b TOP 10 + adoption baseline. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD: AGENT_TEAMS=1 (CCBP claude-cli-startup-flags.md:211 — feature gate); NO_FLICKER (CHANGELOG render perf); ENABLE_AWAY_SUMMARY (away-from-keyboard summary feature); FINE_GRAINED_TOOL_STREAMING (CHANGELOG streaming-grain feature); ATTRIBUTION_HEADER=0 (CHANGELOG suppress 'Generated with Claude Code'); USE_POWERSHELL_TOOL=1 (CHANGELOG.md:88,213,414 — Windows pwsh native tool primary shell, paired with defaultShell:powershell at L226); SESSIONEND_HOOKS_TIMEOUT_MS=60000 (CHANGELOG.md:1265 — 1.5s ceiling override; honors per-hook timeout:30s declared on 14+ SessionEnd audits); ENABLE_PROMPT_CACHING_1H=1 (1h cache extension feature); ENABLE_TOOL_SEARCH=auto:5 (deferred-tool-search auto-promote 5 tools per turn — present session-reminder evidence); CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70 (sibling-validated threshold; CR-3 cite chain through claude-sota CLAUDE.local.md ENV); OTEL_LOG_TOOL_DETAILS=1 (CHANGELOG OTel tool_result/tool_decision events); OTEL_LOG_USER_PROMPTS=1 (CHANGELOG.md:157 — 'user_system_prompt to LLM request spans'). DEFERRED: OTEL_LOG_RAW_API_BODIES (PII risk per iter2b #7; would leak full prompts to Langfuse — enable only with verified local-only Langfuse). Cardinal-rule-3 Phase 1 bootstrap exception cross-model gate satisfaction: T1 hook codex_t1_consult_gate.py at L58 fires on this Edit; T2 hook fires on commit. Cite source: wave52/iter2b advanced-unadopted patterns 1-10."
+  },
+  "permissions": {
+    "allow": [
+      "Edit(Z:/claude-sota-installed/.claude/settings.json)",
+      "Edit(Z:/claude-sota-installed/CLAUDE.md)",
+      "Edit(Z:/claude-sota-installed/docs/sota-installed-manifest.md)",
+      "Edit(Z:/claude-sota-installed/docs/install-provenance.md)",
+      "Bash(npm install -g *)",
+      "Bash(uv tool install *)",
+      "Bash(gh release download *)",
+      "Bash(git clone --depth 1 https://github.com/* *)",
+      "Bash(docker pull *)",
+      "Bash(cargo install *)",
+      "Bash(codex *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.pfx)",
+      "Read(**/*.key)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "_comment_temporary_override": "⚠️ TEMPORARY OPERATOR OVERRIDE per Wave 82d 2026-05-08 (Anthropic classifier outage ~30min blocked all Bash/Edit/Write under auto-mode). NOT CR-7 Phase 3 destination achievement. Canonical SOTA destination per CLAUDE.md CR-7 Phase 1 (CCBP-canonical Wave 61.5) is `defaultMode: \"auto\"`. Revert predicates (ALL must hold): (1) Anthropic classifier reliable, (2) Tier 5 manifest rows INSTALLED+smoke-PASS, (3) arc-convergence ≥7 fires no NEEDS-REVISION conf>0.85 per Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md §Cycle-539. Override marker strengthening codified Wave 146 Fire 2 commit (TBD) per Wave 146 Fire 1 Agent C MODIFY #2 prescription [VERIFIED via .claude/state/codex_consult_w146_f1_adversarial_review_OUT.txt JSON verdict prescription #2]. See CLAUDE.md §\"Intentional divergences\" (d) for full rationale.",
+    "_comment_deny_secrets_baseline": "Wave 75 2026-05-08 — kits-convergence cited (v5 SETTINGS_AND_HOOKS_REFERENCE.md:32-38, fleet-kits-convergence-2026-05-08.md §2 row 4) chained back to CCBP claude-mcp.md hard rule 'NEVER commit secrets'. Read-class deny floor; auto-mode classifier still gates everything else.",
+    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor MECHANICALLY ENFORCED via PreToolUse:Bash hook safety_guard.py at Block[6][0] (Wave 105 Ship 2N-batch3-A 2026-05-08 — 12-destructive-pattern auto-block: rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd); agent_plan_readonly_bash_guard.py is mechanically enforced at per-subagent frontmatter scope (architect/code-reviewer/debugger/verifier --policy readonly + gpt5-archaeologist/gpt5-reviewer --policy codex-readonly), NOT globally — codex T1 NEEDS-REVISION conf=0.96 caught that global wire would block normal operator Bash including git commit; cardinal-rule deny-class still applies.",
+    "_comment_deny": "Empty — auto-mode classifier handles risk-tiering; explicit deny[] only added when a SOTA primitive needs operation-level block.",
+    "_comment_phase3_transition": "Wave 61 fire-extension 2026-05-07 flipped defaultMode default→bypassPermissions; parallel-session refined to 'auto' Wave 61.5 per SOTA convergence. CCBP-CANONICAL per Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:251 @ HEAD 64fffd53 [VERIFIED 2026-05-07]: 'auto' mode 'Auto-approves tool calls with background safety checks... Classifier auto-approves read-only and file edits; sends everything else through a safety check. Falls back to prompting after 3 consecutive or 20 total blocks. In the default Shift+Tab permission-mode cycle since v2.1.111'. SOTA-superior to bypassPermissions because bypassPermissions STILL prompts for .git/.claude/.vscode/.idea/.husky paths per CCBP L250 — auto handles via classifier instead. User-trigger directive 'all setting must be fully unleashed with sota harness' + 'full premission unleashed' satisfied via auto-mode classifier (no per-action confirm for safe ops). TIER-1-DIRECT authority: https://code.claude.com/docs/en/settings + https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode. Reversal: change to 'default' (single-line edit). disableAutoMode setting could be set to 'disable' if auto mode misbehaves on this workload — currently NOT set. ⚠️ ACTIVE RUNTIME STATE: bypassPermissions per Wave 82d temporary override (2026-05-08; Anthropic classifier outage ~30min blocked all Bash/Edit/Write under auto-mode) — see _comment_temporary_override at L82 above for full override rationale + 3 revert predicates + CLAUDE.md §\"Intentional divergences\" (d) cross-ref. Auto-mode remains CCBP-CANONICAL destination per CCBP L251; reversal predicates per CLAUDE.md §(d) ALL must hold: (1) Anthropic classifier reliable, (2) Tier 5 manifest rows INSTALLED+smoke-PASS, (3) arc-convergence ≥7 fires no NEEDS-REVISION conf>0.85 per Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md §Cycle-539. Cross-ref reconcile codified Wave 146 Fire 6 mechanical-mirror exception (Agent C missed gap #1 closure)."
+  },
+  "disabledMcpjsonServers": [],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t1_consult_gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/secret_scan_guard.py",
+            "timeout": 8
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t5_plan_review_gate.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_spawn_gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/fm20_path_drift_lint.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/kill-switch.sh",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/steer.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/track-read.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/verify-gate.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/block_no_verify_guard.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(git commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(rtk git commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(rtk git -C * commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(env * git commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(env * git -C * commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(rtk git commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(rtk git -C * commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(env * git commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(env * git -C * commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+
+ succeeded in 359ms:
+#!/usr/bin/env python3
+"""cli_path_audit.py — Tier-0 CLI PATH conformance audit (CR-5/6 "all native install indisk z").
+
+Per W154 F3 V3 ADVERSARIAL F3-SCOPED-DOWN conf=0.90 (2nd RECURSIVE FM-09 catch in W154).
+V3 SAVED-SHIP 4 V2 overclaims caught at synthesis-vs-brief boundary; V3 prescription verbatim:
+  "Ship script-only/manual cli_path_audit for Tier-0 codex+gh+claude with capped JSONL and
+  printed per-CLI fix hints; do not wire SessionStart/PostToolUse yet."
+
+Cite anchors:
+  - V2 + V3 verdict files at .claude/state/codex_consult_w154_f3_cli_audit_v{2,3}_OUT.txt
+  - V3 SAVED-SHIP catches:
+    (1) V2 q1 NO-OVERLAP claim was OVER (3 partial overlaps: install-path.ps1 Probe 6 +
+        eee.ps1 (e0) RTK + sibling sss.ps1)
+    (2) V2 q2 hook event C (BOTH SessionStart+PostToolUse) too eager → V3 E (no hook wire)
+    (3) V2 q4 inventory MEDIUM-15 too broad → V3 TIER-0 (codex+gh+claude only)
+    (4) V2 q5 actionability missing → V3 LOW (TOMBSTONE) risk close via per-CLI fix hints
+  - Sister discipline cite-import-AMBER per CLAUDE.md §14.5:
+    - Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories OVER/UNDER/HNF
+    - Z:/claude-sota/.claude/rules/audit-action-loop.md Wire/Surface/Close/Re-fire (Surface stage only;
+      this script is Surface producer; close stage is operator-side install action)
+  - W154 F1 commit `6ea25b4` (codex Z install via NPM_CONFIG_PREFIX)
+  - W154 F2 commit `d89d9c4` (install-path.ps1 Probe 6 codex Z-shadow PATH-fix)
+
+Tier-0 scope (3 CLIs only per V3 a4 SCOPED-DOWN):
+  - codex: load-bearing for CR-3 cross-model gate (W154 F2 PATH-fix target)
+  - gh: load-bearing for CR-6 official-native-channel (`gh release download` for upstream installs)
+  - claude: load-bearing as this runtime's entry point
+
+Per-CLI fix hints close V3 a6 actionability LOW (TOMBSTONE) risk — every drift record carries a
+concrete migration recipe so JSONL drift is operator-actionable, not infrastructure tombstone.
+
+Manual invocation (V3 SCOPED-DOWN — NO hook wire):
+  python scripts/cli_path_audit.py            # default: pretty-printed summary
+  python scripts/cli_path_audit.py --json     # JSON array stdout
+  python scripts/cli_path_audit.py --jsonl    # append drift records ONLY to
+                                              # .claude/state/cli_path_audit.jsonl (capped)
+
+Risk class LOW per launch-discipline §D1 (read-only audit; no mutation; reversible by
+deleting script). FM defense: FM-02 atomic ship; FM-09 V3 ADVERSARIAL pre-caught V2 over-engineering;
+FM-15 atomic git CLI grammar; FM-20 propagation defense via cite-anchored verdicts.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Tier-0 inventory per V3 SCOPED-DOWN (3 CLIs only)
+TIER_0: dict[str, dict[str, str]] = {
+    "codex": {
+        "expected_z_path": "Z:/claude-sota-installed/.local/npm/codex.cmd",
+        "fix_hint": (
+            "C: drift → run `pwsh -File Z:/claude-sota-installed/bin/install-path.ps1` "
+            "(W154 F2 Probe 6 codex Z-shadow defense). Restart shell from Start Menu / "
+            "Explorer to pick up User PATH change."
+        ),
+    },
+    "gh": {
+        "expected_z_path": "Z:/claude-sota-installed/.local/bin/gh.exe",
+        "fix_hint": (
+            "C: drift → install at Z via `gh release download --repo cli/cli "
+            "--pattern '*windows_amd64.zip' --output gh.zip` then extract to "
+            ".local/bin/. Per CR-6 official-native-channel from cli/cli releases. "
+            "Add Z:/claude-sota-installed/.local/bin to PATH (already in eee.ps1)."
+        ),
+    },
+    "claude": {
+        "expected_z_path": "Z:/claude-sota-installed/.local/bin/claude.exe",
+        "fix_hint": (
+            "C: drift → install Claude Code native at Z (see https://code.claude.com/docs/en/setup). "
+            "Until native-Z install lands, eee.ps1 falls back to parent Z:/claude/.local/bin/claude.exe "
+            "per (e1) native-install gate at tools/eee.ps1:212-218."
+        ),
+    },
+}
+
+
+def classify_scope(resolved: str | None) -> str:
+    """Classify resolved path into Z (compliant) | C (CR-5/6 violation) | N (not in PATH) | ? (other)."""
+    if not resolved:
+        return "N"
+    p = resolved.replace("\\", "/").lower()
+    if p.startswith("z:/"):
+        return "Z"
+    if p.startswith("c:/"):
+        return "C"
+    return "?"
+
+
+def cr5_6_status(scope: str) -> str:
+    """Map scope to CR-5/6 conformance status."""
+    if scope == "Z":
+        return "PASS"
+    if scope in ("C", "?"):
+        return "FAIL"
+    return "N/A"  # N (not in PATH at all)
+
+
+def audit_cli(name: str) -> dict:
+    """Resolve a CLI via shutil.which (TIER-1 stdlib) and produce a record dict."""
+    resolved = shutil.which(name)
+    scope = classify_scope(resolved)
+    return {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "schema": "cli_path_audit.v1",
+        "cli_name": name,
+        "resolved_path": resolved if resolved else "(not in PATH)",
+        "scope": scope,
+        "cr5_6_status": cr5_6_status(scope),
+        "expected_z_path": TIER_0[name]["expected_z_path"],
+        "any_drift": scope != "Z",
+    }
+
+
+def emit_summary(records: list[dict]) -> None:
+    """Print pretty per-CLI summary + actionable fix hints (V3 a6 actionability close)."""
+    print("=== CLI PATH audit (Tier-0 codex+gh+claude per W154 F3 V3 SCOPED-DOWN) ===")
+    print()
+    pass_count = sum(1 for r in records if r["cr5_6_status"] == "PASS")
+    fail_count = sum(1 for r in records if r["cr5_6_status"] == "FAIL")
+    na_count = sum(1 for r in records if r["cr5_6_status"] == "N/A")
+    print(f"Tier-0: {pass_count}/{len(records)} PASS / {fail_count} FAIL / {na_count} N/A")
+    print()
+    for r in records:
+        marker = "PASS" if r["cr5_6_status"] == "PASS" else ("FAIL" if r["cr5_6_status"] == "FAIL" else "N/A ")
+        print(f"  [{marker}] {r['cli_name']:8s} → {r['resolved_path']}")
+        if r["any_drift"]:
+            print(f"           FIX HINT: {TIER_0[r['cli_name']]['fix_hint']}")
+            print()
+
+
+def emit_json(records: list[dict]) -> None:
+    """Print JSON array to stdout."""
+    print(json.dumps(records, indent=2))
+
+
+def emit_jsonl(records: list[dict]) -> None:
+    """Append drift records ONLY to .claude/state/cli_path_audit.jsonl (V3 a3 capped schema)."""
+    drift_records = [r for r in records if r["any_drift"]]
+    if not drift_records:
+        print("NO drift detected — JSONL not appended (capped per V3 a3 schema; "
+              "every record would have any_drift=false).")
+        return
+    state_dir = _PROJECT_ROOT / ".claude" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    jsonl_path = state_dir / "cli_path_audit.jsonl"
+    with jsonl_path.open("a", encoding="utf-8") as f:
+        for r in drift_records:
+            f.write(json.dumps(r) + "\n")
+    print(f"Appended {len(drift_records)} drift record(s) to {jsonl_path}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Tier-0 CLI PATH conformance audit (W154 F3 V3 SCOPED-DOWN)"
+    )
+    parser.add_argument("--json", action="store_true", help="Print JSON array to stdout")
+    parser.add_argument(
+        "--jsonl",
+        action="store_true",
+        help="Append drift records ONLY to .claude/state/cli_path_audit.jsonl (capped)",
+    )
+    args = parser.parse_args()
+
+    records = [audit_cli(name) for name in TIER_0]
+
+    if args.json:
+        emit_json(records)
+    elif args.jsonl:
+        emit_jsonl(records)
+    else:
+        emit_summary(records)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$lines = Get-Content -Path .claude/settings.json; $lines[450..540]' in Z:\claude-sota-installed
+ succeeded in 376ms:
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_stuck_detector.py\"",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionStart",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/42/AppData/Local/fnm_multishells/91528_1778251978120/node.exe\" \"Z:/claude-sota-installed/.claude/hooks/context-mode-cache-heal.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionEnd",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "defaultShell": "powershell",
+  "statusLine": {
+    "type": "command",
+    "command": "npx --prefer-offline -y ccstatusline@2.2.12 --config Z:/claude-sota-installed/.claude/ccstatusline/settings.json",
+    "padding": 0,
+    "refreshInterval": 10
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "codex@openai-codex": true,
+    "everything-claude-code@everything-claude-code": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "agent-sdk-dev@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "context-mode@context-mode": true,
+    "claude-md-management@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "agent-skills@addy-agent-skills": true,
+    "code-review@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "session-report@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "clickhouse@claude-plugins-official": false,
+    "outputai@claude-plugins-official": false,
+    "qdrant-skills@claude-plugins-official": false,
+    "cwc-makers@claude-plugins-official": false,
+    "code-modernization@claude-plugins-official": true,
+    "hookify@claude-plugins-official": false
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "openai-codex": {
+
+codex
+{"verdict":"APPROVE","confidence":0.91,"minimum_viable_f6_wire":"Add one SessionStart hook entry under .claude/settings.json using the existing advisory pattern: matcher \"*\", type \"command\", command \"\\\"Z:/venvs/claude/Scripts/python.exe\\\" \\\"Z:/claude-sota-installed/scripts/cli_path_audit.py\\\" --jsonl 1>$null\", timeout 30, async true. Use absolute Python + absolute script path; no PATH dependency inside the PATH audit hook.","noise_discipline":"--jsonl is the right mode because it appends only drift records to .claude/state/cli_path_audit.jsonl and skips JSONL writes on clean runs. However, the current script still prints a clean-run status line to stdout, so the hook command should suppress stdout to avoid SessionStart additionalContext noise.","stdout_vs_stderr":"Do not let this hook write stdout. Anthropic SessionStart stdout can become additionalContext, and cli_path_audit's clean message would pollute every new session. For F6, redirect stdout to null in the hook command. Leave stderr unsuppressed so Python exceptions and hook runtime failures remain visible in hook logs/telemetry. A later script-native --quiet flag is acceptable but not required for minimum viable F6.","failure_mode":"Advisory-only. If the audit throws or exits nonzero, Claude logs the hook failure; it must not block session start because the hook is async true. Timeout 30s matches the existing non-blocking audit pattern and bounds pathological shell/Python startup hangs.","reversibility_path":"CR-9 reversal is a single settings.json deletion: remove the SessionStart hook object for scripts/cli_path_audit.py. No state migration is needed; optional cleanup is deleting .claude/state/cli_path_audit.jsonl if the operator wants to discard accumulated drift telemetry.","scope_discipline":"Cycle-300 scope should be JUST the SessionStart wire. Do not add PostToolUse Bash(npm install -g *) in F6. That is a separate behavior surface with matcher semantics, false-positive risk, and potentially noisy install workflows; ship it only after SessionStart proves quiet in live use and there is a specific install-drift incident or design fire for install-event auditing.","prescribed_edits":["In .claude/settings.json hooks.SessionStart, add a new matcher \"*\" entry with command \"\\\"Z:/venvs/claude/Scripts/python.exe\\\" \\\"Z:/claude-sota-installed/scripts/cli_path_audit.py\\\" --jsonl 1>$null\", timeout 30, async true.","Do not modify scripts/cli_path_audit.py for F6 unless local hook execution shows PowerShell redirection is not honored; if that happens, add a minimal --quiet flag and use --jsonl --quiet in the hook.","Do not wire any PostToolUse hook in F6."],"risk_class":"LOW"}
+tokens used
+19,151
+{"verdict":"APPROVE","confidence":0.91,"minimum_viable_f6_wire":"Add one SessionStart hook entry under .claude/settings.json using the existing advisory pattern: matcher \"*\", type \"command\", command \"\\\"Z:/venvs/claude/Scripts/python.exe\\\" \\\"Z:/claude-sota-installed/scripts/cli_path_audit.py\\\" --jsonl 1>$null\", timeout 30, async true. Use absolute Python + absolute script path; no PATH dependency inside the PATH audit hook.","noise_discipline":"--jsonl is the right mode because it appends only drift records to .claude/state/cli_path_audit.jsonl and skips JSONL writes on clean runs. However, the current script still prints a clean-run status line to stdout, so the hook command should suppress stdout to avoid SessionStart additionalContext noise.","stdout_vs_stderr":"Do not let this hook write stdout. Anthropic SessionStart stdout can become additionalContext, and cli_path_audit's clean message would pollute every new session. For F6, redirect stdout to null in the hook command. Leave stderr unsuppressed so Python exceptions and hook runtime failures remain visible in hook logs/telemetry. A later script-native --quiet flag is acceptable but not required for minimum viable F6.","failure_mode":"Advisory-only. If the audit throws or exits nonzero, Claude logs the hook failure; it must not block session start because the hook is async true. Timeout 30s matches the existing non-blocking audit pattern and bounds pathological shell/Python startup hangs.","reversibility_path":"CR-9 reversal is a single settings.json deletion: remove the SessionStart hook object for scripts/cli_path_audit.py. No state migration is needed; optional cleanup is deleting .claude/state/cli_path_audit.jsonl if the operator wants to discard accumulated drift telemetry.","scope_discipline":"Cycle-300 scope should be JUST the SessionStart wire. Do not add PostToolUse Bash(npm install -g *) in F6. That is a separate behavior surface with matcher semantics, false-positive risk, and potentially noisy install workflows; ship it only after SessionStart proves quiet in live use and there is a specific install-drift incident or design fire for install-event auditing.","prescribed_edits":["In .claude/settings.json hooks.SessionStart, add a new matcher \"*\" entry with command \"\\\"Z:/venvs/claude/Scripts/python.exe\\\" \\\"Z:/claude-sota-installed/scripts/cli_path_audit.py\\\" --jsonl 1>$null\", timeout 30, async true.","Do not modify scripts/cli_path_audit.py for F6 unless local hook execution shows PowerShell redirection is not honored; if that happens, add a minimal --quiet flag and use --jsonl --quiet in the hook.","Do not wire any PostToolUse hook in F6."],"risk_class":"LOW"}

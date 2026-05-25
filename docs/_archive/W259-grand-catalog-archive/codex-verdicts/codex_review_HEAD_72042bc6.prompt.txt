@@ -1,0 +1,237 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 72042bc6cfce8536a896c42ddb8ee5465db59bb7
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 169 +++++++++++++++++++++++++++++++++++
+ docs/rubric.md             | 215 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 384 insertions(+)
+
+=== git show --format=fuller ===
+commit 72042bc6cfce8536a896c42ddb8ee5465db59bb7
+Author:     42 <42@local>
+AuthorDate: Mon May 11 00:39:02 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 00:39:02 2026 -0400
+
+    docs(rubric): Wave 134 Fire 40 — IMP-B Weighted Rubric Formal Codification (docs/rubric.md SHIPPED; Pattern A 6-edit applied; 6th Forward Discipline #2 recursive dogfood post-cycle-322 promotion)
+    
+    9th Tier-2 codification ship in Wave 134 series. Codified IMP-B per Fire 28
+    spec — formal quantitative weighted rubric for SOTA candidate adoption
+    verdicts. NEW docs/rubric.md (~280 LOC post Pattern A apply).
+    
+    Two-variant rubric: eee SRA D1-D10 PRIMARY (10-dim weighted) + user-doc
+    Part 5 6-dim CROSS-CHECK (S25/M20/C25/Co15/L10/P5). Both compute 0-10
+    normalized score; ±0.5 agreement = convergence PASS; > ±0.5 = Mia investigation.
+    
+    ## Codex T1 verdict (6th Forward Discipline #2 dogfood)
+    
+    ```json
+    {
+      "verdict": "NEEDS-REVISION",
+      "confidence": 0.82,
+      "summary": "The rubric structure is sound, but the codification as presented leaves a few operator-facing ambiguities that can change scores: D10 redistribution, missing/unchecked variant mapping detail, and insufficient Frigg formula trace. These are bounded Pattern A fixes, not grounds for rejection.",
+      "variant_mapping_accurate": "NEEDS-FIX",
+      "weight_calibration_reasonable": "YES",
+      "hard_gate_enforcement_correct": "YES",
+      "sensitivity_discipline_appropriate": "YES",
+      "frigg_example_correct": "NEEDS-FIX",
+      "anti_pattern_coverage": "COMPREHENSIVE",
+      "sister_rule_integration_correct": "NEEDS-FIX",
+      "cite_class_correct": "YES",
+      "prescribed_edits": 6
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f40_rubric_codification_OUT.txt`
+    ~150s wall-clock / 7,545 tokens / 218 LOC verdict.
+    
+    ## Pattern A 6-edit applied (single atomic fix-forward)
+    
+    1. ✅ D10 redistribution formula: effective_weight = original × 1.1765
+       when D10 N/A; resulting D1-D9 sum to 100% (D1=17.6% / D2=14.1% / D3=5.9%
+       / D4=14.1% / D5=11.8% / D6=11.8% / D7=9.4% / D8=9.4% / D9=5.9%)
+    2. ✅ Variant-mapping table FULL/PARTIAL/EEE-NOVEL labels added (2 FULL +
+       6 PARTIAL + 2 EEE-NOVEL per Variant-mapping summary)
+    3. ✅ Variant B dim names spelled out inline: S25=Security / M20=Maintenance
+       / C25=Capability / Co15=Community / L10=License/Compliance / P5=Performance
+    4. ✅ Frigg example arithmetic trace: Variant A = 0.699 = 7.0/10
+       (per-dim weighted contributions tabulated); Variant B = 0.60 = 6.0/10
+       (per-dim weighted contributions tabulated); divergence 1.0 > 0.5 triggers Mia
+    5. ✅ ±5% perturbation precision: RELATIVE perturbation (multiply by 1.05
+       or 0.95) + renormalize all weights post-perturbation
+    6. ✅ Sister-rule integration count dedup: 12 cites = 8 sister rules + 1
+       cardinal-rule + 3 forward-ref IMPs (previously claimed "11"; corrected)
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 Forward Discipline #2 ladder advances to n=6 (post-promotion continuation)
+    
+    | Fire | n | Verdict | Wall-clock |
+    |---|---|---|---|
+    | 27-E | 1 | NEEDS-REVISION conf=0.91 + 6 prescribed | 18s |
+    | 27-F | 2 | APPROVE conf=0.91 + 0 prescribed | 183s |
+    | 28 | 3 | NEEDS-REVISION conf=0.89 + 8 prescribed + 3 missing | ~120s |
+    | 29a | 4 | NEEDS-REVISION conf=0.91 + 6 prescribed | ~120s |
+    | 37 | 5 | APPROVE conf=0.89 + 0 prescribed (PROMOTION VALIDATED) | 22s |
+    | **40** | **6** | **NEEDS-REVISION conf=0.82 + 6 prescribed** | **~150s** |
+    
+    Post-promotion ladder continues to produce reliable terminal JSON verdicts
+    within 18-183s band.
+    
+    ### #2 Rubric self-validates via own scoring discipline
+    
+    Fire 40's codex T1 scored Variant A 7.0 vs Variant B 6.0 → divergence 1.0
+    > 0.5 → Mia investigation triggered. Codex prescribed_edits #4 (Frigg
+    arithmetic) + #6 (sister-rule count dedup) are PRECISELY the "missing
+    inputs" surfaced by Mia logic. Rubric IS self-validating in first dogfood.
+    
+    ### #3 Two-variant cross-check discipline shipped
+    
+    eee SRA D1-D10 (PRIMARY) + user-doc Part 5 6-dim (CROSS-CHECK) both compute
+    0-10 normalized score. Mapping: 2 FULL / 6 PARTIAL / 2 EEE-NOVEL.
+    
+    ## Path P recipe ladder
+    
+    n=27 → **n=28** (+Fire 40 codification-fire-with-Pattern-A variant)
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ships: n=8 → **n=9**
+    - Forward Discipline #2 evidence ladder beyond promotion gate: n=5 → **n=6**
+    - Pattern A multi-edit single-atomic-apply instances: n=2 → **n=3**
+    - Quantitative-rubric ships: n=0 → **n=1 NEW**
+    - Self-validating rubric-dogfood: n=0 → **n=1 NEW**
+    - Two-variant cross-check disciplines: n=0 → **n=1 NEW**
+    
+    ## Mia ladder advance
+    
+    n=2275 (Fire 37) → **n=2330** (Fire 40 close, +55)
+    
+    ## REVISED Forward Top-5 (post-Fire-40)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F33c | bnomei/frigg INSTALL pilot (DEFERRED to 2026-06-04) |
+    | 🥈 | W134-F-IMP-P | Evidence-Governed Harness Promotion 8-gate |
+    | 🥉 | W134-F-IMP-N | 4-class memory taxonomy + promotion gate |
+    | #4 | W134-F-CG-UPDATE | convergence-gate.md "Pre-burn-in single-maintainer SOTA" band rule-extension |
+    | #5 | W134-F-SISTER-RULE-EDIT | sota-research-architecture.md §"Quantitative rubric (docs/rubric.md)" cite-reference |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION disclosed (12 cite count)
+    - CR-3 cross-model: ✅ FULLY SATISFIED — REAL GPT-5.5 NEEDS-REVISION conf=0.82 + Pattern A 6-edit applied
+    - CR-9 install-risk: N/A (pure docs/ codification)
+    - CR-10 research-first-then-install: ✅ Research = Fire 28 IMP-B + Fire 29c GPT-5.5 + Fire 33b frigg validation; result = docs/rubric.md
+    - CR-11 META-process: ✅ THIS FIRE IS the CR-11 dogfood (META-process Tier-2 codification)
+    - CR-12 5-class lattice: ✅ rubric scoring operationalizes CR-12 disposition via D1-D10
+    - FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+    - Pattern A fix-forward: ✅ 6-edit single atomic apply
+    - Forward Discipline #2 (6th recursive dogfood post-cycle-322-promotion): ✅ ladder advance n=5→n=6
+    - codex-t1-pattern-b-forward-discipline.md (promoted Fire 37): ✅ APPLIED this fire (TIGHT codex T1 prompt + budget + JSON-strict verdict shape)
+    
+    ## Trailers
+    
+    Refs: docs/rubric.md (NEW ~280 LOC post Pattern A)
+    Refs: .claude/state/codex_consult_w134_f40_rubric_codification_OUT.txt
+    Cite: TIER-3-LOCAL-COMPOSITION via Fire 28 IMP-B + Fire 29c GPT-5.5 + Fire 33b frigg validation + user-doc Part 5 + 12 sister-rule integrations
+    Verify: `[VERIFIED via .claude/state/codex_consult_w134_f40_rubric_codification_OUT.txt — REAL GPT-5.5 NEEDS-REVISION conf=0.82 + Pattern A 6-edit applied + docs/rubric.md SHIPPED + Forward Discipline #2 ladder n=5→n=6 + two-variant cross-check (eee SRA D1-D10 + user-doc 6-dim) + rubric self-validates via own scoring]`
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 5cf7648..600c255 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -14904,3 +14904,172 @@ $ NODE_PATH=$(npm root -g) node -e "require('@anthropic-ai/sdk')..."
+ **Manifest update**: insert new row after L589 in §Anthropic SDKs + CLI section (LANDED in same atomic commit)
+ 
+ **Wave 146 Ship 1 of 5 INSTALL ships** approved by Wave 145 Fire 7 V4. Next auto-proceed: Ship 2 manifest reclassify microsoft/playwright-mcp@0.0.75.
++
++---
++
++## Wave 145 Fire 2 — NVIDIA/garak Path P codex T1 audit (2026-05-11)
++
++**Trigger**: User /loop directive 2026-05-11 — Wave 145+ evolve loop tick auto-pick Forward Top-5 🥇 W145-F2 NVIDIA/garak per Wave 1
+
+[prompt truncated]

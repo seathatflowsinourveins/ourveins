@@ -1,0 +1,83 @@
+T1 PRE-COMMIT CONSULT — Wave 106 Ship 2N-batch3-E — install repomix MCP server in .mcp.json (P1 NEW PRIMITIVE)
+
+USER MANDATE: "we need advanced automation" + "make sure all sota optimization applied" + Wave 105 Agent C P1-5 finding: repomix CLI installed (v1.14.0 at /c/Users/42/AppData/Roaming/npm/repomix) but MCP entry missing in .mcp.json. ~70% tree-sitter compression unused. Pack→Grep→Skill pipeline unautomated.
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Wave 100 Ship 2P 2026-05-08 commit b6dc7e5) — NO --sandbox=read-only flag; profile default danger-full-access.
+
+==========================================
+ORIGIN
+==========================================
+Wave 105 Agent C feature-coverage audit P1-5 finding (Mia probe verified): `grep repomix .mcp.json` returned ZERO matches; CLI v1.14.0 IS installed but MCP server NOT registered. eee uses repomix only via CLI (manual `repomix` invocations) — automated Pack→Grep→Skill pipeline (per `research-protocol.md` §"Repomix Pack→Grep→Skill sub-rule") requires MCP server for `mcp__repomix__pack_codebase` + `mcp__repomix__grep_repomix_output` + `mcp__repomix__generate_skill` tool surface.
+
+==========================================
+TIER-1 CITE
+==========================================
+Z:/repos/deps/repomix/README.md @ HEAD — verbatim:
+"### MCP Server Integration
+Repomix supports the [Model Context Protocol (MCP)], allowing AI assistants to directly interact with your codebase. When run as an MCP server, Repomix provides tools that enable AI assistants to package local or remote repositories for analysis without requiring manual file preparation.
+```bash
+repomix --mcp
+```
+**Configuring MCP Servers**: code --add-mcp '{\"name\":\"repomix\",\"command\":\"npx\",\"args\":[\"-y\",\"repomix\",\"--mcp\"]}'"
+
+CLI verified: `which repomix` → `/c/Users/42/AppData/Roaming/npm/repomix` (v1.14.0).
+
+==========================================
+PROPOSED EDIT (atomic JSON)
+==========================================
+Add to `.mcp.json:mcpServers` (alphabetical-cluster placement after "playwright"):
+
+```json
+    "repomix": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "repomix", "--mcp"]
+    },
+```
+
+Decision: use `npx -y repomix --mcp` per upstream README convention rather than direct `repomix --mcp` (PATH-dependent). `npx -y` ensures auto-install/update consistency across operator machines.
+
+Update `_comment` field to add Wave 106 Ship 2N-batch3-E citation.
+
+==========================================
+WHY THIS IS LOAD-BEARING FOR EEE
+==========================================
+- repomix MCP exposes `mcp__repomix__pack_codebase` + `mcp__repomix__grep_repomix_output` + `mcp__repomix__generate_skill` tools
+- ~70% tree-sitter compression on packed output — major token savings on multi-file audits
+- Pack→Grep→Skill pipeline per `Z:/claude-sota/.claude/rules/research-protocol.md §"Repomix Pack→Grep→Skill sub-rule"` requires MCP for automation
+- Currently each multi-file audit requires manual CLI invocation (operator-side); MCP enables agent-driven Pack-once → Grep-many pattern
+- Aligns with user's "advanced automation" mandate (NOT security tool — token efficiency + lifecycle automation)
+
+==========================================
+SRA D1-D10 SCORING
+==========================================
+- D1 license-use-class: PASS (repomix MIT license; CLI-binary + MCP-stdio use)
+- D2 freshness: PASS (v1.14.0 current via npm registry)
+- D4 maintainer: TIER-2 named-author yamadashy + active community
+- D5 active maintenance: PASS (v1.14.0 latest; active development per upstream)
+- D6 use-class: PASS (MCP stdio server; same use-class as playwright + serena entries)
+- D7 Anthropic-policy: PASS (Anthropic CC supports stdio MCP servers per code.claude.com/docs/en/mcp)
+- D9 failure-mode: NEUTRAL (repomix MCP is mature; no FM catalog entry)
+- Convergence verdict: 9-10 + critical D1+D6 PASS = INSTALL
+
+==========================================
+CR-9 INSTALL-RISK ANALYSIS
+==========================================
+- LOW (additive .mcp.json entry; reversible via revert)
+- @latest concern: `npx -y repomix --mcp` does NOT pin version — would auto-fetch latest at MCP server start. CR-9 D6 today-release-auto-upgrade risk acknowledged (similar to existing playwright + serena entries which also use `@latest` / `git+` pattern).
+- No sibling-bleed (zero `Z:/claude-sota/` paths)
+- 2-round fix-forward expectation: Pattern A apply if NEEDS-REVISION
+- Cache populate not needed (npx pulls on-demand)
+
+==========================================
+QUESTIONS (JSON ONLY)
+==========================================
+1. MCP entry shape `npx -y repomix --mcp` correct per upstream README?
+2. Placement after "playwright" alphabetical-cluster appropriate?
+3. CR-9 install-risk LOW correct? (or should we version-pin like `repomix@1.14.0` to acknowledge D6)?
+4. Should we use `command: "repomix"` (PATH-resolved) instead of `npx -y repomix` to avoid runtime download cost?
+5. Comment update text accurate?
+6. Do we need to set MCP env vars (e.g., REPOMIX_OUTPUT_DIR) or work with defaults?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

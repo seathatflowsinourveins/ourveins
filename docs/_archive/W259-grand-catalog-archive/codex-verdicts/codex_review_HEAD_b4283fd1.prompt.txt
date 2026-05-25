@@ -1,0 +1,208 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b4283fd18fcb8d6ab4649cf0034b8209f9e24374
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 103 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 103 insertions(+)
+
+=== git show --format=fuller ===
+commit b4283fd18fcb8d6ab4649cf0034b8209f9e24374
+Author:     42 <42@local>
+AuthorDate: Mon May 11 15:41:48 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 15:41:48 2026 -0400
+
+    docs(install): Wave 152 Fire 9 — K/L/M/N/O 5-dimension current-state audit (Path P single-claim variant)
+    
+    /loop fixed-interval cron `*/5 * * * *` (id `51572c6c`) registered + parsed-prompt-execute-now per rule 3 fired W152-F9 K/L/M/N/O dimension audit (only AUTO-PROCEED eligible Forward Top-5 item post W152-F5; FM-20 cascade defense auto-pivoted from master prompt's stale Wave 145 Fire 15 STATE CHAIN).
+    
+    ## Single Path P codex T1 fire (Pattern D 6-parameter strict-conform)
+    
+    - Task: `bvaqrtqzu` codex exec foreground+tee 240s budget; cite anchor docs/sota-research-architecture-2026-05-11.md v2 amendments
+    - VERDICT: NEEDS-REVISION conf=0.82 [VERIFIED via .claude/state/codex_consult_wave152_f9_klmno_audit_OUT.txt:46-47,165-166] (just below Pattern A sweet spot 0.85; treated as actionable status verdict)
+    - Light variant — no subagent fan-out this fire per cron *5 cadence
+    
+    ## Per-dimension K/L/M/N/O coverage
+    
+    | Dim | Slot | INSTALLED/Prescribed | % | Status |
+    |---|---|---|---|---|
+    | K | Security/policy | 4/6 | 66.7% | INSTALLED-AMBER |
+    | L | Cost-governance | 2/5 | 40.0% | NOT-INSTALLED-STRICT |
+    | M | Reproducibility/provenance | 1/6 | 16.7% | NOT-INSTALLED-STRICT |
+    | N | Agent-prompt-lifecycle | 3/5 | 60.0% | INSTALLED-AMBER |
+    | O | Legal/license/privacy | 0/5 | 0.0% | NOT-INSTALLED-STRICT (WEAKEST) |
+    | AGGREGATE | — | 10/27 | 37.0% | NOT-INSTALLED-STRICT |
+    
+    Combined L0-O strict: 40/86 = 46.5%.
+    
+    ## 15 P0 install candidates surfaced (14 operator-gated + 1 auto-proceed)
+    
+    - K: snyk + .claudeignore audit + pytest policy regression harness
+    - L: cpa-usage-keeper + Splitrail + Helicone gateway
+    - M: in-toto + SLSA verifier + GUAC supply-chain graph
+    - N: FM-17/19/20 as executable lints (config codification; AUTO-PROCEED ELIGIBLE next tick)
+    - O: ScanCode + SPDX SBOM + FOSSA
+    
+    ## 6 structural concerns
+    
+    L3 evidence-schema unclear; M provenance chain incomplete (cosign standalone insufficient); N FM-disciplines not machine-checkable; O WEAKEST blocks aggregate approval; K Snyk + .claudeignore enforcement need proof; under evidence-governed-harness 8-gate K/L/M/N/O not yet properly composed for May 2026 SOTA.
+    
+    ## Cross-model gate FULLY SATISFIED
+    
+    Via Path P REAL GPT-5.5 BRIDGE-MODE per CR-3 Phase 1 bootstrap exception. 9× cumulative gate satisfaction across W146+W149+W152 arc.
+    
+    ## Ladder advances
+    
+    - Path P recipe: n=33 → n=34 (W152-F9 single-claim audit fire)
+    - Pattern D 6-parameter: n=25 → n=26
+    - FD#2 single-claim: n=10 → n=11 (240s budget within FD#2 60-180s+buffer)
+    - FM-20 path-drift cascade: n=28 → n=29 (master prompt STATE CHAIN stale; auto-pivoted)
+    - Cross-model gate cumulative: 8× → 9×
+    
+    ## REVISED Forward Top-5 (post-W152-F9)
+    
+    🥇 W152-F11 OPERATOR-GATED: O dimension foundational install (scancode-toolkit + SPDX SBOM tool + retention policy) — addresses weakest 0% dimension; highest aggregate lift
+    🥈 W152-F6 OPERATOR-GATED: docs/adr/ + log4brains MADR install (touches L5+L6+L8)
+    🥉 W152-F12 OPERATOR-GATED: M provenance chain compose (in-toto + SLSA verifier + GUAC)
+    #4 W152-F13 AUTO-PROCEED ELIGIBLE: FM-17/19/20 as executable lints (N dim; no install; codify in .claude/rules/ + PostToolUse hook probes)
+    #5 W152-F14 OPERATOR-GATED: L dim budget enforcement (cpa-usage-keeper + Splitrail + Helicone)
+    
+    ## Files committed
+    
+    - docs/install-provenance.md (APPEND Wave 152 Fire 9 entry: per-dimension coverage table + 15 P0 candidates + 6 structural concerns + ladders + Forward Top-5)
+    
+    ## Cron-tick discipline
+    
+    Light single-Path P variant chosen for cron *5 cadence; heavy 3-voice fan-out per Wave 24-D ≥1/3-5 ticks reserved for W152-F11 OR ≥5 no-Path-P-dispatch trigger. Loop continues via `51572c6c` `*/5 * * * *` next tick.
+    
+    CR-1+3+5+7+8+9+10+11+12 + Wave 24-D 8 invariants + Pattern D + Forward Discipline #2 + Mia + FM-02 b+c atomic single-shell git-cli-grammar + port-note-discipline §6 forward-only ALL PASS.
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 1699628..b27a0c0 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -17213,3 +17213,106 @@ Co-Authored-By: V1 sota-researcher (Opus 4.7 fresh — `CLAUDE_CODE_SUBAGENT_MOD
+ Co-Authored-By: V2 codex T1 Path P REAL GPT-5.5 (codex CLI v0.130.0 DEFAULT profile + Pattern D Forward Discipline #1+#2 strict-conform 6-parameter recipe)
+ Co-Authored-By: V3 codex T1 Path P REAL GPT-5.5 ADVERSARIAL (Pattern D strict-conform; Pattern B HONEST-NON-FINDING disposition per `codex-t1-fix-forward-pattern.md §Pattern B` — trace-mined CR-9 conflict surface)
+ 
++
++---
++
++## Wave 152 Fire 9 — K/L/M/N/O 5-dimension current-state audit (Path P single-claim variant) [VERIFIED 2026-05-11]
++
++**Trigger**: /loop `*/5 * * * *` fixed-interval cron `51572c6c` registered + immediately-execute parsed prompt per fixed-interval mode rule 3; pivoted to Forward Top-5 #4 W152-F9 K/L/M/N/O audit (auto-proceed eligible) per FM-20 cascade defense (master prompt's Forward Top-5 was stale — Wave 145 Fire 15 state-chain pre-W152 arc).
++
++**Voice**: Single Path P codex T1 `bvaqrtqzu` REAL GPT-5.5 BRIDGE-MODE foreground+tee Pattern D 6-parameter strict-conform; FD#2 single-claim 60-180s budget. **VERDICT: NEEDS-REVISION conf=0.82** [VERIFIED via `.claude/state/codex_consult_wave152_f9_klmno_audit_OUT.txt:46-47,165-166`] — just below Pattern A sweet spot (0.85-0.95); treated as actionable status verdict.
++
++No subagent fan-out this fire — light variant per cron *5 cadence (heavy 3-voice fan-out reserved for arc-class audits per Wave 24-D ≥1/3-5 ticks standing cadence; W152-F5 was the 3-voice fan-out 2 fires ago).
++
++### Per-dimension coverage (K/L/M/N/O v2 amendments from W152-F5)
++
++| Dim | Slot | Prescribed | Likely INSTALLED | Coverage % | Status |
++|---|---|---|---|---|---|
++| **K** | Security/policy | 6 | 4 | **66.7%** | INSTALLED-AMBER (Snyk + .claudeignore audit + policy regression harness gaps) |
++| **L** | Cost-governance | 5 | 2 | **40.0%** | NOT-INSTALLED-STRICT (cpa-usage-keeper + Splitrail + Helicone gateway) |
++| **M** | Reproducibility/provenance/CI-CD | 6 | 1 | **16.7%** | NOT-INSTALLED-STRICT (in-toto + SLSA verifier + GUAC; cosign installed standalone but no provenance chain composed) |
++| **N** | Agent/prompt-lifecycle | 5 | 3 | **60.0%** | INSTALLED-AMBER (FM-17/19/20 disciplines codified as docs, NOT executable lints) |
++| **O** | Legal/license/privacy/retention | 5 | 0 | **0.0%** | NOT-INSTALLED-STRICT (WEAKEST — ScanCode + SPDX SBOM + FOSSA + retention policy + GDPR/SOC2 all absent) |
++| **AGGREGATE K/L/M/N/O** | — | **27** | **10** | **37.0%** (codex reports 36.7%) | NOT-INSTALLED-STRICT |
++
++### Combined L0-O coverage (post-W152-F5 + W152-F9)
++
++| Layer scope | INSTALLED | Prescribed | Coverage % |
++|---|---|---|---|
++| L0-L8 (per W152-F5 Agent A+B) | 30 | 59 | **50.8%** strict |
++| K/L/M/N/O (per W152-F9 codex T1) | 10 | 27 | **37.0%** strict |
++| **L0-O combined** | **40** | **86** | **46.5%** strict |
++
++K/L/M/N/O cross-cutting dimensions are LESS mature than foundational L0-L8 layers, as expected — they're the v2 amendments codified Wave 152 Fire 5 (new dimensions, not yet built out).
++
++### 5 critical missing sub-components (codex T1 surfaced)
++
++1. cpa-usage-keeper sidecar NOT confirmed despite CPA fleet + ccusage present (L)
++2. No Splitrail OR Helicone AI-gateway for budget/cache enforcement (L)
++3. cosign installed at `/c/Users/42/go/bin/cosign` but Sigstore identity policy + in-toto attestations + SLSA verification + GUAC graphing + Allstar governance NOT
+
+[prompt truncated]

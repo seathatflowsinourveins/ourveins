@@ -1,0 +1,185 @@
+# Codex T1 Path P — SOTA supervisor architecture convergence (eee Wave 150 Fire 1)
+
+## CONTEXT
+
+eee runtime on Windows 11 Pro 26H2 supervises 2 long-running services for the
+OAuth proxy stack:
+- `cli-proxy-api.exe` v7.0.2 (Go binary; 7-Claude-OAuth-account fleet rotation;
+  port 18317 post-W149-F3 migration from Windows-excluded 8317)
+- `cache-fix-proxy` (Node.js daemon; `claude-code-cache-fix@3.5.4`; port 19801;
+  upstream cnighswonger; 7-extension cache-prefix preservation)
+
+Currently supervised via **NSSM v2.24-101-g897c7ad** (installed Wave 147 via
+winget; clean-exit handling + auto-restart + AppKillProcessTree + log rotation;
+NSSM SOTA codex T1 verdict APPROVE conf=0.81 at Wave 147).
+
+Honest 6-axis SOTA contract score on NSSM:
+- (a) ≥3-distinct-orgs Axis-1: FAIL — single maintainer Iain Patterson
+- (b) Official-native-channel: PASS — winget canonical
+- (c) Cite-anchored TIER-1: WARN — nssm.cc is single-maintainer's page
+- (d) Axis-2 ≥2 named-T2 dated 2025-2026: FAIL — no recent named-practitioner
+  artifacts citing NSSM
+- (e) Probe DAG 1-7: PASS
+- (f) Cite-class reduction: TIER-3-LOCAL-COMPOSITION
+- **Score: 3/6 PASS + 1 WARN + 2 FAIL → BORDERLINE not strict-SOTA**
+
+Last stable NSSM release: 2014 (v2.24); 2.25 prerelease lingered since 2017.
+NVD CVE-2025-41686 ACL risk noted.
+
+The orchestrator-side recommendation in current session is **MIGRATE TO
+DOCKER COMPOSE with restart-policy: unless-stopped**, citing:
+- 4-org TIER-1 Axis-1 (Docker Inc + Microsoft WSL2 + Moby + CNCF)
+- Active 2025-2026 maintenance + named-T2 practitioners
+- CLIProxyAPI v7.0.2 SHIPS docker-compose.yml + Dockerfile in upstream
+  (per v6→v7 changelog: "feat: add local Docker build script and update
+  compose configuration")
+- 10 containers already running on this host (Phoenix + Langfuse stack
+  proves operational pattern)
+- Container-internal port binding goes through WSL2 Linux netstack →
+  Windows excluded-port-range issue (which caused Wave 149 dark window
+  2026-05-09 → 2026-05-11) DOES NOT APPLY in containers
+- Eliminates NSSM's CVE-2025-41686 ACL risk + 12-year-stale-binary risk
+
+## CRITICAL AUDIT DIMENSIONS — verify convergence consensus
+
+1. **AXIS-1 strict ≥3-distinct-orgs validation**: Does Docker compose
+   restart-policy=unless-stopped genuinely satisfy convergence-gate Axis-1
+   firmly via Docker Inc + Microsoft (WSL2/Docker Desktop) + Moby (open-
+   source upstream) + CNCF (ecosystem maintainers)? Cite TIER-1 at file:line
+   + HEAD SHA OR official-docs URL for each org's authority over the
+   restart-policy primitive.
+
+2. **AXIS-2 ≥2 named-T2 dated 2025-2026 artifacts**: Find 2+ named-
+   practitioner dated artifacts citing `restart: unless-stopped` OR Docker
+   compose service supervision as SOTA for Windows hosts in 2025-2026. URL
+   + date + practitioner name + practitioner-affiliation.
+
+3. **AXIS-3 stability + maintenance velocity**: docker/docker + moby/moby
+   commits-per-day + last release dates. Does it firmly satisfy Axis-3
+   ≥90d STABLE-BURN-IN OR enter sustained-active-maintenance band (cpd>10
+   AND age>180d)?
+
+4. **HARNESS-FIT Probe DAG 1-7 for Docker-on-Windows-host CPA deployment**:
+   - Probe 1 count-OVER: Is Docker Desktop actually installed on this host?
+     Verify via probe.
+   - Probe 2 SDK-vs-CLI: Does CLIProxyAPI v7.0.2 actually ship Dockerfile +
+     docker-compose.yml? Read upstream `Z:/repos/deps/CLIProxyAPI/` for
+     Dockerfile + docker-compose.yml content. Verify image build command,
+     volume mounts, env vars, networking.
+   - Probe 3 architectural-API: Is OAuth callback flow compatible with
+     container networking? (Anthropic OAuth callback hits localhost:port;
+     container bridge networking may break this — must verify or use
+     `network_mode: host`).
+   - Probe 4 plugin-namespace: No CC plugin namespace conflict (Docker is
+     OS-level not CC-level).
+   - Probe 5 mode-harness-shape: Does container-restart-policy = unless-
+     stopped satisfy CR-7 Phase 1 + cardinal-rule discipline? Does it conflict
+     with autonomous /loop mode?
+   - Probe 6 direct-file/registry blockers: Docker Hub registry access?
+     Image availability? License compat (CPA MIT; Docker engine Apache-2.0)?
+   - Probe 7 demand-gate: Is there a current eee workflow that NEEDS
+     container-based supervision (vs sticking with NSSM)? Or is this
+     architectural-pursuit-without-operational-driver?
+
+5. **AXIS-4 cache-fix-proxy Docker support audit**: Does cnighswonger/
+   claude-code-cache-fix@3.5.4 npm package ship Docker support?
+   `Z:/repos/deps/cnighswonger-claude-code-cache-fix/` directory exists?
+   Dockerfile present? OR do we need to build operator-side Dockerfile?
+   If operator-build: is that CR-5+8 violation (hand-coded) or acceptable
+   (cite upstream npm pkg, adapt run command)?
+
+6. **CR-12 5-class disposition for Docker vs NSSM**:
+   - GENUINELY-NEW: container-deployment paradigm vs Windows-service-wrapper
+     paradigm = ENTIRELY DIFFERENT SURFACE → GENUINELY-NEW
+   - OR DUPLICATE-FUNCTIONALITY: both supervise long-running processes →
+     DUPLICATE
+   - OR PARTIAL-OVERLAP: overlapping supervision but DIFFERENT MECHANISMS
+   - OR PROVIDER-COMPLEMENT: parallel API surfaces but different scopes
+   - OR ECOSYSTEM-IMPORT: Docker brings ecosystem (compose / volumes / etc.)
+   - Your verdict + rationale per `Z:/claude-sota-installed/CLAUDE.md`
+     cardinal-rule-12 5-class lattice.
+
+7. **HIGHER-SOTA alternatives**: Are there 2026 patterns SUPERIOR to Docker
+   compose for single-host Windows service supervision?
+   - Podman quadlets (systemd-style with podman backend)?
+   - WSL2 systemd (Windows 11 ships systemd in WSL distros)?
+   - Windows-native containers (Hyper-V isolation mode)?
+   - Kubernetes single-node (overkill?)?
+   - HashiCorp Nomad?
+   - native Go `kardianos/service` (upstream PR to CPA to make it Windows-
+     service-aware natively)?
+   - For each: convergence-gate Axis 1+2+3 verdict + Probe DAG 1-7 + CR-12
+     disposition.
+
+8. **OAUTH-CALLBACK CONTAINER NETWORKING SOTA**: For cli-proxy-api in
+   container, the OAuth login flow opens a browser to localhost:18317/
+   callback (or similar). How does container networking handle this?
+   - `network_mode: host` (canonical for OAuth flows — exposes container
+     to host network directly)?
+   - bridge + port mapping (8317:8317 / 19801:19801)?
+   - WSL2 localhost-forwarding (Windows-specific)?
+   - Cite official Docker docs + Anthropic CC OAuth flow docs.
+
+9. **MIGRATION SHAPE + RISK ANALYSIS**: Specific spec for Wave 150 Fire 1:
+   - Files to create: docker-compose.cpa.yml? Custom cache-fix-proxy
+     Dockerfile?
+   - Volume mounts: how to expose `.cli-proxy-api/config.yaml` + auth-dir
+     + logs?
+   - Env: which env vars from CLAUDE.local.md need to propagate into
+     container?
+   - Cutover order: stop NSSM → docker compose up → verify → docker compose
+     down (rollback path)
+   - Reversibility: HIGH? MED? LOW?
+   - Estimated cost: hours? Tokens (Path P budget)?
+   - HIGH-RISK gate per CR-7 Phase 1: does this need operator confirmation?
+
+## CONSTRAINTS
+
+- Path P foreground+tee (orchestrator-side, NOT BRIDGE-MODE subagent —
+  avoids FM-17.f 1M-context blocker since parent session is [1m]-flagged)
+- Cite TIER-1 (upstream file:line + HEAD SHA) for every claim per CR-1
+- Apply CR-9 install-risk discipline: version-pin all `@latest` /
+  Docker images at specific tags; pre-cite-import REVERT check; sibling-
+  bleed defense (no Z:/claude-sota/ paths leaking)
+- Honest CR-7 Phase 1 disclosure: this IS a HIGH-RISK install per cardinal
+  rule (new T-touchpoint: container-supervisor; major architectural change)
+- Apply CR-12 disposition before any adoption recommendation
+
+## OUTPUT SCHEMA (JSON-strict at EOF, terminal verdict block)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "sota_winner": "<docker-compose | podman-quadlets | wsl2-systemd | nssm-keep | other>",
+  "rationale_per_axis": {
+    "axis1_3orgs_strict": "...",
+    "axis2_named_T2_2025_2026": "...",
+    "axis3_stability_velocity": "...",
+    "harness_fit_probe_dag_1_7": "...",
+    "cache_fix_proxy_docker_support": "...",
+    "cr12_disposition": "GENUINELY-NEW | DUPLICATE | PARTIAL-OVERLAP | PROVIDER-COMPLEMENT | ECOSYSTEM-IMPORT",
+    "higher_sota_alternatives": "...",
+    "oauth_callback_networking": "...",
+    "migration_shape_risk": "..."
+  },
+  "alternative_consideration": [
+    {"name": "<candidate>", "verdict": "consider | reject", "why": "..."}
+  ],
+  "prescribed_migration_steps": [
+    "step 1: <exact command>",
+    "step 2: <exact command>"
+  ],
+  "operator_gate_requirements": ["..."],
+  "anti_patterns_to_avoid": ["..."],
+  "convergence_axes_passed": 0
+}
+```
+
+Be ADVERSARIAL. Don't rubber-stamp Docker because orchestrator recommended
+it. Find the strict-SOTA winner across ALL candidates (docker-compose /
+podman / WSL2-systemd / Windows-native-containers / Kubernetes-single-
+host / Nomad / kardianos/service upstream PR / KEEP-NSSM-with-mitigation).
+Cite TIER-1 sources at file:line + HEAD SHA OR official-docs URL with
+anchor. The orchestrator's framing may itself be FM-20 path-drift; verify
+independently.

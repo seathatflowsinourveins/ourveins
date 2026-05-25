@@ -1,0 +1,127 @@
+name: SEV-1 Carry-Forward
+description: Track 8+ wave dwell P0 items per ops-rhythm SKILL discipline (3/5/8-wave escalation)
+labels: ["SEV-1", "carry-forward"]
+title: "[SEV-1] "
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## SEV-1 Carry-Forward Tracking
+
+        Per `.claude/skills/ops-rhythm/SKILL.md` §1.1 dwell-threshold escalation:
+        - **3-wave dwell** → owner-assignment + ETA required (no score effect)
+        - **5-wave dwell** → operator-decision-block (ledger surfaces `dwell_disposition_signed:` row)
+        - **8-wave dwell** → SHIP-BLOCKER + **-0.5 install_score arch-itself penalty**
+
+  - type: input
+    id: origin-wave
+    attributes:
+      label: Origin wave
+      description: Wave ID where item was first surfaced
+      placeholder: W317-r2-SEV1-1
+    validations:
+      required: true
+
+  - type: input
+    id: dwell-count
+    attributes:
+      label: Current dwell count
+      description: Number of waves item has been carried forward (W332 - W<origin>)
+      placeholder: "8"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity-class
+    attributes:
+      label: Severity class
+      description: Per sca-v13 §10 ledger schema severity column
+      options:
+        - SEV-0 (CRITICAL — must close this wave)
+        - SEV-1 (8+ wave dwell — ship-blocker per ops-rhythm)
+        - HIGH (5-7 wave dwell — operator-decision-block)
+        - MEDIUM (3-5 wave dwell — owner+ETA required)
+        - LOW (<3 waves — normal)
+        - LOW-LEAK (documentation drift)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: dwell-threshold-state
+    attributes:
+      label: Dwell threshold state (per ops-rhythm §1.1)
+      options:
+        - fresh (first wave)
+        - 3-wave (owner+ETA required)
+        - 5-wave (operator-decision-block)
+        - 8-wave (SHIP-BLOCKER + -0.5 arch-itself install_score penalty)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: owner
+    attributes:
+      label: Owner
+      options:
+        - OPERATOR (requires manual action — sign-off, key rotation, license review)
+        - ENG (mechanizable — code/config change)
+        - EXTERNAL (vendor/upstream — waiting on third-party fix)
+    validations:
+      required: true
+
+  - type: input
+    id: cite-anchor
+    attributes:
+      label: Cite-anchor (path to wave doc)
+      description: Per Meta-Invariant I1 — every claim has cite-anchored evidence
+      placeholder: docs/architecture/W317-r2-SEV1-1/SYNTHESIS.md:L23
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Item summary (1-2 sentences)
+      description: What is the item, and why is it dwell?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria (paste-ready)
+      description: How will we know this is resolved?
+      placeholder: |
+        - [ ] criterion 1
+        - [ ] criterion 2
+        - [ ] verify-before-claim probe (R6)
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback-plan
+    attributes:
+      label: Rollback plan (1 paragraph)
+      description: If the fix goes wrong, how do we revert?
+    validations:
+      required: true
+
+  - type: textarea
+    id: cross-stream-impact
+    attributes:
+      label: Cross-stream impact (optional)
+      description: Does this item block other carry-forwards? Reference issue numbers.
+
+  - type: checkboxes
+    id: ops-rhythm-compliance
+    attributes:
+      label: ops-rhythm escalation compliance
+      options:
+        - label: "3-wave: owner assigned + ETA recorded"
+          required: false
+        - label: "5-wave: `dwell_disposition_signed:` ledger row written"
+          required: false
+        - label: "8-wave: SHIP-BLOCKER acknowledged + arch-itself penalty applied"
+          required: false

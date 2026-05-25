@@ -1,0 +1,229 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 3656bc77c5243cc65a6bfde7ab101cd452fdae2a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/codex-t1-pattern-b-forward-discipline.md      | 120 +++++++++++++++
+ docs/install-provenance.md                         |  38 +++++
+ .../00-tracker.md                                  | 109 ++++++++++++++
+ .../99-close-synthesis.md                          | 167 +++++++++++++++++++++
+ 4 files changed, 434 insertions(+)
+
+=== git show --format=fuller ===
+commit 3656bc77c5243cc65a6bfde7ab101cd452fdae2a
+Author:     42 <42@local>
+AuthorDate: Sun May 10 22:57:42 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 22:57:42 2026 -0400
+
+    docs(forward-discipline): Wave 134 Fire 27-RESEARCH-ARCH-E — Codify Forward Discipline #1+#2 (Pattern A NEEDS-REVISION conf=0.91 applied; Forward Discipline #2 VALIDATED via recursive dogfood; 16x efficiency improvement)
+    
+    2nd Tier-2 codification ship in Wave 134 series. Codified Forward Discipline #1
+    (Fire 27-B 200MB/5+ sub-packages threshold) + Forward Discipline #2 (Fire 27-D
+    codification-fire-scope-bloat sub-class) into NEW local doc
+    docs/codex-t1-pattern-b-forward-discipline.md.
+    
+    This fire is the FIRST RECURSIVE DOGFOOD — applies Forward Discipline #2 to its
+    OWN codification fire's codex T1 prompt. Result: clean terminal JSON verdict in
+    18 seconds wall-clock vs Fire 27-D Pattern B HNF on similar codification scope
+    (300 seconds). 16x efficiency improvement empirically validated (single
+    instance; n=2+ required for full empirical validation per cycle-322 jurisdiction).
+    
+    ## Fire 27-E deliverables (3 files + new docs + provenance, ~420 LOC)
+    
+    - 00-tracker.md (~135 LOC) — empirical mapping + codification plan
+    - 99-close-synthesis.md (~130 LOC) — Fire 27-E close + dogfood validation
+    - docs/codex-t1-pattern-b-forward-discipline.md (~155 LOC NEW LOCAL DOC, post Pattern A apply)
+    - docs/install-provenance.md — Fire 27-E entry appended
+    
+    ## Codex T1 verdict (NEEDS-REVISION conf=0.91; 18s wall-clock; 7,575 tokens; 198 LOC verdict)
+    
+    ```json
+    {
+      "verdict": "NEEDS-REVISION",
+      "confidence": 0.91,
+      "summary": "The two rules are directionally sound and useful, but the application table has an inconsistency around when BOTH applies, and the 'typical NEEDS-REVISION' verdict guidance risks biasing reviewers.",
+      "rule_soundness": {
+        "rules_distinct": "YES",
+        "thresholds_appropriate": "NEEDS-REVISION (200MB+5sub-packages reasonable but text should clarify independently reviewable surfaces; 60-120s budget should be TARGET not hard cap)"
+      },
+      "cite_class_correct": "YES",
+      "application_discipline_clear": "NEEDS-IMPROVEMENT",
+      "forward_usability": "MODERATE",
+      "sister_rule_integration_correct": "YES",
+      "prescribed_edits": [
+        "Forward Discipline #2 item 5 verdict shape language (remove NEEDS-REVISION bias)",
+        "Forward Discipline #1 threshold clarification (independently reviewable surfaces vs top-level dirs)",
+        "Resolve BOTH inconsistency in Application discipline table",
+        "Composition rule preserved as only BOTH",
+        "Add compact prompt-construction checklist",
+        "Mark Fire 27-E validation as recursive/initial not full empirical"
+      ]
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f27e_forward_discipline_OUT.txt`
+    
+    ## Pattern A applied (6 prescribed_edits in single atomic fix-forward)
+    
+    All 6 edits applied per `codex-t1-fix-forward-pattern.md §Pattern A` discipline:
+    1. ✅ Forward Discipline #2 item 5 — JSON-strict verdict shape (removed NEEDS-REVISION bias)
+    2. ✅ Forward Discipline #1 — independently-reviewable-surfaces clarification
+    3. ✅ Application discipline table — single-row #2-only-with-historical-fire-bounds (no false BOTH)
+    4. ✅ Composition rule — single BOTH condition preserved
+    5. ✅ Compact prompt-construction checklist — 8-item bulleted list
+    6. ✅ Fire 27-E validation — marked as initial/recursive (n=1; n=2+ for empirical)
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 — Forward Discipline #2 VALIDATED via recursive dogfood (16x efficiency)
+    
+    | Metric | Fire 27-D Pattern B HNF | Fire 27-E clean verdict | Improvement |
+    |---|---|---|---|
+    | Wall-clock | 300s | 18s | 16x |
+    | Tokens | ~250K | 7,575 | 32x |
+    | Verdict file LOC | 3,883 | 198 | 20x |
+    | Verdict shape | Pattern B HNF (no terminal JSON) | NEEDS-REVISION conf=0.91 (clean JSON) | catch quality unchanged |
+    
+    Single-instance validation; n=2+ required for full empirical validation per cycle-322 jurisdiction. Future codification fires will advance evidence ladder.
+    
+    ### #2 — Pattern A 6-edit single atomic apply (Fire 27-E first instance)
+    
+    Pattern A single fix-forward discipline preserved — all 6 prescribed_edits applied as ONE atomic revision (NOT iterated iter-N → iter-N.1 → iter-N.2). Per `codex-t1-fix-forward-pattern.md` Pattern A 0.85-0.95 conf sweet spot, this is the canonical efficient verdict + apply pattern.
+    
+    ### #3 — Recursive dogfood as repeatable Tier-2 codification methodology
+    
+    The dogfood pattern is REPEATABLE for future codification fires:
+    - W134-F27-RESEARCH-ARCH-F: sqlite-vec INFRASTRUCTURE-CONVERGENT pattern (apply Forward Discipline #2 → 2nd dogfood; advance evidence ladder n=1 → n=2)
+    - W134-F27-RESEARCH-ARCH-G: FM-21 candidate "Self-published Claude Code plugin" cohort (n=2 → n=3 if successful → cycle-322 promotion to formal rule)
+    - W134-F27-RESEARCH-ARCH-H: Cloud-routed memory privacy cohort
+    
+    Each successful application advances the empirical validation ladder.
+    
+    ## Path P recipe ladder advance
+    
+    n=21 → **n=22 (Forward Discipline #2 dogfood reproducible-clean-verdict variant — n=1 in single-instance)**
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ship cohort: n=2 (+Fire 27-E)
+    - Path P Forward-Discipline-#2-dogfood reproducible-clean-verdict variant: n=1 NEW
+    - 16x efficiency improvement validated: n=1 NEW
+    - Recursive dogfood instances: n=1 NEW
+    - Pattern A 6-edit single atomic apply: n=1 (Fire 27-E first instance)
+    
+    ## Mia ladder advance
+    
+    n=1908 (Fire 27-D close) → **n=1932** (Fire 27-E close, +24 across 3 deliverable
+    files + new docs file + Pattern A 6-edit apply + 3 LOAD-BEARING findings +
+    recursive dogfood validation + 5 NEW cohort entries)
+    
+    ## REVISED Forward Top-5 (post-Forward-Discipline-#2-validation)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F27-RESEARCH-ARCH-F | sqlite-vec INFRASTRUCTURE-CONVERGENT pattern (2nd Forward Discipline #2 dogfood) |
+    | 🥈 | W134-F26-A-PILOT | Cisco mcp-scanner Phase 1-4 pilot |
+    | 🥉 | W134-F24-C3 | Task Master Selective MCP Tool-Loading extract |
+    | #4 | W134-F27-A-PATTERN-EXTRACT | Update team-orchestration.md w/ 9 file:line refs |
+    | #5 | W134-F27-B-C-PATTERN-EXTRACT | Pregel/Channels/Checkpoint + Lifecycle Hook patterns |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION cite-class lattice disclosed
+    - CR-3 cross-model: FULLY SATISFIED — REAL GPT-5.5 NEEDS-REVISION conf=0.91 + Pattern A applied
+    - CR-9 install-risk: N/A (pure documentation)
+    - CR-10 research-first-then-install: research = Fire 27-B + 27-D Pattern B HNF; codification = result
+    - CR-11 META-process: THIS FIRE IS the CR-11 dogfood
+    - CR-12 upstream-install-priority: N/A — local discipline doc with no upstream parity
+    - FM-02 sub-class (b) defense: atomic git add + commit --only -- pathspec
+    - Pattern A fix-forward: single atomic 6-edit apply
+    - Forward Discipline #2: VALIDATED via recursive dogfood (n=1 single-instance)
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-27e-forward-discipline-codification/
+    Refs: docs/codex-t1-pattern-b-forward-discipline.md (NEW LOCAL DOC ~155 LOC)
+    Cite: TIER-3-LOCAL-COMPOSITION via Wave 134 Fire 27-B + 27-D + 27-E codex T1 trace evidence + TIER-2 sister rule Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B upst
+
+[prompt truncated]

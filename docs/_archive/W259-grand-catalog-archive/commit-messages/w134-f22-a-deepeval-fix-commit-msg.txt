@@ -1,0 +1,96 @@
+fix(w134-f22-a): DeepEval LIVE-default INVERTED — token-safety fix per Fire 19 P1-2
+
+⭐ Fire 22 Tier 1 Ship A: TOKEN-SAFETY fix shipped (30min, P1-2 from Fire 19
+SOTA-WITH-GAPS audit). First Pattern A apply post-Fire-21 Ultimate Architecture Ecosystem
+roadmap.
+
+## Bug + fix
+
+### Pre-fix (Wave 121 Ship 2 + Wave 119 Ship 5 scaffold)
+
+`evals/deepeval/test_smoke.py:32-35` had INVERTED cost-guard semantics:
+
+```python
+@pytest.mark.skipif(
+    os.environ.get("DEEPEVAL_SKIP_LIVE", "0") == "1",
+    reason="set DEEPEVAL_SKIP_LIVE=0 to run live LLM-as-judge eval against CPA",
+)
+```
+
+Default `DEEPEVAL_SKIP_LIVE=0` (or unset) → `"0" == "1"` is False → DO NOT SKIP → LIVE RUNS.
+Result: `pytest evals/deepeval/` BURNS Anthropic tokens via CPA `eee-fleet-key-eval` by
+default. README at line 21 falsely claimed "skip live by default" but line 34 confirmed
+LIVE was actually the default (internal inconsistency).
+
+Fire 19 GPT-5.5 cross-model audit (conf=0.88) identified this as P1-2 TOKEN-BURN RISK.
+
+### Post-fix (W134-F22-A)
+
+```python
+@pytest.mark.skipif(
+    os.environ.get("DEEPEVAL_ENABLE_LIVE", "0") != "1",
+    reason="set DEEPEVAL_ENABLE_LIVE=1 to run live LLM-as-judge eval against CPA (spends Anthropic tokens via eee-fleet-key-eval). Token-safe default: SKIPPED.",
+)
+```
+
+Default `DEEPEVAL_ENABLE_LIVE=0` (or unset) → `"0" != "1"` is True → SKIP → token-safe.
+Opt-in `DEEPEVAL_ENABLE_LIVE=1` → `"1" != "1"` is False → DO NOT SKIP → live runs.
+
+## Smoke probe verification
+
+```
+# Default (no env var):
+$ python -m pytest evals/deepeval/test_smoke.py::test_answer_relevancy_round_trip -v -rs
+SKIPPED [1] evals/deepeval/test_smoke.py:40: set DEEPEVAL_ENABLE_LIVE=1 to run...
+========= 1 skipped in 0.04s =========
+
+# Opt-in:
+$ DEEPEVAL_ENABLE_LIVE=1 python -m pytest ...::test_answer_relevancy_round_trip --collect-only -v
+<Function test_answer_relevancy_round_trip>
+========= 1 test collected in 0.03s =========
+```
+
+Both branches VERIFIED ✅.
+
+## Files changed (2)
+
+- `evals/deepeval/test_smoke.py` — inverted skipif logic (lines 13-23 docstring + lines 40-42 decorator)
+- `evals/deepeval/README.md` — updated Operator quickstart (lines 17-28) + Cost discipline
+  section (lines 30-43) with W134-F22-A history note
+
+## Impact
+
+- **Token-safety**: accidental `pytest evals/` no longer burns Anthropic tokens
+- **Operator discipline**: live eval requires explicit `DEEPEVAL_ENABLE_LIVE=1` opt-in per
+  session/run; README quickstart shows recommended unset pattern after run
+- **README consistency**: internal contradiction (line 21 vs line 34 pre-fix) RESOLVED
+
+## Wave 134 Fire 22 Tier 1 progress
+
+| # | Ship | Status | Effort |
+|---|---|---|---|
+| **A** | **DeepEval LIVE-default fix** | ✅ **THIS COMMIT** | 30min |
+| B | evolve_pass_rate_gate.py install | PENDING | 120min |
+| C | Codex verdict normalizer | PENDING | 60min |
+
+## Cite trail
+
+- Fire 19 GPT-5.5 verdict identifying P1-2: `docs/sota-architecture-audit/fire-19-dim6-eval-gpt55/01-dim6-eval-gpt55-verdict.md`
+- Fire 21 Ultimate Architecture roadmap Tier 1 priority: `docs/sota-architecture-audit/fire-21-ultimate-architecture-ecosystem/02-current-vs-ultimate-gap-matrix.md`
+- DeepEval upstream: `https://github.com/confident-ai/deepeval` @ v4.0.0
+- Cardinal-rule conformance: CR-9 install-risk (LOW; single-file edit; reversible)
+- Cycle-300: ONE LOGICAL UNIT per fire (this commit = single Pattern A apply)
+
+## Conformance
+
+- CR-1: cite trail to Fire 19 GPT-5.5 audit + Fire 21 roadmap
+- CR-3: no codex T1 fire required for single-file token-safety fix (mechanical-mirror exception per
+  `codex-t1-fix-forward-pattern.md` — settled-upstream evidence from Fire 19 cross-model verdict)
+- CR-5: AUDIT-only — no new install
+- CR-8: ADAPTED-FROM-SOTA — Anthropic prompt-cache + cost discipline patterns
+- CR-9: LOW risk (single-file edit + smoke probe verified both branches)
+- CR-11: META-process — Fire 22 ships Fire 21 roadmap Tier 1 priority
+
+## Mia ladder advance
+
+n=1442 → n=1448 (+6: pre/post diff captured / 2-file edit / smoke probe both branches verified / 4 cite-trail items / Wave 134 Fire 22 Tier 1 ship A close / token-burn risk closed)

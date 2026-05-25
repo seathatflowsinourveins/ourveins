@@ -1,0 +1,263 @@
+name: Multi-Model Review Aggregator (advisory)
+
+# W436 — SOTA 4-tier multi-model PR-review aggregator (advisory-only per A2 Local-Only architecture).
+# Runs AFTER the binding Codex-Verdict gate (codex-verdict-gate.yml), aggregates check-run states
+# across:
+#   Tier-1 codex GPT-5.5 (binding — verified by codex-verdict-gate.yml)
+#   Tier-2 Copilot Code Review (advisory — auto-detected via reviews API per W432-COPILOT-PROBE)
+#   Tier-3 Sonnet 4.6 tie-breaker (NOT_INVOKED on single-round consensus per W331 P0.7)
+#   Tier-4 19 pre-commit + 12 CI workflows (mechanized gates)
+# Posts a single consolidated PR comment for operator visibility. Does NOT block merge
+# (the binding gate is codex-verdict-gate.yml; this workflow is the convergence-view, not the
+# enforcement layer).
+#
+# Cite anchors (>=3 distinct orgs):
+#   - Anthropic       https://docs.anthropic.com/en/docs/claude-code/sub-agents          (sub-agent precedence)
+#   - GitHub          https://docs.github.com/en/rest/checks/runs                         (Checks API)
+#   - Microsoft       https://learn.microsoft.com/en-us/azure/devops/repos/security/github-advanced-security-code-scanning (convergence model)
+#   - NIST SP 800-218 PW.7 (code-review-by-AI acceptable)
+#   - OpenSSF Scorecard "Code-Review" track
+#
+# Decision: ADVISORY-only per W432-FINALIZE §13 ADR v2 + W432-COPILOT-PROBE RESULT.
+# The binding ship-gate is codex-verdict-gate.yml; THIS workflow only surfaces the verdict map.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Also allow manual fire for re-aggregation after a re-review
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to aggregate'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: read
+
+concurrency:
+  group: multi-model-review-aggregator-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  aggregate:
+    name: Aggregate 4-tier review verdicts
+    runs-on: ubuntu-latest
+    # Skip on drafts (per A2 architecture — drafts are pre-review)
+    if: |
+      github.event.pull_request.draft != true
+    steps:
+      - name: Harden runner (egress audit)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout (shallow)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2 (W432-CI-STALE-BUMP)
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve PR number
+        id: pr
+        env:
+          PR_FROM_EVENT: ${{ github.event.pull_request.number }}
+          PR_FROM_INPUT: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${PR_FROM_EVENT:-${PR_FROM_INPUT:-}}"
+          if [ -z "$PR_NUMBER" ]; then
+            echo "::error::No PR number resolved from event payload or workflow_dispatch input."
+            exit 1
+          fi
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Aggregating multi-model review for PR #$PR_NUMBER"
+
+      - name: Aggregate verdicts
+        id: aggregate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # ---- Fetch PR + head SHA ----
+          PR_JSON="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}")"
+          HEAD_SHA="$(printf '%s' "$PR_JSON" | jq -r '.head.sha')"
+          BASE_REF="$(printf '%s' "$PR_JSON" | jq -r '.base.ref')"
+          PR_BODY="$(printf '%s' "$PR_JSON" | jq -r '.body // ""')"
+          echo "PR #${PR_NUMBER} head=${HEAD_SHA} base=${BASE_REF}"
+
+          # ---- Tier-1 codex GPT-5.5: detect from PR-body trailer + commit-msg trailer ----
+          # The binding signal is the Codex-Verdict trailer (W387 architecture). We don't
+          # re-invoke codex from CI (operator preference: A2 Local-Only; OPENAI_API_KEY not set).
+          CODEX_VERDICT="INDETERMINATE"
+          if printf '%s\n' "$PR_BODY" | grep -Pq '^Codex-Verdict:[ \t]*APPROVE[ \t]*$'; then
+            CODEX_VERDICT="APPROVE"
+          elif printf '%s\n' "$PR_BODY" | grep -Pq '^Codex-Verdict:[ \t]*BOOTSTRAP[ \t]*$'; then
+            CODEX_VERDICT="APPROVE_BOOTSTRAP"
+          elif printf '%s\n' "$PR_BODY" | grep -Pq '^Codex-Verdict:[ \t]*REVISE[ \t]*$'; then
+            CODEX_VERDICT="REVISE"
+          elif printf '%s\n' "$PR_BODY" | grep -Pq '^Codex-Verdict:[ \t]*BLOCK[ \t]*$'; then
+            CODEX_VERDICT="BLOCK"
+          fi
+          echo "Tier-1 codex_r1 (from PR-body trailer): $CODEX_VERDICT"
+
+          # ---- Tier-2 Copilot: probe reviews API ----
+          COPILOT_REVIEWS="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+              --jq '[.[] | select(.user.login | test("copilot"; "i")) | {state, submitted_at, login: .user.login}]' \
+              2>/dev/null || echo '[]')"
+          COPILOT_COUNT="$(printf '%s' "$COPILOT_REVIEWS" | jq 'length')"
+          COPILOT_VERDICT="NOT_ACTIVE"
+          COPILOT_REASON="No Copilot reviews on PR (tier-limit per W432-COPILOT-PROBE)"
+          if [ "$COPILOT_COUNT" -gt 0 ]; then
+            COPILOT_STATE="$(printf '%s' "$COPILOT_REVIEWS" | jq -r '.[-1].state')"
+            case "$COPILOT_STATE" in
+              APPROVED)           COPILOT_VERDICT="APPROVE";  COPILOT_REASON="Copilot APPROVED" ;;
+              CHANGES_REQUESTED)  COPILOT_VERDICT="BLOCK";    COPILOT_REASON="Copilot CHANGES_REQUESTED" ;;
+              COMMENTED)          COPILOT_VERDICT="ADVISORY"; COPILOT_REASON="Copilot COMMENTED" ;;
+              DISMISSED)          COPILOT_VERDICT="INDETERMINATE"; COPILOT_REASON="Copilot DISMISSED" ;;
+              *)                  COPILOT_VERDICT="INDETERMINATE"; COPILOT_REASON="Copilot state=$COPILOT_STATE" ;;
+            esac
+          fi
+          echo "Tier-2 copilot: $COPILOT_VERDICT ($COPILOT_REASON)"
+
+          # ---- Tier-4 mechanized: aggregate check-runs ----
+          CHECK_RUNS="$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs?per_page=100" \
+              --jq '[.check_runs[] | {name, status, conclusion}]' 2>/dev/null || echo '[]')"
+          MECH_PASSING="$(printf '%s' "$CHECK_RUNS" | jq '[.[] | select(.status=="completed" and (.conclusion=="success" or .conclusion=="skipped" or .conclusion=="neutral"))] | length')"
+          MECH_FAILING_COUNT="$(printf '%s' "$CHECK_RUNS" | jq '[.[] | select(.status=="completed" and (.conclusion!="success" and .conclusion!="skipped" and .conclusion!="neutral"))] | length')"
+          MECH_FAILING_LIST="$(printf '%s' "$CHECK_RUNS" | jq -r '[.[] | select(.status=="completed" and (.conclusion!="success" and .conclusion!="skipped" and .conclusion!="neutral")) | .name] | join(", ")')"
+          echo "Tier-4 mechanized: passing=${MECH_PASSING} failing=${MECH_FAILING_COUNT}"
+
+          # ---- Resolve consensus ----
+          CONSENSUS="INDETERMINATE"
+          CONSENSUS_REASON=""
+          if [ "$MECH_FAILING_COUNT" -gt 0 ]; then
+            CONSENSUS="BLOCK"
+            CONSENSUS_REASON="Tier-4 mechanized binding gates failing: ${MECH_FAILING_COUNT} (${MECH_FAILING_LIST})"
+          elif [ "$CODEX_VERDICT" = "BLOCK" ]; then
+            CONSENSUS="BLOCK"
+            CONSENSUS_REASON="Tier-1 codex GPT-5.5 BLOCK; AUTHORITY per W331 P0.7."
+          elif [ "$CODEX_VERDICT" = "REVISE" ]; then
+            CONSENSUS="REVISE"
+            CONSENSUS_REASON="Tier-1 codex GPT-5.5 REVISE; AUTHORITY per W331 P0.7."
+          elif [ "$CODEX_VERDICT" = "APPROVE" ] || [ "$CODEX_VERDICT" = "APPROVE_BOOTSTRAP" ]; then
+            if [ "$COPILOT_VERDICT" = "BLOCK" ]; then
+              CONSENSUS="APPROVE_WITH_COPILOT_DISSENT"
+              CONSENSUS_REASON="Tier-1 codex APPROVE (AUTHORITY); Tier-2 Copilot dissent recorded."
+            else
+              CONSENSUS="APPROVE"
+              CONSENSUS_REASON="Tier-1 codex APPROVE; mechanized ${MECH_PASSING} passing 0 failing; Copilot=${COPILOT_VERDICT}."
+            fi
+          else
+            CONSENSUS="INDETERMINATE"
+            CONSENSUS_REASON="Tier-1 codex INDETERMINATE; operator review required."
+          fi
+          echo "CONSENSUS=$CONSENSUS"
+          echo "CONSENSUS_REASON=$CONSENSUS_REASON"
+
+          # Export for the comment step
+          {
+            echo "codex_verdict=$CODEX_VERDICT"
+            echo "copilot_verdict=$COPILOT_VERDICT"
+            echo "copilot_reason<<EOF"
+            echo "$COPILOT_REASON"
+            echo "EOF"
+            echo "mech_passing=$MECH_PASSING"
+            echo "mech_failing_count=$MECH_FAILING_COUNT"
+            echo "mech_failing_list<<EOF"
+            echo "$MECH_FAILING_LIST"
+            echo "EOF"
+            echo "consensus=$CONSENSUS"
+            echo "consensus_reason<<EOF"
+            echo "$CONSENSUS_REASON"
+            echo "EOF"
+            echo "head_sha=$HEAD_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+          # Step summary
+          {
+            echo "## W436 Multi-Model Review Aggregator"
+            echo ""
+            echo "**PR**: #${PR_NUMBER}"
+            echo "**HEAD**: \`${HEAD_SHA}\`"
+            echo "**Consensus**: \`${CONSENSUS}\`"
+            echo ""
+            echo "| Tier | Verdict | Notes |"
+            echo "|------|---------|-------|"
+            echo "| 1 codex GPT-5.5 | \`${CODEX_VERDICT}\` | from PR-body Codex-Verdict trailer |"
+            echo "| 2 Copilot | \`${COPILOT_VERDICT}\` | ${COPILOT_REASON} |"
+            echo "| 3 Sonnet 4.6 tie-breaker | NOT_INVOKED | no Tier-1 r1↔r2 divergence |"
+            echo "| 4 Mechanized | passing=${MECH_PASSING} failing=${MECH_FAILING_COUNT} | ${MECH_FAILING_LIST:-none} |"
+            echo ""
+            echo "**Reason**: ${CONSENSUS_REASON}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post or update aggregator comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        env:
+          PR_NUMBER:        ${{ steps.pr.outputs.pr_number }}
+          CODEX_VERDICT:    ${{ steps.aggregate.outputs.codex_verdict }}
+          COPILOT_VERDICT:  ${{ steps.aggregate.outputs.copilot_verdict }}
+          COPILOT_REASON:   ${{ steps.aggregate.outputs.copilot_reason }}
+          MECH_PASSING:     ${{ steps.aggregate.outputs.mech_passing }}
+          MECH_FAILING:     ${{ steps.aggregate.outputs.mech_failing_count }}
+          MECH_FAILING_LIST: ${{ steps.aggregate.outputs.mech_failing_list }}
+          CONSENSUS:        ${{ steps.aggregate.outputs.consensus }}
+          CONSENSUS_REASON: ${{ steps.aggregate.outputs.consensus_reason }}
+          HEAD_SHA:         ${{ steps.aggregate.outputs.head_sha }}
+        with:
+          script: |
+            const pr = parseInt(process.env.PR_NUMBER, 10);
+            const consensus = process.env.CONSENSUS || 'INDETERMINATE';
+            const marker = '<!-- W436-multi-model-review-aggregator -->';
+            const emoji = { APPROVE: '✓', APPROVE_WITH_COPILOT_DISSENT: '⚠', REVISE: '!', BLOCK: '✗', INDETERMINATE: '?' }[consensus] || '?';
+            const body = [
+              marker,
+              `## ${emoji} W436 Multi-Model Review — Consensus: \`${consensus}\``,
+              '',
+              `_Advisory aggregator — binding gate is **Codex-Verdict trailer** (codex-verdict-gate.yml). Architecture: A2 Local-Only per W432-FINALIZE §13 ADR v2._`,
+              '',
+              '| Tier | Model | Verdict | Notes |',
+              '|------|-------|---------|-------|',
+              `| 1 | codex GPT-5.5 (AUTHORITY) | \`${process.env.CODEX_VERDICT}\` | from PR-body \`Codex-Verdict:\` trailer (binding-gate signal) |`,
+              `| 2 | GitHub Copilot (advisory) | \`${process.env.COPILOT_VERDICT}\` | ${process.env.COPILOT_REASON} |`,
+              `| 3 | Sonnet 4.6 (tie-breaker) | \`NOT_INVOKED\` | only fires on Tier-1 r1↔r2 divergence per W331 P0.7 |`,
+              `| 4 | Mechanized gates | passing=${process.env.MECH_PASSING} failing=${process.env.MECH_FAILING} | ${process.env.MECH_FAILING_LIST || 'all green'} |`,
+              '',
+              `**Consensus reason**: ${process.env.CONSENSUS_REASON}`,
+              '',
+              `**HEAD**: \`${process.env.HEAD_SHA}\``,
+              '',
+              '---',
+              '_Re-fire with `gh workflow run multi-model-review-aggregator.yml -f pr_number=<N>`._',
+              '_Skill trigger: "multi-model review on PR <N>" — see `.claude/skills/multi-model-review/SKILL.md`._'
+            ].join('\n');
+            // Find existing comment to update
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              per_page: 100
+            });
+            const existing = comments.data.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+              core.info(`Updated existing aggregator comment id=${existing.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body
+              });
+              core.info('Created new aggregator comment');
+            }

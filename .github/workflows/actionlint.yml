@@ -1,0 +1,67 @@
+# .github/workflows/actionlint.yml
+#
+# W341-Q10 gap-resolution — actionlint static check on GitHub Actions workflow YAML.
+#
+# Catches GitHub Actions misconfigurations: shell injection, undefined refs,
+# missing job dependencies, deprecated syntax, etc.
+#
+# Cite anchors:
+#   - actionlint: github.com/rhysd/actionlint (canonical static checker)
+#   - actionlint download-actionlint.bash: github.com/rhysd/actionlint/blob/main/scripts/download-actionlint.bash
+#   - actions/checkout@v4: github.com/actions/checkout/releases/tag/v4
+#
+# CR-1 compliance: actions pinned to major version (W341 SOTA-grade);
+# SHA-pin via Dependabot ci.yaml (.github/dependabot.yml github-actions ecosystem).
+#
+# CR-2 compliance: workflow YAML only; no project-owned hook bodies.
+#
+# CR-5 read-only posture (codex W341-r1 P1): `permissions: contents: read` ONLY.
+# Direct binary invocation (not reviewdog wrapper) — no PR comment / check annotation
+# perms required. Failures surface via job exit code (operator-visible in Actions tab).
+#
+# CR-6 verify-before-claim: actionlint exit code is the verifiable probe.
+
+name: actionlint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read   # READ-ONLY per codex W341-r1 P1 — fail-on-error via job exit; no PR/check annotations
+
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: actionlint (GitHub Actions linter)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner (OWASP CICD-SEC-4)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          submodules: false   # W340 SB-2 phantom-submodule guard
+          persist-credentials: false
+
+      - name: Install actionlint (read-only direct invocation)
+        run: |
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint --version
+      - name: Run actionlint (fail CI on errors; no PR/check annotations per CR-5 read-only posture)
+        run: ./actionlint -color

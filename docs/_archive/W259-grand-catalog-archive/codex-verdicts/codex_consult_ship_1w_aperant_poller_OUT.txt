@@ -1,0 +1,1274 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e08b2-fcbe-7e00-bda4-cee8411162bf
+--------
+user
+You are GPT-5.5 reviewing Ship 1W — `tools/aperant_rate_limit_poller.py` (Aperant-derived rate-limit poller). Real GPT-5.5 BRIDGE-MODE via codex CLI direct foreground execution.
+
+Wave 89 Ship 1Y unleashed sandbox — you have full PowerShell + Python + curl + git access for verification.
+
+CONTEXT
+- Ship 1W goal: populate cpa-usage-keeper SQLite usage_identities rate-limit columns (currently 0/10 populated) by actively polling Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage every 60s
+- Aperant CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027 documented the endpoints
+- Wave 90 LIVE polling discovered: Anthropic schema is `five_hour`+`seven_day`+`extra_usage` (NOT `primary_window`/`secondary_window` as Aperant doc claimed); Codex schema MATCHES Aperant doc
+- 3 Claude accounts WEEKLY-MAXED today (causes 4-failed-of-6); proactive poll-then-skip would have prevented
+
+REVIEW SUBJECT
+Read the file directly: `Z:/claude-sota-installed/tools/aperant_rate_limit_poller.py` (~270 LOC).
+
+Smoke probe ALREADY PASSED:
+- Command: `python3 tools/aperant_rate_limit_poller.py --once --dry-run`
+- Result: `{"polled": 8, "ok": 8, "errors": [], "update_stats": {"updated": 8, "skipped": 0, "dry_run": true}}`
+- 7 Claude accounts polled successfully via Anthropic /api/oauth/usage
+- 1 Codex Pro polled successfully via ChatGPT /backend-api/wham/usage
+- Zero errors
+
+REVIEW AXES (TIGHT — bounded 90s budget per advanced-agent-team-standing-directive)
+
+AXIS 1 — Code correctness
+- Does poll_anthropic correctly parse five_hour/seven_day/extra_usage from live Anthropic schema?
+- Does poll_codex correctly parse primary_window/secondary_window/credits from live Codex schema?
+- Is SQL UPDATE statement correct (uses `name` and `provider` as WHERE clause; matches usage_identities schema)?
+- Token redaction: are OAuth tokens excluded from JSONL logging?
+
+AXIS 2 — Production readiness
+- Error handling: 401/403/429/5xx correctly handled?
+- Cron loop: KeyboardInterrupt cleanup; PID file mechanics
+- Stop semantics: --stop reads PID and SIGTERMs; works on Windows? (note: signal.SIGTERM behavior differs)
+- --dry-run: no SQLite writes when set; smoke probe verified
+- File-system safety: parent dirs created via mkdir(parents=True, exist_ok=True)
+
+AXIS 3 — Cardinal-rule alignment
+- CR-1: TIER-1 cite chain in docstring (Aperant + live URLs)
+- CR-3: this consult IS the cross-model gate
+- CR-9: install-risk MEDIUM (read-only API + SQLite UPDATE only; reversible)
+- CR-10: research-first via Wave 87+90 + Aperant deep-dive
+- CR-11: META-process SOTA discipline followed
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-3,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-SHIP-1W" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw tools/aperant_rate_limit_poller.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "usage_identities|rate_limit|five_hour|seven_day|primary_window|secondary_window|extra_usage|wham/usage|oauth/usage" -S .' in Z:\claude-sota-installed
+ succeeded in 297ms:
+"""Ship 1W — Aperant-derived rate-limit poller for cpa-usage-keeper.
+
+Polls Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage every 60s
+(default). UPDATEs cpa-usage-keeper SQLite with rate-limit data so CLIProxyAPI
+selector can do PROACTIVE rotation BEFORE 429.
+
+Cite (TIER-1 SOTA chain):
+- Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+  (endpoint reference; Aperant's documented Codex schema MATCHES live;
+   Aperant's documented Anthropic schema OUTDATED — Wave 90 verified
+   live schema is five_hour/seven_day/extra_usage)
+- https://api.anthropic.com/api/oauth/usage (live; verified Wave 90)
+- https://chatgpt.com/backend-api/wham/usage (live; matches Aperant doc)
+
+Wave 91 Ship 1W satisfies:
+- CR-1: TIER-1 cite chain
+- CR-3: cross-model gate via codex T1 e2e BEFORE commit
+- CR-7: graduated-unleash Phase 3 ACTIVE (Wave 89 Ship 1Y unleash)
+- CR-9: install-risk MEDIUM (read-only API calls + SQLite UPDATE only;
+        reversible via stop-script + git revert)
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sqlite3
+import sys
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+LOGGER = logging.getLogger("aperant_poller")
+
+# Default paths (override via env or config flags)
+DEFAULT_OAUTH_DIR = Path("Z:/claude-sota-installed/.cli-proxy-api")
+DEFAULT_CPA_DB = Path(
+    "Z:/claude-sota-installed/.local/cpa-usage-keeper/"
+    "cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db"
+)
+DEFAULT_JSONL = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.jsonl")
+DEFAULT_PID_FILE = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.pid")
+
+# OAuth refresh client IDs (TIER-1 cite Aperant CODEX_RATE_LIMITS_RESEARCH.md
+# §1.4 + §3.1)
+ANTHROPIC_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+
+ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+ANTHROPIC_TOKEN_URL = "https://console.anthropic.com/v1/oauth/token"
+CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token"
+
+ANTHROPIC_BETA_HEADER = "oauth-2025-04-20"
+
+
+@dataclass
+class PollResult:
+    account: str
+    provider: str
+    status: str  # ok / 401 / 403 / 429 / 5xx / error
+    primary_used_percent: Optional[float] = None
+    primary_reset_at: Optional[str] = None
+    primary_limit_seconds: Optional[int] = None
+    secondary_used_percent: Optional[float] = None
+    secondary_reset_at: Optional[str] = None
+    secondary_limit_seconds: Optional[int] = None
+    plan_type: Optional[str] = None
+    limit_reached: Optional[bool] = None
+    extra_usage_paid_pct: Optional[float] = None
+    raw: dict = field(default_factory=dict)
+    error: Optional[str] = None
+
+
+def http_get_json(url: str, headers: dict, timeout: int = 15) -> tuple[int, dict | str]:
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        resp = urllib.request.urlopen(req, timeout=timeout)
+        body = resp.read().decode("utf-8", errors="replace")
+        try:
+            return resp.status, json.loads(body)
+        except json.JSONDecodeError:
+            return resp.status, body
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            body = ""
+        return e.code, body
+    except Exception as e:
+        return 0, str(e)
+
+
+def poll_anthropic(oauth_file: Path) -> PollResult:
+    email = oauth_file.name.replace("claude-", "").replace(".json", "")
+    try:
+        d = json.loads(oauth_file.read_text())
+    except Exception as e:
+        return PollResult(
+            account=email, provider="claude", status="error", error="parse_oauth: " + str(e)[:80]
+        )
+    token = d.get("access_token")
+    if not token:
+        return PollResult(account=email, provider="claude", status="error", error="no_access_token")
+    headers = {
+        "Authorization": "Bearer " + token,
+        "anthropic-beta": ANTHROPIC_BETA_HEADER,
+        "Content-Type": "application/json",
+    }
+    code, body = http_get_json(ANTHROPIC_USAGE_URL, headers)
+    if code == 401:
+        return PollResult(account=email, provider="claude", status="401", error="needs_refresh")
+    if code == 403:
+        return PollResult(account=email, provider="claude", status="403", error="needs_reauth")
+    if code != 200 or not isinstance(body, dict):
+        return PollResult(
+            account=email, provider="claude", status=str(code or "error"),
+            error=str(body)[:120] if body else "unknown",
+        )
+    five = body.get("five_hour") or {}
+    seven = body.get("seven_day") or {}
+    extra = body.get("extra_usage") or {}
+    return PollResult(
+        account=email,
+        provider="claude",
+        status="ok",
+        primary_used_percent=five.get("utilization"),
+        primary_reset_at=five.get("resets_at"),
+        primary_limit_seconds=18000,  # 5h fixed window
+        secondary_used_percent=seven.get("utilization"),
+        secondary_reset_at=seven.get("resets_at"),
+        secondary_limit_seconds=604800,  # 7d fixed window
+        plan_type=None,  # Anthropic doesn't expose plan_type at this endpoint
+        limit_reached=(five.get("utilization") or 0) >= 100 or (seven.get("utilization") or 0) >= 100,
+        extra_usage_paid_pct=extra.get("utilization") if extra.get("is_enabled") else None,
+        raw=body,
+    )
+
+
+def poll_codex(oauth_file: Path) -> PollResult:
+    label = "zfan7@sva.edu (Codex Pro)"
+    try:
+        d = json.loads(oauth_file.read_text())
+    except Exception as e:
+        return PollResult(
+            account=label, provider="codex", status="error", error="parse_oauth: " + str(e)[:80]
+        )
+    tokens = d.get("tokens", {})
+    token = tokens.get("access_token") or d.get("access_token")
+    account_id = tokens.get("account_id") or d.get("account_id", "")
+    if not token:
+        return PollResult(account=label, provider="codex", status="error", error="no_access_token")
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if account_id:
+        headers["ChatGPT-Account-Id"] = account_id
+    code, body = http_get_json(CODEX_USAGE_URL, headers)
+    if code == 401:
+        return PollResult(account=label, provider="codex", status="401", error="needs_refresh")
+    if code == 403:
+        return PollResult(account=label, provider="codex", status="403", error="needs_reauth")
+    if code != 200 or not isinstance(body, dict):
+        return PollResult(
+            account=label, provider="codex", status=str(code or "error"),
+            error=str(body)[:120] if body else "unknown",
+        )
+    rl = body.get("rate_limit", {}) or {}
+    primary = rl.get("primary_window", {}) or {}
+    secondary = rl.get("secondary_window", {}) or {}
+    return PollResult(
+        account=label,
+        provider="codex",
+        status="ok",
+        primary_used_percent=primary.get("used_percent"),
+        primary_reset_at=str(primary.get("reset_at")) if primary.get("reset_at") else None,
+        primary_limit_seconds=primary.get("limit_window_seconds"),
+        secondary_used_percent=secondary.get("used_percent"),
+        secondary_reset_at=str(secondary.get("reset_at")) if secondary.get("reset_at") else None,
+        secondary_limit_seconds=secondary.get("limit_window_seconds"),
+        plan_type=body.get("plan_type"),
+        limit_reached=rl.get("limit_reached"),
+        raw=body,
+    )
+
+
+def update_cpa_sqlite(db_path: Path, results: list[PollResult], dry_run: bool = False) -> dict:
+    if not db_path.exists():
+        return {"error": "db_missing", "path": str(db_path)}
+    stats = {"updated": 0, "skipped": 0, "errors": []}
+    if dry_run:
+        for r in results:
+            if r.status == "ok":
+                stats["updated"] += 1
+            else:
+                stats["skipped"] += 1
+        stats["dry_run"] = True
+        return stats
+    conn = sqlite3.connect(str(db_path))
+    try:
+        for r in results:
+            if r.status != "ok":
+                stats["skipped"] += 1
+                continue
+            email_key = r.account.split(" (")[0]
+            try:
+                conn.execute(
+                    """
+                    UPDATE usage_identities SET
+                        primary_window_used_percent = ?,
+                        primary_window_limit_seconds = ?,
+                        primary_window_reset_at = ?,
+                        secondary_window_used_percent = ?,
+                        secondary_window_limit_seconds = ?,
+                        secondary_window_reset_at = ?,
+                        plan_type = ?,
+                        limit_reached = ?,
+                        stats_updated_at = ?
+                    WHERE name = ? AND provider = ?
+                    """,
+                    (
+                        int(r.primary_used_percent) if r.primary_used_percent is not None else None,
+                        r.primary_limit_seconds,
+                        r.primary_reset_at,
+                        int(r.secondary_used_percent) if r.secondary_used_percent is not None else None,
+                        r.secondary_limit_seconds,
+                        r.secondary_reset_at,
+                        r.plan_type,
+                        1 if r.limit_reached else 0 if r.limit_reached is not None else None,
+                        datetime.now(timezone.utc).isoformat(),
+                        email_key,
+                        r.provider,
+                    ),
+                )
+                stats["updated"] += 1
+            except Exception as e:
+                stats["errors"].append({"account": r.account, "error": str(e)[:80]})
+        conn.commit()
+    finally:
+        conn.close()
+    return stats
+
+
+def append_jsonl(jsonl_path: Path, records: list[dict]) -> None:
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with jsonl_path.open("a", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec, default=str) + "\n")
+
+
+def poll_once(oauth_dir: Path, db: Path, jsonl: Path, dry_run: bool) -> dict:
+    results = []
+    for f in sorted(oauth_dir.glob("claude-*.json")):
+        results.append(poll_anthropic(f))
+    codex = oauth_dir / "codex-zfan7@sva.edu-pro.json"
+    if codex.exists():
+        results.append(poll_codex(codex))
+
+    update_stats = update_cpa_sqlite(db, results, dry_run=dry_run)
+    now = datetime.now(timezone.utc).isoformat()
+    records = []
+    for r in results:
+        records.append({
+            "ts": now,
+            "account": r.account,
+            "provider": r.provider,
+            "status": r.status,
+            "primary_used_percent": r.primary_used_percent,
+            "primary_reset_at": r.primary_reset_at,
+            "secondary_used_percent": r.secondary_used_percent,
+            "secondary_reset_at": r.secondary_reset_at,
+            "plan_type": r.plan_type,
+            "limit_reached": r.limit_reached,
+            "extra_usage_paid_pct": r.extra_usage_paid_pct,
+            "error": r.error,
+        })
+    append_jsonl(jsonl, records)
+    summary = {
+        "ts": now,
+        "polled": len(results),
+        "ok": sum(1 for r in results if r.status == "ok"),
+        "errors": [r for r in records if r["status"] != "ok"],
+        "update_stats": update_stats,
+        "dry_run": dry_run,
+    }
+    return summary
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true", help="Run a single poll and exit")
+    parser.add_argument("--start", action="store_true", help="Run cron loop")
+    parser.add_argument("--stop", action="store_true", help="Send SIGTERM to running poller via PID file")
+    parser.add_argument("--dry-run", action="store_true", help="Read but do not UPDATE SQLite")
+    parser.add_argument("--interval-seconds", type=int, default=60, help="Cron interval (default 60s)")
+    parser.add_argument("--oauth-dir", type=Path, default=DEFAULT_OAUTH_DIR)
+    parser.add_argument("--db", type=Path, default=DEFAULT_CPA_DB)
+    parser.add_argument("--jsonl", type=Path, default=DEFAULT_JSONL)
+    parser.add_argument("--pid-file", type=Path, default=DEFAULT_PID_FILE)
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+
+    if args.stop:
+        if args.pid_file.exists():
+            try:
+                pid = int(args.pid_file.read_text().strip())
+                import os
+                import signal
+                os.kill(pid, signal.SIGTERM)
+                args.pid_file.unlink()
+                LOGGER.info("Sent SIGTERM to PID %s", pid)
+                return 0
+            except Exception as e:
+                LOGGER.error("stop failed: %s", e)
+                return 1
+        else:
+            LOGGER.warning("PID file missing; nothing to stop")
+            return 0
+
+    if args.once:
+        summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+        print(json.dumps(summary, indent=2, default=str))
+        return 0
+
+    if args.start:
+        args.pid_file.parent.mkdir(parents=True, exist_ok=True)
+        import os
+        args.pid_file.write_text(str(os.getpid()))
+        LOGGER.info(
+            "Aperant poller started; interval=%ds dry_run=%s",
+            args.interval_seconds, args.dry_run,
+        )
+        try:
+            while True:
+                try:
+                    summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+                    LOGGER.info(
+                        "poll: ok=%d/%d updated=%d",
+                        summary["ok"], summary["polled"],
+                        summary["update_stats"].get("updated", 0),
+                    )
+                except Exception as e:
+                    LOGGER.error("poll iteration failed: %s", e)
+                time.sleep(max(15, args.interval_seconds))
+        except KeyboardInterrupt:
+            LOGGER.info("Interrupted; cleaning up PID file")
+        finally:
+            try:
+                args.pid_file.unlink()
+            except FileNotFoundError:
+                pass
+        return 0
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+ succeeded in 305ms:
+.\tools\aperant_rate_limit_poller.py:3:Polls Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage every 60s
+.\tools\aperant_rate_limit_poller.py:8:- Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+.\tools\aperant_rate_limit_poller.py:11:   live schema is five_hour/seven_day/extra_usage)
+.\tools\aperant_rate_limit_poller.py:12:- https://api.anthropic.com/api/oauth/usage (live; verified Wave 90)
+.\tools\aperant_rate_limit_poller.py:13:- https://chatgpt.com/backend-api/wham/usage (live; matches Aperant doc)
+.\tools\aperant_rate_limit_poller.py:49:# OAuth refresh client IDs (TIER-1 cite Aperant CODEX_RATE_LIMITS_RESEARCH.md
+.\tools\aperant_rate_limit_poller.py:54:ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+.\tools\aperant_rate_limit_poller.py:56:CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+.\tools\aperant_rate_limit_poller.py:75:    extra_usage_paid_pct: Optional[float] = None
+.\tools\aperant_rate_limit_poller.py:125:    five = body.get("five_hour") or {}
+.\tools\aperant_rate_limit_poller.py:126:    seven = body.get("seven_day") or {}
+.\tools\aperant_rate_limit_poller.py:127:    extra = body.get("extra_usage") or {}
+.\tools\aperant_rate_limit_poller.py:140:        extra_usage_paid_pct=extra.get("utilization") if extra.get("is_enabled") else None,
+.\tools\aperant_rate_limit_poller.py:175:    rl = body.get("rate_limit", {}) or {}
+.\tools\aperant_rate_limit_poller.py:176:    primary = rl.get("primary_window", {}) or {}
+.\tools\aperant_rate_limit_poller.py:177:    secondary = rl.get("secondary_window", {}) or {}
+.\tools\aperant_rate_limit_poller.py:216:                    UPDATE usage_identities SET
+.\tools\aperant_rate_limit_poller.py:217:                        primary_window_used_percent = ?,
+.\tools\aperant_rate_limit_poller.py:218:                        primary_window_limit_seconds = ?,
+.\tools\aperant_rate_limit_poller.py:219:                        primary_window_reset_at = ?,
+.\tools\aperant_rate_limit_poller.py:220:                        secondary_window_used_percent = ?,
+.\tools\aperant_rate_limit_poller.py:221:                        secondary_window_limit_seconds = ?,
+.\tools\aperant_rate_limit_poller.py:222:                        secondary_window_reset_at = ?,
+.\tools\aperant_rate_limit_poller.py:281:            "extra_usage_paid_pct": r.extra_usage_paid_pct,
+.\docs\install-provenance.md:3683:#### 3. APERANT CODEX_RATE_LIMITS_RESEARCH.md — SOTA usage-API documentation (16,709 bytes)
+.\docs\install-provenance.md:3689:GET https://chatgpt.com/backend-api/wham/usage
+.\docs\install-provenance.md:3691:Response: {plan_type, primary_window {used_percent, limit_window_seconds, reset_after_seconds, reset_at}, secondary_window {...}}
+.\docs\install-provenance.md:3696:GET https://api.anthropic.com/api/oauth/usage
+.\docs\install-provenance.md:3703:Cite: `Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md:1-200 @ HEAD cba7a027` [VERIFIED 2026-05-08 via direct Read]
+.\docs\install-provenance.md:3707:CPA SQLite `usage_identities` table at `.local/cpa-usage-keeper/cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db` (147 KB; 38 columns; live probe 2026-05-08T16:19 UTC):
+.\docs\install-provenance.md:3708:- HAS schema for rate-limit data: `primary_window_used_percent`, `primary_window_limit_seconds`, `primary_window_reset_at`, `secondary_window_used_percent`, `secondary_window_limit_seconds`, `secondary_window_reset_at`, `plan_type`, `limit_reached`
+.\docs\install-provenance.md:3709:- HAS 0/10 identities populated with primary_window data (0%)
+.\docs\install-provenance.md:3710:- HAS 0/10 identities populated with secondary_window data (0%)
+.\docs\install-provenance.md:3715:**Operational impact**: The 4-failed-of-6 calls on 739955940fc account today (66% failure rate) could have been avoided with proactive polling that detects `primary_window_used_percent > 80%` and rotates BEFORE 429.
+.\docs\install-provenance.md:3720:1. **AndyMik90/Aperant** (named-author maintainer) — `Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ cba7a027`
+.\docs\install-provenance.md:3721:2. **steipete/CodexBar** (cited by Aperant as 2nd-org reference for `wham/usage` polling pattern)
+.\docs\install-provenance.md:3722:3. **openai/codex** (codex-rs source: `codex-backend-openapi-models/src/models/rate_limit_status_payload.rs` is the canonical schema cited by Aperant)
+.\docs\install-provenance.md:3731:- Python script `tools/aperant_rate_limit_poller.py`
+.\docs\install-provenance.md:3733:- Polls Anthropic `/api/oauth/usage` for 7 Claude OAuth tokens
+.\docs\install-provenance.md:3734:- Polls ChatGPT `/backend-api/wham/usage` for 1 codex Pro OAuth token
+.\docs\install-provenance.md:3735:- Parses primary_window + secondary_window + plan_type
+.\docs\install-provenance.md:3736:- UPDATEs `usage_identities` table directly OR feeds via Redis-RESP queue
+.\docs\install-provenance.md:3748:CLIProxyAPI cycle-aware-fill-first selector enhancement using rate-limit data populated by Ship 1W. Skip accounts where `primary_window_used_percent > 80%` threshold.
+.\docs\install-provenance.md:3791:3. CODEX_RATE_LIMITS_RESEARCH.md cite-anchors verified at lines 1-200 + 201-450 via direct Read
+.\docs\install-provenance.md:3799:- **TIER-1** (NEW): `Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md:1-450 @ HEAD cba7a027` (Codex + Anthropic usage API endpoints)
+.\docs\install-provenance.md:3802:- **TIER-2-RUNTIME**: cpa-usage-keeper v1.5.2 SQLite app.db (147 KB; 38-column usage_identities table; rate-limit polling 0% coverage)
+.\docs\install-provenance.md:3860:✅ **Real-time fleet polling** — codex can now hit Anthropic `/api/oauth/usage` + ChatGPT `/backend-api/wham/usage` for Ship 1W implementation (no longer blocked by network_access:false)
+.\docs\install-provenance.md:3921:- 7 Claude accounts polled via `https://api.anthropic.com/api/oauth/usage`
+.\docs\install-provenance.md:3922:- 1 Codex Pro account polled via `https://chatgpt.com/backend-api/wham/usage`
+.\docs\install-provenance.md:3927:Aperant `CODEX_RATE_LIMITS_RESEARCH.md @ cba7a027` documented `primary_window` / `secondary_window` schema, but that's the older internal Codex schema. Live polling reveals Anthropic `/api/oauth/usage` returns:
+.\docs\install-provenance.md:3931:  "extra_usage": {"currency": "USD"|null, "is_enabled": bool, "monthly_limit": int|null, "used_credits": float|null, "utilization": float|null},
+.\docs\install-provenance.md:3932:  "five_hour": {"resets_at": "ISO-8601", "utilization": float},
+.\docs\install-provenance.md:3933:  "seven_day": {"resets_at": "ISO-8601", "utilization": float},
+.\docs\install-provenance.md:3934:  "seven_day_sonnet": {"resets_at": "ISO-8601", "utilization": float},
+.\docs\install-provenance.md:3935:  "seven_day_opus": null,
+.\docs\install-provenance.md:3938:  "seven_day_omelette": {"resets_at": null, "utilization": 0.0},
+.\docs\install-provenance.md:3939:  "seven_day_cowork": null,
+.\docs\install-provenance.md:3940:  "seven_day_oauth_apps": null
+.\docs\install-provenance.md:3944:**Codex `/backend-api/wham/usage` schema MATCHES Aperant doc** (`primary_window` + `secondary_window` + `credits`).
+.\docs\install-provenance.md:3946:**Implication for Ship 1W**: poller implementation must use ACTUAL Anthropic schema (`five_hour`+`seven_day`+`extra_usage`), not the Aperant-documented Codex schema. Update Ship 1W spec.
+.\docs\install-provenance.md:3950:| # | Account ID | Type | 5h util | 5h reset | 7d util | 7d reset | extra_usage | Status |
+.\docs\install-provenance.md:3984:| Anthropic /api/oauth/usage polling | 0/10 accounts populated | network_access:true enables it | 7/7 Claude accounts polled LIVE |
+.\docs\install-provenance.md:3985:| Codex /backend-api/wham/usage | not polled | network_access:true enables it | 1/1 Codex polled LIVE |
+.\docs\install-provenance.md:4022:- **TIER-1** (NEW): `https://api.anthropic.com/api/oauth/usage` (actual schema with `five_hour`/`seven_day`/`extra_usage` — supersedes Aperant doc; verified live 2026-05-08T17:29 UTC)
+.\docs\install-provenance.md:4023:- **TIER-1**: `https://chatgpt.com/backend-api/wham/usage` (matches Aperant doc; verified live)
+.\docs\install-provenance.md:4026:- **TIER-1**: `Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027` (endpoint reference; Codex schema correct; Anthropic schema OUTDATED per Wave 90 finding)
+
+**Investigating SQL Update Bug**
+
+I’m looking into a potential bug regarding SQL update row counts. The update seems to increment the count even when there aren't matching rows due to a WHERE clause. I need to confirm the correct matches in the schema, so I’ll check the schema details. It’s important to query the relevant tables, including columns and rows, to understand what's going on with the update. Let’s see what I can find!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "@'
+import sqlite3
+from pathlib import Path
+p=Path('Z:/claude-sota-installed/.local/cpa-usage-keeper/cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db')
+conn=sqlite3.connect(str(p))
+cur=conn.cursor()
+print('exists', p.exists())
+print('columns')
+for row in cur.execute('pragma table_info(usage_identities)'):
+    print(row)
+print('rows')
+for row in cur.execute('select id, name, provider, primary_window_used_percent, secondary_window_used_percent, plan_type, limit_reached from usage_identities order by provider, name'):
+    print(row)
+conn.close()
+'@ | python -" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Name .cli-proxy-api | Sort-Object' in Z:\claude-sota-installed
+ succeeded in 338ms:
+antigravity-739955940fc@gmail.com.json
+claude-739955940fc@gmail.com.json
+claude-aesthetic9c@gmail.com.json
+claude-avantmanifest@gmail.com.json
+claude-dreamweaverhoudini@gmail.com.json
+claude-mr.euphoriaincarnate@gmail.com.json
+claude-nalawowac@gmail.com.json
+claude-zfan7@sva.edu.json
+codex-zfan7@sva.edu-pro.json
+config.example.yaml
+config.yaml
+gemini-739955940fc@gmail.com-gen-lang-client-0557279342.json
+LICENSE
+logs
+static
+
+ succeeded in 366ms:
+exists True
+columns
+(0, 'id', 'INTEGER', 0, None, 1)
+(1, 'name', 'TEXT', 0, None, 0)
+(2, 'auth_type', 'INTEGER', 0, None, 0)
+(3, 'auth_type_name', 'TEXT', 0, None, 0)
+(4, 'identity', 'TEXT', 0, None, 0)
+(5, 'type', 'TEXT', 0, None, 0)
+(6, 'provider', 'TEXT', 0, None, 0)
+(7, 'lookup_key', 'TEXT', 0, None, 0)
+(8, 'prefix', 'TEXT', 0, None, 0)
+(9, 'account_id', 'TEXT', 0, None, 0)
+(10, 'active_start', 'datetime', 0, None, 0)
+(11, 'active_until', 'datetime', 0, None, 0)
+(12, 'plan_type', 'TEXT', 0, None, 0)
+(13, 'limit_reached', 'numeric', 0, None, 0)
+(14, 'primary_window_used_percent', 'INTEGER', 0, None, 0)
+(15, 'primary_window_limit_seconds', 'INTEGER', 0, None, 0)
+(16, 'primary_window_reset_seconds', 'INTEGER', 0, None, 0)
+(17, 'primary_window_reset_at', 'datetime', 0, None, 0)
+(18, 'secondary_window_used_percent', 'INTEGER', 0, None, 0)
+(19, 'secondary_window_limit_seconds', 'INTEGER', 0, None, 0)
+(20, 'secondary_window_reset_seconds', 'INTEGER', 0, None, 0)
+(21, 'secondary_window_reset_at', 'datetime', 0, None, 0)
+(22, 'total_requests', 'INTEGER', 0, None, 0)
+(23, 'success_count', 'INTEGER', 0, None, 0)
+(24, 'failure_count', 'INTEGER', 0, None, 0)
+(25, 'input_tokens', 'INTEGER', 0, None, 0)
+(26, 'output_tokens', 'INTEGER', 0, None, 0)
+(27, 'reasoning_tokens', 'INTEGER', 0, None, 0)
+(28, 'cached_tokens', 'INTEGER', 0, None, 0)
+(29, 'total_tokens', 'INTEGER', 0, None, 0)
+(30, 'last_aggregated_usage_event_id', 'INTEGER', 0, None, 0)
+(31, 'first_used_at', 'datetime', 0, None, 0)
+(32, 'last_used_at', 'datetime', 0, None, 0)
+(33, 'stats_updated_at', 'datetime', 0, None, 0)
+(34, 'is_deleted', 'numeric', 0, None, 0)
+(35, 'created_at', 'datetime', 0, None, 0)
+(36, 'updated_at', 'datetime', 0, None, 0)
+(37, 'deleted_at', 'datetime', 0, None, 0)
+rows
+(1, '739955940fc@gmail.com', 'antigravity', None, None, None, None)
+(2, '739955940fc@gmail.com', 'claude', None, None, None, None)
+(3, 'aesthetic9c@gmail.com', 'claude', None, None, None, None)
+(4, 'avantmanifest@gmail.com', 'claude', None, None, None, None)
+(5, 'dreamweaverhoudini@gmail.com', 'claude', None, None, None, None)
+(6, 'mr.euphoriaincarnate@gmail.com', 'claude', None, None, None, None)
+(7, 'nalawowac@gmail.com', 'claude', None, None, None, None)
+(8, 'zfan7@sva.edu', 'claude', None, None, None, None)
+(9, 'zfan7@sva.edu', 'codex', None, None, 'pro', None)
+(10, '739955940fc@gmail.com', 'gemini-cli', None, None, None, None)
+
+**Considering code inspection**
+
+I need to inspect code lines to find certain references. It might help to line number the file, but I'm wondering if I should use `nl`. PowerShell doesn't have `nl`, so I think about using `$i=1; Get-Content | ForEach-Object...` for line references. It's possible that the final JSON won't require file links, but it’s important to include line numbers for findings. I definitely need to know the exact lines!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content tools/aperant_rate_limit_poller.py | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in Z:\claude-sota-installed
+ succeeded in 356ms:
+   1: """Ship 1W — Aperant-derived rate-limit poller for cpa-usage-keeper.
+   2: 
+   3: Polls Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage every 60s
+   4: (default). UPDATEs cpa-usage-keeper SQLite with rate-limit data so CLIProxyAPI
+   5: selector can do PROACTIVE rotation BEFORE 429.
+   6: 
+   7: Cite (TIER-1 SOTA chain):
+   8: - Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+   9:   (endpoint reference; Aperant's documented Codex schema MATCHES live;
+  10:    Aperant's documented Anthropic schema OUTDATED — Wave 90 verified
+  11:    live schema is five_hour/seven_day/extra_usage)
+  12: - https://api.anthropic.com/api/oauth/usage (live; verified Wave 90)
+  13: - https://chatgpt.com/backend-api/wham/usage (live; matches Aperant doc)
+  14: 
+  15: Wave 91 Ship 1W satisfies:
+  16: - CR-1: TIER-1 cite chain
+  17: - CR-3: cross-model gate via codex T1 e2e BEFORE commit
+  18: - CR-7: graduated-unleash Phase 3 ACTIVE (Wave 89 Ship 1Y unleash)
+  19: - CR-9: install-risk MEDIUM (read-only API calls + SQLite UPDATE only;
+  20:         reversible via stop-script + git revert)
+  21: """
+  22: 
+  23: from __future__ import annotations
+  24: 
+  25: import argparse
+  26: import json
+  27: import logging
+  28: import sqlite3
+  29: import sys
+  30: import time
+  31: import urllib.error
+  32: import urllib.request
+  33: from dataclasses import dataclass, field
+  34: from datetime import datetime, timezone
+  35: from pathlib import Path
+  36: from typing import Optional
+  37: 
+  38: LOGGER = logging.getLogger("aperant_poller")
+  39: 
+  40: # Default paths (override via env or config flags)
+  41: DEFAULT_OAUTH_DIR = Path("Z:/claude-sota-installed/.cli-proxy-api")
+  42: DEFAULT_CPA_DB = Path(
+  43:     "Z:/claude-sota-installed/.local/cpa-usage-keeper/"
+  44:     "cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db"
+  45: )
+  46: DEFAULT_JSONL = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.jsonl")
+  47: DEFAULT_PID_FILE = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.pid")
+  48: 
+  49: # OAuth refresh client IDs (TIER-1 cite Aperant CODEX_RATE_LIMITS_RESEARCH.md
+  50: # §1.4 + §3.1)
+  51: ANTHROPIC_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+  52: CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+  53: 
+  54: ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+  55: ANTHROPIC_TOKEN_URL = "https://console.anthropic.com/v1/oauth/token"
+  56: CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+  57: CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token"
+  58: 
+  59: ANTHROPIC_BETA_HEADER = "oauth-2025-04-20"
+  60: 
+  61: 
+  62: @dataclass
+  63: class PollResult:
+  64:     account: str
+  65:     provider: str
+  66:     status: str  # ok / 401 / 403 / 429 / 5xx / error
+  67:     primary_used_percent: Optional[float] = None
+  68:     primary_reset_at: Optional[str] = None
+  69:     primary_limit_seconds: Optional[int] = None
+  70:     secondary_used_percent: Optional[float] = None
+  71:     secondary_reset_at: Optional[str] = None
+  72:     secondary_limit_seconds: Optional[int] = None
+  73:     plan_type: Optional[str] = None
+  74:     limit_reached: Optional[bool] = None
+  75:     extra_usage_paid_pct: Optional[float] = None
+  76:     raw: dict = field(default_factory=dict)
+  77:     error: Optional[str] = None
+  78: 
+  79: 
+  80: def http_get_json(url: str, headers: dict, timeout: int = 15) -> tuple[int, dict | str]:
+  81:     req = urllib.request.Request(url, headers=headers)
+  82:     try:
+  83:         resp = urllib.request.urlopen(req, timeout=timeout)
+  84:         body = resp.read().decode("utf-8", errors="replace")
+  85:         try:
+  86:             return resp.status, json.loads(body)
+  87:         except json.JSONDecodeError:
+  88:             return resp.status, body
+  89:     except urllib.error.HTTPError as e:
+  90:         try:
+  91:             body = e.read().decode("utf-8", errors="replace")
+  92:         except Exception:
+  93:             body = ""
+  94:         return e.code, body
+  95:     except Exception as e:
+  96:         return 0, str(e)
+  97: 
+  98: 
+  99: def poll_anthropic(oauth_file: Path) -> PollResult:
+ 100:     email = oauth_file.name.replace("claude-", "").replace(".json", "")
+ 101:     try:
+ 102:         d = json.loads(oauth_file.read_text())
+ 103:     except Exception as e:
+ 104:         return PollResult(
+ 105:             account=email, provider="claude", status="error", error="parse_oauth: " + str(e)[:80]
+ 106:         )
+ 107:     token = d.get("access_token")
+ 108:     if not token:
+ 109:         return PollResult(account=email, provider="claude", status="error", error="no_access_token")
+ 110:     headers = {
+ 111:         "Authorization": "Bearer " + token,
+ 112:         "anthropic-beta": ANTHROPIC_BETA_HEADER,
+ 113:         "Content-Type": "application/json",
+ 114:     }
+ 115:     code, body = http_get_json(ANTHROPIC_USAGE_URL, headers)
+ 116:     if code == 401:
+ 117:         return PollResult(account=email, provider="claude", status="401", error="needs_refresh")
+ 118:     if code == 403:
+ 119:         return PollResult(account=email, provider="claude", status="403", error="needs_reauth")
+ 120:     if code != 200 or not isinstance(body, dict):
+ 121:         return PollResult(
+ 122:             account=email, provider="claude", status=str(code or "error"),
+ 123:             error=str(body)[:120] if body else "unknown",
+ 124:         )
+ 125:     five = body.get("five_hour") or {}
+ 126:     seven = body.get("seven_day") or {}
+ 127:     extra = body.get("extra_usage") or {}
+ 128:     return PollResult(
+ 129:         account=email,
+ 130:         provider="claude",
+ 131:         status="ok",
+ 132:         primary_used_percent=five.get("utilization"),
+ 133:         primary_reset_at=five.get("resets_at"),
+ 134:         primary_limit_seconds=18000,  # 5h fixed window
+ 135:         secondary_used_percent=seven.get("utilization"),
+ 136:         secondary_reset_at=seven.get("resets_at"),
+ 137:         secondary_limit_seconds=604800,  # 7d fixed window
+ 138:         plan_type=None,  # Anthropic doesn't expose plan_type at this endpoint
+ 139:         limit_reached=(five.get("utilization") or 0) >= 100 or (seven.get("utilization") or 0) >= 100,
+ 140:         extra_usage_paid_pct=extra.get("utilization") if extra.get("is_enabled") else None,
+ 141:         raw=body,
+ 142:     )
+ 143: 
+ 144: 
+ 145: def poll_codex(oauth_file: Path) -> PollResult:
+ 146:     label = "zfan7@sva.edu (Codex Pro)"
+ 147:     try:
+ 148:         d = json.loads(oauth_file.read_text())
+ 149:     except Exception as e:
+ 150:         return PollResult(
+ 151:             account=label, provider="codex", status="error", error="parse_oauth: " + str(e)[:80]
+ 152:         )
+ 153:     tokens = d.get("tokens", {})
+ 154:     token = tokens.get("access_token") or d.get("access_token")
+ 155:     account_id = tokens.get("account_id") or d.get("account_id", "")
+ 156:     if not token:
+ 157:         return PollResult(account=label, provider="codex", status="error", error="no_access_token")
+ 158:     headers = {
+ 159:         "Authorization": "Bearer " + token,
+ 160:         "Content-Type": "application/json",
+ 161:         "Accept": "application/json",
+ 162:     }
+ 163:     if account_id:
+ 164:         headers["ChatGPT-Account-Id"] = account_id
+ 165:     code, body = http_get_json(CODEX_USAGE_URL, headers)
+ 166:     if code == 401:
+ 167:         return PollResult(account=label, provider="codex", status="401", error="needs_refresh")
+ 168:     if code == 403:
+ 169:         return PollResult(account=label, provider="codex", status="403", error="needs_reauth")
+ 170:     if code != 200 or not isinstance(body, dict):
+ 171:         return PollResult(
+ 172:             account=label, provider="codex", status=str(code or "error"),
+ 173:             error=str(body)[:120] if body else "unknown",
+ 174:         )
+ 175:     rl = body.get("rate_limit", {}) or {}
+ 176:     primary = rl.get("primary_window", {}) or {}
+ 177:     secondary = rl.get("secondary_window", {}) or {}
+ 178:     return PollResult(
+ 179:         account=label,
+ 180:         provider="codex",
+ 181:         status="ok",
+ 182:         primary_used_percent=primary.get("used_percent"),
+ 183:         primary_reset_at=str(primary.get("reset_at")) if primary.get("reset_at") else None,
+ 184:         primary_limit_seconds=primary.get("limit_window_seconds"),
+ 185:         secondary_used_percent=secondary.get("used_percent"),
+ 186:         secondary_reset_at=str(secondary.get("reset_at")) if secondary.get("reset_at") else None,
+ 187:         secondary_limit_seconds=secondary.get("limit_window_seconds"),
+ 188:         plan_type=body.get("plan_type"),
+ 189:         limit_reached=rl.get("limit_reached"),
+ 190:         raw=body,
+ 191:     )
+ 192: 
+ 193: 
+ 194: def update_cpa_sqlite(db_path: Path, results: list[PollResult], dry_run: bool = False) -> dict:
+ 195:     if not db_path.exists():
+ 196:         return {"error": "db_missing", "path": str(db_path)}
+ 197:     stats = {"updated": 0, "skipped": 0, "errors": []}
+ 198:     if dry_run:
+ 199:         for r in results:
+ 200:             if r.status == "ok":
+ 201:                 stats["updated"] += 1
+ 202:             else:
+ 203:                 stats["skipped"] += 1
+ 204:         stats["dry_run"] = True
+ 205:         return stats
+ 206:     conn = sqlite3.connect(str(db_path))
+ 207:     try:
+ 208:         for r in results:
+ 209:             if r.status != "ok":
+ 210:                 stats["skipped"] += 1
+ 211:                 continue
+ 212:             email_key = r.account.split(" (")[0]
+ 213:             try:
+ 214:                 conn.execute(
+ 215:                     """
+ 216:                     UPDATE usage_identities SET
+ 217:                         primary_window_used_percent = ?,
+ 218:                         primary_window_limit_seconds = ?,
+ 219:                         primary_window_reset_at = ?,
+ 220:                         secondary_window_used_percent = ?,
+ 221:                         secondary_window_limit_seconds = ?,
+ 222:                         secondary_window_reset_at = ?,
+ 223:                         plan_type = ?,
+ 224:                         limit_reached = ?,
+ 225:                         stats_updated_at = ?
+ 226:                     WHERE name = ? AND provider = ?
+ 227:                     """,
+ 228:                     (
+ 229:                         int(r.primary_used_percent) if r.primary_used_percent is not None else None,
+ 230:                         r.primary_limit_seconds,
+ 231:                         r.primary_reset_at,
+ 232:                         int(r.secondary_used_percent) if r.secondary_used_percent is not None else None,
+ 233:                         r.secondary_limit_seconds,
+ 234:                         r.secondary_reset_at,
+ 235:                         r.plan_type,
+ 236:                         1 if r.limit_reached else 0 if r.limit_reached is not None else None,
+ 237:                         datetime.now(timezone.utc).isoformat(),
+ 238:                         email_key,
+ 239:                         r.provider,
+ 240:                     ),
+ 241:                 )
+ 242:                 stats["updated"] += 1
+ 243:             except Exception as e:
+ 244:                 stats["errors"].append({"account": r.account, "error": str(e)[:80]})
+ 245:         conn.commit()
+ 246:     finally:
+ 247:         conn.close()
+ 248:     return stats
+ 249: 
+ 250: 
+ 251: def append_jsonl(jsonl_path: Path, records: list[dict]) -> None:
+ 252:     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+ 253:     with jsonl_path.open("a", encoding="utf-8") as f:
+ 254:         for rec in records:
+ 255:             f.write(json.dumps(rec, default=str) + "\n")
+ 256: 
+ 257: 
+ 258: def poll_once(oauth_dir: Path, db: Path, jsonl: Path, dry_run: bool) -> dict:
+ 259:     results = []
+ 260:     for f in sorted(oauth_dir.glob("claude-*.json")):
+ 261:         results.append(poll_anthropic(f))
+ 262:     codex = oauth_dir / "codex-zfan7@sva.edu-pro.json"
+ 263:     if codex.exists():
+ 264:         results.append(poll_codex(codex))
+ 265: 
+ 266:     update_stats = update_cpa_sqlite(db, results, dry_run=dry_run)
+ 267:     now = datetime.now(timezone.utc).isoformat()
+ 268:     records = []
+ 269:     for r in results:
+ 270:         records.append({
+ 271:             "ts": now,
+ 272:             "account": r.account,
+ 273:             "provider": r.provider,
+ 274:             "status": r.status,
+ 275:             "primary_used_percent": r.primary_used_percent,
+ 276:             "primary_reset_at": r.primary_reset_at,
+ 277:             "secondary_used_percent": r.secondary_used_percent,
+ 278:             "secondary_reset_at": r.secondary_reset_at,
+ 279:             "plan_type": r.plan_type,
+ 280:             "limit_reached": r.limit_reached,
+ 281:             "extra_usage_paid_pct": r.extra_usage_paid_pct,
+ 282:             "error": r.error,
+ 283:         })
+ 284:     append_jsonl(jsonl, records)
+ 285:     summary = {
+ 286:         "ts": now,
+ 287:         "polled": len(results),
+ 288:         "ok": sum(1 for r in results if r.status == "ok"),
+ 289:         "errors": [r for r in records if r["status"] != "ok"],
+ 290:         "update_stats": update_stats,
+ 291:         "dry_run": dry_run,
+ 292:     }
+ 293:     return summary
+ 294: 
+ 295: 
+ 296: def main() -> int:
+ 297:     parser = argparse.ArgumentParser(description=__doc__)
+ 298:     parser.add_argument("--once", action="store_true", help="Run a single poll and exit")
+ 299:     parser.add_argument("--start", action="store_true", help="Run cron loop")
+ 300:     parser.add_argument("--stop", action="store_true", help="Send SIGTERM to running poller via PID file")
+ 301:     parser.add_argument("--dry-run", action="store_true", help="Read but do not UPDATE SQLite")
+ 302:     parser.add_argument("--interval-seconds", type=int, default=60, help="Cron interval (default 60s)")
+ 303:     parser.add_argument("--oauth-dir", type=Path, default=DEFAULT_OAUTH_DIR)
+ 304:     parser.add_argument("--db", type=Path, default=DEFAULT_CPA_DB)
+ 305:     parser.add_argument("--jsonl", type=Path, default=DEFAULT_JSONL)
+ 306:     parser.add_argument("--pid-file", type=Path, default=DEFAULT_PID_FILE)
+ 307:     args = parser.parse_args()
+ 308: 
+ 309:     logging.basicConfig(
+ 310:         level=logging.INFO,
+ 311:         format="%(asctime)s [%(levelname)s] %(message)s",
+ 312:     )
+ 313: 
+ 314:     if args.stop:
+ 315:         if args.pid_file.exists():
+ 316:             try:
+ 317:                 pid = int(args.pid_file.read_text().strip())
+ 318:                 import os
+ 319:                 import signal
+ 320:                 os.kill(pid, signal.SIGTERM)
+ 321:                 args.pid_file.unlink()
+ 322:                 LOGGER.info("Sent SIGTERM to PID %s", pid)
+ 323:                 return 0
+ 324:             except Exception as e:
+ 325:                 LOGGER.error("stop failed: %s", e)
+ 326:                 return 1
+ 327:         else:
+ 328:             LOGGER.warning("PID file missing; nothing to stop")
+ 329:             return 0
+ 330: 
+ 331:     if args.once:
+ 332:         summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+ 333:         print(json.dumps(summary, indent=2, default=str))
+ 334:         return 0
+ 335: 
+ 336:     if args.start:
+ 337:         args.pid_file.parent.mkdir(parents=True, exist_ok=True)
+ 338:         import os
+ 339:         args.pid_file.write_text(str(os.getpid()))
+ 340:         LOGGER.info(
+ 341:             "Aperant poller started; interval=%ds dry_run=%s",
+ 342:             args.interval_seconds, args.dry_run,
+ 343:         )
+ 344:         try:
+ 345:             while True:
+ 346:                 try:
+ 347:                     summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+ 348:                     LOGGER.info(
+ 349:                         "poll: ok=%d/%d updated=%d",
+ 350:                         summary["ok"], summary["polled"],
+ 351:                         summary["update_stats"].get("updated", 0),
+ 352:                     )
+ 353:                 except Exception as e:
+ 354:                     LOGGER.error("poll iteration failed: %s", e)
+ 355:                 time.sleep(max(15, args.interval_seconds))
+ 356:         except KeyboardInterrupt:
+ 357:             LOGGER.info("Interrupted; cleaning up PID file")
+ 358:         finally:
+ 359:             try:
+ 360:                 args.pid_file.unlink()
+ 361:             except FileNotFoundError:
+ 362:                 pass
+ 363:         return 0
+ 364: 
+ 365:     parser.print_help()
+ 366:     return 1
+ 367: 
+ 368: 
+ 369: if __name__ == "__main__":
+ 370:     sys.exit(main())
+
+**Assessing data handling**
+
+I need to review the axes carefully, considering potential defects. The `poll_anthropic` function parses values like five-hour, seven-day, and extra usage, which seems good. But it looks like utilization values may be floating between 0 and 1, yet the live schema states it should be 100 percent. If utilization is more than 1, it might imply over 100%. I should check the existing JSONL data from a dry run to confirm the values included without using up tokens.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Tail 20 .claude/state/aperant_poller.jsonl' in Z:\claude-sota-installed
+ succeeded in 309ms:
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "739955940fc@gmail.com", "provider": "claude", "status": "ok", "primary_used_percent": 4.0, "primary_reset_at": "2026-05-08T19:50:01.073031+00:00", "secondary_used_percent": 100.0, "secondary_reset_at": "2026-05-10T06:00:01.073065+00:00", "plan_type": null, "limit_reached": true, "extra_usage_paid_pct": null, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "aesthetic9c@gmail.com", "provider": "claude", "status": "ok", "primary_used_percent": 14.0, "primary_reset_at": "2026-05-08T19:10:00.222658+00:00", "secondary_used_percent": 18.0, "secondary_reset_at": "2026-05-13T19:00:00.222681+00:00", "plan_type": null, "limit_reached": false, "extra_usage_paid_pct": null, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "avantmanifest@gmail.com", "provider": "claude", "status": "ok", "primary_used_percent": 3.0, "primary_reset_at": "2026-05-08T18:50:00.402260+00:00", "secondary_used_percent": 89.0, "secondary_reset_at": "2026-05-12T06:00:00.402286+00:00", "plan_type": null, "limit_reached": false, "extra_usage_paid_pct": null, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "dreamweaverhoudini@gmail.com", "provider": "claude", "status": "ok", "primary_used_percent": 0.0, "primary_reset_at": null, "secondary_used_percent": 100.0, "secondary_reset_at": "2026-05-11T15:00:00.548083+00:00", "plan_type": null, "limit_reached": true, "extra_usage_paid_pct": null, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "mr.euphoriaincarnate@gmail.com", "provider": "claude", "status": "ok", "primary_used_percent": 29.0, "primary_reset_at": "2026-05-08T19:50:00.748795+00:00", "secondary_used_percent": 12.0, "secondary_reset_at": "2026-05-15T04:00:00.748821+00:00", "plan_type": null, "limit_reached": false, "extra_usage_paid_pct": 83.82727272727273, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "nalawowac@gmail.com", "provider": "claude", "status": "ok", "primary_used_percent": 0.0, "primary_reset_at": null, "secondary_used_percent": 5.0, "secondary_reset_at": "2026-05-13T03:00:00.393558+00:00", "plan_type": null, "limit_reached": false, "extra_usage_paid_pct": 65.64, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "zfan7@sva.edu", "provider": "claude", "status": "ok", "primary_used_percent": 0.0, "primary_reset_at": null, "secondary_used_percent": 96.0, "secondary_reset_at": "2026-05-09T03:00:00.841683+00:00", "plan_type": null, "limit_reached": false, "extra_usage_paid_pct": 100.0, "error": null}
+{"ts": "2026-05-08T17:46:09.983835+00:00", "account": "zfan7@sva.edu (Codex Pro)", "provider": "codex", "status": "ok", "primary_used_percent": 8, "primary_reset_at": "1778267829", "secondary_used_percent": 25, "secondary_reset_at": "1778539142", "plan_type": "pro", "limit_reached": false, "extra_usage_paid_pct": null, "error": null}
+
+**Evaluating datetime conversions**
+
+I'm considering the stored `primary_reset_at` as a Unix timestamp and wondering if it should convert to ISO datetime. It seems like the schema might expect this format. There's a chance this could be a defect, especially related to `primary_window_reset_at`. I think I'll need to inspect the usage of selectors and search for relevant columns in the code to clarify how these timestamps are being processed. It's essential to get this right!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"primary_window_reset_at|secondary_window_reset_at|primary_window_used_percent|limit_reached|stats_updated_at\" -S --glob '"'!tools/aperant_rate_limit_poller.py'"' ." in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "reset_at|limit_window_seconds|used_percent|rate_limit" -S Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md' in Z:\claude-sota-installed
+ succeeded in 268ms:
+.\docs\install-provenance.md:3708:- HAS schema for rate-limit data: `primary_window_used_percent`, `primary_window_limit_seconds`, `primary_window_reset_at`, `secondary_window_used_percent`, `secondary_window_limit_seconds`, `secondary_window_reset_at`, `plan_type`, `limit_reached`
+.\docs\install-provenance.md:3715:**Operational impact**: The 4-failed-of-6 calls on 739955940fc account today (66% failure rate) could have been avoided with proactive polling that detects `primary_window_used_percent > 80%` and rotates BEFORE 429.
+.\docs\install-provenance.md:3748:CLIProxyAPI cycle-aware-fill-first selector enhancement using rate-limit data populated by Ship 1W. Skip accounts where `primary_window_used_percent > 80%` threshold.
+
+ succeeded in 282ms:
+43:From `codex-rs/codex-backend-openapi-models/src/models/rate_limit_status_payload.rs`:
+48:  "rate_limit": {
+52:      "used_percent": 96,
+53:      "limit_window_seconds": 18000,
+55:      "reset_at": 1730947200
+58:      "used_percent": 70,
+59:      "limit_window_seconds": 604800,
+61:      "reset_at": 1730980800
+69:  "additional_rate_limits": [
+73:      "rate_limit": {
+77:          "used_percent": 70,
+78:          "limit_window_seconds": 3600,
+80:          "reset_at": 1730947200
+90:- `reset_at` = Unix timestamp (seconds). Convert to ms for our `sessionResetTimestamp`/`weeklyResetTimestamp`.
+109:SSE event type `codex.rate_limits` also carries this data inline in streaming responses.
+240:| `rate-limit-detector.ts:14` | `RATE_LIMIT_PATTERN` | Claude-specific: `"Limit reached · resets..."` | Add Codex-specific patterns |
+332:| **Session window** | ~5h | Configurable (`limit_window_seconds`) |
+333:| **Weekly window** | 7 days | Configurable (`limit_window_seconds`) |
+
+**Considering API usage**
+
+I should consider using the existing OAuth and calling the endpoint to inspect the shape, but I need to be really careful not to print the token! Running Python to call the endpoint and check the keys might work, as long as I avoid showing the token. I think I need the "credits" shape, though the user mentioned that the Codex schema matches the Aperant document. So, I can inspect Aperant for the relevant lines.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md | Select-Object -First 130' in Z:\claude-sota-installed
+ succeeded in 378ms:
+# Codex Rate Limit Monitoring — Full System Research
+
+> Temporary research file. Delete after implementation.
+
+## Table of Contents
+
+1. [Codex Usage API](#1-codex-usage-api)
+2. [Current System Architecture](#2-current-system-architecture)
+3. [Anthropic-Hardcoded Locations](#3-anthropic-hardcoded-locations)
+4. [Provider-Agnostic Parts (No Changes Needed)](#4-provider-agnostic-parts)
+5. [Implementation Plan](#5-implementation-plan)
+
+---
+
+## 1. Codex Usage API
+
+**Sources:** OpenAI Codex source code (`github.com/openai/codex`, Rust codebase), CodexBar macOS app (`github.com/steipete/CodexBar`), Context7 Codex developer docs.
+
+### 1.1 Active Polling Endpoint
+
+```
+GET https://chatgpt.com/backend-api/wham/usage
+```
+
+Fallback (when base URL doesn't contain `/backend-api`):
+```
+GET {base_url}/api/codex/usage
+```
+
+**Required Headers:**
+```http
+Authorization: Bearer <access_token>
+ChatGPT-Account-Id: <account_id>
+Content-Type: application/json
+Accept: application/json
+```
+
+- `access_token` — The OAuth access token from `auth.openai.com` (same token our `codex-oauth.ts` already obtains)
+- `account_id` — Account UUID from OAuth token data. Stored in `~/.codex/auth.json` under `tokens.account_id`. Optional per CodexBar ("when available") but may be required.
+
+### 1.2 Response Schema
+
+From `codex-rs/codex-backend-openapi-models/src/models/rate_limit_status_payload.rs`:
+
+```json
+{
+  "plan_type": "plus",
+  "rate_limit": {
+    "allowed": true,
+    "limit_reached": false,
+    "primary_window": {
+      "used_percent": 96,
+      "limit_window_seconds": 18000,
+      "reset_after_seconds": 673,
+      "reset_at": 1730947200
+    },
+    "secondary_window": {
+      "used_percent": 70,
+      "limit_window_seconds": 604800,
+      "reset_after_seconds": 43200,
+      "reset_at": 1730980800
+    }
+  },
+  "credits": {
+    "has_credits": false,
+    "unlimited": true,
+    "balance": null
+  },
+  "additional_rate_limits": [
+    {
+      "limit_name": "codex_other",
+      "metered_feature": "codex_other",
+      "rate_limit": {
+        "allowed": true,
+        "limit_reached": false,
+        "primary_window": {
+          "used_percent": 70,
+          "limit_window_seconds": 3600,
+          "reset_after_seconds": 1800,
+          "reset_at": 1730947200
+        }
+      }
+    }
+  ]
+}
+```
+
+- `primary_window` = 5h session (18000s). Maps to our `sessionPercent`.
+- `secondary_window` = Weekly (604800s = 7d). Maps to our `weeklyPercent`.
+- `reset_at` = Unix timestamp (seconds). Convert to ms for our `sessionResetTimestamp`/`weeklyResetTimestamp`.
+- `plan_type` values: `guest`, `free`, `go`, `plus`, `pro`, `free_workspace`, `team`, `business`, `education`, `quorum`, `k12`, `enterprise`, `edu`
+
+### 1.3 Passive Headers (From API Responses)
+
+Rate limit data is also returned in HTTP response headers on every `/v1/responses` call:
+
+```
+x-codex-primary-used-percent         → float (e.g., "25.0")
+x-codex-primary-window-minutes       → integer (e.g., "300" for 5h)
+x-codex-primary-reset-at             → unix timestamp seconds
+x-codex-secondary-used-percent       → float (weekly)
+x-codex-secondary-window-minutes     → integer
+x-codex-secondary-reset-at           → unix timestamp seconds
+x-codex-credits-has-credits          → "true" or "false"
+x-codex-credits-unlimited            → "true" or "false"
+x-codex-credits-balance              → decimal string e.g. "9.99"
+```
+
+SSE event type `codex.rate_limits` also carries this data inline in streaming responses.
+
+### 1.4 Token Details
+
+Our `codex-oauth.ts` already uses the correct flow:
+- **Client ID:** `app_EMoamEEZ73f0CkXaXp7hrann` (same as Codex CLI)
+- **Auth endpoint:** `https://auth.openai.com/oauth/authorize`
+- **Token endpoint:** `https://auth.openai.com/oauth/token`
+- **Scopes:** `openid profile email offline_access`
+- **Refresh:** `POST https://auth.openai.com/oauth/token` with `grant_type=refresh_token`
+
+**Missing:** `account_id` for the `ChatGPT-Account-Id` header. Options:
+1. Decode from the JWT access token
+2. Read from `~/.codex/auth.json` (`tokens.account_id`)
+3. Extract during OAuth token exchange (may be in response)
+4. Try without it first (optional per CodexBar docs)
+
+---
+
+## 2. Current System Architecture
+
+### 2.1 Two Parallel Account Systems
+
+**Reviewing potential issues**
+
+I'm noticing a few potential issues in my code, starting with whether http_get_json properly closes the response. It's not a huge problem, but I need to check it. For HTTP error handling, I'm wondering if I’ve categorized errors like 429 and 5xx correctly. It seems I've marked something 5xx, but I should focus on exact codes. Then, there's the cron loop and how it handles cleanup; I need to consider whether it properly manages SIGTERM.
+**Investigating process management on Windows**
+
+I'm digging into how process management works on Windows, specifically with os.kill and signal.SIGTERM. It looks like calling os.kill will terminate the process without any cleanup, which could be problematic. Also, if this process receives SIGTERM externally, the PID file won't get cleaned up. There's a concern about overwriting the PID without checking for an existing process, potentially leading to duplicates. I definitely need to address these issues to ensure better production readiness. Lastly, the sync file unlinks itself, so it may not handle graceful shutdowns properly.
+**Assessing PID file mechanics and DB updates**
+
+I’m questioning whether the PID file mechanics need adjustments. For the database update, it seems that increments are registered even when an UPDATE matches zero rows. I should utilize `cursor.rowcount` to identify when there are mismatches with the name or provider. Currently, it matches eight names, but in a production scenario, if an account is added, this could lead to a false success situation. It appears that I need to ensure the SQL accuracy.
+**Analyzing schema inconsistencies**
+
+I'm looking at the reset_seconds and secondary_window_reset_seconds, but there's no mention of reset_seconds in the axis statement. The SQL update should align with the usage_identities schema, and I'm noticing that there are rate-limit columns that currently show 0 out of 10 populated. It leaves me wondering if it's a defect since the docs don't mention reset_seconds, even though the table includes it.  
+
+Additionally, I need to clarify how the provider data affects population.
+**Clarifying population goals**
+
+I need to populate the cpa-usage-keeper SQLite usage_identities rate-limit columns, which currently show 0 out of 10 populated, by actively polling Anthropic and ChatGPT. Rows for Antigravity and Gemini won’t be populated, but it seems polling showed 8, which is okay. So, it might mean that the "0/10" includes two other providers without endpoints.
+
+Next, I want to return JSON responses that state either APPROVE or NEEDS-REVISION. Moreover, I need to analyze the reset_at epoch for Codex since the dry run shows it’s a valid epoch for May 8, 2026.
+**Considering data storage formats**
+
+I'm pondering whether the cpa usage keeper is the right place for this, since there’s no source noted. Storing an epoch in a datetime field seems potentially problematic too. From what I understand, Anthropic uses ISO format for storing their dates. I really want to ensure that I'm adhering to the appropriate standards for data consistency and compatibility in this situation, so I’ll need to verify the best approach moving forward.
+**Evaluating process termination on Windows**
+
+It seems that using `--stop` isn't a graceful way to terminate processes, as it just unlinks the PID and can interrupt SQLite operations. Although the risk of issues is low, it's better to use a sentinel stop file or a Windows control event instead. In production, a forced kill could leave journal or locking issues with SQLite. On Unix, the default behavior also terminates without cleanup unless a signal handler is set up, so I need to consider both environments carefully.
+**Considering error handling and token security**
+
+I realize that removing the PID in the caller isn’t graceful and could lead to abrupt process stops, so I'd mark it as a concern. For error handling, I've got 401 and 403 as good, while 429 and 5xx will just log or skip. If a 429 response includes usage in the body, it won't parse. There's a potential for token leakage through JSONL logging of errors, especially if the Authorization header is echoed. I should ensure that any logs redacted for tokens using a `redact()` function will maintain security without exposing sensitive information.
+**Deciding on approval verdict**
+
+It seems like I might not find anything significant. I need to check if the actual code uses a non-ASCII em dash in the docstring, but the developer mentioned that defaulting to ASCII during editing is not a big deal. Should I use `python3` instead of `python`? In my environment, `python` works without issues. Finally, I need to make sure the JSON reflects any findings, and I have to decide if we should approve with P2/P3 for non-blocking issues. Usually, I would say to approve in such cases.
+**Evaluating fix options**
+
+I see that there are a few fixes that could be done quickly. For example, I could PID/stop Windows for P2 axis 2. I’ll check the row count for P3/P2 axis 1/2, and if there's a mismatch, it could indicate a serious observability issue. The credits not parsed would relate to P3 axis 1, but since there are no DB columns, it shouldn't block anything. I’ll need to ensure everything is valid JSON and concise, focusing on clarity.
+**Considering forced kill during commit**
+
+I’m pondering the idea of a forced kill while SQLite is committing. It raises concerns about data integrity because interrupting a commit could lead to an incomplete or inconsistent state in the database. I need to think about the implications, like potential data loss or corruption. I wonder if there are best practices to handle such situations or if there are built-in mechanisms within SQLite to avoid issues during critical operations. It’s a bit nerve-wracking!
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.86,
+  "findings": [
+    {
+      "id": "F-1",
+      "severity": "P2",
+      "axis": 1,
+      "concern": "poll_codex stores reset_at as a stringified Unix epoch in *_reset_at datetime columns, while Anthropic stores ISO-8601 strings in the same columns. Aperant documents Codex reset_at as Unix seconds, so the poller should normalize it before SQLite writes.",
+      "prescribed_edit": "Convert Codex primary_window.reset_at and secondary_window.reset_at from Unix seconds to UTC ISO-8601 before assigning primary_reset_at/secondary_reset_at; optionally also persist reset_after_seconds into the existing *_reset_seconds columns."
+    },
+    {
+      "id": "F-2",
+      "severity": "P2",
+      "axis": 2,
+      "concern": "--stop uses os.kill(pid, signal.SIGTERM). On Windows this is not graceful termination; the running poller will not run its finally cleanup and can be killed during a SQLite write. The caller unlinks the PID file, but the target process does not shut down cooperatively.",
+      "prescribed_edit": "Use a stop sentinel file or another cooperative shutdown mechanism checked between poll iterations on Windows. If keeping SIGTERM for POSIX, install a handler that exits the loop cleanly."
+    },
+    {
+      "id": "F-3",
+      "severity": "P3",
+      "axis": 1,
+      "concern": "update_cpa_sqlite increments updated after every UPDATE execution without checking cursor.rowcount. A name/provider mismatch would be reported as updated even when zero rows changed.",
+      "prescribed_edit": "Capture the execute cursor and count updated only when rowcount == 1; treat rowcount == 0 as skipped or an error with account/provider included."
+    },
+    {
+      "id": "F-4",
+      "severity": "P3",
+      "axis": 1,
+      "concern": "poll_codex does not parse the credits object from the live Codex schema, despite the review requirement calling out primary_window/secondary_window/credits. This is non-blocking for current usage_identities columns because there are no credits columns.",
+      "prescribed_edit": "Add credits fields to PollResult and JSONL records, or explicitly document that credits are intentionally ignored because cpa-usage-keeper has no destination columns."
+    }
+  ],
+  "ship_disposition": "FIX-FORWARD-AND-PROCEED",
+  "rationale": "Anthropic live schema parsing is correct for five_hour, seven_day, and extra_usage; Codex window parsing is mostly correct; the SQL WHERE name/provider matches the current usage_identities rows; dry-run avoids SQLite writes; JSONL records do not include OAuth tokens or raw API bodies. The blocking risk is not the polling path itself, which already smokes cleanly, but normalization and operational hardening before leaving this as a Windows cron-style process."
+}
+tokens used
+24,857
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.86,
+  "findings": [
+    {
+      "id": "F-1",
+      "severity": "P2",
+      "axis": 1,
+      "concern": "poll_codex stores reset_at as a stringified Unix epoch in *_reset_at datetime columns, while Anthropic stores ISO-8601 strings in the same columns. Aperant documents Codex reset_at as Unix seconds, so the poller should normalize it before SQLite writes.",
+      "prescribed_edit": "Convert Codex primary_window.reset_at and secondary_window.reset_at from Unix seconds to UTC ISO-8601 before assigning primary_reset_at/secondary_reset_at; optionally also persist reset_after_seconds into the existing *_reset_seconds columns."
+    },
+    {
+      "id": "F-2",
+      "severity": "P2",
+      "axis": 2,
+      "concern": "--stop uses os.kill(pid, signal.SIGTERM). On Windows this is not graceful termination; the running poller will not run its finally cleanup and can be killed during a SQLite write. The caller unlinks the PID file, but the target process does not shut down cooperatively.",
+      "prescribed_edit": "Use a stop sentinel file or another cooperative shutdown mechanism checked between poll iterations on Windows. If keeping SIGTERM for POSIX, install a handler that exits the loop cleanly."
+    },
+    {
+      "id": "F-3",
+      "severity": "P3",
+      "axis": 1,
+      "concern": "update_cpa_sqlite increments updated after every UPDATE execution without checking cursor.rowcount. A name/provider mismatch would be reported as updated even when zero rows changed.",
+      "prescribed_edit": "Capture the execute cursor and count updated only when rowcount == 1; treat rowcount == 0 as skipped or an error with account/provider included."
+    },
+    {
+      "id": "F-4",
+      "severity": "P3",
+      "axis": 1,
+      "concern": "poll_codex does not parse the credits object from the live Codex schema, despite the review requirement calling out primary_window/secondary_window/credits. This is non-blocking for current usage_identities columns because there are no credits columns.",
+      "prescribed_edit": "Add credits fields to PollResult and JSONL records, or explicitly document that credits are intentionally ignored because cpa-usage-keeper has no destination columns."
+    }
+  ],
+  "ship_disposition": "FIX-FORWARD-AND-PROCEED",
+  "rationale": "Anthropic live schema parsing is correct for five_hour, seven_day, and extra_usage; Codex window parsing is mostly correct; the SQL WHERE name/provider matches the current usage_identities rows; dry-run avoids SQLite writes; JSONL records do not include OAuth tokens or raw API bodies. The blocking risk is not the polling path itself, which already smokes cleanly, but normalization and operational hardening before leaving this as a Windows cron-style process."
+}

@@ -1,0 +1,209 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 1a9d0a79160bf19bdd63ac95cbd17e45024811cb
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../00-replay-session-codification.md              | 174 +++++++++++++++++++++
+ 1 file changed, 174 insertions(+)
+
+=== git show --format=fuller ===
+commit 1a9d0a79160bf19bdd63ac95cbd17e45024811cb
+Author:     42 <42@local>
+AuthorDate: Mon May 11 11:53:05 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 11:53:05 2026 -0400
+
+    docs(research-architecture): Wave 145 Fire 12 — replay-session.py CLI consolidation codification (W145-F12) — closes W145-F5 GAP #3 completing 3-surface codification arc; CLI design DOC-ONLY; install deferred to W145-F12b operator-gated; 10th cumulative consecutive no-Path-P-dispatch codification
+    
+    /loop tick post-W145-F11 dynamic-mode re-invocation (cron `*/12 * * * *` id `84da0f2f`
+    parallel-armed). Stale cron prompt named W149-F2 as 🥇 forward — FM-20 path-drift
+    pivot detected (W149-F2 SHIPPED 2 fires ago at 637be41; W145-F11 SHIPPED last tick
+    at 6517bdc). Auto-pick = post-W145-F11 Forward Top-5 🥇 W145-F12 replay-session.py
+    CLI consolidation codification per sister W145-F10 + W145-F11 codification pattern.
+    
+    ## Mia probe — GENUINE GAP confirmed (n=302 → n=306, +4)
+    
+    - NO existing `replay-session.py` / `replay_session` / W145-F12 in docs/ or .claude/
+    - Sister W145-F10 dep_snapshot + W145-F11 test_command both cross-link this fire
+    - Phoenix container + cpa-usage-keeper + git + 14+ JSONL trails + tool-results dirs
+      all present — 5 input surfaces ready for consolidator CLI
+    
+    ## Codified CLI design (DOC-ONLY)
+    
+    CLI surface `tools/replay-session.py [--session-id <id>] [--from-timestamp <ISO>]
+    [--to-timestamp <ISO>] [--output <md|json|html|mermaid>] [--cross-correlate]
+    [--include-surfaces <list>] [--exclude-secrets]`. 5 input surfaces (Phoenix /
+    cpa-usage-keeper / git / JSONL audit trails / tool-results transcripts).
+    4 output formats. 5 cross-correlation algorithms:
+    1. dep_drift → test_failure (sister W145-F10 + W145-F11)
+    2. test_failure → commit_skip
+    3. commit → cost_delta
+    4. error_cluster_detection (failure_stack_sha256)
+    5. session_efficiency_score (commits/hour velocity)
+    
+    ## Install ship deferred to W145-F12b (CR-7 Phase 1 operator-gated)
+    
+    6 CR-9 install-risk considerations enumerated (5-surface query orchestration /
+    Phoenix client dep / secret-redaction / output-size management / backward-compat
+    / performance budget 30s).
+    
+    ## Replay workflow integration — TRIPLE-GAP CLOSURE
+    
+    | Sister | Surface | Gap closed |
+    |---|---|---|
+    | W145-F10 dep_snapshot | dependency state | GAP #1 |
+    | W145-F11 test_command | test execution | GAP #2 |
+    | W145-F12 replay-session.py | CONSOLIDATOR | GAP #3 |
+    
+    Post-W145-F12b install, autonomous-loop sessions become FULLY replay-able from
+    Phoenix + cpa-usage-keeper + git + JSONL + tool-results surfaces — closing entire
+    W145-F5 Agent provenance/replay schema scope.
+    
+    ## Cross-model gate disposition
+    
+    NO Path P dispatch fired (10th cumulative consecutive no-dispatch codification).
+    Per `cross-model-consensus.md §Verdict report shape`: codification + design ship
+    is META-CODIFICATION. Cross-model gate structurally N/A for this fire.
+    
+    ## Ladder advances
+    
+    | Ladder | Prior (post-W145-F11) | This fire |
+    |---|---|---|
+    | Mia pre-apply | n=302 | **n=306** (+4 gap-confirmation probes) |
+    | FM-20 path-drift cascade | n=18 | **n=19** (+1 W149-F2-AND-W145-F11-already-shipped pivot on 2-fires-stale cron) |
+    | Path P recipe | n=32 | n=32 (no dispatch — **10th cumulative consecutive** no-dispatch codification) |
+    | Forward Discipline #2 | n=9 | n=9 |
+    | Cross-model gate | 7× cumulative | 7× cumulative |
+    | Cumulative codification cost-savings | ~1620s + ~45K tokens + ~2850 LOC | **~1800s + ~50K tokens + ~3060 LOC** |
+    
+    ## REVISED Forward Top-5 (post-W145-F12)
+    
+    🥇 W146-F8 SOTA cleanliness re-audit (10-fire cadence MET; 3-agent fan-out per Wave 24-D)
+    🥈 W145-F13-NEW Manifest drift sweep PART-2 (~64 remaining PLANNED entries; DOC-ONLY low-risk)
+    🥉 W141 L3 Graphiti smoke probe (post operator-Docker-restart status sniff; LOW-risk)
+    OPERATOR-GATED: W145-F12b replay-CLI install / W145-F11b test-hook install / W145-F10b dep-snapshot install / W138-F4 governance trio / W141B Docker MCP Gateway / W145-F5b cwc wire-activation
+    
+    ## STEP 12 TRIGGER FIRED
+    
+    W145-F5-GAPs codification arc COMPLETE (GAP #1 dep_snapshot + GAP #2 test_command
+    + GAP #3 replay-session CLI all codified). Next-cron-fire pivots to W146-F8 OR
+    W145-F13 OR fresh ecosystem discovery sweep.
+    
+    ## Cite class
+    
+    constituents=[TIER-1-DIRECT @ OTel semconv + Phoenix API + mermaid + settings.json:34-42 + W145-F5/F10/F11 docs, TIER-2 @ sister-rule cite-imports, TIER-3-LOCAL-OPERATOR-DERIVED @ Mia gap-confirmation + CLI design + 2-fires-stale pivot]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8 MIN_PRECEDENCE.
+    
+    ## Cardinal rules conformance
+    
+    CR-1+5+7+8+9+10+11+12 + Mia pre-apply n=306 (+4 GAP-confirm) + FM-20 n=19 (+1 2-fires-stale-cron pivot) + FM-02 b+c atomic single-shell + git-cli-grammar (options BEFORE `--`) + Forward Discipline #2 (10th cumulative no-dispatch codification) + AUTO-PROCEED MEDIUM-risk doc-codification + port-note-discipline §6 forward-only (NOT amending W145-F10/F11 docs).
+    
+    Wave 145 Fire 12 SHIPPED CLEAN. fire-40-w145-replay-session-cli-codification/00-replay-session-codification.md.
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-40-w145-replay-session-cli-codification/00-replay-session-codification.md b/docs/sota-architecture-audit/fire-40-w145-replay-session-cli-codification/00-replay-session-codification.md
+new file mode 100644
+index 0000000..1c0f714
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-40-w145-replay-session-cli-codification/00-replay-session-codification.md
+@@ -0,0 +1,174 @@
++# Wave 145 Fire 12 — replay-session.py CLI consolidation codification (W145-F12)
++
++> **Verdict**: `DOC-ONLY-CODIFICATION` — design + CLI surface for future replay-session.py consolidator that aggregates Phoenix + cpa-usage-keeper + git + `.claude/state/*.jsonl` + `.claude/projects/.../tool-results/*` surfaces into single session-replay artifact. Closes W145-F5 Agent provenance/replay schema GAP #3 (no consolidator across capture surfaces). NO install — actual CLI implementation ship deferred to **W145-F12b** operator-gated install fire.
++> **Closed-loop disposition**: Outcome A ACCEPT-WITH-DOC — codification + wire-activation deferred per CR-7 Phase 1 + CR-9 install-risk
++
++## Fire 40 (W145-F12) /loop tick post-W145-F11 (dynamic + cron `*/12` parallel-armed)
++
++User re-invoked `/loop` dynamic-mode after W145-F11 `6517bdc` (test_command capture codification 210 LOC fire-39). Stale cron prompt named W149-F2 as 🥇 — FM-20 path-drift pivot detected (W149-F2 SHIPPED 2 fires ago at `637be41`; W145-F11 SHIPPED last tick). Auto-pick = post-W145-F11 Forward Top-5 🥇 **W145-F12 replay-session.py CLI consolidation codification** per sister W145-F10 + W145-F11 codification pattern.
++
++## Mia probe — confirms GENUINE GAP (n=302 → n=306, +4)
++
++| Probe | Command | Result |
++|---|---|---|
++| Existing replay-session CLI | `rg -l "replay-session\|replay_session\|W145-F12" docs/ .claude/` | ❌ NO existing CLI tool or doc |
++| Sister W145-F10 dep_snapshot | `Read docs/sota-architecture-audit/fire-37-.../00-dep-lock-codification.md` | ✅ Sister pattern read (170 LOC; cross-link W145-F12 named) |
++| Sister W145-F11 test_command | `Read docs/sota-architecture-audit/fire-39-.../00-test-command-codification.md` | ✅ Sister pattern read (210 LOC; cross-link W145-F12 replay workflow named) |
++| Phoenix query API | `.claude/settings.json:34-42` OTEL_TRACES_EXPORTER wire | ✅ Phoenix container running with OTLP gRPC :14317 |
++| cpa-usage-keeper CLI | `which cpa-usage-keeper` / `ls .local/bin/cpa-usage-keeper*` | ✅ INSTALLED-VIA-SYSTEM-PATH per manifest §10 |
++| `.claude/state/*.jsonl` audi
+
+[prompt truncated]

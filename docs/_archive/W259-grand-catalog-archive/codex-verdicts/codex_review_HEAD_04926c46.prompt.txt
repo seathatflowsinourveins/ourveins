@@ -1,0 +1,119 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 04926c46441b4bc7688df9e42c6627e5241dfa32</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/settings.json | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 04926c46441b4bc7688df9e42c6627e5241dfa32
+Author:     42 <42@local>
+AuthorDate: Tue May 12 18:05:29 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 18:05:29 2026 -0400
+
+    feat(hooks): SB11 — re-enable fm17d_stall_detector after Wave 83b schema-fix
+    
+    Wave 158 PRIORITY-B Ship SB11 per /goal v5 paste-ready predicate. Closes the
+    fm17d_stall_detector.py DISABLED-since-Wave-76 state by removing
+    FM17_STALL_DETECTOR_DISABLE=1 env flag from .claude/settings.json env block.
+    
+    Background:
+      Wave 76 (2026-05-08) disabled fm17d_stall_detector.py via env flag after the
+      hook produced 100% schema-rot observations (172/172 schema_missing across 2
+      sessions; 0 useful classifications). Original parser expected stop_reason +
+      tool_uses fields at TOP-LEVEL of SubagentStop input; CC v2.1.119 / v2.1.132
+      did NOT emit those top-level.
+    
+      Wave 83b (2026-05-08, commit 9227e78) FIXED the parser to match TIER-1-DIRECT
+      SDK contract: Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:309-316
+      @ HEAD b512f256 SubagentStopHookInput exposes only:
+        {hook_event_name, stop_hook_active, agent_id, agent_transcript_path, agent_type}
+    
+      Wave 83b parser now mines agent_transcript_path JSONL per
+      .claude/rules/synthesis-layer-verify.md §SubagentStop transcript-mining with:
+        - F-001 EDGE_CASES status discrimination (parse_empty / parse_failed)
+        - F-002 CORRECTNESS assistant-only extraction (rec.type=='assistant' OR msg.role=='assistant')
+        - F-003 SECURITY guards (.jsonl suffix + transcript-like path + 50MB cap)
+        - F-004 stream open() with errors='replace' for memory-pressure mitigation
+        - F-005 OSError/ValueError catching
+    
+    Cross-model gate satisfaction (CR-3 Phase 1 bootstrap exception):
+      Path P codex T1 dispatch via foreground+tee:
+        timeout 300 codex exec --skip-git-repo-check --color never \
+          < .claude/state/codex_consult_w158_sb11_fm17d_reenable.txt 2>&1 \
+          | tee .claude/state/codex_consult_w158_sb11_fm17d_reenable_OUT.txt
+    
+      Verdict: NEEDS-REVISION conf=0.9 with 2 prescribed_edits.
+      Disposition: Pattern A single atomic apply per codex-t1-fix-forward-pattern.md §Pattern A.
+    
+    Mia pre-apply ladder: n=421 → n=422 firm.
+      Catch: codex T1 surfaced OVER on my prompt's observability-path claim
+      (.claude/state/fm17d_stall_detector.jsonl vs actual .claude/state/observations.jsonl
+      via _observation_writer.append_observation). Active comment corrected.
+    
+    Pattern A prescribed_edits applied:
+      Edit #1: remove "FM17_STALL_DETECTOR_DISABLE": "1", from .claude/settings.json env (line 9)
+      Edit #2: replace stale _comment_fm17d_disabled with active _comment_fm17d_active
+               citing Wave 83b fix (commit 9227e78) + SDK contract (types.py:309-316 @ b512f256)
+               + Wave 158 SB11 this commit + correct observability path
+    
+    D1 pre-deploy 6-axis (launch-discipline.md):
+      - Code quality: ✅ minimal change; Wave 83b T1 already verified parser
+      - Security: ✅ hook fires on PostToolUse SubagentStop only; ADVISORY mode exit 0
+      - Performance: ✅ per-event JSONL append minimal overhead
+      - Infrastructure: ✅ ADVISORY mode never blocks subagent termination
+      - Communication: ✅ provenance in commit body + active comment cite-trail
+      - OS-State-Mutation 7th axis: N/A (internal env flag, not OS-level mutation)
+      - Reversibility: ✅ git revert flips back instantly
+      - Observability: ✅ writes to .claude/state/observations.jsonl on first event
+    
+    Effect:
+      M .claude/settings.json (-1 env key, +1 comment-rename; 50 env keys total)
+      No .py changes (script unchanged from Wave 83b 9227e78)
+      Hook becomes active on next SubagentStop event
+    
+    Cite class:
+    constituents=[
+      TIER-1-DIRECT @ Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:309-316 @ HEAD b512f256,
+      TIER-2 @ .claude/rules/synthesis-layer-verify.md §SubagentStop transcript-mining,
+      TIER-2 @ .claude/rules/fm17-subagent-fleet-depletion.md FM-17.d,
+      TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 83b commit 9227e78 fix-forward,
+      TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 158 SB11 codex T1 verdict NEEDS-REVISION conf=0.9 at .claude/state/codex_consult_w158_sb11_fm17d_reenable_OUT.txt,
+      TIER-3-LOCAL-COMPOSITION @ Wave 158 SB11 Pattern A apply this commit
+    ];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per
+    .claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+    
+    Per .claude/rules/git-cli-grammar-discipline.md: options BEFORE pathspec via
+    -F flag + -- separator; narrow --only single-file commit (FM-02 (b)+(c) defense).
+    
+    Per .claude/rules/launch-discipline.md D1 pre-deploy 6-axis checklist + D2
+    monitoring window: ADVISORY hook re-enable is reversible (git revert),
+    observable (.claude/state/observations.jsonl on first SubagentStop event),
+    incremental (single env flag flip; staged-rollout N/A for binary on/off
+    local-dev hook).
+    
+    Ship SB11 of Wave 158 PRIORITY-B per /goal v5 (Wave 158, iter 2).
+    Cumulative Wave 158: SA-T3-close (4c3a6b5) + SB11 (this commit) = 2 ships.
+    Next-ship candidate: SB9 ECC 14 DISABLED hooks audit per CR-12 lattice
+    (LOW-risk pure docs append) OR SB1 settings.json 58k→<40k (HIGH-risk;
+    requires health-probe Layer A-K BEFORE+AFTER per Agent F archaeology).
+
+=== diff ===
+diff --git a/.claude/settings.json b/.claude/settings.json
+index ecc64cf..8410cbc 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -6,8 +6,7 @@
+     "_comment_disable_autoupdater_removed": "DISABLE_AUTOUPDATER=1 REMOVED Wave 62 2026-05-07 per user-trigger directive 'eee must be all sota, auto update with all offical sota native install methods'. Original Wave 53 pin (codex T1 b58s3u956 stable=119/latest=132 heuristic) was self-inventing against Anthropic's actual release cadence — CHANGELOG defines no 'stable channel'. Removal lets Anthropic in-place self-update flow per https://code.claude.com/docs/en/install. minimumVersion floor preserved as forward-only quality gate; updates above floor proceed automatically.",
+     "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+     "CLAUDE_CODE_FORK_SUBAGENT": "1",
+-    "FM17_STALL_DETECTOR_DISABLE": "1",
+-    "_comment_fm17d_disabled": "Wave 76 2026-05-08 — fm17d_stall_detector.py was writing 100% schema-rot observations (172 entries / 172 schema_missing across two sessions, 0 useful classifications). Hook honors FM17_STALL_DETECTOR_DISABLE=1 per its own _DISABLE_ENV constant at line 58. Re-enable after fixing the SubagentStop input-schema parsing (script expects stop_reason / tool_uses fields that CC v2.1.119 / 2.1.132 don't emit at the top level).",
++    "_comment_fm17d_active": "Wave 158 SB11 2026-05-12 — re-enable fm17d_stall_detector.py after Wave 83b fix commit 9227e78 aligned SubagentStop parsing with SDK contract: Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:309-316 @ HEAD b512f256 exposes only hook_event_name / stop_hook_active / agent_id / agent_transcript_path / agent_type. Detector now mines agent_transcript_path JSONL with suffix/transcript-path/50MB guards, assistant-only extraction, parse-status discrimination, and ADVISORY exit-0 behavior. Observability writes via _observation_writer.append_observation to .claude/state/observations.jsonl (NOT a per-script JSONL). Cite: .claude/hooks/scripts/fm17d_stall_detector.py Wave 83b transcript-mining block + Wave 158 SB11 this commit. T1 codex verdict at .claude/state/codex_consult_w158_sb11_fm17d_reenable_OUT.txt NEEDS-REVISION conf=0.9 Pattern A applied (2 prescribed_edits).",
+     "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force,pre:write:doc-file-warning,post:edit:design-quality-check,post:edit:console-warn,stop:format-typecheck,stop:check-console-log,pre:observe:continuous-learning,post:observe:continuous-learning,pre:edit-write:suggest-compact,post:session-activity-tracker,stop:evaluate-session,stop:cost-tracker,stop:desktop-notify",
+     "PYTHON_BIN": "Z:/venvs/claude/Scripts/python.exe",
+     "_comment_python_bin": "Wave 78 2026-05-08 — per real-GPT-5.5 codex T1 deep-review-exec verdict NEEDS-REVISION conf=0.78 finding F4 at .claude/state/codex_consult_wave77_full_audit_OUT.txt: cwc track-read.sh + verify-gate.sh call `python` (no full path). Git Bash on Windows may not resolve `python` — scripts then silent-no-op. Adding explicit PYTHON_BIN env that the .sh scripts can prefer via `${PYTHON_BIN:-python}` fallback. Cite: TIER-3-LOCAL-CODEX-T1-VERDICT (real GPT-5.5 BRIDGE-MODE; cross-model gate satisfied per cardinal-rule-3 Phase 1 bootstrap exception).",</repository_context>

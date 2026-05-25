@@ -1,0 +1,128 @@
+name: Claude Model Check
+
+# W343-P2.E — detect deprecated Claude model strings in code.
+# Cite-anchor: anthropics/claude-cookbooks/.github/workflows/claude-model-check.yml @ 39a350b6
+# Purpose: surface any reference to retired Claude model IDs (3.x family) so they
+# can be migrated to current models (Sonnet 4.6 / Haiku 4.5 / Opus 4.7) before
+# upstream API deprecation breaks the runtime.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly Sunday 02:00 UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect-deprecated-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        # actions/checkout@v6.0.2 (W432-CI-STALE-BUMP; was v4.2.2, 577 days stale)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Scan for deprecated Claude model IDs
+        id: scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Deprecated 3.x family model IDs (Anthropic retirement schedule)
+          # Codex r1 P2 #4 fix: only retired models per Anthropic deprecation
+          # schedule. claude-3-haiku-20240307 + claude-3-5-haiku-20241022 +
+          # claude-3-5-sonnet-20241022 remain ACTIVE per current docs;
+          # claude-3-7-sonnet-20250219 is retired and was missing — added.
+          # Cite: https://platform.claude.com/docs/en/about-claude/model-deprecations
+          DEPRECATED_PATTERNS=(
+            'claude-3-opus-20240229'
+            'claude-3-sonnet-20240229'
+            'claude-3-5-sonnet-20240620'
+            'claude-3-7-sonnet-20250219'
+            'claude-2\\.[01]'
+            'claude-instant'
+          )
+          # Search scope: source + docs + workflows, EXCLUDE archived material
+          # and plugin cache (upstream-managed, not our concern).
+          # Codex r1 P2 #2 fix: EXCLUDE this workflow file itself (it contains
+          # the deprecated patterns as the detection list — would self-fail).
+          SEARCH_PATHS=(
+            'tools/'
+            'harness/'
+            '.claude/skills/'
+            '.claude/agents/'
+            '.claude/commands/'
+            '.github/workflows/'
+            'docs/'
+            'CLAUDE.md'
+            'package.json'
+          )
+          EXCLUDE_GLOBS=(
+            # Codex r2 P2 closure: nested archive paths (_archive/W259-grand-catalog-archive/,
+            # any */00-archive-*/, etc.) — broaden archive globs to catch deeper paths.
+            # W427 fix 2026-05-24: docs/_archive/ (singular, no trailing 'd') was missing —
+            # 51 false-positive violations in archived codex consult transcripts were blocking
+            # every PR. Both _archive and _archived now excluded; archived material is
+            # historical evidence, not active code per cardinal-rule-1 trust-tuple scope.
+            '--glob=!**/_archive/**'
+            '--glob=!**/_archived/**'
+            '--glob=!**/archive/**'
+            '--glob=!**/archive-*/**'
+            '--glob=!**/00-archive*/**'
+            '--glob=!**/00-archive-from-prior-waves/**'
+            '--glob=!**/historical/**'
+            '--glob=!**/legacy/**'
+            '--glob=!.claude/plugins/cache/**'
+            '--glob=!.claude/plugins/marketplaces/**'
+            '--glob=!tmp/**'
+            '--glob=!node_modules/**'
+            '--glob=!.github/workflows/claude-model-check.yml'
+          )
+          VIOLATIONS=0
+          : > /tmp/violations.txt
+          for pattern in "${DEPRECATED_PATTERNS[@]}"; do
+            # shellcheck disable=SC2068
+            HITS=$(rg --json --no-heading "${EXCLUDE_GLOBS[@]}" "$pattern" ${SEARCH_PATHS[@]} 2>/dev/null || true)
+            if [ -n "$HITS" ]; then
+              COUNT=$(echo "$HITS" | grep -c '"type":"match"' || true)
+              VIOLATIONS=$((VIOLATIONS + COUNT))
+              echo "## Pattern: $pattern ($COUNT hits)" >> /tmp/violations.txt
+              # shellcheck disable=SC2068
+              rg --no-heading -n "${EXCLUDE_GLOBS[@]}" "$pattern" ${SEARCH_PATHS[@]} >> /tmp/violations.txt 2>/dev/null || true
+              echo "" >> /tmp/violations.txt
+            fi
+          done
+          echo "violations=$VIOLATIONS" >> "$GITHUB_OUTPUT"
+
+      - name: Step Summary + Fail-on-violation
+        shell: bash
+        run: |
+          V="${{ steps.scan.outputs.violations }}"
+          {
+            echo "# Claude Model Check"
+            echo ""
+            if [ "$V" = "0" ]; then
+              echo "✅ PASS — 0 deprecated Claude model IDs found."
+            else
+              echo "❌ FAIL — $V deprecated Claude model ID references found:"
+              echo ""
+              echo '```'
+              cat /tmp/violations.txt
+              echo '```'
+              echo ""
+              echo "Migrate to current model IDs (Sonnet 4.6 / Haiku 4.5 / Opus 4.7) per CLAUDE.md."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$V" != "0" ]; then
+            exit 1
+          fi

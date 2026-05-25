@@ -1,0 +1,57 @@
+name: stale (issue + PR aging)
+on:
+  schedule:
+    - cron: '30 1 * * *'   # daily 01:30 UTC
+  workflow_dispatch:
+
+# Per W333.5 Stream 2 — actions/stale@v10 with CONSERVATIVE solo-operator PRIVATE settings
+# (180d stale + 30d close vs typical OSS 60d/14d) — no community throughput pressure.
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; SHA via gh api refs/tags/v2.19.4)
+        with: { egress-policy: audit }
+
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
+        with:
+          days-before-stale: 180
+          days-before-close: 30
+
+          stale-issue-message: |
+            This issue has been auto-marked **stale** after 180 days of inactivity. It will be auto-closed in 30 days unless re-activated by a maintainer.
+
+            Per ops-rhythm dwell-discipline: re-evaluate now if this is a 5+ wave dwell SEV-1 — escalate via the [SEV-1 carry-forward template](/.github/ISSUE_TEMPLATE/sev-1-carry-forward.yml).
+          close-issue-message: |
+            Auto-closing after 210 days inactive. Re-open if the work is still relevant; this is conservative gardening, not a dispositive close.
+
+          stale-pr-message: |
+            This PR has been auto-marked **stale** after 180 days of inactivity. It will be auto-closed in 30 days unless re-activated.
+
+            Per W331 P0.7 codex GPT-5.5 cross-model gate — if codex-review.yml has run and APPROVED, re-base + push to wake. If REVISE/BLOCK, address findings then re-open.
+          close-pr-message: |
+            Auto-closing after 210 days inactive. Re-open and rebase to wake.
+
+          stale-issue-label: stale
+          stale-pr-label: stale
+
+          # Exempt labels — never auto-stale these
+          exempt-issue-labels: 'SEV-0,SEV-1,carry-forward,operator-action,governance'
+          exempt-pr-labels: 'WIP,dependencies,SEV-0,SEV-1'
+
+          exempt-draft-pr: true
+
+          # Operator only — solo runtime
+          operations-per-run: 60
+          remove-stale-when-updated: true
+          enable-statistics: true

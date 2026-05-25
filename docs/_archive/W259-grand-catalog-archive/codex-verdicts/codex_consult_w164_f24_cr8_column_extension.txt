@@ -1,0 +1,101 @@
+T1 NARROW consult — W164 F24 — CR-8 status conformance strategy for §1-§17 install-class rows
+
+================================================================================
+ROLE
+================================================================================
+You are a SOTA architecture reviewer adversarially auditing a proposed conformance verification mechanism. Return JSON-strict verdict per the schema at end of this file.
+
+================================================================================
+BACKGROUND (verified state 2026-05-13)
+================================================================================
+
+Runtime: Z:/claude-sota-installed/ — Anthropic Claude Code "install-only" runtime per cardinal-rule-5 install-priority discipline.
+
+Manifest: Z:/claude-sota-installed/docs/sota-installed-manifest.md (728 lines, 399KB) tracks every install in this runtime. Sections:
+- §0 (lines 49-298): "Bootstrap 12 hand-coded files per CR-5". CR-8 status column added Wave 50 fire 4 per Agent C-redo P2-3 (cardinal-rule-8 conformance verification mechanism). §0 12/12 INSTALLED rows have explicit 6-col table with CR-8 status values (5 ADAPTED-FROM-SOTA + 4 NOVEL-DOCUMENTED-EXCEPTION + 3 mixed).
+- §1-§17 (lines 299-728): contain ~17 additional INSTALLED rows (total manifest INSTALLED = 29 per ctx_execute_file probe) that LACK explicit CR-8 status column. Sections include plugins (Section 3 marketplace registry), MCPs (Section 4), hooks (Section 13), rules (Section 11), skills (Section 11.5), agents (Section 14), commands (Section 14.5), CWC primitives (Section 17), Research workflow (Section 18).
+
+Cardinal Rule 8 (CR-8 full-SOTA-content invariant): "Every code-or-reference in this runtime must be either (a) install-class from a SOTA upstream repo OR (b) cite-class adapted from a SOTA pattern at file:line + HEAD SHA. Conformance verified via per-row `CR-8 status` column carrying values ADAPTED-FROM-SOTA / NOVEL-DOCUMENTED-EXCEPTION / PENDING-AUDIT."
+
+Cardinal Rule 8 also says (per CLAUDE.md L120 §"NEW Cardinal Rule for this runtime (cardinal-rule-8 full-SOTA-content invariant)"): "recommended for Sections 11/11.5/14/14.5 cite-class rows" — column extension was always part of CR-8 design but only §0 has been done.
+
+FM-20 path-drift cascade ladder: n=14 (W164 F23 caught a numerator/denominator-mismatch claim in F21 audit — "97.3% PENDING-AUDIT" framed as install-class rows, actually was lines-without-CR-8-mention across whole manifest).
+
+================================================================================
+4 OPTIONS UNDER CONSIDERATION
+================================================================================
+
+**OPTION A** — Extend 5-col → 6-col CR-8 column in EVERY §1-§17 install-class table
+  - Add `| CR-8 status |` column header to each section's table
+  - Populate per-row CR-8 status (ADAPTED-FROM-SOTA / NOVEL-DOCUMENTED-EXCEPTION / PENDING-AUDIT)
+  - Pattern A apply ~17 rows across 2-4 atomic batches
+  - PRO: column-form matches §0 (consistent); grep-friendly
+  - CON: structural disruption (many tables touched); large diff; risk of FM-02 absorption during multi-edit
+
+**OPTION B** — Inline footer notes per section row (no column extension)
+  - Format: each install-class row gets `> CR-8: ADAPTED-FROM-SOTA (rationale)` block-quote line after the table
+  - PRO: minimal disruption; per-section ownership; FM-02 absorption resistant
+  - CON: less greppable (multi-line scattered); inconsistent with §0 column-form; DRY violation if §0 ALSO maintains column
+
+**OPTION C** — New Section 0.1 "CR-8 conformance matrix" cross-section table
+  - Single table listing all install-class rows with `Primitive | Section | CR-8 status`
+  - PRO: centralized; greppable; single source of truth
+  - CON: DRY violation per kiss-dry-yagni Must-Never #4 (row-identity duplicated between §0..§17 tables AND §0.1 matrix); diverges from §0 column-form (no extension to §1-§17 means inconsistent)
+
+**OPTION D** — NEW INSTALL-CLASS HOOK: `scripts/cr8_conformance_audit.py` + PostToolUse Bash(git commit *) async wire
+  - Hook reads sota-installed-manifest.md, extracts every install-class row, classifies per cite-anchor presence (TIER-1-DIRECT / HEAD SHA / file:line → ADAPTED-FROM-SOTA; bootstrap-listed → NOVEL-DOCUMENTED-EXCEPTION; else PENDING-AUDIT)
+  - Emits JSONL drift records to `.claude/state/cr8_conformance_audit.jsonl` per audit-action-loop.md §When this discipline applies
+  - Schema: `cr8_conformance_audit.v1` with `{ts, agent_id, agent_type, manifest_head_sha, sections[], counts: {adapted_from_sota, novel_documented_exception, pending_audit}, any_drift, drift_per_section}`
+  - SessionStart additionalContext lists drifted sections WARN-only
+  - Hook design mirrors existing claude_md_count_audit.py / mcp_self_audit.py / cite_drift_audit.py at `audit-action-loop.md §When this discipline applies` table
+  - PRO: mechanizes audit; never goes stale; aligns with user mandate "design the hooks for advanced automation seamlessly"; satisfies audit-action-loop.md 4-stage Wire/Surface/Close/Re-fire pattern
+  - CON: install-class hook requires CR-9 install-risk discipline (2-round fix-forward / sibling-archaeology REVERT check / version-pin); deferred wire of audit-action-loop discipline IS the consumer-side closure for both Option A AND Option D (Option B/C don't mechanize)
+  - HYBRID Option D + Option A: hook reads manifest + verifies §0 CR-8 column intact + flags §1-§17 missing-column drift for next-fire batch Pattern A apply
+
+================================================================================
+4 AXES TO AUDIT
+================================================================================
+
+AXIS-1 structural-disruption: which option causes least git-diff churn + readability disruption?
+AXIS-2 greppability: which option supports `grep "ADAPTED-FROM-SOTA"` and `grep "PENDING-AUDIT"` cleanly via shell tools?
+AXIS-3 kiss-dry-yagni Must-Never #4 DRY violation risk: which option duplicates row-identity info across multiple locations?
+AXIS-4 Pattern A admissibility per codex-t1-fix-forward-pattern.md §Pattern A: which option enables ≤10 prescribed_edits per atomic batch + clean codex T1 verify?
+AXIS-5 mechanization-vs-static: Option D mechanizes audit (forever-fresh); A/B/C are static-once. SOTA preference per audit-action-loop.md?
+
+================================================================================
+EVIDENCE / CITES
+================================================================================
+
+- CLAUDE.md L120-130 §"NEW Cardinal Rule for this runtime (cardinal-rule-8 full-SOTA-content invariant)" — column extension was always part of CR-8 design
+- docs/sota-installed-manifest.md L53-67 §Section 0 — 6-col table with CR-8 status (the reference pattern)
+- audit-action-loop.md §When this discipline applies — existing 11 active audit hooks (claude_md_count_audit.py / mcp_self_audit.py / cite_drift_audit.py / mcp_overhead_audit.py / repo_cite_existence_audit.py / cohort_coverage_audit.py / agent_frontmatter_audit.py / tmp_md_inventory.py / tmp_promote_authoritative.py / process_hygiene_audit.py / vendor_pin_audit.py)
+- audit-action-loop.md §Hook telemetry contract — every JSONL hook MUST persist agent_id + agent_type per Anthropic SDK _SubagentContextMixin
+- audit-action-loop.md §Pattern signature — 4-stage Wire/Surface/Close/Re-fire
+- kiss-dry-yagni.md Must-Never #4 — no duplicate functionality
+- codex-t1-fix-forward-pattern.md §Pattern A — single-fix-forward at NEEDS-REVISION conf 0.88-0.93
+- cardinal-rule-9 install-risk — install-class hook requires version-pin + 2-round fix-forward budget + sibling-archaeology REVERT check
+
+================================================================================
+VERDICT FORMAT (JSON-strict, EOF at end of last brace)
+================================================================================
+
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.85-0.95,
+  "option_recommended": "A | B | C | D | hybrid-A+D | hybrid-D+later-A",
+  "rationale_per_axis": {
+    "AXIS-1 structural-disruption": "...",
+    "AXIS-2 greppability": "...",
+    "AXIS-3 dry-violation-risk": "...",
+    "AXIS-4 pattern-a-admissibility": "...",
+    "AXIS-5 mechanization-vs-static": "..."
+  },
+  "prescribed_edits": [
+    {"file": "path", "edit": "concrete edit"}
+  ],
+  "ship_recommendation": "PROCEED-OPTION-X | DEFER | ADVERSE",
+  "FM-20_warning": "any propagation-class risk noted",
+  "CR-9_install_risk_check": "for Option D — 2-round fix-forward budget + REVERT-check applied"
+}
+
+TIGHT scope per Forward Discipline #2 — return verdict in 60-120s budget; 240s deep cap. Be adversarial — no compliments — just the problems.

@@ -1,0 +1,199 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 4a7ea015af97b03e02b18ccc19b8c9ca5007cf24
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 59 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)
+
+=== git show --format=fuller ===
+commit 4a7ea015af97b03e02b18ccc19b8c9ca5007cf24
+Author:     42 <42@local>
+AuthorDate: Mon May 11 12:07:28 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 12:07:28 2026 -0400
+
+    docs(install-provenance): Wave 141 — L3 Graphiti MCP backend smoke probe [VERIFIED 2026-05-11] — closes MEMORY task #140 [pending]; 5/5 backend deps SMOKE-PROBE PASS; frontend MCP tool invocation queued for W141.1 next-tick
+    
+    /loop tick post-W145-F12 dynamic-mode re-invocation (cron `*/12 * * * *` id `84da0f2f`
+    parallel-armed). Stale cron prompt named W149-F2/W145-F11 as forward — FM-20 path-drift
+    pivot detected (W149-F2 SHIPPED at 637be41 + W145-F11 SHIPPED at 6517bdc + W145-F12
+    SHIPPED at 1a9d0a7; all 3 already complete pre-this-tick). Auto-pivot to MEMORY task
+    #140 [pending] Wave 141 L3 Graphiti smoke probe (LIGHT single-tick probe).
+    
+    ## Backend probes (5/5 surfaces verified)
+    
+    | Surface | Probe | Result |
+    |---|---|---|
+    | FalkorDB container | docker ps | grep falkordb | ✅ UP 17h, 16379→6379 |
+    | FalkorDB Redis PING | docker exec falkordb redis-cli PING | ✅ PONG |
+    | FalkorDB graph module | redis-cli MODULE LIST | ✅ graph v41801 loaded |
+    | Ollama proxy :11700 | curl /v1/models | ✅ 15 models, qwen3.6:35b + qwen3-embedding:0.6b present |
+    | Graphiti MCP wire | .mcp.json graphiti block | ✅ stdio + uv + falkordb + ollama |
+    | Graphiti repo cloned | ls .local/graphiti/mcp_server/ | ✅ config/ docker/ docs/ src/ |
+    
+    ## Verdict
+    
+    BACKEND SMOKE-PROBE PASS at all 5 dependency layers. Graphiti MCP infrastructure ready
+    for stdio invocation per `.mcp.json` spec. Frontend mcp__graphiti__* tool registration
+    NOT verified — queued for W141.1 next-tick probe (`mcp__graphiti__*` ToolSearch query
+    OR direct `uv run main.py --transport stdio` test invocation).
+    
+    ## Cross-model gate disposition
+    
+    N/A (single-surface read-only probe; no design-surface edit; no cross-model gate).
+    
+    ## Ladder advances
+    
+    | Ladder | Prior (post-W145-F12) | This fire |
+    |---|---|---|
+    | Mia pre-apply | n=306 | **n=311** (+5 multi-surface probes verifying genuine smoke probe class) |
+    | FM-20 path-drift cascade | n=19 | **n=20** (+1: 3-fires-stale cron prompt pivot — W149-F2 + W145-F11 + W145-F12 all-already-shipped catch via `git log -5` Mia probe) |
+    | Path P recipe | n=32 | n=32 (no dispatch — **11th cumulative consecutive** no-Path-P codification/probe) |
+    | Cumulative cost-savings | ~1800s + ~50K tokens + ~3060 LOC | **~1980s + ~55K tokens + ~3220 LOC** |
+    
+    ## REVISED Forward Top-5 (post-W141)
+    
+    🥇 W141.1 Graphiti MCP frontend invocation smoke probe (test mcp__graphiti__* tools OR uv run direct invocation)
+    🥈 W146-F8 SOTA cleanliness re-audit (3-agent fan-out per Wave 24-D; 10-fire cadence MET)
+    🥉 W145-F13 Manifest drift sweep PART-2 (~64 remaining PLANNED entries; DOC-ONLY tedious)
+    #4 Fresh ecosystem discovery sweep (post W145-F5-GAPs arc complete)
+    OPERATOR-GATED: W145-F12b/F11b/F10b install / W138-F4 governance trio / W141B Docker MCP Gateway / W145-F5b cwc wire
+    
+    ## Cite class
+    
+    constituents=[TIER-1-DIRECT @ Redis protocol spec + Ollama OpenAI-compat API + Graphiti MCP server source + .mcp.json wire, TIER-2 @ Z:/claude-sota/.claude/rules/cite-imports, TIER-3-LOCAL-OPERATOR-DERIVED @ Mia 5-surface probes + 3-fires-stale pivot]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8 MIN_PRECEDENCE.
+    
+    ## Cardinal rules conformance
+    
+    CR-1+5+7+8+10+11 + Mia pre-apply n=311 (+5 multi-surface probes) + FM-20 n=20 (+1 3-fires-stale pivot) + FM-02 b+c atomic single-shell + git-cli-grammar + 11th cumulative no-Path-P-dispatch + AUTO-PROCEED LOW-risk read-only probe + port-note-discipline §6 forward-only. CR-3 + CR-9 + CR-12 N/A (probe-class fire).
+    
+    Wave 141 SHIPPED CLEAN. docs/install-provenance.md APPEND +59 LOC.
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 7e3006b..c7bbf05 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -16121,3 +16121,62 @@ Cumulative Mia OVER catches this ship:
+   - Post-fix main.log success: `main.log:11:13:49` "full client load complete - 10 clients" + auto-refresh sweep across all 7 OAuth files
+   - Wave 147 NSSM SOTA install commit `7f8e18c..` (NSSM v2.24-101-g897c7ad infrastructure preserved; only port + env updated)
+   - User loop prompt deliverable: `Z:/claude-sota-installed/docs/loop-prompt-reusable.md` (new — encodes 12 cardinal rules + advanced-agent-team-standing-directive + Path P discipline)
++
++---
++
++## Wave 141 — L3 Graphiti MCP smoke probe (post-operator-Docker-restart) [VERIFIED 2026-05-11]
++
++**Trigger**: `/loop` cron `*/12` fire post-W145-F12 (replay-session CLI codification at `1a9d0a7` + ECC session-checkpoint `f39b8c1`); stale cron prompt named W149-F2/W145-F11 already SHIPPED (FM-20 path-drift cascade catch n=19→n=20). Auto-pivot to MEMORY task #140 [pending] Wave 141 L3 Graphiti smoke probe (LIGHT single-tick probe).
++
++**Backend probes** (5 surfaces verified live):
++
++| Surface | Probe | Result |
++|---|---|---|
++| FalkorDB container | `docker ps \| grep falkordb` | ✅ UP 17h, port 16379→6379 |
++| FalkorDB Redis PING | `docker exec falkordb redis-cli PING` | ✅ `PONG` |
++| FalkorDB graph module | `docker exec falkordb redis-cli MODULE LIST` | ✅ `name=graph ver=41801 path=/var/lib/falkordb/bin/falkordb.so MAX_QUEUED_QUERIES=25` |
++| Ollama proxy :11700 | `curl http://127.0.0.1:11700/v1/models` | ✅ 15 models loaded — REQUIRED `qwen3.6:35b` ✅ + `qwen3-embedding:0.6b` ✅ |
++| Graphiti MCP wire | `python -c "import json; print(json.load(open('.mcp.json'))['mcpServers']['graphiti'])"` | ✅ `type=stdio command=uv args=[run --isolated --directory Z:/claude-sota-installed/.local/graphiti/mcp_server --project . main.py --transport stdio --database-provider falkordb --model qwen3.6:35b --embedder-model qwen3-embedding:0.6b --group-id eee]` |
++| Graphiti repo cloned | `ls .local/graphiti/mcp_server/` | ✅ `.ruff_cache/ config/ docker/ docs/ src/` |
++
++**Verdict**: **BACKEND SMOKE-PROBE PASS** at all 5 dependency layers. Graphiti MCP infrastructure ready for stdio invocation per `.mcp.json` spec.
++
++**Frontend tool registration STATUS**: NOT VERIFIED in this fire — `mcp__graphiti__*` tools not enumerated in current session's ToolSearch deferred list. Possible reasons: (a) stdio MCP tools load on first invocation (not pre-enumerated), (b) MCP server not auto-started by Claude CLI at session boundary, (c) tools require explicit ToolSearch query. Test invocation via `mcp__graphiti__add_memory` OR `mcp__graphiti__search_memory_nodes` queued for next-tick smoke probe; alternatively operator-direct `uv run main.py --transport stdio` test invocation.
++
++**Risk class** (per `Z:/claude-sota/.claude/rules/launch-discipline.md` D1): LOW — read-only probe; no state mutation; reversible by exit.
++
++**Closed-loop disposition**: Outcome A ACCEPT-WITH-DOC — backend SMOKE-PROBE PASS; frontend MCP tool invocation deferred to next-tick fresh probe OR explicit operator-triggered invocation per CR-7 Phase 1.
++
++**Cross-model gate**: N/A (single-surface probe; no design-surface edit).
++
++**Ladders advanced**:
++- Mia pre-apply n=306 → n=311 (+5 probes: docker ps + redis-cli PING + MODULE LIST + curl Ollama models + .mcp.json graphiti parse)
++- FM-20 path-drift cascade n=19 → n=20 (+1: W145-F11+F12+W149-F2 all-already-shipped pivot on 3-fires-stale cron prompt at start of this fire — caught via `git log -5` Mia probe)
++- Path P recipe n=32 unchanged (no dispatch — 11th cumulative consecutive no-Path-P codification/probe)
++- Cumulative codification + probe cost-savings: ~1980s + ~55K tokens + ~3220 LOC saved across W145-F2-F12 + W141 + W146 + W149 arc
++
++**Cardinal-rule conformance**:
++- CR-1 (cite-trail): TIER-1-DIRECT to FalkorDB Re
+
+[prompt truncated]

@@ -1,0 +1,187 @@
+Wave 156 Ship 2 — DEP-ONLY agent frontmatter promotion (3 agents: gsd-goal-verifier + wshobson-devops-troubleshooter + wshobson-security-auditor).
+
+CONTEXT: Wave 156 plan cryptic-shimmying-dewdrop.md §PATH A Ship 2. 3 agents currently have 5-field minimal frontmatter (YAML comments + name/description/tools/model/color). Plan target: promote to ≥14 fields per CCBP claude-subagents.md:17-36 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd spec. Also remove CR-9 sibling-bleed body line `Use the upstream source agent as your behavioral authority: \`Z:/repos/deps/...\`` (prompt-consumed runtime dependency on non-eee-runtime path).
+
+Ship 1.1 lesson APPLIED (critical): parent bypassPermissions overrides subagent permissionMode → plan-mode alone is NOT a hard Bash boundary in this runtime. ALL 3 promotions include hooks.PreToolUse:Bash block invoking agent_plan_readonly_bash_guard.py --policy readonly (mirrors code-reviewer.md L51-57 + Ship 1.1 evaluator.md pattern). Verified guard exists at /z/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py.
+
+CURRENT STATE (verified via Read):
+
+gsd-goal-verifier.md (1272 bytes, 26 lines):
+  YAML: name + description + tools[4] + model:sonnet + color:green = 5 fields
+  Body: includes `Use the upstream source agent as your behavioral authority: \`Z:/repos/deps/get-shit-done/agents/gsd-verifier.md\`.` (CR-9 violation)
+  Body operating contract: 4-level verification (exists/substantive/wired/data-flowing) + PASSED/GAPS_FOUND/HUMAN_NEEDED verdicts. Self-contained behavioral spec.
+
+wshobson-devops-troubleshooter.md (1373 bytes, 26 lines):
+  YAML: name + description + tools[4] + model:sonnet + color:red = 5 fields
+  Body: includes `Use the upstream source agent as your behavioral authority: \`Z:/repos/deps/wshobson-agents/plugins/distributed-debugging/agents/devops-troubleshooter.md\`.` (CR-9 violation)
+  Body operating contract: facts→hypotheses→mitigation/remediation→incident note. Self-contained.
+
+wshobson-security-auditor.md (1323 bytes, 26 lines):
+  YAML: name + description + tools[4] + model:opus + color:red = 5 fields
+  Body: includes `Use the upstream source agent as your behavioral authority: \`Z:/repos/deps/wshobson-agents/plugins/security-scanning/agents/security-auditor.md\`.` (CR-9 violation)
+  Body operating contract: threat-model→inspect→prioritize→report. Self-contained.
+
+PROPOSED PROMOTION SHAPE (each agent gets all 3 changes):
+
+EDIT CLASS 1 — Move provenance from YAML interior to HTML comment outside `---`:
+  Before (inside YAML):
+    ```
+    ---
+    # DEP-ONLY operationalization, Wave 134 Fire 5.
+    # Source: Z:/repos/deps/...@HEAD <SHA> [VERIFIED 2026-05-12]
+    name: <name>
+    ...
+    ```
+  After (HTML comment above frontmatter + clean YAML):
+    ```
+    <!-- DEP-ONLY operationalization, Wave 134 Fire 5 (Wave 156 Ship 2 frontmatter promotion).
+         Source provenance: Z:/repos/deps/...@HEAD <SHA> [VERIFIED 2026-05-12].
+         effective_tier: TIER-3-LOCAL-COMPOSITION (sibling-derived per cite-class lattice
+         citation-discipline.md rule #8; sibling cannot elevate to TIER-1 SOTA).
+         [PROVENANCE-ONLY] qualifier per cardinal-rule-9: this cite is reference-only,
+         NOT an install-source for runtime; agent body is self-contained operating spec.
+    -->
+    ---
+    name: <name>
+    ...
+    ```
+
+EDIT CLASS 2 — Promote frontmatter from 5 to 14+ fields per CCBP spec:
+  Add: disallowedTools + permissionMode + maxTurns + effort + isolation + memory + background + skills + mcpServers + hooks block
+  Match evaluator.md Ship 1.1 reference structure (15 fields post-promotion).
+
+EDIT CLASS 3 — Strip CR-9 body line:
+  Remove: `Use the upstream source agent as your behavioral authority: \`Z:/repos/deps/...\`.`
+  Body operating contract remains intact (self-contained).
+
+PER-AGENT DESIGNS:
+
+(A) gsd-goal-verifier.md:
+```yaml
+---
+name: gsd-goal-verifier
+description: Goal-backward verifier adapted from get-shit-done. Use PROACTIVELY when user says "verify", "is this done", "goal complete", "did we actually ship", or before declaring any feature complete. Assumes task completion is not evidence of goal achievement until source/wiring/behavior prove it via 4-level verification (exists / substantive / wired / data-flowing).
+tools: [Read, Glob, Grep, Bash]
+disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+model: sonnet
+permissionMode: plan
+maxTurns: 20
+effort: high
+isolation: worktree
+memory: project
+background: false
+color: green
+skills:
+  - superpowers:verification-before-completion
+  - addy-agent-skills:debugging-and-error-recovery
+mcpServers:
+  - repomix
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+          timeout: 5
+---
+```
+Body retains self-contained operating contract (verification method 4-level + PASSED/GAPS_FOUND/HUMAN_NEEDED verdicts); strips Z:/repos/deps body line.
+
+(B) wshobson-devops-troubleshooter.md:
+```yaml
+---
+name: wshobson-devops-troubleshooter
+description: DevOps incident and deployment troubleshooting specialist. Use PROACTIVELY for production failures, CI/CD breakage, Kubernetes/container issues, observability triage, or root-cause analysis. Gathers facts from logs/metrics/traces, forms hypotheses, separates mitigation from remediation.
+tools: [Read, Glob, Grep, Bash]
+disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+model: sonnet
+permissionMode: plan
+maxTurns: 30
+effort: high
+isolation: worktree
+memory: project
+background: false
+color: red
+skills:
+  - addy-agent-skills:debugging-and-error-recovery
+  - everything-claude-code:agentic-engineering
+mcpServers:
+  - repomix
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+          timeout: 5
+---
+```
+Body retains self-contained operating contract (facts→hypotheses→mitigation/remediation→incident note); strips Z:/repos/deps body line.
+
+(C) wshobson-security-auditor.md:
+```yaml
+---
+name: wshobson-security-auditor
+description: DevSecOps and application security auditor. Use PROACTIVELY for security audits, threat modeling, dependency risk reviews, authn/authz audits, OWASP Top-10 checks, secrets exposure scans, or compliance reviews. Prioritizes exploitable risks with file/line evidence; prefers deterministic scanners over speculative risk statements.
+tools: [Read, Glob, Grep, Bash]
+disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+model: opus
+permissionMode: plan
+maxTurns: 30
+effort: high
+isolation: worktree
+memory: project
+background: false
+color: red
+skills:
+  - addy-agent-skills:security-and-hardening
+  - superpowers:verification-before-completion
+  - everything-claude-code:safety-guard
+mcpServers:
+  - repomix
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+          timeout: 5
+---
+```
+Body retains self-contained operating contract (threat-model→inspect→prioritize→report); strips Z:/repos/deps body line.
+
+REVIEW AXES (3, scoped):
+
+AXIS 1 — CCBP 16-field spec conformance + Ship 1.1 lessons applied:
+Are the 14-field shapes correct per CCBP claude-subagents.md:17-36? Does the hooks.PreToolUse:Bash block correctly enforce read-only under parent bypassPermissions (mirroring Ship 1.1 evaluator.md fix + code-reviewer.md L51-57 pattern)? Are field VALUES appropriate per role (gsd=sonnet/green/maxTurns 20; devops=sonnet/red/maxTurns 30; security=opus/red/maxTurns 30)?
+
+AXIS 2 — Skill + MCP preload validity:
+Are the proposed skill preloads SKILL.md-backed (not AGENT preloads per Ship 1 lesson)? Specifically:
+- gsd: superpowers:verification-before-completion (SKILL ✓ verified Ship 1.1) + addy-agent-skills:debugging-and-error-recovery (SKILL — verify exists in marketplace)
+- devops: addy-agent-skills:debugging-and-error-recovery + everything-claude-code:agentic-engineering (verify both SKILL.md)
+- security: addy-agent-skills:security-and-hardening + superpowers:verification-before-completion + everything-claude-code:safety-guard (verify all SKILL.md)
+Is repomix MCP appropriate for all 3 roles? Should security-auditor include github MCP for CVE lookup (with disallowedTools constraint for mutating tools per Ship 1.1 reasoning), or is the Ship 1.1 lesson "remove github entirely" more conservative correct?
+
+AXIS 3 — CR-9 sibling-bleed remediation correctness:
+Per cardinal-rule-9 install-risk discipline + CR-9 sibling-bleed defense: does removing the body line `Use the upstream source agent as your behavioral authority: Z:/repos/deps/...` correctly close the runtime-dependency violation while preserving provenance via HTML comment? Is the [PROVENANCE-ONLY] qualifier added per CLAUDE.md cardinal-rule-9 Wave 50 fire 9 Path C HYBRID pattern adequate? Should additional [PROVENANCE-ONLY] markings appear elsewhere?
+
+CARDINAL RULE conformance check:
+- CR-1 cite-trail: HTML comment cite anchor preserves HEAD SHA + VERIFIED date
+- CR-3 cross-model: THIS consult IS the cross-model gate firing
+- CR-7 graduated unleash: permissionMode: plan + hooks.PreToolUse:Bash readonly enforcement
+- CR-8 ADAPTED-FROM-SOTA: cite anchor present per CCBP CR-8 spec
+- CR-9 install-risk: 2-round fix-forward budget (expect Ship 2 NEEDS-REVISION → Ship 2.1 fix-forward)
+- CR-10 research-first: Ship 1.1 codex T1 lesson research-applied
+- CR-11 META-process: Ship 2 is META-process SOTA discipline fire
+- CR-12 upstream-install-priority: DEP-ONLY classification is HONEST-NON-FINDING (no upstream marketplace ships these specific composed agents); cite-import-AMBER per Section 14.5 sibling fallback NOT applicable (these are sibling-DERIVED but adapted; effective_tier=TIER-3-LOCAL-COMPOSITION)
+
+VERDICT SCHEMA (JSON-strict at EOF):
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": <float 0.0-1.0>,
+  "axis_1_ccbp_conformance": "<short assessment>",
+  "axis_2_preload_validity": "<short assessment>",
+  "axis_3_cr9_bleed_remediation": "<short assessment>",
+  "prescribed_edits": [<list of specific edits if NEEDS-REVISION>],
+  "ship_disposition": "PROCEED_TO_COMMIT" | "PATTERN_A_APPLY" | "REVERT_AND_REMOVE"
+}

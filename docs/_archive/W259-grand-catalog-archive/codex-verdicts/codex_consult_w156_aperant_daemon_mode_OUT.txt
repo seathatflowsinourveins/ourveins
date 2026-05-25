@@ -1,0 +1,466 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1c61-2221-7483-9317-cbeb222312c2
+--------
+user
+# CODEX T1 PRE-EDIT CONSULT — Wave 156 Aperant poller daemon-mode conversion
+# Cross-model gate per CR-3 Phase 1 bootstrap exception (Path P foreground+tee)
+# Profile: codex default (per Pattern D §The Path P recipe)
+
+You are codex GPT-5.5 performing pre-edit T1 review of a Scheduled-Task installer
+modification. Apply Pattern A discipline: emit JSON-strict verdict at EOF.
+
+# CONTEXT
+
+Two Windows Scheduled Tasks register python.exe to fire every 60s (poller) and
+5min (planner) with `--once` flag — spawn-per-tick churn. Both Python scripts
+ALREADY ship with `--start` long-running daemon mode:
+
+- `tools/aperant_rate_limit_poller.py:339-426`: --once / --start / --stop / --interval-seconds (default 60); PID file + stop-sentinel (.stop file polled mid-loop); finally cleanup; `interval = max(15, args.interval_seconds)` floor
+- `tools/eee_account_rotation_planner.py:217-240`: same --once/--start contract; --interval-seconds default 300
+
+PROBE 18 OS-State-Mutation precondition check PASSED: both tasks state=Ready
+(not currently running), LastResult=0, no live aperant/rotation python.exe.
+55s window between fires for safe unregister + reregister.
+
+# PROPOSED DIFF (Install-Tasks function ONLY in tools/eee_install_cron_tasks.ps1)
+
+Poller — before (L85-87):
+    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --once" -WorkingDirectory $RepoRoot
+    $pollerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Seconds $PollIntervalSec)
+    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+
+Poller — after:
+    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --start --interval-seconds $PollIntervalSec" -WorkingDirectory $RepoRoot
+    $pollerTrigger = New-ScheduledTaskTrigger -AtStartup
+    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Days 0) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+Planner — same shape (`--once --threshold-pct 80` → `--start --interval-seconds $($PlanIntervalMin*60) --threshold-pct 80`; trigger `-AtStartup`; ExecutionTimeLimit `Days 0`; same restart policy).
+
+Plus: start tasks immediately post-Register via Start-ScheduledTask (so we don't wait for boot).
+Plus: Show-Plan / help text updated to reflect daemon mode.
+
+# CITE CHAIN (TIER-1-DIRECT — claim per CR-1 cite-class lattice)
+
+- Twelve-Factor App §VIII Disposability (Adam Wiggins / Heroku co-founder): https://12factor.net/disposability — "Processes are disposable, meaning they can be started or stopped at a moment's notice"
+- Microsoft Learn New-ScheduledTaskTrigger -AtStartup: https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasktrigger
+- Microsoft Learn New-ScheduledTaskSettingsSet -ExecutionTimeLimit (PT0S = disabled): https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset
+- NSSM 2.24+ (alternative Path B — already installed): https://nssm.cc/usage
+- Aperant rate-limits research: Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+- Local poller --start impl: Z:/claude-sota-installed/tools/aperant_rate_limit_poller.py:378-426
+- Sister rules: launch-discipline.md §The 3 launch invariants (Reversible/Observable/Incremental) + 7th OS-State-Mutation axis; deprecation-discipline.md §4-stage migration; codex-t1-fix-forward-pattern.md Pattern A + Pattern D
+
+# AUDIT DIMENSIONS — answer EACH
+
+AXIS-1 Correctness: Does diff achieve "1 spawn per boot instead of 60/hour"? Does it preserve 60s polling cadence via `args.interval_seconds`?
+AXIS-2 Reversibility: Does existing `-Uninstall` function still work unchanged? Is the change `git revert`-able cleanly?
+AXIS-3 OS-State-Mutation safety: Race between unregister + reregister with in-flight `--once` invocation? Or with future scheduled-fire?
+AXIS-4 Crash recovery: If `--start` daemon crashes/leaks memory, does `-RestartCount 3 -RestartInterval 1min` provide adequate recovery? Is stop-sentinel `--stop` reachable?
+AXIS-5 Cite-class correctness: Per `citation-discipline.md` rule #8 lattice, what is `constituents=[...]; effective_tier=?` for the composed change?
+AXIS-6 Sister-rule compliance: Does the change satisfy launch-discipline 6-axis pre-deploy + 7th OS-State-Mutation? Does it satisfy deprecation-discipline 4-stage migration (`--once` task is the deprecated surface)?
+
+# OUTPUT (JSON-strict at EOF — no prose after)
+
+{"verdict": "APPROVE|NEEDS-REVISION|REJECT", "confidence": 0.NN, "axis_findings": {"AXIS-1": "...", "AXIS-2": "...", "AXIS-3": "...", "AXIS-4": "...", "AXIS-5": "constituents=[...]; effective_tier=...", "AXIS-6": "..."}, "prescribed_edits": [{"line_ref": "...", "before": "...", "after": "...", "rationale": "..."}], "rationale_1line": "..."}
+
+codex
+I’ll verify the installer and the two daemon contracts locally, then check the Scheduled Tasks semantics against the proposed settings before giving the JSON verdict.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "function Install-Tasks|PollerScript|PlanInterval|New-ScheduledTask|Start-ScheduledTask|Uninstall|Show-Plan" tools/eee_install_cron_tasks.ps1' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "--once|--start|--stop|interval-seconds|stop|PID|pid|finally|while" tools/aperant_rate_limit_poller.py tools/eee_account_rotation_planner.py' in Z:\claude-sota-installed
+ succeeded in 295ms:
+22:#   tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks
+28:    [switch]$Uninstall,
+32:    [int]$PlanIntervalMin = 5
+38:$PollerScript = "$RepoRoot\tools\aperant_rate_limit_poller.py"
+44:function Show-Plan {
+48:    Write-Host "  Script:   $PollerScript"
+56:    Write-Host "  Trigger:  every ${PlanIntervalMin}min"
+68:    if (-not (Test-Path $PollerScript)) {
+69:        Write-Host "ERROR: Poller script not found at $PollerScript" -ForegroundColor Red
+79:function Install-Tasks {
+85:    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --once" -WorkingDirectory $RepoRoot
+86:    $pollerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Seconds $PollIntervalSec)
+87:    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+93:    $plannerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PlannerScript --once --threshold-pct 80" -WorkingDirectory $RepoRoot
+94:    $plannerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(30) -RepetitionInterval (New-TimeSpan -Minutes $PlanIntervalMin)
+95:    $plannerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+98:    Write-Host "  Registered: $PlannerTaskName (every ${PlanIntervalMin}min)" -ForegroundColor Green
+105:function Uninstall-Tasks {
+115:    Write-Host "Uninstall complete." -ForegroundColor Cyan
+143:    Show-Plan
+155:if ($Uninstall) {
+156:    Uninstall-Tasks
+169:Write-Host "  tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks"
+
+2026-05-12T13:30:05.560044Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.3 seconds
+Output:
+rg: unrecognized flag --once|--start|--stop|interval-seconds|stop|PID|pid|finally|while
+
+ exited 1 in 315ms:
+rg: unrecognized flag --once|--start|--stop|interval-seconds|stop|PID|pid|finally|while
+
+codex
+The installer currently matches the described spawn-per-tick setup. I hit a ripgrep pattern issue on the daemon probe because the pattern begins with `--`; I’m rerunning that with the pattern separated correctly.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n -e "--once|--start|--stop|interval-seconds|stop|PID|pid|finally|while" tools/aperant_rate_limit_poller.py tools/eee_account_rotation_planner.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path tools/eee_install_cron_tasks.ps1 | Select-Object -Skip 40 -First 135' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path tools/aperant_rate_limit_poller.py | Select-Object -Skip 330 -First 105' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path tools/eee_account_rotation_planner.py | Select-Object -Skip 205 -First 50' in Z:\claude-sota-installed
+ succeeded in 334ms:
+tools/eee_account_rotation_planner.py:19:- INCREMENTAL: --dry-run preview; --once single pass; --start cron loop
+tools/eee_account_rotation_planner.py:74:    finally:
+tools/eee_account_rotation_planner.py:217:    parser.add_argument("--once", action="store_true")
+tools/eee_account_rotation_planner.py:218:    parser.add_argument("--start", action="store_true")
+tools/eee_account_rotation_planner.py:223:    parser.add_argument("--interval-seconds", type=int, default=300)
+tools/eee_account_rotation_planner.py:243:            while True:
+tools/aperant_rate_limit_poller.py:20:        reversible via stop-script + git revert)
+tools/aperant_rate_limit_poller.py:47:DEFAULT_PID_FILE = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.pid")
+tools/aperant_rate_limit_poller.py:283:    finally:
+tools/aperant_rate_limit_poller.py:341:    parser.add_argument("--once", action="store_true", help="Run a single poll and exit")
+tools/aperant_rate_limit_poller.py:342:    parser.add_argument("--start", action="store_true", help="Run cron loop")
+tools/aperant_rate_limit_poller.py:343:    parser.add_argument("--stop", action="store_true", help="Send SIGTERM to running poller via PID file")
+tools/aperant_rate_limit_poller.py:345:    parser.add_argument("--interval-seconds", type=int, default=60, help="Cron interval (default 60s)")
+tools/aperant_rate_limit_poller.py:349:    parser.add_argument("--pid-file", type=Path, default=DEFAULT_PID_FILE)
+tools/aperant_rate_limit_poller.py:358:    # signal.SIGTERM doesn't run finally blocks gracefully)
+tools/aperant_rate_limit_poller.py:359:    stop_sentinel = args.pid_file.with_suffix(".stop")
+tools/aperant_rate_limit_poller.py:360:    if args.stop:
+tools/aperant_rate_limit_poller.py:361:        # Drop sentinel; running --start loop checks between iterations
+tools/aperant_rate_limit_poller.py:362:        # and exits cooperatively (runs finally cleanup including
+tools/aperant_rate_limit_poller.py:363:        # PID-file unlink and final SQLite commit)
+tools/aperant_rate_limit_poller.py:365:            stop_sentinel.parent.mkdir(parents=True, exist_ok=True)
+tools/aperant_rate_limit_poller.py:366:            stop_sentinel.write_text(datetime.now(timezone.utc).isoformat())
+tools/aperant_rate_limit_poller.py:367:            LOGGER.info("Stop sentinel written at %s; running poller will exit at next iteration boundary", stop_sentinel)
+tools/aperant_rate_limit_poller.py:370:            LOGGER.error("failed to write stop sentinel: %s", e)
+tools/aperant_rate_limit_poller.py:379:        args.pid_file.parent.mkdir(parents=True, exist_ok=True)
+tools/aperant_rate_limit_poller.py:381:        args.pid_file.write_text(str(os.getpid()))
+tools/aperant_rate_limit_poller.py:382:        # F-2: clear any prior stop sentinel before starting
+tools/aperant_rate_limit_poller.py:384:            stop_sentinel.unlink()
+tools/aperant_rate_limit_poller.py:388:            "Aperant poller started; interval=%ds dry_run=%s pid=%d",
+tools/aperant_rate_limit_poller.py:389:            args.interval_seconds, args.dry_run, os.getpid(),
+tools/aperant_rate_limit_poller.py:392:            while True:
+tools/aperant_rate_limit_poller.py:394:                if stop_sentinel.exists():
+tools/aperant_rate_limit_poller.py:395:                    LOGGER.info("Stop sentinel detected at %s; exiting cooperatively", stop_sentinel)
+tools/aperant_rate_limit_poller.py:397:                        stop_sentinel.unlink()
+tools/aperant_rate_limit_poller.py:411:                # Sleep in 1s slices to allow stop-sentinel polling within
+tools/aperant_rate_limit_poller.py:415:                while slept < interval:
+tools/aperant_rate_limit_poller.py:416:                    if stop_sentinel.exists():
+tools/aperant_rate_limit_poller.py:421:            LOGGER.info("Interrupted; cleaning up PID file")
+tools/aperant_rate_limit_poller.py:422:        finally:
+tools/aperant_rate_limit_poller.py:424:                args.pid_file.unlink()
+
+ succeeded in 386ms:
+        "ok": sum(1 for r in results if r.status == "ok"),
+        "errors": [r for r in records if r["status"] != "ok"],
+        "update_stats": update_stats,
+        "dry_run": dry_run,
+    }
+    return summary
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true", help="Run a single poll and exit")
+    parser.add_argument("--start", action="store_true", help="Run cron loop")
+    parser.add_argument("--stop", action="store_true", help="Send SIGTERM to running poller via PID file")
+    parser.add_argument("--dry-run", action="store_true", help="Read but do not UPDATE SQLite")
+    parser.add_argument("--interval-seconds", type=int, default=60, help="Cron interval (default 60s)")
+    parser.add_argument("--oauth-dir", type=Path, default=DEFAULT_OAUTH_DIR)
+    parser.add_argument("--db", type=Path, default=DEFAULT_CPA_DB)
+    parser.add_argument("--jsonl", type=Path, default=DEFAULT_JSONL)
+    parser.add_argument("--pid-file", type=Path, default=DEFAULT_PID_FILE)
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+
+    # F-2: Cooperative shutdown via sentinel file (works on Windows where
+    # signal.SIGTERM doesn't run finally blocks gracefully)
+    stop_sentinel = args.pid_file.with_suffix(".stop")
+    if args.stop:
+        # Drop sentinel; running --start loop checks between iterations
+        # and exits cooperatively (runs finally cleanup including
+        # PID-file unlink and final SQLite commit)
+        try:
+            stop_sentinel.parent.mkdir(parents=True, exist_ok=True)
+            stop_sentinel.write_text(datetime.now(timezone.utc).isoformat())
+            LOGGER.info("Stop sentinel written at %s; running poller will exit at next iteration boundary", stop_sentinel)
+            return 0
+        except Exception as e:
+            LOGGER.error("failed to write stop sentinel: %s", e)
+            return 1
+
+    if args.once:
+        summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+        print(json.dumps(summary, indent=2, default=str))
+        return 0
+
+    if args.start:
+        args.pid_file.parent.mkdir(parents=True, exist_ok=True)
+        import os
+        args.pid_file.write_text(str(os.getpid()))
+        # F-2: clear any prior stop sentinel before starting
+        try:
+            stop_sentinel.unlink()
+        except FileNotFoundError:
+            pass
+        LOGGER.info(
+            "Aperant poller started; interval=%ds dry_run=%s pid=%d",
+            args.interval_seconds, args.dry_run, os.getpid(),
+        )
+        try:
+            while True:
+                # F-2: cooperative shutdown check between iterations
+                if stop_sentinel.exists():
+                    LOGGER.info("Stop sentinel detected at %s; exiting cooperatively", stop_sentinel)
+                    try:
+                        stop_sentinel.unlink()
+                    except FileNotFoundError:
+                        pass
+                    break
+                try:
+                    summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+                    LOGGER.info(
+                        "poll: ok=%d/%d updated=%d no_match=%d",
+                        summary["ok"], summary["polled"],
+                        summary["update_stats"].get("updated", 0),
+                        summary["update_stats"].get("no_match", 0),
+                    )
+                except Exception as e:
+                    LOGGER.error("poll iteration failed: %s", e)
+                # Sleep in 1s slices to allow stop-sentinel polling within
+                # a sleep window (granular cooperative shutdown)
+                slept = 0
+                interval = max(15, args.interval_seconds)
+                while slept < interval:
+                    if stop_sentinel.exists():
+                        break
+                    time.sleep(1)
+                    slept += 1
+        except KeyboardInterrupt:
+            LOGGER.info("Interrupted; cleaning up PID file")
+        finally:
+            try:
+                args.pid_file.unlink()
+            except FileNotFoundError:
+                pass
+        return 0
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+ succeeded in 413ms:
+$PollerTaskName = 'EEE-Aperant-Poller'
+$PlannerTaskName = 'EEE-Rotation-Planner'
+
+function Show-Plan {
+    Write-Host "Wave 94 Ship 1W+1X cron deployment plan:" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Task 1: $PollerTaskName"
+    Write-Host "  Script:   $PollerScript"
+    Write-Host "  Args:     --once"
+    Write-Host "  Trigger:  every ${PollIntervalSec}s"
+    Write-Host "  Action:   $PythonBin --once (single poll + SQLite UPDATE + JSONL append)"
+    Write-Host ""
+    Write-Host "Task 2: $PlannerTaskName"
+    Write-Host "  Script:   $PlannerScript"
+    Write-Host "  Args:     --once --threshold-pct 80"
+    Write-Host "  Trigger:  every ${PlanIntervalMin}min"
+    Write-Host "  Action:   $PythonBin --once (single rotation pass)"
+    Write-Host ""
+    Write-Host "Effective persistence: 4h auto-refresh interval x 5min plan = up to 48 re-applies"
+    Write-Host "between auto-refresh cycles. 'disabled' flag stays effectively persistent."
+}
+
+function Test-Prereqs {
+    if (-not (Test-Path $PythonBin)) {
+        Write-Host "ERROR: Python not found at $PythonBin" -ForegroundColor Red
+        return $false
+    }
+    if (-not (Test-Path $PollerScript)) {
+        Write-Host "ERROR: Poller script not found at $PollerScript" -ForegroundColor Red
+        return $false
+    }
+    if (-not (Test-Path $PlannerScript)) {
+        Write-Host "ERROR: Planner script not found at $PlannerScript" -ForegroundColor Red
+        return $false
+    }
+    return $true
+}
+
+function Install-Tasks {
+    if (-not (Test-Prereqs)) { return 1 }
+
+    Write-Host "Registering scheduled tasks..." -ForegroundColor Cyan
+
+    # Task 1: Aperant Poller (60s)
+    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --once" -WorkingDirectory $RepoRoot
+    $pollerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Seconds $PollIntervalSec)
+    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+
+    Register-ScheduledTask -TaskName $PollerTaskName -Action $pollerAction -Trigger $pollerTrigger -Settings $pollerSettings -Description 'Ship 1W: Aperant rate-limit poller (every 60s)' -Force | Out-Null
+    Write-Host "  Registered: $PollerTaskName (every ${PollIntervalSec}s)" -ForegroundColor Green
+
+    # Task 2: Rotation Planner (5min)
+    $plannerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PlannerScript --once --threshold-pct 80" -WorkingDirectory $RepoRoot
+    $plannerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(30) -RepetitionInterval (New-TimeSpan -Minutes $PlanIntervalMin)
+    $plannerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+
+    Register-ScheduledTask -TaskName $PlannerTaskName -Action $plannerAction -Trigger $plannerTrigger -Settings $plannerSettings -Description 'Ship 1X: Cycle-aware rotation planner (every 5min)' -Force | Out-Null
+    Write-Host "  Registered: $PlannerTaskName (every ${PlanIntervalMin}min)" -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "Both tasks registered. They will start automatically." -ForegroundColor Cyan
+    Write-Host "Verify via: tools/eee_install_cron_tasks.ps1 -Status"
+}
+
+function Uninstall-Tasks {
+    foreach ($name in @($PollerTaskName, $PlannerTaskName)) {
+        $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+        if ($task) {
+            Unregister-ScheduledTask -TaskName $name -Confirm:$false
+            Write-Host "  Unregistered: $name" -ForegroundColor Yellow
+        } else {
+            Write-Host "  Not present: $name" -ForegroundColor Gray
+        }
+    }
+    Write-Host "Uninstall complete." -ForegroundColor Cyan
+}
+
+function Show-Status {
+    Write-Host "Scheduled task status:" -ForegroundColor Cyan
+    foreach ($name in @($PollerTaskName, $PlannerTaskName)) {
+        $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+        if ($task) {
+            $info = Get-ScheduledTaskInfo -TaskName $name
+            Write-Host "  $name :"
+            Write-Host "    State:        $($task.State)"
+            Write-Host "    LastRun:      $($info.LastRunTime)"
+            Write-Host "    LastResult:   $($info.LastTaskResult) ($([System.ComponentModel.Win32Exception]::new($info.LastTaskResult).Message))"
+            Write-Host "    NextRun:      $($info.NextRunTime)"
+        } else {
+            Write-Host "  $name : NOT REGISTERED" -ForegroundColor Yellow
+        }
+    }
+    Write-Host ""
+    Write-Host "Latest poller iteration (.claude/state/aperant_poller.jsonl):"
+    Get-Content "$RepoRoot\.claude\state\aperant_poller.jsonl" -Tail 1 -ErrorAction SilentlyContinue
+    Write-Host ""
+    Write-Host "Latest planner iteration (.claude/state/eee_rotation_planner.jsonl):"
+    Get-Content "$RepoRoot\.claude\state\eee_rotation_planner.jsonl" -Tail 1 -ErrorAction SilentlyContinue
+}
+
+# Main
+if ($DryRun) {
+    Show-Plan
+    if (Test-Prereqs) {
+        Write-Host "Pre-reqs OK. Run with -Install to register tasks." -ForegroundColor Green
+    }
+    exit 0
+}
+
+if ($Install) {
+    Install-Tasks
+    exit 0
+}
+
+if ($Uninstall) {
+    Uninstall-Tasks
+    exit 0
+}
+
+if ($Status) {
+    Show-Status
+    exit 0
+}
+
+# No mode flag - show help
+Write-Host "Usage:" -ForegroundColor Cyan
+Write-Host "  tools/eee_install_cron_tasks.ps1 -DryRun       # preview"
+Write-Host "  tools/eee_install_cron_tasks.ps1 -Install      # register Ship 1W (60s) + Ship 1X (5min) Scheduled Tasks"
+Write-Host "  tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks"
+Write-Host "  tools/eee_install_cron_tasks.ps1 -Status       # show registered tasks + last-run"
+exit 0
+
+ succeeded in 464ms:
+        else:
+            try:
+                shutil.copy2(latest, target)
+                restored.append({"file": orig, "restored_from": str(latest)})
+            except Exception as e:
+                restored.append({"file": orig, "error": str(e)[:80]})
+    return {"restored": restored, "dry_run": dry_run}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true")
+    parser.add_argument("--start", action="store_true")
+    parser.add_argument("--restore", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--threshold-pct", type=int, default=DEFAULT_THRESHOLD_PCT)
+    parser.add_argument("--recovery-buffer-pct", type=int, default=DEFAULT_RECOVERY_BUFFER_PCT)
+    parser.add_argument("--interval-seconds", type=int, default=300)
+    parser.add_argument("--oauth-dir", type=Path, default=DEFAULT_OAUTH_DIR)
+    parser.add_argument("--db", type=Path, default=DEFAULT_CPA_DB)
+    parser.add_argument("--jsonl", type=Path, default=DEFAULT_JSONL)
+    parser.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    if args.restore:
+        print(json.dumps(restore_from_backups(args.oauth_dir, args.backup_dir, dry_run=args.dry_run), indent=2, default=str))
+        return 0
+
+    if args.once:
+        print(json.dumps(plan_once(args.oauth_dir, args.db, args.jsonl, args.backup_dir, args.threshold_pct, args.recovery_buffer_pct, args.dry_run), indent=2, default=str))
+        return 0
+
+    if args.start:
+        LOGGER.info("eee_rotation_planner started; interval=%ds threshold=%d%% dry_run=%s", args.interval_seconds, args.threshold_pct, args.dry_run)
+        try:
+            while True:
+                try:
+                    s = plan_once(args.oauth_dir, args.db, args.jsonl, args.backup_dir, args.threshold_pct, args.recovery_buffer_pct, args.dry_run)
+                    LOGGER.info("plan: fleet=%d changes=%d no_data=%d errors=%d", s["fleet_size"], s["decisions_made"], s["no_data"], len(s["errors"]))
+                except Exception as e:
+                    LOGGER.error("plan failed: %s", e)
+                time.sleep(max(60, args.interval_seconds))
+        except KeyboardInterrupt:
+            LOGGER.info("Interrupted")
+        return 0
+
+    parser.print_help()
+    return 1
+
+web search: 
+web search: Microsoft Learn New-ScheduledTaskSettingsSet ExecutionTimeLimit PT0S disabled RestartCount RestartInterval
+web search: 
+web search: https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset?view=windowsserver2025-ps
+web search: 
+web search: https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset?view=windowsserver2025-ps
+codex
+{"verdict":"NEEDS-REVISION","confidence":0.89,"axis_findings":{"AXIS-1":"Achieves the main spawn-churn goal for normal operation: Scheduled Task starts one long-lived python.exe per task instead of one process per 60s/5min tick. Poller cadence is preserved because aperant_rate_limit_poller.py computes interval=max(15,args.interval_seconds), so PollIntervalSec=60 remains 60s. Planner cadence is preserved because eee_account_rotation_planner.py sleeps max(60,args.interval_seconds), so PlanIntervalMin*60 remains 300s by default.","AXIS-2":"Git revert is clean because the proposed change is localized to tools/eee_install_cron_tasks.ps1. Existing -Uninstall is not sufficient unchanged for daemon mode: unregistering the task removes future launches but does not explicitly stop the already-running daemon instance or use the poller cooperative stop sentinel. That leaves reversibility operationally ambiguous, especially for the planner which has no --stop/PID contract locally.","AXIS-3":"Given the stated precondition that both tasks are Ready, LastResult=0, and no live aperant/rotation python.exe, unregister+reregister is acceptably safe inside the 55s window. Future scheduled-fire race is removed after conversion because -AtStartup plus immediate Start-ScheduledTask no longer creates periodic trigger firings; -MultipleInstances IgnoreNew also protects duplicate starts. Still, Install should preferably Stop-ScheduledTask before Register-ScheduledTask -Force if an old instance is found, because the script may be rerun outside the probe window.","AXIS-4":"RestartCount=3 and RestartInterval=1min are a reasonable minimal crash-recovery floor, and ExecutionTimeLimit=0 is the right daemon shape. It is not complete recovery: after three crash exits there is no recurring trigger to revive the daemon until boot/manual start. Poller cooperative --stop is reachable via its PID-file stop sentinel, but the proposed installer does not call it, and the planner currently has no --stop/PID/sentinel implementation. For uninstall/reconfigure safety, add explicit Stop-ScheduledTask and poller --stop before unregister; optionally add planner cooperative stop in a later change.","AXIS-5":"constituents=[TIER-1-DIRECT Microsoft ScheduledTasks docs for -AtStartup/-ExecutionTimeLimit/-RestartCount/-RestartInterval/-MultipleInstances, TIER-1-DIRECT local implementation evidence for poller/planner --start cadence, TIER-1-DIRECT Twelve-Factor disposability principle, TIER-2 local sister-rule policy for launch/deprecation discipline, TIER-2 local Aperant research for domain rationale]; effective_tier=TIER-1-DIRECT for Windows scheduler mechanics and local daemon behavior, TIER-2 for composed project-policy compliance claims.","AXIS-6":"Mostly satisfies launch-discipline axes: reversible in git, observable via task status/jsonl, incremental because --once remains available, and OS-state mutation was pre-probed. It does not fully satisfy deprecation-discipline as proposed because the deprecated --once task surface is replaced in-place without an explicit staged rollback/stop path for already-running daemons. The fix-forward is small: make Install/Uninstall explicitly stop old/running instances and update status/help text to show daemon lifecycle."},"prescribed_edits":[{"line_ref":"tools/eee_install_cron_tasks.ps1:79 before Register-ScheduledTask calls","before":"Write-Host \"Registering scheduled tasks...\" -ForegroundColor Cyan","after":"Write-Host \"Registering scheduled tasks...\" -ForegroundColor Cyan\nforeach ($name in @($PollerTaskName, $PlannerTaskName)) {\n    $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue\n    if ($task -and $task.State -eq 'Running') {\n        Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue\n    }\n}","rationale":"Makes reruns safe outside the current Ready/no-live-process probe window and prevents daemon duplication before Register-ScheduledTask -Force plus immediate Start-ScheduledTask."},{"line_ref":"tools/eee_install_cron_tasks.ps1:105 Uninstall-Tasks","before":"if ($task) {\n            Unregister-ScheduledTask -TaskName $name -Confirm:$false\n            Write-Host \"  Unregistered: $name\" -ForegroundColor Yellow\n        }","after":"if ($task) {\n            if ($name -eq $PollerTaskName) {\n                & $PythonBin $PollerScript --stop | Out-Null\n                Start-Sleep -Seconds 2\n            }\n            Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue\n            Unregister-ScheduledTask -TaskName $name -Confirm:$false\n            Write-Host \"  Stopped/unregistered: $name\" -ForegroundColor Yellow\n        }","rationale":"Preserves operational reversibility for daemon mode. The poller gets cooperative cleanup first; Stop-ScheduledTask handles the planner and any non-cooperative remainder."},{"line_ref":"tools/eee_install_cron_tasks.ps1:after each Register-ScheduledTask","before":"Write-Host \"  Registered: $PollerTaskName (every ${PollIntervalSec}s)\" -ForegroundColor Green","after":"Start-ScheduledTask -TaskName $PollerTaskName\nWrite-Host \"  Registered/started: $PollerTaskName (daemon interval ${PollIntervalSec}s)\" -ForegroundColor Green","rationale":"Immediate start is required because -AtStartup alone waits until next boot; make the lifecycle visible in output."},{"line_ref":"tools/eee_install_cron_tasks.ps1:after planner Register-ScheduledTask","before":"Write-Host \"  Registered: $PlannerTaskName (every ${PlanIntervalMin}min)\" -ForegroundColor Green","after":"Start-ScheduledTask -TaskName $PlannerTaskName\nWrite-Host \"  Registered/started: $PlannerTaskName (daemon interval ${PlanIntervalMin}min)\" -ForegroundColor Green","rationale":"Same immediate-start requirement for planner daemon."}],"rationale_1line":"Approve the daemon-mode direction, but require explicit stop/uninstall handling so the OS-state mutation is reversible for already-running long-lived tasks."}
+tokens used
+47,816
+{"verdict":"NEEDS-REVISION","confidence":0.89,"axis_findings":{"AXIS-1":"Achieves the main spawn-churn goal for normal operation: Scheduled Task starts one long-lived python.exe per task instead of one process per 60s/5min tick. Poller cadence is preserved because aperant_rate_limit_poller.py computes interval=max(15,args.interval_seconds), so PollIntervalSec=60 remains 60s. Planner cadence is preserved because eee_account_rotation_planner.py sleeps max(60,args.interval_seconds), so PlanIntervalMin*60 remains 300s by default.","AXIS-2":"Git revert is clean because the proposed change is localized to tools/eee_install_cron_tasks.ps1. Existing -Uninstall is not sufficient unchanged for daemon mode: unregistering the task removes future launches but does not explicitly stop the already-running daemon instance or use the poller cooperative stop sentinel. That leaves reversibility operationally ambiguous, especially for the planner which has no --stop/PID contract locally.","AXIS-3":"Given the stated precondition that both tasks are Ready, LastResult=0, and no live aperant/rotation python.exe, unregister+reregister is acceptably safe inside the 55s window. Future scheduled-fire race is removed after conversion because -AtStartup plus immediate Start-ScheduledTask no longer creates periodic trigger firings; -MultipleInstances IgnoreNew also protects duplicate starts. Still, Install should preferably Stop-ScheduledTask before Register-ScheduledTask -Force if an old instance is found, because the script may be rerun outside the probe window.","AXIS-4":"RestartCount=3 and RestartInterval=1min are a reasonable minimal crash-recovery floor, and ExecutionTimeLimit=0 is the right daemon shape. It is not complete recovery: after three crash exits there is no recurring trigger to revive the daemon until boot/manual start. Poller cooperative --stop is reachable via its PID-file stop sentinel, but the proposed installer does not call it, and the planner currently has no --stop/PID/sentinel implementation. For uninstall/reconfigure safety, add explicit Stop-ScheduledTask and poller --stop before unregister; optionally add planner cooperative stop in a later change.","AXIS-5":"constituents=[TIER-1-DIRECT Microsoft ScheduledTasks docs for -AtStartup/-ExecutionTimeLimit/-RestartCount/-RestartInterval/-MultipleInstances, TIER-1-DIRECT local implementation evidence for poller/planner --start cadence, TIER-1-DIRECT Twelve-Factor disposability principle, TIER-2 local sister-rule policy for launch/deprecation discipline, TIER-2 local Aperant research for domain rationale]; effective_tier=TIER-1-DIRECT for Windows scheduler mechanics and local daemon behavior, TIER-2 for composed project-policy compliance claims.","AXIS-6":"Mostly satisfies launch-discipline axes: reversible in git, observable via task status/jsonl, incremental because --once remains available, and OS-state mutation was pre-probed. It does not fully satisfy deprecation-discipline as proposed because the deprecated --once task surface is replaced in-place without an explicit staged rollback/stop path for already-running daemons. The fix-forward is small: make Install/Uninstall explicitly stop old/running instances and update status/help text to show daemon lifecycle."},"prescribed_edits":[{"line_ref":"tools/eee_install_cron_tasks.ps1:79 before Register-ScheduledTask calls","before":"Write-Host \"Registering scheduled tasks...\" -ForegroundColor Cyan","after":"Write-Host \"Registering scheduled tasks...\" -ForegroundColor Cyan\nforeach ($name in @($PollerTaskName, $PlannerTaskName)) {\n    $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue\n    if ($task -and $task.State -eq 'Running') {\n        Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue\n    }\n}","rationale":"Makes reruns safe outside the current Ready/no-live-process probe window and prevents daemon duplication before Register-ScheduledTask -Force plus immediate Start-ScheduledTask."},{"line_ref":"tools/eee_install_cron_tasks.ps1:105 Uninstall-Tasks","before":"if ($task) {\n            Unregister-ScheduledTask -TaskName $name -Confirm:$false\n            Write-Host \"  Unregistered: $name\" -ForegroundColor Yellow\n        }","after":"if ($task) {\n            if ($name -eq $PollerTaskName) {\n                & $PythonBin $PollerScript --stop | Out-Null\n                Start-Sleep -Seconds 2\n            }\n            Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue\n            Unregister-ScheduledTask -TaskName $name -Confirm:$false\n            Write-Host \"  Stopped/unregistered: $name\" -ForegroundColor Yellow\n        }","rationale":"Preserves operational reversibility for daemon mode. The poller gets cooperative cleanup first; Stop-ScheduledTask handles the planner and any non-cooperative remainder."},{"line_ref":"tools/eee_install_cron_tasks.ps1:after each Register-ScheduledTask","before":"Write-Host \"  Registered: $PollerTaskName (every ${PollIntervalSec}s)\" -ForegroundColor Green","after":"Start-ScheduledTask -TaskName $PollerTaskName\nWrite-Host \"  Registered/started: $PollerTaskName (daemon interval ${PollIntervalSec}s)\" -ForegroundColor Green","rationale":"Immediate start is required because -AtStartup alone waits until next boot; make the lifecycle visible in output."},{"line_ref":"tools/eee_install_cron_tasks.ps1:after planner Register-ScheduledTask","before":"Write-Host \"  Registered: $PlannerTaskName (every ${PlanIntervalMin}min)\" -ForegroundColor Green","after":"Start-ScheduledTask -TaskName $PlannerTaskName\nWrite-Host \"  Registered/started: $PlannerTaskName (daemon interval ${PlanIntervalMin}min)\" -ForegroundColor Green","rationale":"Same immediate-start requirement for planner daemon."}],"rationale_1line":"Approve the daemon-mode direction, but require explicit stop/uninstall handling so the OS-state mutation is reversible for already-running long-lived tasks."}

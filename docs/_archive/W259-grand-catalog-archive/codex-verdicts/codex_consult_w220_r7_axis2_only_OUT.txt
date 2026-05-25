@@ -1,0 +1,2506 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e2dea-d053-7711-bc63-9d9822fbd9a4
+--------
+user
+WAVE 220 R7 NARROW PATH P CODEX T1 — Axis-2 named-T2 endorsements ONLY (per FM-17.d Pattern D, EVEN narrower than R6)
+
+CONTEXT (≤30 LOC focused per Pattern D):
+
+R6 codex T1 ended Pattern B HNF (web-search loops, no JSON). R7 narrows to AXIS-2 ONLY with explicit URLs codex should probe.
+
+TASK: For each of these 6 Top-15 Wave 220 candidates, find ONE dated public artifact (tweet / blog / talk / GitHub README mention) by a NAMED PRACTITIONER (Karpathy / Simon Willison / Boris Cherny / Addy Osmani / obra / known-Anthropic-staff) endorsing the SPECIFIC repo — or HONEST-NON-FINDING.
+
+CANDIDATES (6 only, narrower than R6's 15):
+1. thedotmack/claude-mem (76K★)
+2. anthropics/skills (135K★)
+3. ruvnet/ruflo (52K★)
+4. wshobson/agents (35K★)
+5. zilliztech/claude-context (11K★ NEW R6 find)
+6. yvgude/lean-ctx (1.7K★ NEW R5 find)
+
+EXPLICIT URLs TO CHECK (search at these — DO NOT generic-web-search):
+- https://simonwillison.net/2026/ (Simon Willison blog 2026)
+- https://twitter.com/karpathy (Karpathy tweets)
+- https://twitter.com/simonw (Simon Willison tweets)
+- https://twitter.com/addyosmani (Addy Osmani tweets)
+- https://twitter.com/obra (obra tweets)
+- https://cultofclaude.com/skills/ (CC ecosystem aggregator)
+- README for each candidate (gh api repos/<owner>/<name>/contents/README.md) — grep for "Karpathy" / "Willison" / "Cherny" / "Osmani" / "obra" mentions
+
+OUTPUT (JSON-at-EOF; strict per Pattern D):
+
+{
+  "verdict": "<APPROVE|NEEDS-REVISION|REJECT>",
+  "confidence": <0.0-1.0>,
+  "axis_2_findings": [
+    {"repo": "<full_name>", "named_practitioner": "<name or NONE>", "endorsement_url": "<URL or NONE>", "date": "<YYYY-MM-DD or N/A>", "verification_method": "<direct-url-probe | readme-grep | gh-api-readme | HONEST-NON-FINDING>"}
+  ],
+  "axis_2_pass_count": <int 0-6>,
+  "axis_2_partial_count": <int 0-6>,
+  "axis_2_hnf_count": <int 0-6>
+}
+
+DISCIPLINE:
+- BRIDGE-MODE codex CLI; verdict origin = codex GPT-5.5
+- Time budget 120s default / 180s cap
+- JSON-at-EOF EMIT FIRST (don't web-search-loop until timeout)
+- If running low on time at 90s elapsed, EMIT JSON immediately with current findings + HONEST-NON-FINDING for unverified candidates
+
+codex
+I’ll keep this to the narrowed evidence surface: the named public URLs plus GitHub API README checks for the six repos. I’ll avoid broad search and classify missing evidence as HNF rather than stretching weak matches.
+codex
+I’m going to do the README checks through the GitHub contents API first, because that is deterministic and constrained to the requested repos. Then I’ll probe Simon’s 2026 page and the public profile URLs directly for visible mentions.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$repos = @('"'thedotmack/claude-mem','anthropics/skills','ruvnet/ruflo','wshobson/agents','zilliztech/claude-context','yvgude/lean-ctx'); foreach ("'$repo in $repos) { Write-Output "REPO $repo"; $url = "https://api.github.com/repos/$repo/contents/README.md"; try { $r = Invoke-RestMethod -Uri $url -Headers @{ '"'User-Agent'='codex-t1'; 'Accept'='application/vnd.github.raw' } -TimeoutSec 20; "'$text = if ($r -is [string]) { $r } elseif ($r.content) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($r.content -replace '"'\\s',''))) } else { "'$r | Out-String }; $matches = $text | Select-String -Pattern '"'Karpathy|Willison|Cherny|Osmani|obra|Anthropic' -AllMatches; if ("'$matches) { $matches | ForEach-Object { $_.Line } } else { Write-Output '"'NO_MATCH' } } catch { Write-Output (\"ERROR \" + "'$_.Exception.Message) } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$urls = @('"'https://simonwillison.net/2026/','https://twitter.com/karpathy','https://twitter.com/simonw','https://twitter.com/addyosmani','https://twitter.com/obra','https://cultofclaude.com/skills/'); foreach ("'$u in $urls) { Write-Output "URL $u"; try { $resp = Invoke-WebRequest -Uri $u -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 25; "'$text = $resp.Content; Write-Output ("STATUS " + [int]$resp.StatusCode + " LENGTH " + $text.Length); $patterns = '"'thedotmack|claude-mem|anthropics/skills|anthropic/skills|ruvnet|ruflo|wshobson|agents|zilliztech|claude-context|yvgude|lean-ctx|Karpathy|Willison|Cherny|Osmani|obra'; foreach ("'$m in ([regex]::Matches($text, $patterns, '"'IgnoreCase') | Select-Object -First 20)) { "'$start = [Math]::Max(0, $m.Index - 120); $len = [Math]::Min(300, $text.Length - $start); ($text.Substring($start, $len) -replace "`r|`n", '"' ') } } catch { Write-Output (\"ERROR \" + "'$_.Exception.Message) } }' in Z:\claude-sota-installed
+ succeeded in 1497ms:
+REPO thedotmack/claude-mem
+NO_MATCH
+REPO anthropics/skills
+> **Note:** This repository contains Anthropic's implementation of skills for Claude. For information about the Agent Skills standard, see [agentskills.io](http://agentskills.io).
+
+[![skills.sh](https://skills.sh/b/anthropics/skills)](https://skills.sh/anthropics/skills)
+
+# Skills
+Skills are folders of instructions, scripts, and resources that Claude loads dynamically to improve performance on specialized tasks. Skills teach Claude how to complete specific tasks in a repeatable way, whether that's creating documents with your company's brand guidelines, analyzing data using your organization's specific workflows, or automating personal tasks.
+
+For more information, check out:
+- [What are skills?](https://support.claude.com/en/articles/12512176-what-are-skills)
+- [Using skills in Claude](https://support.claude.com/en/articles/12512180-using-skills-in-claude)
+- [How to create custom skills](https://support.claude.com/en/articles/12512198-creating-custom-skills)
+- [Equipping agents for the real world with Agent Skills](https://anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)
+
+# About This Repository
+
+This repository contains skills that demonstrate what's possible with Claude's skills system. These skills range from creative applications (art, music, design) to technical tasks (testing web apps, MCP server generation) to enterprise workflows (communications, branding, etc.).
+
+Each skill is self-contained in its own folder with a `SKILL.md` file containing the instructions and metadata that Claude uses. Browse through these skills to get inspiration for your own skills or to understand different patterns and approaches.
+
+Many skills in this repo are open source (Apache 2.0). We've also included the document creation & editing skills that power [Claude's document capabilities](https://www.anthropic.com/news/create-files) under the hood in the [`skills/docx`](./skills/docx), [`skills/pdf`](./skills/pdf), [`skills/pptx`](./skills/pptx), and [`skills/xlsx`](./skills/xlsx) subfolders. These are source-available, not open source, but we wanted to share these with developers as a reference for more complex skills that are actively used in a production AI application.
+
+## Disclaimer
+
+**These skills are provided for demonstration and educational purposes only.** While some of these capabilities may be available in Claude, the implementations and behaviors you receive from Claude may differ from what is shown in these skills. These skills are meant to illustrate patterns and possibilities. Always test skills thoroughly in your own environment before relying on them for critical tasks.
+
+# Skill Sets
+- [./skills](./skills): Skill examples for Creative & Design, Development & Technical, Enterprise & Communication, and Document Skills
+- [./spec](./spec): The Agent Skills specification
+- [./template](./template): Skill template
+
+# Try in Claude Code, Claude.ai, and the API
+
+## Claude Code
+You can register this repository as a Claude Code Plugin marketplace by running the following command in Claude Code:
+```
+/plugin marketplace add anthropics/skills
+```
+
+Then, to install a specific set of skills:
+1. Select `Browse and install plugins`
+2. Select `anthropic-agent-skills`
+3. Select `document-skills` or `example-skills`
+4. Select `Install now`
+
+Alternatively, directly install either Plugin via:
+```
+/plugin install document-skills@anthropic-agent-skills
+/plugin install example-skills@anthropic-agent-skills
+```
+
+After installing the plugin, you can use the skill by just mentioning it. For instance, if you install the `document-skills` plugin from the marketplace, you can ask Claude Code to do something like: "Use the PDF skill to extract the form fields from `path/to/some-file.pdf`"
+
+## Claude.ai
+
+These example skills are all already available to paid plans in Claude.ai. 
+
+To use any skill from this repository or upload custom skills, follow the instructions in [Using skills in Claude](https://support.claude.com/en/articles/12512180-using-skills-in-claude#h_a4222fa77b).
+
+## Claude API
+
+You can use Anthropic's pre-built skills, and upload custom skills, via the Claude API. See the [Skills API Quickstart](https://docs.claude.com/en/api/skills-guide#creating-a-skill) for more.
+
+# Creating a Basic Skill
+
+Skills are simple to create - just a folder with a `SKILL.md` file containing YAML frontmatter and instructions. You can use the **template-skill** in this repository as a starting point:
+
+```markdown
+---
+name: my-skill-name
+description: A clear description of what this skill does and when to use it
+---
+
+# My Skill Name
+
+[Add your instructions here that Claude will follow when this skill is active]
+
+## Examples
+- Example usage 1
+- Example usage 2
+
+## Guidelines
+- Guideline 1
+- Guideline 2
+```
+
+The frontmatter requires only two fields:
+- `name` - A unique identifier for your skill (lowercase, hyphens for spaces)
+- `description` - A complete description of what the skill does and when to use it
+
+The markdown content below contains the instructions, examples, and guidelines that Claude will follow. For more details, see [How to create custom skills](https://support.claude.com/en/articles/12512198-creating-custom-skills).
+
+# Partner Skills
+
+Skills are a great way to teach Claude how to get better at using specific pieces of software. As we see awesome example skills from partners, we may highlight some of them here:
+
+- **Notion** - [Notion Skills for Claude](https://www.notion.so/notiondevs/Notion-Skills-for-Claude-28da4445d27180c7af1df7d8615723d0)
+
+REPO ruvnet/ruflo
+<div align="center">
+
+[![Ruflo Banner](ruflo/assets/ruflo-small.jpeg)](https://flo.ruv.io/)
+
+[![Try the UI Beta — flo.ruv.io](https://img.shields.io/badge/_Try_the_UI_Beta-flo.ruv.io-6366f1?style=for-the-badge&logoColor=white&logo=svelte)](https://flo.ruv.io/)
+[![Goal Planner — goal.ruv.io](https://img.shields.io/badge/_Goal_Planner-goal.ruv.io-8b5cf6?style=for-the-badge&logoColor=white&logo=react)](https://goal.ruv.io/)
+[![Live Agents — goal.ruv.io/agents](https://img.shields.io/badge/_Live_Agents-goal.ruv.io%2Fagents-10b981?style=for-the-badge&logoColor=white&logo=react)](https://goal.ruv.io/agents)
+
+[![Star on GitHub](https://img.shields.io/github/stars/ruvnet/claude-flow?style=for-the-badge&logo=github&color=gold)](https://github.com/ruvnet/claude-flow)
+[![MIT License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-D97757?style=for-the-badge&logoColor=white&logo=anthropic)](https://github.com/ruvnet/claude-flow)
+[![Codex Plugin](https://img.shields.io/badge/Codex-Plugin-412991?style=for-the-badge&logoColor=white&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0yMi4yODIgOS44MjFhNS45ODUgNS45ODUgMCAwIDAtLjUxNi00LjkxIDYuMDQ2IDYuMDQ2IDAgMCAwLTYuNTEtMi45QTYuMDY1IDYuMDY1IDAgMCAwIDQuOTgxIDQuMThhNS45ODUgNS45ODUgMCAwIDAtMy45OTggMi45IDYuMDQ2IDYuMDQ2IDAgMCAwIC43NDMgNy4wOTcgNS45OCA1Ljk4IDAgMCAwIC41MSA0LjkxMSA2LjA1MSA2LjA1MSAwIDAgMCA2LjUxNSAyLjlBNS45ODUgNS45ODUgMCAwIDAgMTMuMjYgMjRhNi4wNTYgNi4wNTYgMCAwIDAgNS43NzItNC4yMDYgNS45OSA1Ljk5IDAgMCAwIDMuOTk4LTIuOSA2LjA1NiA2LjA1NiAwIDAgMC0uNzQ3LTcuMDczek0xMy4yNiAyMi40M2E0LjQ3NiA0LjQ3NiAwIDAgMS0yLjg3Ni0xLjA0bC4xNDItLjA4IDQuNzc4LTIuNzU4YS43OTUuNzk1IDAgMCAwIC4zOTMtLjY4MXYtNi43MzdsMi4wMiAxLjE2OGEuMDcxLjA3MSAwIDAgMSAuMDM4LjA1MnY1LjU4M2E0LjUwNCA0LjUwNCAwIDAgMS00LjQ5NSA0LjQ5NHpNMy42IDE4LjMwNGE0LjQ3IDQuNDcgMCAwIDEtLjUzNS0zLjAxNGwuMTQyLjA4NSA0Ljc4MyAyLjc1OWEuNzcxLjc3MSAwIDAgMCAuNzgxIDBsNS44NDMtMy4zNjl2Mi4zMzJhLjA4LjA4IDAgMCAxLS4wMzMuMDYyTDkuNzQgMTkuOTVhNC41IDQuNSAwIDAgMS02LjE0LTEuNjQ2ek0yLjM0IDcuODk2YTQuNDg1IDQuNDg1IDAgMCAxIDIuMzY2LTEuOTczVjExLjZhLjc2Ni43NjYgMCAwIDAgLjM4OC42NzdsNS44MTUgMy4zNTQtMi4wMiAxLjE2OGEuMDc2LjA3NiAwIDAgMS0uMDcyIDBsLTQuODMtMi43ODZBNC41MDQgNC41MDQgMCAwIDEgMi4zNCA3Ljg3MnptMTYuNTk3IDMuODU1LTUuODMzLTMuMzg3IDIuMDE2LTEuMTY1YS4wNzYuMDc2IDAgMCAxIC4wNzEgMGw0LjgzIDIuNzkxYTQuNDk0IDQuNDk0IDAgMCAxLS42NzYgOC4xMDR2LTUuNjc3YS43OS43OSAwIDAgMC0uNDA3LS42Njd6bTIuMDEtMy4wMjMtLjE0MS0uMDg1LTQuNzc0LTIuNzgyYS43NzYuNzc2IDAgMCAwLS43ODUgMEw5LjQwOSA5LjIzVjYuODk3YS4wNjYuMDY2IDAgMCAxIC4wMjgtLjA2Mmw0LjgzLTIuNzg3YTQuNDk5IDQuNDk5IDAgMCAxIDYuNjggNC42NnpNOC4zMDcgMTIuODYzbC0yLjAyLTEuMTY0YS4wOC4wOCAwIDAgMS0uMDM4LS4wNTdWNi4wNzRhNC40OTkgNC40OTkgMCAwIDEgNy4zNzYtMy40NTRsLS4xNDIuMDgtNC43NzggMi43NThhLjc5NS43OTUgMCAwIDAtLjM5My42ODJ6bTEuMDk3LTIuMzY2IDIuNjAyLTEuNSAyLjYwNyAxLjV2Mi45OTlsLTIuNTk3IDEuNS0yLjYwNy0xLjVaIi8%2BPC9zdmc%2B)](https://www.npmjs.com/package/@claude-flow/codex)
+[![🕸️ RuVector Graph Ai](https://img.shields.io/badge/RuVector_Agentic-DB-06b6d4?style=for-the-badge&logoColor=white&logo=graphql)](https://github.com/ruvnet/ruvector)
+
+[![ruFlo Summit — Budapest, June 2–3, 2026](v3/docs/assets/ruFlo-Summit.jpg)](https://github.com/ruvnet/ruflo/issues/1967)
+
+# Ruflo
+
+**Multi-agent AI orchestration for Claude Code**
+
+</div>
+
+Orchestrate 100+ specialized AI agents across machines, teams, and trust boundaries. Ruflo adds coordinated swarms, self-learning memory, federated comms, and enterprise security to Claude Code — so agents don't just run, they collaborate.
+
+### Why Ruflo?
+
+> Claude Flow is now Ruflo — named by [`rUv`](https://ruv.io), who loves Rust, flow states, and building things that feel inevitable. The "Ru" is the rUv. The "flo" is working until 3am. Underneath, powered by [`Cognitum.One`](https://cognitum.one/?RuFlo) agentic architecture, running a supercharged Rust based AI engine, embeddings, memory, and plugin system.
+
+
+### What Ruflo Does
+
+One `npx ruvflo init` gives Claude Code a nervous system: agents self-organize into swarms, learn from every task, remember across sessions, and — with federation — securely talk to agents on other machines without leaking data. You keep writing code. Ruflo handles the coordination.
+
+```
+Self-Learning / Self-Optimizing Agent Architecture
+
+User --> Ruflo (CLI/MCP) --> Router --> Swarm --> Agents --> Memory --> LLM Providers
+                          ^                           |
+                          +---- Learning Loop <-------+
+```
+
+> **New to Ruflo?** You don't need to learn 314 MCP tools or 26 CLI commands. After `init`, just use Claude Code normally -- the hooks system automatically routes tasks, learns from successful patterns, and coordinates agents in the background.
+
+---
+
+![Ruflo Plugins](./ruflo-plugins.gif)
+
+## Quick Start
+
+There are **two different install paths** with very different surface areas. Pick based on what you need (#1744):
+
+| | **Claude Code Plugin** | **CLI install (`npx ruflo init`)** |
+|---|---|---|
+| What it gives you | Slash commands + a few skills + agent definitions per-plugin | Full Ruflo loop — 98 agents, 60+ commands, 30 skills, MCP server, hooks, daemon |
+| Files in your workspace | **Zero** | `.claude/`, `.claude-flow/`, `CLAUDE.md`, helpers, settings |
+| MCP server registered | **No** (`memory_store`, `swarm_init`, etc. unavailable to Claude) | Yes |
+| Hooks installed | No | Yes |
+| Best for | Try a single plugin's commands without committing to the full install | Production use — everything works as documented |
+
+### Path A — Claude Code Plugins (lite, slash commands only)
+
+```bash
+# Add the marketplace
+/plugin marketplace add ruvnet/ruflo
+
+# Install core + any plugins you need
+/plugin install ruflo-core@ruflo
+/plugin install ruflo-swarm@ruflo
+/plugin install ruflo-autopilot@ruflo
+/plugin install ruflo-federation@ruflo
+```
+
+This adds slash commands and agent definitions only. The Ruflo MCP server is NOT registered, so `memory_store`, `swarm_init`, `agent_spawn`, etc. won't be callable from Claude. For the full loop, use Path B below.
+
+<details>
+<summary><strong>🔌 All 32 plugins</strong></summary>
+
+#### Core & Orchestration
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-core**](plugins/ruflo-core/README.md) | Foundation — server, health checks, plugin discovery |
+| [**ruflo-swarm**](plugins/ruflo-swarm/README.md) | Coordinate multiple agents as a team |
+| [**ruflo-autopilot**](plugins/ruflo-autopilot/README.md) | Let agents run autonomously in a loop |
+| [**ruflo-loop-workers**](plugins/ruflo-loop-workers/README.md) | Schedule background tasks on a timer |
+| [**ruflo-workflows**](plugins/ruflo-workflows/README.md) | Reusable multi-step task templates |
+| [**ruflo-federation**](plugins/ruflo-federation/README.md) | Agents on different machines collaborate securely |
+
+#### Memory & Knowledge
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-agentdb**](plugins/ruflo-agentdb/README.md) | Fast vector database for agent memory |
+| [**ruflo-rag-memory**](plugins/ruflo-rag-memory/README.md) | Smart retrieval — hybrid search, graph hops, diversity ranking |
+| [**ruflo-rvf**](plugins/ruflo-rvf/README.md) | Save and restore agent memory across sessions |
+| [**ruflo-ruvector**](plugins/ruflo-ruvector/README.md) | [`ruvector`](https://npmjs.com/package/ruvector) — GPU-accelerated search, Graph RAG, 103 tools |
+| [**ruflo-knowledge-graph**](plugins/ruflo-knowledge-graph/README.md) | Build and traverse entity relationship maps |
+
+#### Intelligence & Learning
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-intelligence**](plugins/ruflo-intelligence/README.md) | Agents learn from past successes and get smarter |
+| [**ruflo-daa**](plugins/ruflo-daa/README.md) | Dynamic agent behavior and cognitive patterns |
+| [**ruflo-ruvllm**](plugins/ruflo-ruvllm/README.md) | Run local LLMs (Ollama, etc.) with smart routing |
+| [**ruflo-goals**](plugins/ruflo-goals/README.md) | Break big goals into plans and track progress |
+
+#### Code Quality & Testing
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-testgen**](plugins/ruflo-testgen/README.md) | Find missing tests and generate them automatically |
+| [**ruflo-browser**](plugins/ruflo-browser/README.md) | Automate browser testing with Playwright |
+| [**ruflo-jujutsu**](plugins/ruflo-jujutsu/README.md) | Analyze git diffs, score risk, suggest reviewers |
+| [**ruflo-docs**](plugins/ruflo-docs/README.md) | Generate and maintain documentation automatically |
+
+#### Security & Compliance
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-security-audit**](plugins/ruflo-security-audit/README.md) | Scan for vulnerabilities and CVEs |
+| [**ruflo-aidefence**](plugins/ruflo-aidefence/README.md) | Block prompt injection, detect PII, safety scanning |
+
+#### Architecture & Methodology
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-adr**](plugins/ruflo-adr/README.md) | Track architecture decisions with a living record |
+| [**ruflo-ddd**](plugins/ruflo-ddd/README.md) | Scaffold domain-driven design — contexts, aggregates, events |
+| [**ruflo-sparc**](plugins/ruflo-sparc/README.md) | Guided 5-phase development methodology with quality gates |
+
+#### DevOps & Observability
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-migrations**](plugins/ruflo-migrations/README.md) | Manage database schema changes safely |
+| [**ruflo-observability**](plugins/ruflo-observability/README.md) | Structured logs, traces, and metrics in one place |
+| [**ruflo-cost-tracker**](plugins/ruflo-cost-tracker/README.md) | Track token usage, set budgets, get cost alerts |
+
+#### Extensibility
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-agent**](plugins/ruflo-agent/README.md) | Run agents — local WASM sandbox (rvagent) + Anthropic Claude Managed Agents (cloud) |
+| [**ruflo-plugin-creator**](plugins/ruflo-plugin-creator/README.md) | Scaffold, validate, and publish your own plugins |
+
+#### Domain-Specific
+
+| Plugin | What it does |
+|--------|-------------|
+| [**ruflo-iot-cognitum**](plugins/ruflo-iot-cognitum/README.md) | IoT device management — trust scoring, anomaly detection, fleets |
+| [**ruflo-neural-trader**](plugins/ruflo-neural-trader/README.md) | [`neural-trader`](https://npmjs.com/package/neural-trader) — AI trading with 4 agents, backtesting, 112+ tools |
+| [**ruflo-market-data**](plugins/ruflo-market-data/README.md) | Ingest market data, vectorize OHLCV, detect patterns |
+
+</details>
+
+### CLI Install
+
+**macOS / Linux / WSL / Git-Bash:**
+
+```bash
+# One-line install (POSIX shells only — see Windows note below)
+curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/ruflo@main/scripts/install.sh | bash
+```
+
+**All platforms (including native Windows PowerShell / cmd):**
+
+```bash
+# Interactive setup wizard — runs identically on every platform
+npx ruflo@latest init wizard
+
+# Quick non-interactive init
+# npx ruflo@latest init
+
+# Or install globally
+npm install -g ruflo@latest
+```
+
+> 💡 **Windows users:** the `curl ... | bash` form needs a POSIX shell (Git-Bash, WSL, MSYS). The `npx ruflo@latest init wizard` line works natively in PowerShell and cmd. If you hit an `'bash' is not recognized` error, use the `npx` line instead — both end up running the same init flow.
+
+### MCP Server
+
+```bash
+# Add Ruflo as an MCP server in Claude Code (canonical form, matches USERGUIDE.md)
+claude mcp add ruflo -- npx ruflo@latest mcp start
+```
+
+---
+
+## What You Get
+
+| Capability | Description |
+|------------|-------------|
+| 🤖 **100+ Agents** | Specialized agents for coding, testing, security, docs, architecture |
+| 📡 **Comms Layer** | Zero-trust federation — agents across machines/orgs discover, authenticate, and exchange work securely |
+| 🐝 **Swarm Coordination** | Hierarchical, mesh, and adaptive topologies with consensus |
+| 🧠 **Self-Learning** | SONA neural patterns, ReasoningBank, trajectory learning |
+| 💾 **Vector Memory** | HNSW-indexed AgentDB with 150x-12,500x faster search |
+| ⚡ **Background Workers** | 12 auto-triggered workers (audit, optimize, testgaps, etc.) |
+| 🧩 **Plugin Marketplace** | 32 native Claude Code plugins + 21 npm plugins |
+| 🔌 **Multi-Provider** | Claude, GPT, Gemini, Cohere, Ollama with smart routing |
+| 🛡️ **Security** | AIDefence, input validation, CVE remediation, path traversal prevention |
+| 🌐 **Agent Federation** | Cross-installation agent collaboration with zero-trust security |
+| 💬 **[Web UI Beta](https://flo.ruv.io/)** | Multi-model chat at flo.ruv.io with parallel MCP tool calling and an in-browser WASM tool gallery |
+| 🎯 **[RuFlo Research](https://goal.ruv.io/)** | GOAP A\* planner at goal.ruv.io — plain-English goals → executable agent plans, with a live agent dashboard at [/agents](https://goal.ruv.io/agents) |
+
+<p align="center">
+  <a href="https://flo.ruv.io/">
+    <img src="v3/docs/assets/ruVocal.png" alt="RuFlo Web UI executing parallel MCP tool calls at flo.ruv.io — ruflo__memory_store and ruflo__memory_search firing in a single model turn with the 'Step 1 — 2 tools completed' parallel-execution indicator, thinking process panel visible, Qwen 3.6 Max as the active model. Multi-agent AI chat with Model Context Protocol (MCP) tool calling, persistent vector memory via AgentDB + HNSW, swarm coordination, and 6 frontier models including Claude Sonnet 4.6, Gemini 2.5 Pro, and OpenAI through OpenRouter." width="100%" />
+  </a>
+</p>
+
+### Web UI (Beta) — self-hostable, hosted demo at [flo.ruv.io](https://flo.ruv.io/)
+
+**RuFlo's web UI is a multi-model AI chat with built-in Model Context Protocol (MCP) tool calling.** Talk to Qwen, Claude, Gemini, or OpenAI while RuFlo invokes the same MCP tools the CLI uses — agent orchestration, persistent memory, swarm coordination, code review, GitHub ops — directly from chat. No install, no API key needed to try it.
+
+| | What it is | Why it matters |
+|---|------------|----------------|
+| 🧠 | **Any model, local or remote** | 6 curated frontier models out-of-the-box — Qwen 3.6 Max (default), Claude Sonnet 4.6, Claude Haiku 4.5, Gemini 2.5 Pro, Gemini 2.5 Flash, OpenAI — via OpenRouter. Add your own: any OpenAI-compatible endpoint (vLLM, Ollama, LM Studio, Together, Groq, self-hosted). |
+| 🦾 | **ruvLLM self-learning AI** | Native support for [ruvLLM](https://github.com/ruvnet/RuVector/tree/main/examples/ruvLLM) (lives in `ruvnet/RuVector/examples/ruvLLM`) — RuFlo's self-improving local model layer. Routes to MicroLoRA adapters, learns from your trajectories via SONA, and stays on your machine. Pair with the cloud models or run fully offline. |
+| 🛠️ | **~210 tools, ready to call** | 5 server groups (Core, Intelligence, Agents, Memory, DevTools) plus an 18-tool gallery that runs entirely in your browser — works offline. |
+| 🔌 | **Bring your own MCP servers** | Click the **MCP (n)** pill in the chat input → *Add Server* and paste any MCP endpoint (HTTP, SSE, or stdio). Your tools join RuFlo's native ones in the same parallel-execution flow. Run a local MCP server on `localhost:3000` and it just works. |
+| ⚡ | **Tools run in parallel** | One model response can fire 4–6+ tools at the same time. The UI shows them as cards with a *Step 1 — 2 tools completed* badge so you can see exactly what ran. |
+| 💾 | **Memory that sticks** | Say *"remember my favorite color is indigo"* and ask weeks later — RuFlo recalls it. Backed by AgentDB + HNSW vector search (≥150× faster than brute force). |
+| 📘 | **Built-in capabilities tour** | Click the question-mark icon in the sidebar — a "RuFlo Capabilities" modal opens with the full tool list, model strengths, architecture, and keyboard shortcuts. |
+| 🏠 | **Self-hostable** | Web UI is shipped as Docker (`ruflo/src/ruvocal/Dockerfile`) with embedded Mongo. Deploy to your own Cloud Run / Fly / Kubernetes / docker-compose. The hosted [flo.ruv.io](https://flo.ruv.io/) demo is one option; running your own is fully supported. |
+| 🚀 | **Zero install to try** | Open the hosted URL, pick a model, type a question. That's the whole onboarding. |
+
+**Try the hosted demo:** [https://flo.ruv.io/](https://flo.ruv.io/) — no account, no API key. **Run your own:** the source lives in [`ruflo/src/ruvocal/`](ruflo/src/ruvocal/) with a multi-stage Dockerfile (`INCLUDE_DB=true` builds in MongoDB) and a `cloudbuild.yaml` for Google Cloud Run. See [ADR-033](ruflo/docs/adr/ADR-033-RUVOCAL-WASM-MCP-INTEGRATION.md) for the architecture and [issue #1689](https://github.com/ruvnet/ruflo/issues/1689) for the roadmap.
+
+<p align="center">
+  <a href="https://goal.ruv.io/agents">
+    <img src="v3/docs/assets/goal.png" alt="goal.ruv.io/agents — RuFlo Goal-Oriented Action Planning (GOAP) UI for autonomous AI agents. Visual goal decomposition, A* search through state spaces, multi-agent task assignment, and live agent telemetry." width="100%" />
+  </a>
+</p>
+
+### Goal Planner UI — autonomous agents at [goal.ruv.io](https://goal.ruv.io/)
+
+**Turn high-level goals into executable agent plans.** `goal.ruv.io` is RuFlo's hosted Goal-Oriented Action Planning (GOAP) front-end — describe an outcome in plain English and watch RuFlo decompose it into preconditions, actions, and an A* path through state space, then dispatch the work to live agents at [`/agents`](https://goal.ruv.io/agents).
+
+| | What it is | Why it matters |
+|---|------------|----------------|
+| 🎯 | **Plain-English goals** | Type *"ship the auth refactor with tests and a PR"* — RuFlo extracts the success criteria, the constraints, and the implicit preconditions. No JSON, no DSL. |
+| 🧭 | **GOAP A\* planner** | Classic gaming-AI planning ported to software work: state-space search through actions with preconditions/effects to find the shortest viable path. Replans on the fly when state changes. |
+| 🤖 | **Live agent dashboard** | [goal.ruv.io/agents](https://goal.ruv.io/agents) shows every spawned agent — role, current step, memory namespace, token budget, status. Click in to inspect trajectories, kill runaway workers, or reassign. |
+| 🌳 | **Visual plan tree** | Goals render as collapsible action trees with progress, blocked branches, and rollbacks highlighted. See *exactly* why an agent picked a path — no opaque chain-of-thought. |
+| ♻️ | **Adaptive replanning** | When an action fails or new info arrives, the planner re-runs A\* from the current state instead of restarting. Failures become learning, not loops. |
+| 🧠 | **Shared memory + SONA** | Plans, trajectories, and outcomes flow into AgentDB. Future plans retrieve past solutions via HNSW — the planner gets smarter with every run. |
+| 🔗 | **Wired to MCP tools** | Every action node maps to a tool call (RuFlo's ~210 MCP tools, your custom servers, or shell). The planner schedules them in parallel where the dependency graph allows. |
+| 🚀 | **Zero install to try** | Open [goal.ruv.io](https://goal.ruv.io/), describe a goal, watch it run. Source lives in [`v3/goal_ui/`](v3/goal_ui/) — Vite + Supabase, self-hostable. |
+
+**Try it:** [https://goal.ruv.io/](https://goal.ruv.io/) for goals · [https://goal.ruv.io/agents](https://goal.ruv.io/agents) for live agents. **Run your own:** clone the `goal` branch and `cd v3/goal_ui && npm install && npm run dev`.
+
+### Agent Federation — Slack for Agents
+
+```
+Your Agent --> [ Remove secrets ] --> [ Sign message ] --> [ Encrypted channel ]
+                 Emails, SSNs,        Proves it came       No one reads it
+                 keys stripped         from you              in transit
+                                                                |
+                                                                v
+Their Agent <-- [ Block attacks ] <-- [ Check identity ] <------+
+                 Stops prompt          Rejects forgeries
+                 injection
+
+                          Audit trail on both sides.
+                  Trust builds over time. Bad behavior = instant downgrade.
+```
+
+Slack gave teams channels. Federation gives agents the same thing — **shared workspaces across trust boundaries**, where agents on different machines, orgs, or cloud regions can discover each other, prove who they are, and collaborate on tasks.
+
+The difference: some channels are trusted, some aren't. [`@claude-flow/plugin-agent-federation`](https://github.com/ruvnet/ruflo/issues/1669) handles that automatically. Your agents join a federation, get verified via mTLS + ed25519, and start exchanging work — with PII stripped before anything leaves your node and every message auditable. Untrusted agents can still participate at lower privilege: they see discovery info, not your memory. As they prove reliable, trust upgrades. If they misbehave, they get downgraded instantly — no human in the loop required.
+
+You don't configure handshakes or manage certificates. You `federation init`, `federation join`, and your agents start talking. The protocol handles identity, the PII pipeline handles data safety, and the audit trail handles compliance.
+
+> **📘 Full user guide:** [`docs/federation/`](./docs/federation/) — setup, MCP tools, trust levels, circuit breaker, and the (opt-in) WireGuard mesh layer that ties packet-layer reachability to federation trust. ADR-111 deep-dive at [`docs/federation/phase7-mesh-bringup.md`](./docs/federation/phase7-mesh-bringup.md).
+
+<details>
+<summary><strong>Federation capabilities</strong></summary>
+
+| | Capability | How it works |
+|---|---|---|
+| 🔒 | **Zero-trust federation** | Remote agents start untrusted. Identity proven via mTLS + ed25519 challenge-response. No API keys, no shared secrets. |
+| 🛡️ | **PII-gated data flow** | 14-type detection pipeline scans every outbound message. Per-trust-level policies: BLOCK, REDACT, HASH, or PASS. Adaptive calibration reduces false positives. |
+| 📊 | **Behavioral trust scoring** | Formula (`0.4×success + 0.2×uptime + 0.2×threat + 0.2×integrity`) continuously evaluates peers. Upgrades require history; downgrades are instant. |
+| 📋 | **Compliance built-in** | HIPAA, SOC2, GDPR audit trails as compliance modes. Every federation event produces a structured record searchable via HNSW. |
+| 🤝 | **9 MCP tools + 10 CLI commands** | Full lifecycle: `federation_init`, `federation_send`, `federation_trust`, `federation_audit`, and more. |
+
+</details>
+
+<details>
+<summary><strong>Example: two teams sharing fraud signals without sharing customer data</strong></summary>
+
+```bash
+# Team A: initialize federation and generate keypair
+npx claude-flow@latest federation init
+
+# Team A: join Team B's federation endpoint
+npx claude-flow@latest federation join wss://team-b.example.com:8443
+
+# Team A: send a task — PII is stripped automatically before it leaves
+npx claude-flow@latest federation send --to team-b --type task-request \
+  --message "Analyze transaction patterns for account anomalies"
+
+# Team A: check peer trust levels and session health
+npx claude-flow@latest federation status
+```
+
+</details>
+
+See [issue #1669](https://github.com/ruvnet/ruflo/issues/1669) for the complete architecture, trust model, and implementation roadmap.
+
+```bash
+# Claude Code plugin
+/plugin install ruflo-federation@ruflo
+
+# Or via CLI
+npx claude-flow@latest plugins install @claude-flow/plugin-agent-federation
+```
+
+<details>
+<summary><strong>Claude Code: With vs Without Ruflo</strong></summary>
+
+| Capability | Claude Code Alone | + Ruflo |
+|------------|-------------------|---------|
+| Agent Collaboration | Isolated, no shared context | Swarms with shared memory and consensus |
+| Coordination | Manual orchestration | Queen-led hierarchy (Raft, Byzantine, Gossip) |
+| Memory | Session-only | HNSW vector memory with sub-ms retrieval |
+| Learning | Static behavior | SONA self-learning with pattern matching |
+| Task Routing | You decide | Intelligent routing (89% accuracy) |
+| Background Workers | None | 12 auto-triggered workers |
+| LLM Providers | Anthropic only | 5 providers with failover |
+| Security | Standard | CVE-hardened with AIDefence |
+
+</details>
+
+<details>
+<summary><strong>Architecture overview</strong></summary>
+
+```
+User --> Claude Code / CLI
+          |
+          v
+    Orchestration Layer
+    (MCP Server, Router, 27 Hooks)
+          |
+          v
+    Swarm Coordination
+    (Queen, Topology, Consensus)
+          |
+          v
+    100+ Specialized Agents
+    (coder, tester, reviewer, architect, security...)
+          |
+          v
+    Memory & Learning
+    (AgentDB, HNSW, SONA, ReasoningBank)
+          |
+          v
+    LLM Providers
+    (Claude, GPT, Gemini, Cohere, Ollama)
+```
+
+</details>
+
+---
+
+## Documentation
+
+Three docs for three audiences:
+
+| Doc | When to read it |
+|-----|-----------------|
+| **[Status](docs/STATUS.md)** | See what currently works — capability counts, test baselines, recent fixes, what's next. The *is-it-ready* doc. |
+| **[User Guide](docs/USERGUIDE.md)** | Daily reference — every command, every config flag, every plugin. The *how-do-I* doc. |
+| **[Verification](verification.md)** | Cryptographically prove your installed bytes match the signed witness — `ruflo verify`. The *trust-but-verify* doc. |
+
+User Guide section index:
+
+| Section | Topics |
+|---------|--------|
+| [Quick Start](docs/USERGUIDE.md#quick-start) | Installation, prerequisites, install profiles |
+| [Core Features](docs/USERGUIDE.md#-core-features) | MCP tools, agents, memory, neural learning |
+| [Intelligence & Learning](docs/USERGUIDE.md#-intelligence--learning) | Hooks, workers, SONA, model routing |
+| [Swarm & Coordination](docs/USERGUIDE.md#-swarm--coordination) | Topologies, consensus, hive mind |
+| [Security](docs/USERGUIDE.md#%EF%B8%8F-security) | AIDefence, CVE remediation, validation |
+| [Ecosystem](docs/USERGUIDE.md#-ecosystem--integrations) | RuVector, agentic-flow, Flow Nexus |
+| [Configuration](docs/USERGUIDE.md#%EF%B8%8F-configuration--reference) | Environment variables, config schema |
+| [Plugin Marketplace](https://ruvnet.github.io/ruflo) | Browse and install plugins |
+
+---
+
+## Support
+
+| Resource | Link |
+|----------|------|
+| Documentation | [User Guide](docs/USERGUIDE.md) |
+| Issues & Bugs | [GitHub Issues](https://github.com/ruvnet/claude-flow/issues) |
+| Enterprise | [ruv.io](https://ruv.io) |
+| Community | [Agentics Foundation Discord](https://discord.com/invite/dfxmpwkG2D) |
+| Powered by | [Cognitum.one](https://cognitum.one) |
+
+## License
+
+MIT - [RuvNet](https://github.com/ruvnet)
+
+REPO wshobson/agents
+# Claude Code Plugins: Orchestration and Automation
+
+> **⚡ Updated for Opus 4.7, Sonnet 4.6 & Haiku 4.5** — Three-tier model strategy for optimal performance
+
+[![Run in Smithery](https://smithery.ai/badge/skills/wshobson)](https://smithery.ai/skills?ns=wshobson&utm_source=github&utm_medium=badge) [![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-supported-blue)](GEMINI.md)
+
+> **🎯 Agent Skills Enabled** — 153 specialized skills extend Claude's capabilities across plugins with progressive disclosure
+
+A comprehensive production-ready system combining **185 specialized AI agents**, **16 multi-agent workflow orchestrators**, **153 agent skills**, and **100 commands** organized into **80 focused, single-purpose plugins** for [Claude Code](https://docs.claude.com/en/docs/claude-code/overview).
+
+> [!NOTE]
+> **Gemini CLI users:** This ecosystem is also available as a native Gemini CLI extension — 153 skills discoverable on-demand, no plugin installation required. See [GEMINI.md](GEMINI.md) for setup.
+
+## Overview
+
+This unified repository provides everything needed for intelligent automation and multi-agent orchestration across modern software development:
+
+- **80 Focused Plugins** - Granular, single-purpose plugins optimized for minimal token usage and composability
+- **185 Specialized Agents** - Domain experts with deep knowledge across architecture, languages, infrastructure, quality, data/AI, documentation, business operations, and SEO
+- **153 Agent Skills** - Modular knowledge packages with progressive disclosure for specialized expertise
+- **16 Workflow Orchestrators** - Multi-agent coordination systems for complex operations like full-stack development, security hardening, ML pipelines, and incident response
+- **100 Commands** - Optimized utilities including project scaffolding, security scanning, test automation, and infrastructure setup
+
+### Key Features
+
+- **Granular Plugin Architecture**: 80 focused plugins optimized for minimal token usage
+- **Comprehensive Tooling**: 100 commands including test generation, scaffolding, and security scanning
+- **100% Agent Coverage**: All plugins include specialized agents
+- **Agent Skills**: 153 specialized skills following for progressive disclosure and token efficiency
+- **Clear Organization**: 25 categories with 1-10 plugins each for easy discovery
+- **Efficient Design**: Average 3.6 components per plugin (follows Anthropic's 2-8 pattern)
+
+### How It Works
+
+Each plugin is completely isolated with its own agents, commands, and skills:
+
+- **Install only what you need** - Each plugin loads only its specific agents, commands, and skills
+- **Minimal token usage** - No unnecessary resources loaded into context
+- **Mix and match** - Compose multiple plugins for complex workflows
+- **Clear boundaries** - Each plugin has a single, focused purpose
+- **Progressive disclosure** - Skills load knowledge only when activated
+
+**Example**: Installing `python-development` loads 3 Python agents, 1 scaffolding tool, and makes 16 skills available (~1000 tokens), not the entire marketplace.
+
+## Quick Start
+
+### Step 1: Add the Marketplace
+
+Add this marketplace to Claude Code:
+
+```bash
+/plugin marketplace add wshobson/agents
+```
+
+This makes all 80 plugins available for installation, but **does not load any agents or tools** into your context.
+
+### Step 2: Install Plugins
+
+Browse available plugins:
+
+```bash
+/plugin
+```
+
+Install the plugins you need:
+
+```bash
+# Essential development plugins
+/plugin install python-development          # Python with 16 specialized skills
+/plugin install javascript-typescript       # JS/TS with 4 specialized skills
+/plugin install backend-development         # Backend APIs with 3 architecture skills
+
+# Infrastructure & operations
+/plugin install kubernetes-operations       # K8s with 4 deployment skills
+/plugin install cloud-infrastructure        # AWS/Azure/GCP with 4 cloud skills
+
+# Security & quality
+/plugin install security-scanning           # SAST with security skill
+/plugin install comprehensive-review       # Multi-perspective code analysis
+
+# Full-stack orchestration
+/plugin install full-stack-orchestration   # Multi-agent workflows
+```
+
+Each installed plugin loads **only its specific agents, commands, and skills** into Claude's context.
+
+### Plugins vs Agents
+
+You install **plugins**, which bundle agents:
+
+| Plugin                  | Agents                                            |
+| ----------------------- | ------------------------------------------------- |
+| `comprehensive-review`  | architect-review, code-reviewer, security-auditor |
+| `javascript-typescript` | javascript-pro, typescript-pro                    |
+| `python-development`    | python-pro, django-pro, fastapi-pro               |
+| `blockchain-web3`       | blockchain-developer                              |
+
+```bash
+# ❌ Wrong - can't install agents directly
+/plugin install typescript-pro
+
+# ✅ Right - install the plugin
+/plugin install javascript-typescript@claude-code-workflows
+```
+
+### Troubleshooting
+
+**"Plugin not found"** → Use plugin names, not agent names. Add `@claude-code-workflows` suffix.
+
+**Plugins not loading** → Clear cache and reinstall:
+
+```bash
+rm -rf ~/.claude/plugins/cache/claude-code-workflows && rm ~/.claude/plugins/installed_plugins.json
+```
+
+## Documentation
+
+### Core Guides
+
+- **[Plugin Reference](docs/plugins.md)** - Complete catalog of all 80 plugins
+- **[Agent Reference](docs/agents.md)** - All 185 agents organized by category
+- **[Agent Skills](docs/agent-skills.md)** - 153 specialized skills with progressive disclosure
+- **[Usage Guide](docs/usage.md)** - Commands, workflows, and best practices
+- **[Architecture](docs/architecture.md)** - Design principles and patterns
+- **[PluginEval](docs/plugin-eval.md)** - Quality evaluation framework (layers, dimensions, scoring)
+
+### Quick Links
+
+- [Installation](#quick-start) - Get started in 2 steps
+- [Essential Plugins](docs/plugins.md#quick-start---essential-plugins) - Top plugins for immediate productivity
+- [Command Reference](docs/usage.md#command-reference-by-category) - All slash commands organized by category
+- [Multi-Agent Workflows](docs/usage.md#multi-agent-workflow-examples) - Pre-configured orchestration examples
+- [Model Configuration](docs/agents.md#model-configuration) - Haiku/Sonnet hybrid orchestration
+
+## What's New
+
+### Gemini CLI Extension Support (NEW)
+
+The full skills ecosystem is now available as a native Gemini CLI extension:
+
+```bash
+gemini extensions install https://github.com/wshobson/agents
+```
+
+- **153 skills** discoverable on-demand — describe your task and Gemini CLI identifies the matching skill
+- **Opt-in slash commands** — generate locally per plugin via `make generate-plugin PLUGIN=<name>`, never committed to the repo
+- **Zero changes** to existing agents, skills, or commands — all markdown files are platform-agnostic
+- **Protocol Orchestrator** — slash commands pause at checkpoints for user approval, same disciplined flow as Claude Code
+
+[→ View Gemini CLI setup and usage](GEMINI.md)
+
+### PluginEval — Quality Evaluation Framework (NEW)
+
+A three-layer evaluation framework for measuring and certifying plugin/skill quality:
+
+```bash
+/plugin install plugin-eval@claude-code-workflows
+```
+
+- **Three Evaluation Layers** — Static analysis (instant), LLM judge (semantic), Monte Carlo simulation (statistical)
+- **10 Quality Dimensions** — Triggering accuracy, orchestration fitness, output quality, scope calibration, progressive disclosure, token efficiency, robustness, structural completeness, code template quality, ecosystem coherence
+- **Quality Badges** — Platinum (★★★★★), Gold (★★★★), Silver (★★★), Bronze (★★)
+- **Anti-Pattern Detection** — OVER_CONSTRAINED, EMPTY_DESCRIPTION, MISSING_TRIGGER, BLOATED_SKILL, ORPHAN_REFERENCE, DEAD_CROSS_REF
+- **Statistical Rigor** — Wilson score CI, bootstrap CI, Clopper-Pearson exact CI, Elo ranking
+- **CLI + Claude Code** — `uv run plugin-eval score/certify/compare` or `/eval`, `/certify`, `/compare` commands
+- **CI Gate** — `--threshold` flag exits non-zero below a minimum score
+
+```bash
+# Quick evaluation (static only, instant)
+uv run plugin-eval score path/to/skill --depth quick
+
+# Standard evaluation (static + LLM judge)
+uv run plugin-eval score path/to/skill --depth standard
+
+# Full certification (all layers + Elo)
+uv run plugin-eval certify path/to/skill
+```
+
+[→ View PluginEval documentation](docs/plugin-eval.md)
+
+### Agent Teams Plugin
+
+Orchestrate multi-agent teams for parallel workflows using Claude Code's experimental Agent Teams feature:
+
+```bash
+/plugin install agent-teams@claude-code-workflows
+```
+
+- **7 Team Presets** — `review`, `debug`, `feature`, `fullstack`, `research`, `security`, `migration`
+- **Parallel Code Review** — `/team-review src/ --reviewers security,performance,architecture`
+- **Hypothesis-Driven Debugging** — `/team-debug "API returns 500" --hypotheses 3`
+- **Parallel Feature Development** — `/team-feature "Add OAuth2 auth" --plan-first`
+- **Research Teams** — Parallel investigation across codebase and web sources
+- **Security Audits** — 4 reviewers covering OWASP, auth, dependencies, and secrets
+- **Migration Support** — Coordinated migration with parallel streams and correctness verification
+
+Includes 4 specialized agents, 7 commands, and 6 skills with reference documentation.
+
+[→ View agent-teams documentation](plugins/agent-teams/README.md)
+
+### Conductor Plugin — Context-Driven Development
+
+Transforms Claude Code into a project management tool with a structured **Context → Spec & Plan → Implement** workflow:
+
+```bash
+/plugin install conductor@claude-code-workflows
+```
+
+- **Interactive Setup** — `/conductor:setup` creates product vision, tech stack, workflow rules, and style guides
+- **Track-Based Development** — `/conductor:new-track` generates specifications and phased implementation plans
+- **TDD Workflow** — `/conductor:implement` executes tasks with verification checkpoints
+- **Semantic Revert** — `/conductor:revert` undoes work by logical unit (track, phase, or task)
+- **State Persistence** — Resume setup across sessions with persistent project context
+- **3 Skills** — Context-driven development, track management, workflow patterns
+
+[→ View Conductor documentation](plugins/conductor/README.md)
+
+### Agent Skills (153 skills across 40 plugins)
+
+Specialized knowledge packages following Anthropic's progressive disclosure architecture:
+
+**Language Development:**
+
+- **Python** (5 skills): async patterns, testing, packaging, performance, UV package manager
+- **JavaScript/TypeScript** (4 skills): advanced types, Node.js patterns, testing, modern ES6+
+
+**Infrastructure & DevOps:**
+
+- **Kubernetes** (4 skills): manifests, Helm charts, GitOps, security policies
+- **Cloud Infrastructure** (4 skills): Terraform, multi-cloud, hybrid networking, cost optimization
+- **CI/CD** (4 skills): pipeline design, GitHub Actions, GitLab CI, secrets management
+
+**Development & Architecture:**
+
+- **Backend** (3 skills): API design, architecture patterns, microservices
+- **LLM Applications** (8 skills): LangGraph, prompt engineering, RAG, evaluation, embeddings, similarity search, vector tuning, hybrid search
+
+**Blockchain & Web3** (4 skills): DeFi protocols, NFT standards, Solidity security, Web3 testing
+
+**Project Management:**
+
+- **Conductor** (3 skills): context-driven development, track management, workflow patterns
+
+**And more:** Framework migration, observability, payment processing, ML operations, security scanning
+
+[→ View complete skills documentation](docs/agent-skills.md)
+
+### Three-Tier Model Strategy
+
+Strategic model assignment for optimal performance and cost:
+
+| Tier       | Model    | Agents | Use Case                                                                                        |
+| ---------- | -------- | ------ | ----------------------------------------------------------------------------------------------- |
+| **Tier 1** | Opus 4.7 | 42     | Critical architecture, security, ALL code review, production coding (language pros, frameworks) |
+| **Tier 2** | Inherit  | 42     | Complex tasks - user chooses model (AI/ML, backend, frontend/mobile, specialized)               |
+| **Tier 3** | Sonnet   | 51     | Support with intelligence (docs, testing, debugging, network, API docs, DX, legacy, payments)   |
+| **Tier 4** | Haiku    | 18     | Fast operational tasks (SEO, deployment, simple docs, sales, content, search)                   |
+
+**Why Opus 4.7 for Critical Agents?**
+
+- 80.8% on SWE-bench (industry-leading)
+- 65% fewer tokens for complex tasks
+- Best for architecture decisions and security audits
+
+**Tier 2 Flexibility (`inherit`):**
+Agents marked `inherit` use your session's default model, letting you balance cost and capability:
+
+- Set via `claude --model opus` or `claude --model sonnet` when starting a session
+- Falls back to Sonnet 4.6 if no default specified
+- Perfect for frontend/mobile developers who want cost control
+- AI/ML engineers can choose Opus for complex model work
+
+**Cost Considerations:**
+
+- **Opus 4.7**: $5/$25 per million input/output tokens - Premium for critical work
+- **Sonnet 4.6**: $3/$15 per million tokens - Balanced performance/cost
+- **Haiku 4.5**: $1/$5 per million tokens - Fast, cost-effective operations
+- Opus's 65% token reduction on complex tasks often offsets higher rate
+- Use `inherit` tier to control costs for high-volume use cases
+
+Orchestration patterns combine models for efficiency:
+
+```
+Opus (architecture) → Sonnet (development) → Haiku (deployment)
+```
+
+[→ View model configuration details](docs/agents.md#model-configuration)
+
+## Popular Use Cases
+
+### Full-Stack Feature Development
+
+```bash
+/full-stack-orchestration:full-stack-feature "user authentication with OAuth2"
+```
+
+Coordinates 7+ agents: backend-architect → database-architect → frontend-developer → test-automator → security-auditor → deployment-engineer → observability-engineer
+
+[→ View all workflow examples](docs/usage.md#multi-agent-workflow-examples)
+
+### Security Hardening
+
+```bash
+/security-scanning:security-hardening --level comprehensive
+```
+
+Multi-agent security assessment with SAST, dependency scanning, and code review.
+
+### Python Development with Modern Tools
+
+```bash
+/python-development:python-scaffold fastapi-microservice
+```
+
+Creates production-ready FastAPI project with async patterns, activating skills:
+
+- `async-python-patterns` - AsyncIO and concurrency
+- `python-testing-patterns` - pytest and fixtures
+- `uv-package-manager` - Fast dependency management
+
+### Kubernetes Deployment
+
+```bash
+# Activates k8s skills automatically
+"Create production Kubernetes deployment with Helm chart and GitOps"
+```
+
+Uses kubernetes-architect agent with 4 specialized skills for production-grade configs.
+
+[→ View complete usage guide](docs/usage.md)
+
+## Plugin Categories
+
+**25 categories, 80 plugins:**
+
+- 🎨 **Development** (6) - debugging, backend, frontend, multi-platform
+- 📚 **Documentation** (4) - code docs, API specs, diagrams, C4 architecture, **HADS** (Human-AI Document Standard)
+- 🔄 **Workflows** (5) - git, full-stack, TDD, **Conductor** (context-driven development), **Agent Teams** (multi-agent orchestration)
+- ✅ **Testing** (2) - unit testing, **qa-orchestra** (multi-agent QA toolkit with Chrome MCP validation)
+- 🔍 **Quality** (3) - comprehensive review, performance
+- 🤖 **AI & ML** (4) - LLM apps, agent orchestration, context, MLOps
+- 📊 **Data** (2) - data engineering, data validation
+- 🗄️ **Database** (2) - database design, migrations
+- 🚨 **Operations** (4) - incident response, diagnostics, distributed debugging, observability
+- ⚡ **Performance** (2) - application performance, database/cloud optimization
+- ☁️ **Infrastructure** (5) - deployment, validation, Kubernetes, cloud, CI/CD
+- 🔒 **Security** (6) - scanning, compliance, backend/API, frontend/mobile, **block-no-verify** (git hook bypass guard)
+- 🛡️ **Governance** (1) - **protect-mcp** (Cedar policy enforcement + Ed25519 signed receipts)
+- 💻 **Languages** (10) - Python, JS/TS, systems, JVM, scripting, functional, embedded
+- 🔗 **Blockchain** (1) - smart contracts, DeFi, Web3
+- 💰 **Finance** (1) - quantitative trading, risk management
+- 💳 **Payments** (1) - Stripe, PayPal, billing
+- 🎮 **Gaming** (1) - Unity, Minecraft plugins
+- 🎨 **Creative** (1) - creative tooling
+- ♿ **Accessibility** (1) - WCAG and a11y
+- 📢 **Marketing** (4) - SEO content, technical SEO, SEO analysis, content marketing
+- 💼 **Business** (4) - analytics, HR/legal, customer/sales
+- 🔌 **API** (2) - API tooling
+- 🛠️ **Utilities** (4) - general-purpose helpers
+- 🔧 **Modernization** (2) - legacy migration and refactoring
+
+[→ View complete plugin catalog](docs/plugins.md)
+
+### Related Plugins
+
+Plugins hosted in their own marketplaces — install from the source for the latest releases:
+
+- **[Pensyve](https://github.com/major7apps/pensyve)** — Universal memory runtime with cross-session cognitive memory for Claude Code. Intelligent capture, entity-aware recall, 6 commands, 4 skills, 2 agents, and 6 lifecycle hooks.
+
+  ```bash
+  /plugin marketplace add major7apps/pensyve
+  /plugin install pensyve@major7apps-pensyve
+  ```
+
+## Architecture Highlights
+
+### Granular Design
+
+- **Single responsibility** - Each plugin does one thing well
+- **Minimal token usage** - Average 3.6 components per plugin
+- **Composable** - Mix and match for complex workflows
+- **100% coverage** - All 185 agents accessible across plugins
+
+### Progressive Disclosure (Skills)
+
+Three-tier architecture for token efficiency:
+
+1. **Metadata** - Name and activation criteria (always loaded)
+2. **Instructions** - Core guidance (loaded when activated)
+3. **Resources** - Examples and templates (loaded on demand)
+
+### Repository Structure
+
+```
+claude-agents/
+├── .claude-plugin/
+│   └── marketplace.json          # 81 plugins (80 local + 1 external)
+├── plugins/
+│   ├── python-development/
+│   │   ├── agents/               # 3 Python experts
+│   │   ├── commands/             # Scaffolding tool
+│   │   └── skills/               # 5 specialized skills
+│   ├── kubernetes-operations/
+│   │   ├── agents/               # K8s architect
+│   │   ├── commands/             # Deployment tools
+│   │   └── skills/               # 4 K8s skills
+│   └── ... (67 more plugins)
+├── docs/                          # Comprehensive documentation
+└── README.md                      # This file
+```
+
+[→ View architecture details](docs/architecture.md)
+
+## Contributing
+
+To add new agents, skills, or commands:
+
+1. Identify or create the appropriate plugin directory in `plugins/`
+2. Create `.md` files in the appropriate subdirectory:
+   - `agents/` - For specialized agents
+   - `commands/` - For tools and workflows
+   - `skills/` - For modular knowledge packages
+3. Follow naming conventions (lowercase, hyphen-separated)
+4. Write clear activation criteria and comprehensive content
+5. Update the plugin definition in `.claude-plugin/marketplace.json`
+
+See [Architecture Documentation](docs/architecture.md) for detailed guidelines.
+
+## Resources
+
+### Documentation
+
+- [Claude Code Documentation](https://docs.claude.com/en/docs/claude-code/overview)
+- [Plugins Guide](https://docs.claude.com/en/docs/claude-code/plugins)
+- [Subagents Guide](https://docs.claude.com/en/docs/claude-code/sub-agents)
+- [Agent Skills Guide](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)
+- [Slash Commands Reference](https://docs.claude.com/en/docs/claude-code/slash-commands)
+
+### This Repository
+
+- [Plugin Reference](docs/plugins.md)
+- [Agent Reference](docs/agents.md)
+- [Agent Skills Guide](docs/agent-skills.md)
+- [Usage Guide](docs/usage.md)
+- [Architecture](docs/architecture.md)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=wshobson/agents&type=date&legend=top-left)](https://www.star-history.com/#wshobson/agents&type=date&legend=top-left)
+
+REPO zilliztech/claude-context
+![](assets/claude-context.png)
+
+> 🆕 **Looking for persistent memory for Claude Code?** Check out [memsearch Claude Code plugin](https://github.com/zilliztech/memsearch#for-claude-code-users) — a markdown-first memory system that gives your AI agent long-term memory across sessions.
+
+### Your entire codebase as Claude's context
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
+[![Documentation](https://img.shields.io/badge/Documentation-📚-orange.svg)](docs/)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/zilliz.semanticcodesearch?label=VS%20Code%20Extension&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=zilliz.semanticcodesearch)
+[![npm - core](https://img.shields.io/npm/v/@zilliz/claude-context-core?label=%40zilliz%2Fclaude-context-core&logo=npm)](https://www.npmjs.com/package/@zilliz/claude-context-core)
+[![npm - mcp](https://img.shields.io/npm/v/@zilliz/claude-context-mcp?label=%40zilliz%2Fclaude-context-mcp&logo=npm)](https://www.npmjs.com/package/@zilliz/claude-context-mcp)
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/zilliz_universe.svg?style=social&label=Follow%20%40Zilliz)](https://twitter.com/zilliz_universe)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-AI%20Docs-purple.svg?logo=gitbook&logoColor=white)](https://deepwiki.com/zilliztech/claude-context)
+<a href="https://discord.gg/mKc3R95yE5"><img height="20" src="https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white" alt="discord" /></a>
+<a href="https://trendshift.io/repositories/15064"><img src="https://trendshift.io/api/badge/repositories/15064" alt="zilliztech/claude-context | Trendshift" width="250" height="55" /></a>
+</div>
+
+**Claude Context** is an MCP plugin that adds semantic code search to Claude Code and other AI coding agents, giving them deep context from your entire codebase.
+
+🧠 **Your Entire Codebase as Context**: Claude Context uses semantic search to find all relevant code from millions of lines. No multi-round discovery needed. It brings results straight into the Claude's context.
+
+💰 **Cost-Effective for Large Codebases**: Instead of loading entire directories into Claude for every request, which can be very expensive, Claude Context efficiently stores your codebase in a vector database and only uses related code in context to keep your costs manageable.
+
+---
+
+## 🚀 Demo
+
+![img](https://lh7-rt.googleusercontent.com/docsz/AD_4nXf2uIf2c5zowp-iOMOqsefHbY_EwNGiutkxtNXcZVJ8RI6SN9DsCcsc3amXIhOZx9VcKFJQLSAqM-2pjU9zoGs1r8GCTUL3JIsLpLUGAm1VQd5F2o5vpEajx2qrc77iXhBu1zWj?key=qYdFquJrLcfXCUndY-YRBQ)
+
+Model Context Protocol (MCP) allows you to integrate Claude Context with your favorite AI coding assistants, e.g. Claude Code.
+
+## Quick Start
+
+### Prerequisites
+
+<details>
+<summary>Get a free vector database on Zilliz Cloud 👈</summary>
+
+Claude Context needs a vector database. You can [sign up](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=2507-codecontext-readme) on Zilliz Cloud to get an API key.
+
+![](assets/signup_and_get_apikey.png)
+
+Copy your Personal Key to replace `your-zilliz-cloud-api-key` in the configuration examples.
+</details>
+
+<details>
+<summary>Get OpenAI API Key for embedding model</summary>
+
+You need an OpenAI API key for the embedding model. You can get one by signing up at [OpenAI](https://platform.openai.com/api-keys).  
+
+Your API key will look like this: it always starts with `sk-`.  
+Copy your key and use it in the configuration examples below as `your-openai-api-key`.
+
+</details>
+
+### Configure MCP for Claude Code
+
+**System Requirements:**
+
+- Node.js >= 20.0.0
+
+#### Configuration
+
+Use the command line interface to add the Claude Context MCP server:
+
+```bash
+claude mcp add claude-context \
+  -e OPENAI_API_KEY=sk-your-openai-api-key \
+  -e MILVUS_ADDRESS=your-zilliz-cloud-public-endpoint \
+  -e MILVUS_TOKEN=your-zilliz-cloud-api-key \
+  -- npx @zilliz/claude-context-mcp@latest
+```
+
+See the [Claude Code MCP documentation](https://docs.anthropic.com/en/docs/claude-code/mcp) for more details about MCP server management.
+
+### Other MCP Client Configurations
+
+<details>
+<summary><strong>OpenAI Codex CLI</strong></summary>
+
+Codex CLI uses TOML configuration files:
+
+1. Create or edit the `~/.codex/config.toml` file.
+
+2. Add the following configuration:
+
+```toml
+# IMPORTANT: the top-level key is `mcp_servers` rather than `mcpServers`.
+[mcp_servers.claude-context]
+command = "npx"
+args = ["@zilliz/claude-context-mcp@latest"]
+env = { "OPENAI_API_KEY" = "your-openai-api-key", "MILVUS_TOKEN" = "your-zilliz-cloud-api-key" }
+# Optional: override the default 10s startup timeout
+startup_timeout_ms = 20000
+```
+
+3. Save the file and restart Codex CLI to apply the changes.
+
+</details>
+
+<details>
+<summary><strong>Gemini CLI</strong></summary>
+
+Gemini CLI requires manual configuration through a JSON file:
+
+1. Create or edit the `~/.gemini/settings.json` file.
+2. Add the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+3. Save the file and restart Gemini CLI to apply the changes.
+
+</details>
+
+<details>
+<summary><strong>Qwen Code</strong></summary>
+
+Create or edit the `~/.qwen/settings.json` file and add the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Cursor</strong></summary>
+
+Go to: `Settings` -> `Cursor Settings` -> `MCP` -> `Add new global MCP server`
+
+Pasting the following configuration into your Cursor `~/.cursor/mcp.json` file is the recommended approach. You may also install in a specific project by creating `.cursor/mcp.json` in your project folder. See [Cursor MCP docs](https://cursor.com/docs/context/mcp) for more info.
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["-y", "@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Void</strong></summary>
+
+Go to: `Settings` -> `MCP` -> `Add MCP Server`
+
+Add the following configuration to your Void MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "code-context": {
+      "command": "npx",
+      "args": ["-y", "@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+Add to your Claude Desktop configuration:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Windsurf</strong></summary>
+
+Windsurf supports MCP configuration through a JSON file. Add the following configuration to your Windsurf MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["-y", "@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>VS Code</strong></summary>
+
+The Claude Context MCP server can be used with VS Code through MCP-compatible extensions. Add the following configuration to your VS Code MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["-y", "@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Cherry Studio</strong></summary>
+
+Cherry Studio allows for visual MCP server configuration through its settings interface. While it doesn't directly support manual JSON configuration, you can add a new server via the GUI:
+
+1. Navigate to **Settings → MCP Servers → Add Server**.
+2. Fill in the server details:
+   - **Name**: `claude-context`
+   - **Type**: `STDIO`
+   - **Command**: `npx`
+   - **Arguments**: `["-y", "@zilliz/claude-context-mcp@latest"]`
+   - **Environment Variables**:
+     - `OPENAI_API_KEY`: `your-openai-api-key`
+     - `MILVUS_ADDRESS`: `your-zilliz-cloud-public-endpoint`
+     - `MILVUS_TOKEN`: `your-zilliz-cloud-api-key`
+3. Save the configuration to activate the server.
+
+</details>
+
+<details>
+<summary><strong>Cline</strong></summary>
+
+Cline uses a JSON configuration file to manage MCP servers. To integrate the provided MCP server configuration:
+
+1. Open Cline and click on the **MCP Servers** icon in the top navigation bar.
+
+2. Select the **Installed** tab, then click **Advanced MCP Settings**.
+
+3. In the `cline_mcp_settings.json` file, add the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+4. Save the file.
+
+</details>
+
+<details>
+<summary><strong>Augment</strong></summary>
+
+To configure Claude Context MCP in Augment Code, you can use either the graphical interface or manual configuration.
+
+#### **A. Using the Augment Code UI**
+
+1. Click the hamburger menu.
+
+2. Select **Settings**.
+
+3. Navigate to the **Tools** section.
+
+4. Click the **+ Add MCP** button.
+
+5. Enter the following command:
+
+   ```
+   npx @zilliz/claude-context-mcp@latest
+   ```
+
+6. Name the MCP: **Claude Context**.
+
+7. Click the **Add** button.
+
+------
+
+#### **B. Manual Configuration**
+
+1. Press Cmd/Ctrl Shift P or go to the hamburger menu in the Augment panel
+2. Select Edit Settings
+3. Under Advanced, click Edit in settings.json
+4. Add the server configuration to the `mcpServers` array in the `augment.advanced` object
+
+```json
+"augment.advanced": { 
+  "mcpServers": [ 
+    { 
+      "name": "claude-context", 
+      "command": "npx", 
+      "args": ["-y", "@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Roo Code</strong></summary>
+
+Roo Code utilizes a JSON configuration file for MCP servers:
+
+1. Open Roo Code and navigate to **Settings → MCP Servers → Edit Global Config**.
+
+2. In the `mcp_settings.json` file, add the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key",
+        "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+        "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+3. Save the file to activate the server.
+
+</details>
+
+<details>
+<summary><strong>Zencoder</strong></summary>
+
+Zencoder offers support for MCP tools and servers in both its JetBrains and VS Code plugin versions.
+
+1. Go to the Zencoder menu (...)
+2. From the dropdown menu, select `Tools`
+3. Click on the `Add Custom MCP`
+4. Add the name (i.e. `Claude Context` and server configuration from below, and make sure to hit the `Install` button
+
+```json
+{
+    "command": "npx",
+    "args": ["@zilliz/claude-context-mcp@latest"],
+    "env": {
+      "OPENAI_API_KEY": "your-openai-api-key",
+      "MILVUS_ADDRESS": "your-zilliz-cloud-public-endpoint",
+      "MILVUS_TOKEN": "your-zilliz-cloud-api-key"
+    }
+}
+
+```
+
+5. Save the server by hitting the `Install` button.
+
+</details>
+
+<details>
+<summary><strong>LangChain/LangGraph</strong></summary>
+
+For LangChain/LangGraph integration examples, see [this example](https://github.com/zilliztech/claude-context/blob/643796a0d30e706a2a0dff3d55621c9b5d831807/evaluation/retrieval/custom.py#L88).
+
+</details>
+
+<details>
+<summary><strong>Other MCP Clients</strong></summary>
+
+The server uses stdio transport and follows the standard MCP protocol. It can be integrated with any MCP-compatible client by running:
+
+```bash
+npx @zilliz/claude-context-mcp@latest
+```
+
+</details>
+
+---
+
+### Usage in Your Codebase
+
+1. **Open Claude Code**
+
+   ```
+   cd your-project-directory
+   claude
+   ```
+
+2. **Index your codebase**:
+
+   ```
+   Index this codebase
+   ```
+
+3. **Check indexing status**:
+
+   ```
+   Check the indexing status
+   ```
+
+4. **Start searching**:
+
+   ```
+   Find functions that handle user authentication
+   ```
+
+🎉 **That's it!** You now have semantic code search in Claude Code.
+
+---
+
+### Environment Variables Configuration
+
+For more detailed MCP environment variable configuration, see our [Environment Variables Guide](docs/getting-started/environment-variables.md).
+
+### Using Different Embedding Models
+
+To configure custom embedding models (e.g., `text-embedding-3-large` for OpenAI, `voyage-code-3` for VoyageAI), see the [MCP Configuration Examples](packages/mcp/README.md#embedding-provider-configuration) for detailed setup instructions for each provider.
+
+### File Inclusion & Exclusion Rules
+
+For detailed explanation of file inclusion and exclusion rules, and how to customize them, see our [File Inclusion & Exclusion Rules](docs/dive-deep/file-inclusion-rules.md).
+
+### Available Tools
+
+#### 1. `index_codebase`
+
+Index a codebase directory for hybrid search (BM25 + dense vector).
+
+#### 2. `search_code`
+
+Search the indexed codebase using natural language queries with hybrid search (BM25 + dense vector).
+
+#### 3. `clear_index`
+
+Clear the search index for a specific codebase.
+
+#### 4. `get_indexing_status`
+
+Get the current indexing status of a codebase. Shows progress percentage for actively indexing codebases and completion status for indexed codebases.
+
+---
+
+## 📊 Evaluation
+
+Our controlled evaluation demonstrates that Claude Context MCP achieves ~40% token reduction under the condition of equivalent retrieval quality. This translates to significant cost and time savings in production environments. This also means that, under the constraint of limited token context length, using Claude Context yields better retrieval and answer results.
+
+![MCP Efficiency Analysis](assets/mcp_efficiency_analysis_chart.png)
+
+For detailed evaluation methodology and results, see the [evaluation directory](evaluation/).
+
+---
+
+## 🏗️ Architecture
+
+![](assets/Architecture.png)
+
+### 🔧 Implementation Details
+
+- 🔍 **Hybrid Code Search**: Ask questions like *"find functions that handle user authentication"* and get relevant, context-rich code instantly using advanced hybrid search (BM25 + dense vector).
+- 🧠 **Context-Aware**: Discover large codebase, understand how different parts of your codebase relate, even across millions of lines of code.
+- ⚡ **Incremental Indexing**: Efficiently re-index only changed files using Merkle trees.
+- 🧩 **Intelligent Code Chunking**: Analyze code in Abstract Syntax Trees (AST) for chunking.
+- 🗄️ **Scalable**: Integrates with Zilliz Cloud for scalable vector search, no matter how large your codebase is.
+- 🛠️ **Customizable**: Configure file extensions, ignore patterns, and embedding models.
+
+### Core Components
+
+Claude Context is a monorepo containing three main packages:
+
+- **`@zilliz/claude-context-core`**: Core indexing engine with embedding and vector database integration
+- **VSCode Extension**: Semantic Code Search extension for Visual Studio Code
+- **`@zilliz/claude-context-mcp`**: Model Context Protocol server for AI agent integration
+
+### Supported Technologies
+
+- **Embedding Providers**: [OpenAI](https://openai.com), [VoyageAI](https://voyageai.com), [Ollama](https://ollama.com), [Gemini](https://gemini.google.com)
+- **Vector Databases**: [Milvus](https://milvus.io) or [Zilliz Cloud](https://zilliz.com/cloud)(fully managed vector database as a service)
+- **Code Splitters**: AST-based splitter (with automatic fallback), LangChain character-based splitter
+- **Languages**: TypeScript, JavaScript, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Scala, Markdown
+- **Development Tools**: VSCode, Model Context Protocol
+
+---
+
+## 📦 Other Ways to Use Claude Context
+
+While MCP is the recommended way to use Claude Context with AI assistants, you can also use it directly or through the VSCode extension.
+
+### Build Applications with Core Package
+
+The `@zilliz/claude-context-core` package provides the fundamental functionality for code indexing and semantic search.
+
+```typescript
+import { Context, MilvusVectorDatabase, OpenAIEmbedding } from '@zilliz/claude-context-core';
+
+// Initialize embedding provider
+const embedding = new OpenAIEmbedding({
+    apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key',
+    model: 'text-embedding-3-small'
+});
+
+// Initialize vector database
+const vectorDatabase = new MilvusVectorDatabase({
+    address: process.env.MILVUS_ADDRESS || 'your-zilliz-cloud-public-endpoint',
+    token: process.env.MILVUS_TOKEN || 'your-zilliz-cloud-api-key'
+});
+
+// Create context instance
+const context = new Context({
+    embedding,
+    vectorDatabase
+});
+
+// Index your codebase with progress tracking
+const stats = await context.indexCodebase('./your-project', (progress) => {
+    console.log(`${progress.phase} - ${progress.percentage}%`);
+});
+console.log(`Indexed ${stats.indexedFiles} files, ${stats.totalChunks} chunks`);
+
+// Perform semantic search
+const results = await context.semanticSearch('./your-project', 'vector database operations', 5);
+results.forEach(result => {
+    console.log(`File: ${result.relativePath}:${result.startLine}-${result.endLine}`);
+    console.log(`Score: ${(result.score * 100).toFixed(2)}%`);
+    console.log(`Content: ${result.content.substring(0, 100)}...`);
+});
+```
+
+### VSCode Extension
+
+Integrates Claude Context directly into your IDE. Provides an intuitive interface for semantic code search and navigation.
+
+1. **Direct Link**: [Install from VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=zilliz.semanticcodesearch)
+2. **Manual Search**:
+    - Open Extensions view in VSCode (Ctrl+Shift+X or Cmd+Shift+X on Mac)
+    - Search for "Semantic Code Search"
+    - Click Install
+
+![img](https://lh7-rt.googleusercontent.com/docsz/AD_4nXdtCtT9Qi6o5mGVoxzX50r8Nb6zDFcjvTQR7WZ-xMbEsHEPPhSYAFVJ7q4-rETzxJ8wy1cyZmU8CmtpNhAU8PGOqVnE2kc2HCn1etDg97Qsh7m89kBjG4ZT7XBgO4Dp7BfFZx7eow?key=qYdFquJrLcfXCUndY-YRBQ)
+---
+
+## 🛠️ Development
+
+### Setup Development Environment
+
+#### Prerequisites
+
+- Node.js 20.x, 22.x, or 24.x
+- pnpm (recommended package manager)
+
+#### Cross-Platform Setup
+
+```bash
+# Clone repository
+git clone https://github.com/zilliztech/claude-context.git
+cd claude-context
+
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Start development mode
+pnpm dev
+```
+
+#### Windows-Specific Setup
+
+On Windows, ensure you have:
+
+- **Git for Windows** with proper line ending configuration
+- **Node.js** installed via the official installer or package manager
+- **pnpm** installed globally: `npm install -g pnpm`
+
+```powershell
+# Windows PowerShell/Command Prompt
+git clone https://github.com/zilliztech/claude-context.git
+cd claude-context
+
+# Configure git line endings (recommended)
+git config core.autocrlf false
+
+# Install dependencies
+pnpm install
+
+# Build all packages (uses cross-platform scripts)
+pnpm build
+
+# Start development mode
+pnpm dev
+```
+
+### Building
+
+```bash
+# Build all packages (cross-platform)
+pnpm build
+
+# Build specific package
+pnpm build:core
+pnpm build:vscode
+pnpm build:mcp
+
+# Performance benchmarking
+pnpm benchmark
+```
+
+#### Windows Build Notes
+
+- All build scripts are cross-platform compatible using rimraf
+- Build caching is enabled for faster subsequent builds
+- Use PowerShell or Command Prompt - both work equally well
+
+### Running Examples
+
+```bash
+# Development with file watching
+cd examples/basic-usage
+pnpm dev
+```
+
+---
+
+## 📖 Examples
+
+Check the `/examples` directory for complete usage examples:
+
+- **Basic Usage**: Simple indexing and search example
+
+---
+
+## ❓ FAQ
+
+**Common Questions:**
+
+- **[What files does Claude Context decide to embed?](docs/troubleshooting/faq.md#q-what-files-does-claude-context-decide-to-embed)**
+- **[Can I use a fully local deployment setup?](docs/troubleshooting/faq.md#q-can-i-use-a-fully-local-deployment-setup)**
+- **[Does it support multiple projects / codebases?](docs/troubleshooting/faq.md#q-does-it-support-multiple-projects--codebases)**
+- **[How does Claude Context compare to other coding tools?](docs/troubleshooting/faq.md#q-how-does-claude-context-compare-to-other-coding-tools-like-serena-context7-or-deepwiki)**
+
+❓ For detailed answers and more troubleshooting tips, see our [FAQ Guide](docs/troubleshooting/faq.md).
+
+🔧 **Encountering issues?** Visit our [Troubleshooting Guide](docs/troubleshooting/troubleshooting-guide.md) for step-by-step solutions.
+
+📚 **Need more help?** Check out our [complete documentation](docs/) for detailed guides and troubleshooting tips.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
+
+**Package-specific contributing guides:**
+
+- [Core Package Contributing](packages/core/CONTRIBUTING.md)
+- [MCP Server Contributing](packages/mcp/CONTRIBUTING.md)  
+- [VSCode Extension Contributing](packages/vscode-extension/CONTRIBUTING.md)
+
+---
+
+## 🗺️ Roadmap
+
+- [x] AST-based code analysis for improved understanding
+- [x] Support for additional embedding providers
+- [ ] Agent-based interactive search mode
+- [x] Enhanced code chunking strategies
+- [ ] Search result ranking optimization
+- [ ] Robust Chrome Extension
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/zilliztech/claude-context)
+- [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=zilliz.semanticcodesearch)
+- [Milvus Documentation](https://milvus.io/docs)
+- [Zilliz Cloud](https://zilliz.com/cloud)
+
+REPO yvgude/lean-ctx
+NO_MATCH
+
+ succeeded in 2775ms:
+URL https://simonwillison.net/2026/
+STATUS 200 LENGTH 21266
+t=utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1"> <link rel="canonical" href="https://simonwillison.net/2026/"> <title>Archive for 2026</title> <script defer data-domain="simonwillison.net" src="https://plausible.io/js/plausible.js"></script> <link rel="alternate" type="
+rel="canonical" href="https://simonwillison.net/2026/"> <title>Archive for 2026</title> <script defer data-domain="simonwillison.net" src="https://plausible.io/js/plausible.js"></script> <link rel="alternate" type="application/atom+xml" title="Atom" href="/atom/everything/"> <link rel="stylesheet" t
+nk rel="stylesheet" type="text/css" href="/static/css/all.css"> <link rel="webmention" href="https://webmention.io/simonwillison.net/webmention"> <link rel="pingback" href="https://webmention.io/simonwillison.net/xmlrpc"> <meta name="author" content="Simon Willison"> <meta property="og:site_name" co
+ntion" href="https://webmention.io/simonwillison.net/webmention"> <link rel="pingback" href="https://webmention.io/simonwillison.net/xmlrpc"> <meta name="author" content="Simon Willison"> <meta property="og:site_name" content="Simon Willison’s Weblog">  <script> (function() { // Apply theme immediat
+ention"> <link rel="pingback" href="https://webmention.io/simonwillison.net/xmlrpc"> <meta name="author" content="Simon Willison"> <meta property="og:site_name" content="Simon Willison’s Weblog">  <script> (function() { // Apply theme immediately to prevent flash   const theme = localStorage.getItem
+o/simonwillison.net/xmlrpc"> <meta name="author" content="Simon Willison"> <meta property="og:site_name" content="Simon Willison’s Weblog">  <script> (function() { // Apply theme immediately to prevent flash   const theme = localStorage.getItem('theme');   if (theme === 'light' || theme === 'dark') 
+</script> </head> <body class="smallhead">  <div id="smallhead">   <div id="smallhead-inner">     <h1><a href="/">Simon Willison’s Weblog</a></h1>     <a id="smallhead-about" href="/about/#subscribe">Subscribe</a>   </div> </div><!-- #smallhead -->   <div id="sponsored-banner" class="sponsor-scheme-
+        <li>23rd: <a href="/2026/Jan/23/fastrender/">Wilson Lin on FastRender: a browser built by thousands of parallel agents</a></li>              <li>26th: <a href="/2026/Jan/26/chatgpt-containers/">ChatGPT Containers can now run bash, pip/npm install packages, and download files</a></li>        
+he code</a></li>              <li>10th: <a href="/2026/Feb/10/showboat-and-rodney/">Introducing Showboat and Rodney, so agents can demo what they’ve built</a></li>              <li>13th: <a href="/2026/Feb/13/openai-mission-statement/">The evolution of OpenAI&#x27;s mission statement</a></li>       
+/qwen/">Something is afoot in the land of Qwen</a></li>              <li>5th: <a href="/2026/Mar/5/chardet/">Can coding agents relicense open source through a “clean room” implementation of code?</a></li>              <li>9th: <a href="/2026/Mar/9/not-so-boring/">Perhaps not Boring Technology after 
+URL https://twitter.com/karpathy
+STATUS 200 LENGTH 268516
+tor of AI @ Tesla, founding team @ OpenAI, PhD @ Stanford.","entities":{"description":{},"url":{"urls":[{"display_url":"karpathy.ai","expanded_url":"https://karpathy.ai","indices":[0,23],"url":"https://t.co/0EcFthjJXM"}]}},"fast_followers_count":0,"favourites_count":23618,"follow_request_sent":false
+enAI, PhD @ Stanford.","entities":{"description":{},"url":{"urls":[{"display_url":"karpathy.ai","expanded_url":"https://karpathy.ai","indices":[0,23],"url":"https://t.co/0EcFthjJXM"}]}},"fast_followers_count":0,"favourites_count":23618,"follow_request_sent":false,"followers_count":2463330,"friends_c
+ype":"none","url":"https://t.co/0EcFthjJXM","utc_offset":0,"withheld_description":"","withheld_scope":"","name":"Andrej Karpathy","screen_name":"karpathy","id_str":"33836629","is_profile_translatable":false,"business_account":{},"profile_image_shape":"Circle","creator_subscriptions_count":0,"locatio
+//t.co/0EcFthjJXM","utc_offset":0,"withheld_description":"","withheld_scope":"","name":"Andrej Karpathy","screen_name":"karpathy","id_str":"33836629","is_profile_translatable":false,"business_account":{},"profile_image_shape":"Circle","creator_subscriptions_count":0,"location":"Stanford","profile_de
+e,"has_graduated_access":true,"created_at":"2009-04-21T06:49:15.000Z"}},"errors":{},"fetchStatus":{"33836629":"loaded","karpathy":"loading"}},"aitrends":{"entities":{},"errors":{},"fetchStatus":{}},"userCommunityRoleRelationship":{"entities":{},"errors":{},"fetchStatus":{}},"publishedArticles":{"ent
+URL https://twitter.com/simonw
+STATUS 200 LENGTH 269196
+on: https://t.co/t0MrmnJW0K Bsky: https://t.co/OnWIyhX4CH","entities":{"description":{"urls":[{"display_url":"fedi.simonwillison.net/@simon","expanded_url":"https://fedi.simonwillison.net/@simon","indices":[96,119],"url":"https://t.co/t0MrmnJW0K"},{"display_url":"simonwillison.net","expanded_url":"h
+CH","entities":{"description":{"urls":[{"display_url":"fedi.simonwillison.net/@simon","expanded_url":"https://fedi.simonwillison.net/@simon","indices":[96,119],"url":"https://t.co/t0MrmnJW0K"},{"display_url":"simonwillison.net","expanded_url":"http://simonwillison.net","indices":[126,149],"url":"htt
+d_url":"https://fedi.simonwillison.net/@simon","indices":[96,119],"url":"https://t.co/t0MrmnJW0K"},{"display_url":"simonwillison.net","expanded_url":"http://simonwillison.net","indices":[126,149],"url":"https://t.co/OnWIyhX4CH"}]},"url":{"urls":[{"display_url":"simonwillison.net","expanded_url":"htt
+mon","indices":[96,119],"url":"https://t.co/t0MrmnJW0K"},{"display_url":"simonwillison.net","expanded_url":"http://simonwillison.net","indices":[126,149],"url":"https://t.co/OnWIyhX4CH"}]},"url":{"urls":[{"display_url":"simonwillison.net","expanded_url":"https://simonwillison.net/","indices":[0,23],
+":"http://simonwillison.net","indices":[126,149],"url":"https://t.co/OnWIyhX4CH"}]},"url":{"urls":[{"display_url":"simonwillison.net","expanded_url":"https://simonwillison.net/","indices":[0,23],"url":"https://t.co/p4R0XiEYEc"}]}},"fast_followers_count":0,"favourites_count":62981,"follow_request_sen
+,149],"url":"https://t.co/OnWIyhX4CH"}]},"url":{"urls":[{"display_url":"simonwillison.net","expanded_url":"https://simonwillison.net/","indices":[0,23],"url":"https://t.co/p4R0XiEYEc"}]}},"fast_followers_count":0,"favourites_count":62981,"follow_request_sent":false,"followers_count":179146,"friends_
+e":"regular","url":"https://t.co/p4R0XiEYEc","utc_offset":0,"withheld_description":"","withheld_scope":"","name":"Simon Willison","screen_name":"simonw","id_str":"12497","is_profile_translatable":false,"professional":{"category":[{"icon_name":"IconBriefcaseStroke","id":958,"name":"Entrepreneur"}],"p
+URL https://twitter.com/addyosmani
+STATUS 200 LENGTH 268713
+:{"35432643":{"default_profile":false,"default_profile_image":false,"description":"Director, @GoogleCloud AI. Gemini  ✨ Agents. Prev: Eng. leader, @GoogleChrome • Author • Great user, developer &amp; AI experiences  • @GoogleAI @GoogleDeepMind","entities":{"description":{},"url":{"urls":[{"display_u
+oper &amp; AI experiences  • @GoogleAI @GoogleDeepMind","entities":{"description":{},"url":{"urls":[{"display_url":"addyosmani.com","expanded_url":"https://addyosmani.com","indices":[0,23],"url":"https://t.co/lkntLS9g24"}]}},"fast_followers_count":0,"favourites_count":24856,"follow_request_sent":fal
+GoogleDeepMind","entities":{"description":{},"url":{"urls":[{"display_url":"addyosmani.com","expanded_url":"https://addyosmani.com","indices":[0,23],"url":"https://t.co/lkntLS9g24"}]}},"fast_followers_count":0,"favourites_count":24856,"follow_request_sent":false,"followers_count":391995,"friends_cou
+pe":"regular","url":"https://t.co/lkntLS9g24","utc_offset":0,"withheld_description":"","withheld_scope":"","name":"Addy Osmani","screen_name":"addyosmani","id_str":"35432643","is_profile_translatable":false,"professional":{"category":[{"icon_name":"IconBriefcaseStroke","id":713,"name":"Science &amp;
+//t.co/lkntLS9g24","utc_offset":0,"withheld_description":"","withheld_scope":"","name":"Addy Osmani","screen_name":"addyosmani","id_str":"35432643","is_profile_translatable":false,"professional":{"category":[{"icon_name":"IconBriefcaseStroke","id":713,"name":"Science &amp; Technology"}],"professiona
+as_graduated_access":true,"created_at":"2009-04-26T08:40:11.000Z"}},"errors":{},"fetchStatus":{"35432643":"loaded","addyosmani":"loading"}},"aitrends":{"entities":{},"errors":{},"fetchStatus":{}},"userCommunityRoleRelationship":{"entities":{},"errors":{},"fetchStatus":{}},"publishedArticles":{"entit
+URL https://twitter.com/obra
+STATUS 200 LENGTH 268387
+"withheld_description":"","withheld_scope":"","name":"@jesse@metasocial.com - I don’t post here anymore","screen_name":"obra","id_str":"289403","is_profile_translatable":false,"business_account":{},"profile_image_shape":"Circle","creator_subscriptions_count":0,"location":"Oakland, CA","profile_descr
+lse,"has_graduated_access":true,"created_at":"2006-12-27T16:52:30.000Z"}},"errors":{},"fetchStatus":{"289403":"loaded","obra":"loading"}},"aitrends":{"entities":{},"errors":{},"fetchStatus":{}},"userCommunityRoleRelationship":{"entities":{},"errors":{},"fetchStatus":{}},"publishedArticles":{"entitie
+URL https://cultofclaude.com/skills/
+STATUS 200 LENGTH 756049
+="theme-color" content="#08080c"><link rel="alternate" type="application/atom+xml" title="Cult of Claude — New Skills & Agents" href="/feed.xml"><link rel="alternate" type="application/atom+xml" title="Cult of Claude — Staff Picks" href="/picks.xml"><link rel="dns-prefetch" href="https://fonts.googl
+name":"Cult of Claude","url":"https://cultofclaude.com","description":"The open-source directory of Claude Code skills, agents, and AI coding tools. Browse, search, and install community-built automation for Claude Code.","publisher":{"@id":"https://cultofclaude.com/#organization"}},{"@type":"Organi
+astro-cid-ssfzsv2f>Skills</span> </span> <span class="sidebar-count" data-astro-cid-ssfzsv2f>4202</span> </a> <a href="/agents" class="sidebar-link" data-astro-cid-ssfzsv2f> <span class="sidebar-link-inner" data-astro-cid-ssfzsv2f> <svg class="sidebar-icon" viewBox="0 0 20 20" fill="none" stroke="cu
+ 2 0 002 2h8a2 2 0 002-2V6M7 6V4h6v2M8 9v4M12 9v4" data-astro-cid-ssfzsv2f></path> </svg> <span data-astro-cid-ssfzsv2f>Agents</span> </span> <span class="sidebar-count" data-astro-cid-ssfzsv2f>1719</span> </a> <a href="/my-list" class="sidebar-link" data-astro-cid-ssfzsv2f> <span class="sidebar-lin
+ro-cid-37bvxqo4>Skills</span> </span> <span class="mobile-nav-count" data-astro-cid-37bvxqo4>4202</span> </a> <a href="/agents" class="mobile-nav-link" data-astro-cid-37bvxqo4> <span class="mobile-link-inner" data-astro-cid-37bvxqo4> <svg class="mobile-icon" viewBox="0 0 20 20" fill="none" stroke="c
+ 2 0 002 2h8a2 2 0 002-2V6M7 6V4h6v2M8 9v4M12 9v4" data-astro-cid-37bvxqo4></path> </svg> <span data-astro-cid-37bvxqo4>Agents</span> </span> <span class="mobile-nav-count" data-astro-cid-37bvxqo4>1719</span> </a> <a href="/my-list" class="mobile-nav-link" data-astro-cid-37bvxqo4> <span class="mobil
+-skills-github">Claude skills github</a> - [Building agent skills blog](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)</li><li><a href="/skills/loki-mode">Loki Mode</a> - Multi-agent autonomous startup system orchestrating 37 AI agents across 6 swarms to
+t-skills)</li><li><a href="/skills/loki-mode">Loki Mode</a> - Multi-agent autonomous startup system orchestrating 37 AI agents across 6 swarms to build, deploy, and operate a complete startup</li><li><a href="/skills/claude-scientific-skills">Claude Scientific Skills</a> - Comprehensive collection o
+/a> - Enhances calendar Skills by automating meeting prep and workflow triggers</li><li><a href="/skills/claude-code-subagents-collection">Claude Code Subagents Collection</a> - (2.2k ⭐) - A comprehensive collection of specialized AI subagents for Claude Code, designed to enhance development workflo
+automating meeting prep and workflow triggers</li><li><a href="/skills/claude-code-subagents-collection">Claude Code Subagents Collection</a> - (2.2k ⭐) - A comprehensive collection of specialized AI subagents for Claude Code, designed to enhance development workflows with domain-specific expertise.
+subagents-collection">Claude Code Subagents Collection</a> - (2.2k ⭐) - A comprehensive collection of specialized AI subagents for Claude Code, designed to enhance development workflows with domain-specific expertise.</li><li><a href="/skills/netlify-cli-deploy">Netlify CLI and Deploy</a> - CLI setu
+lls/claude-md-template-for-users">Claude.md Template for Users</a> - &gt; Attribution: Behavioral patterns adapted from obra/superpowers by Jesse Vincent (@obra), MIT License. &gt; &gt; Copy this content to your project&#39;s CLAUDE.md o</li><li><a href="/skills/skills-quick-reference-guide">Skills 
+aude.md Template for Users</a> - &gt; Attribution: Behavioral patterns adapted from obra/superpowers by Jesse Vincent (@obra), MIT License. &gt; &gt; Copy this content to your project&#39;s CLAUDE.md o</li><li><a href="/skills/skills-quick-reference-guide">Skills Quick Reference Guide</a> - A guide 
+es.</li><li><a href="/skills/marketing-skills-versions">Marketing Skills Versions</a> - Current versions of all skills. Agents can compare against local versions to check for updates. | Skill | Version | Last Updated | |-------|---------|--------------| | ab-test-setup | 1.2.0 | 2026-03-</li><li><a 
+-</li><li><a href="/skills/marketingskills">**marketingskills**</a> - (4.8k ⭐): Marketing skills for Claude Code and AI agents. CRO, copywriting, SEO, analytics, and growth engineering.</li><li><a href="/skills/ebook-factory">Ebook Factory</a> - Create professional ebooks from markdown content</li><
+oss Claude, Codex, and Gemini. Produce actionable optimization report. **Scope:** Multi-day batch analysis (3 days, all agents). Aggregate patterns a</li><li><a href="/skills/create-release">Create Release</a> - Create a tagged GitHub release with structured release notes. Audits commits since last 
+s-groups-settings">Google Workspace Groups Settings</a> - Manage Google Groups settings</li><li><a href="/skills/sentry-agents-md">Sentry Agents.md</a> - Generate and manage AGENTS.md files</li><li><a href="/skills/sentry-claude-settings-audit">Sentry Claude Settings Audit</a> - Audit Claude setting
+>Google Workspace Groups Settings</a> - Manage Google Groups settings</li><li><a href="/skills/sentry-agents-md">Sentry Agents.md</a> - Generate and manage AGENTS.md files</li><li><a href="/skills/sentry-claude-settings-audit">Sentry Claude Settings Audit</a> - Audit Claude settings configuration</l
+> - Manage Google Groups settings</li><li><a href="/skills/sentry-agents-md">Sentry Agents.md</a> - Generate and manage AGENTS.md files</li><li><a href="/skills/sentry-claude-settings-audit">Sentry Claude Settings Audit</a> - Audit Claude settings configuration</li><li><a href="/skills/sentry-code-r
+curity scanner with proxy mode for real-time scanning without infrastructure changes.</li><li><a href="/skills/azure-ai-agents-dotnet">Azure AI Agents .net</a> - Persistent AI agents with threads and tools</li><li><a href="/skills/azure-document-intelligence-dotnet">Azure Document Intelligence .net<
+
+codex
+The first pass confirms the GitHub API is reachable, but README matching needs to be tightened to exact practitioner names and repo names because broad terms like “Anthropic” produce noisy repository-owned content. I’m narrowing the grep now to avoid counting organization boilerplate as a named endorsement.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$repos = @('"'thedotmack/claude-mem','anthropics/skills','ruvnet/ruflo','wshobson/agents','zilliztech/claude-context','yvgude/lean-ctx'); "'$patterns = '"'Karpathy|Andrej|Simon Willison|Willison|simonw|Boris Cherny|Cherny|Addy Osmani|Osmani|addyosmani|Jesse Vincent|obra|Anthropic staff|Dario|Amanda Askell|Mike Krieger|Alex Albert|Boris'; foreach ("'$repo in $repos) { Write-Output "REPO $repo"; $url = "https://api.github.com/repos/$repo/contents/README.md"; try { $text = Invoke-WebRequest -Uri $url -Headers @{ '"'User-Agent'='codex-t1'; 'Accept'='application/vnd.github.raw' } -UseBasicParsing -TimeoutSec 20 | Select-Object -ExpandProperty Content; "'$lines = $text -split "`n"; $hits = $lines | Where-Object { $_ -match $patterns } | Select-Object -First 20; if ($hits) { $hits | ForEach-Object { $_.Trim() } } else { Write-Output '"'NO_NAMED_PRACTITIONER_MATCH' } } catch { Write-Output (\"ERROR \" + "'$_.Exception.Message) } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$urls = @('"'https://simonwillison.net/2026/','https://twitter.com/karpathy','https://twitter.com/simonw','https://twitter.com/addyosmani','https://twitter.com/obra','https://cultofclaude.com/skills/'); "'$patterns = '"'thedotmack/claude-mem|claude-mem|anthropics/skills|anthropic-agent-skills|ruvnet/ruflo|ruflo|wshobson/agents|zilliztech/claude-context|claude-context|yvgude/lean-ctx|lean-ctx'; foreach ("'$u in $urls) { Write-Output "URL $u"; try { $resp = Invoke-WebRequest -Uri $u -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 25; "'$text = $resp.Content; Write-Output ("STATUS " + [int]$resp.StatusCode + " LENGTH " + $text.Length); $hits = [regex]::Matches($text, $patterns, '"'IgnoreCase') | Select-Object -First 30; if ("'$hits.Count -eq 0) { Write-Output '"'NO_REPO_MATCH' } else { foreach ("'$m in $hits) { $start = [Math]::Max(0, $m.Index - 160); $len = [Math]::Min(420, $text.Length - $start); ($text.Substring($start, $len) -replace "`r|`n", '"' ') } } } catch { Write-Output (\"ERROR \" + "'$_.Exception.Message) } }' in Z:\claude-sota-installed
+ succeeded in 1948ms:
+REPO thedotmack/claude-mem
+NO_NAMED_PRACTITIONER_MATCH
+REPO anthropics/skills
+NO_NAMED_PRACTITIONER_MATCH
+REPO ruvnet/ruflo
+NO_NAMED_PRACTITIONER_MATCH
+REPO wshobson/agents
+NO_NAMED_PRACTITIONER_MATCH
+REPO zilliztech/claude-context
+NO_NAMED_PRACTITIONER_MATCH
+REPO yvgude/lean-ctx
+NO_NAMED_PRACTITIONER_MATCH
+
+ succeeded in 2166ms:
+URL https://simonwillison.net/2026/
+STATUS 200 LENGTH 21266
+NO_REPO_MATCH
+URL https://twitter.com/karpathy
+STATUS 200 LENGTH 268516
+NO_REPO_MATCH
+URL https://twitter.com/simonw
+STATUS 200 LENGTH 268949
+NO_REPO_MATCH
+URL https://twitter.com/addyosmani
+STATUS 200 LENGTH 268713
+NO_REPO_MATCH
+URL https://twitter.com/obra
+STATUS 200 LENGTH 268387
+NO_REPO_MATCH
+URL https://cultofclaude.com/skills/
+STATUS 200 LENGTH 756049
+cumentation</li><li><a href="/skills/shpigford-screenshots">Screenshots</a> - - Generate marketing screenshots with Playwright</li><li><a href="/skills/hanfang-claude-memory-skill">Claude Memory Skill</a> - - Minimal, low-friction hierarchical memory system with background agents and filesystem-based persistence</li><li><a href="/skills/kreuzberg-dev-kreuzberg">Kreuzberg</a> - - Extract text, tables, and metadata fro
+- Claude Code Plugins that actually save time. Built by a dev tired of typing please act like a senior engineer in every conversation.</li><li><a href="/skills/claude-context-mode">Claude Context Mode</a> - (2.2k ⭐) - An MCP server that sits between Claude Code and these outputs. 315 KB becomes 5.4 KB. 98% reduction.</li><li><a href="/skills/context-mode-benchmark-results">Context Mode — Benchmark Results</a> - &gt; 
+ble. 380+ stars |</li><li><a href="/skills/project-level-skills">Project-Level Skills</a> - This directory contains skills **for developing and maintaining the claude-mem project itself**, not skills that are released as part of the plugin.</li><li><a href="/skills/claude-notifications-go">claude-notifications-go</a> - | Cross-platform smart notifications -- 6 types, click-to-focus, context analysis, webhooks. Single
+
+codex
+So far the allowed direct probes found no exact repo mentions on the public X profile HTML, Simon’s 2026 archive, or README practitioner-name grep. The one remaining possible pass is the Anthropic skills repo’s own README-linked engineering post, so I’m checking that linked public artifact directly rather than doing a broad search.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'codex --version' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$url='"'https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills'; try { "'$resp = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 25; "'$text=$resp.Content; Write-Output ('"'STATUS '+[int]"'$resp.StatusCode+'"' LENGTH '+"'$text.Length); foreach ($p in @('"'anthropics/skills','github.com/anthropics/skills','Agent Skills','skills repository','Boris','Cherny','Anthropic')) { Write-Output ('PATTERN '+"'$p); $matches=[regex]::Matches($text,[regex]::Escape($p),'"'IgnoreCase') | Select-Object -First 10; if ("'$matches.Count -eq 0) { Write-Output '"'NO_MATCH' } else { foreach("'$m in $matches){$start=[Math]::Max(0,$m.Index-180);$len=[Math]::Min(520,$text.Length-$start);($text.Substring($start,$len) -replace "`r|`n",'"' ')}} } } catch { Write-Output ('ERROR '+"'$_.Exception.Message) }' in Z:\claude-sota-installed
+ succeeded in 493ms:
+codex-cli 0.130.0
+
+ succeeded in 1572ms:
+STATUS 200 LENGTH 143299
+PATTERN anthropics/skills
+ies</a>. Claude already knows a lot about understanding PDFs, but is limited in its ability to manipulate them directly (e.g. to fill out a form). This <a href="https://github.com/anthropics/skills/tree/main/document-skills/pdf" target="_blank" rel="noopener noreferrer">PDF skill</a> lets us give Claude these new abilities.</p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">At its simplest, a skill is a directory that contains a <code class="InlineCodeBlock-module-scss-module__nsPA
+type\":\"link\",\"blank\":true,\"href\":\"https://www.anthropic.com/news/create-files\"},{\"_key\":\"e36c5a84afdc\",\"_type\":\"link\",\"blank\":true,\"href\":\"https://github.com/anthropics/skills/tree/main/document-skills/pdf\"}],\"style\":\"normal\"},{\"_key\":\"578eff8e05cd\",\"_type\":\"block\",\"children\":[{\"_key\":\"960187b826dd0\",\"_type\":\"span\",\"marks\":[],\"text\":\"At its simplest, a skill is a directory that contains a \"},{\"_key\":\"84b3071fd453\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\
+PATTERN github.com/anthropics/skills
+ting abilities</a>. Claude already knows a lot about understanding PDFs, but is limited in its ability to manipulate them directly (e.g. to fill out a form). This <a href="https://github.com/anthropics/skills/tree/main/document-skills/pdf" target="_blank" rel="noopener noreferrer">PDF skill</a> lets us give Claude these new abilities.</p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">At its simplest, a skill is a directory that contains a <code class="InlineCodeBlock-module-scss-m
+89fe1\",\"_type\":\"link\",\"blank\":true,\"href\":\"https://www.anthropic.com/news/create-files\"},{\"_key\":\"e36c5a84afdc\",\"_type\":\"link\",\"blank\":true,\"href\":\"https://github.com/anthropics/skills/tree/main/document-skills/pdf\"}],\"style\":\"normal\"},{\"_key\":\"578eff8e05cd\",\"_type\":\"block\",\"children\":[{\"_key\":\"960187b826dd0\",\"_type\":\"span\",\"marks\":[],\"text\":\"At its simplest, a skill is a directory that contains a \"},{\"_key\":\"84b3071fd453\",\"_type\":\"span\",\"marks\":[\"code
+PATTERN Agent Skills
+ttps://www-cdn.anthropic.com/images/4zrzovbb/website/b52f6dbff1c4323ef2371ba0ac50df994835435a-1000x1000.svg"/></div><h1 class="headline-1">Equipping agents for the real world with Agent Skills</h1></div><div class="HeroEngineering-module-scss-module__j1ivRa__metadata"><p class="body-2 HeroEngineering-module-scss-module__j1ivRa__date">Published <!-- -->Oct 16, 2025</p><p class="body-large-1 HeroEngineering-module-scss-module__j1ivRa__summary">Claude is powerful, but real work requires procedural knowledge and organi
+<p class="body-large-1 HeroEngineering-module-scss-module__j1ivRa__summary">Claude is powerful, but real work requires procedural knowledge and organizational context. Introducing Agent Skills, a new way to build specialized agents using files and folders.</p></div></div></section><div class="page-wrapper"><article><div class=""><div class="Body-module-scss-module__z40yvW__body" data-theme="ivory"><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text"><em>Update: We&#x27;ve published</em>
+e-scss-module__z40yvW__reading-column body-2 serif post-text"><em>Update: We&#x27;ve published</em> <a href="https://agentskills.io/" target="_blank" rel="noopener noreferrer"><em>Agent Skills</em></a> <em>as an open standard for cross-platform portability. (December 18, 2025)</em></p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">As model capabilities improve, we can now build general-purpose agents that interact with full-fledged computing environments. <a href="https://claude.c
+scss-module__z40yvW__reading-column body-2 serif post-text">This led us to create <a href="https://www.anthropic.com/news/skills" target="_blank" rel="noopener noreferrer"><strong>Agent Skills</strong></a>: organized folders of instructions, scripts, and resources that agents can discover and load dynamically to perform better at specific tasks.<strong> </strong>Skills extend Claude’s capabilities by packaging your expertise into composable resources for Claude, transforming general-purpose agents into specialized 
+prompt.</figcaption></figure></div><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Progressive disclosure is the core design principle that makes Agent Skills flexible and scalable. Like a well-organized manual that starts with a table of contents, then specific chapters, and finally a detailed appendix, skills let Claude load information only as needed:</p><div class="Body-module-scss-module__z40yvW__media-column Body-module-scss-module__z40yvW__inline"><figure class="ImageWithCap
+40yvW__reading-column headline-5 post-section" id="the-future-of-skills">The future of Skills</h2><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Agent Skills are <a href="https://www.anthropic.com/news/skills" target="_blank" rel="noopener noreferrer">supported today</a> across <a href="http://claude.ai/redirect/website.v1.1457497c-df2f-450a-a84b-f78d6a4d2d60" target="_blank" rel="noopener noreferrer">Claude.ai</a>, Claude Code, the Claude Agent SDK, and the Claude Developer Platf
+ src="/_next/static/chunks/c193f64a7cab3c43.js" nonce="ZDc5OGYzMWMtZDE2OS00ZGFhLTg4MTgtZTQ4YzdmYTgzMjZm" id="_R_" async=""></script><title>Equipping agents for the real world with Agent Skills \ Anthropic</title><meta name="description" content="Discover how Anthropic builds AI agents with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta name="msapplication-TileColor" content="141413"/><meta name="msapplication-config" content="/b
+pplication-TileColor" content="141413"/><meta name="msapplication-config" content="/browserconfig.xml"/><meta property="og:title" content="Equipping agents for the real world with Agent Skills"/><meta property="og:description" content="Discover how Anthropic builds AI agents with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta property="og:image" content="https://cdn.sanity.io/images/4zrzovbb/website/f10f90c11a484ad8bdf11ffcd9f6e
+<meta name="twitter:site" content="@AnthropicAI"/><meta name="twitter:creator" content="@AnthropicAI"/><meta name="twitter:title" content="Equipping agents for the real world with Agent Skills"/><meta name="twitter:description" content="Discover how Anthropic builds AI agents with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta name="twitter:image" content="https://cdn.sanity.io/images/4zrzovbb/website/f10f90c11a484ad8bdf11ffcd9f
+ublished\"},{\"_key\":\"0281ff8e9a5d\",\"_type\":\"span\",\"marks\":[],\"text\":\" \"},{\"_key\":\"8691608ec365\",\"_type\":\"span\",\"marks\":[\"em\",\"2395568fdfb3\"],\"text\":\"Agent Skills\"},{\"_key\":\"c860b2856de5\",\"_type\":\"span\",\"marks\":[],\"text\":\" \"},{\"_key\":\"1566c8bd530d\",\"_type\":\"span\",\"marks\":[\"em\"],\"text\":\"as an open standard for cross-platform portability. (December 18, 2025)\"}],\"markDefs\":[{\"_key\":\"2395568fdfb3\",\"_type\":\"link\",\"blank\":true,\"href\":\"https://age
+PATTERN skills repository
+NO_MATCH
+PATTERN Boris
+NO_MATCH
+PATTERN Cherny
+NO_MATCH
+PATTERN Anthropic
+<!DOCTYPE html><html lang="en" class="anthropicsans_dce02d96-module__tEBbKW__variable anthropicserif_e7e46c4-module__uImRTq__variable anthropicmono_fae19af3-module__c5XAsG__variable copernicus_4da799c5-module__dijTSq__variable styrenea_f8492ab1-module__HimLXW__variable styreneb_278af5c6-module__wkOAdG__variable tiempostext_4eff4b4c-module__mpviCW__variable jetbrainsmono_7d7bdbc6-module__j_XgJq__variable"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="sty
+<!DOCTYPE html><html lang="en" class="anthropicsans_dce02d96-module__tEBbKW__variable anthropicserif_e7e46c4-module__uImRTq__variable anthropicmono_fae19af3-module__c5XAsG__variable copernicus_4da799c5-module__dijTSq__variable styrenea_f8492ab1-module__HimLXW__variable styreneb_278af5c6-module__wkOAdG__variable tiempostext_4eff4b4c-module__mpviCW__variable jetbrainsmono_7d7bdbc6-module__j_XgJq__variable"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="sty
+<!DOCTYPE html><html lang="en" class="anthropicsans_dce02d96-module__tEBbKW__variable anthropicserif_e7e46c4-module__uImRTq__variable anthropicmono_fae19af3-module__c5XAsG__variable copernicus_4da799c5-module__dijTSq__variable styrenea_f8492ab1-module__HimLXW__variable styreneb_278af5c6-module__wkOAdG__variable tiempostext_4eff4b4c-module__mpviCW__variable jetbrainsmono_7d7bdbc6-module__j_XgJq__variable"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="sty
+-wrapper"><svg class="LogoWordmark-module-scss-module__Sdgt-q__logo-static" width="570" height="64" viewBox="0 0 570 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Anthropic"><path d="M139.492 12.9945H160.265V62.9392H173.525V12.9945H194.298V1.06077H139.492V12.9945Z" fill="currentColor"></path><path d="M116.066 44.3757L88.221 1.06077H73.1934V62.9392H86.011V19.6243L113.856 62.9392H128.884V1.06077H116.066V44.3757Z" fill="currentColor"></path><path d="M247.337 25.7238H218.166V1.06077H204.906V62.9392H218
+dule-scss-module__j1ivRa__hero" aria-label="Engineering Article Hero"><a class="body-2 bold HeroEngineering-module-scss-module__j1ivRa__hubLink" href="/engineering">Engineering at Anthropic</a><div class="HeroEngineering-module-scss-module__j1ivRa__content"><div class="HeroEngineering-module-scss-module__j1ivRa__header"><div class="HeroEngineering-module-scss-module__j1ivRa__heroImage"><img alt="" loading="lazy" width="1000" height="1000" decoding="async" data-nimg="1" style="color:transparent" src="https://www-cdn
+ineering-module-scss-module__j1ivRa__heroImage"><img alt="" loading="lazy" width="1000" height="1000" decoding="async" data-nimg="1" style="color:transparent" src="https://www-cdn.anthropic.com/images/4zrzovbb/website/b52f6dbff1c4323ef2371ba0ac50df994835435a-1000x1000.svg"/></div><h1 class="headline-1">Equipping agents for the real world with Agent Skills</h1></div><div class="HeroEngineering-module-scss-module__j1ivRa__metadata"><p class="body-2 HeroEngineering-module-scss-module__j1ivRa__date">Published <!-- -->O
+ ways to equip them with domain-specific expertise.</p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">This led us to create <a href="https://www.anthropic.com/news/skills" target="_blank" rel="noopener noreferrer"><strong>Agent Skills</strong></a>: organized folders of instructions, scripts, and resources that agents can discover and load dynamically to perform better at specific tasks.<strong> </strong>Skills extend Claude’s capabilities by packaging your expertise into composabl
+h custom guidance for your agent." loading="lazy" width="1650" height="929" decoding="async" data-nimg="1" style="color:transparent" srcSet="/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=1920&amp;q=75 1x, /_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=3840&amp;q=75 2x" src="/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic
+%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=1920&amp;q=75 1x, /_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=3840&amp;q=75 2x" src="/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=3840&amp;q=75"/><figcaption class="caption">A skill is a directory
+F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=3840&amp;q=75 2x" src="/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fddd7e6e572ad0b6a943cacefe957248455f6d522-1650x929.jpg&amp;w=3840&amp;q=75"/><figcaption class="caption">A skill is a directory containing a SKILL.md file that contains organized folders of instructions, scripts, and resources that give agents additional capabilities. </figcaption></figure></di
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$url='"'https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills'; "'$text=(Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 25).Content; foreach ("'$p in @('"'author','authors','byline','By ','createdBy','name')) { Write-Output ('PATTERN '+"'$p); $matches=[regex]::Matches($text,[regex]::Escape($p),'"'IgnoreCase') | Select-Object -First 20; if("'$matches.Count -eq 0){'"'NO_MATCH'} else { foreach("'$m in $matches){$start=[Math]::Max(0,$m.Index-140);$len=[Math]::Min(380,$text.Length-$start);($text.Substring($start,$len) -replace "`r|`n",'"' ')}} }" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$url='"'https://www.anthropic.com/news/skills'; try { "'$resp=Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 25; "'$text=$resp.Content; Write-Output ('"'STATUS '+[int]"'$resp.StatusCode+'"' LENGTH '+"'$text.Length); foreach($p in @('"'Published','Oct','github.com/anthropics/skills','anthropics/skills','Boris','Cherny','author','creator')){ Write-Output ('PATTERN '+"'$p); $matches=[regex]::Matches($text,[regex]::Escape($p),'"'IgnoreCase') | Select-Object -First 10; if("'$matches.Count -eq 0){'"'NO_MATCH'} else { foreach("'$m in $matches){$start=[Math]::Max(0,$m.Index-160);$len=[Math]::Min(480,$text.Length-$start);($text.Substring($start,$len) -replace "`r|`n",'"' ')}} } } catch { Write-Output ('ERROR '+"'$_.Exception.Message) }' in Z:\claude-sota-installed
+ succeeded in 1156ms:
+STATUS 200 LENGTH 526630
+PATTERN Published
+<!DOCTYPE html><!-- Last Published: Thu May 14 2026 22:26:11 GMT+0000 (Coordinated Universal Time) --><html data-wf-domain="websitemain.claude.com" data-wf-page="68de89a2fbe1f683b08de180" data-wf-site="6889473510b50328dbb70ae6" data-wf-intellimize-customer-id="117902971" lang="en-US" data-wf-collection="68de89a1fbe1f683b08de151" data-wf-item-slug="skills"><head><meta charset="utf-8"/><link href="https://cdn.prod.website-files.com" rel="preconnect" crossorigin="anonymous"/><ti
+/68a44d4040f98a4adf2207b6/6902681b6935a6f61e64165c_og_introducing-agent-skills.jpg",   "publisher": {     "@id": "https://claude.com/#organization"   },   "datePublished": "Oct 16, 2025",   "dateModified": "Jan 06, 2026",   "mainEntityOfPage": {     "@type": "WebPage",     "@id": "https://claude.com/blog/skills"   } } </script>  <!-- Finsweet Attributes --> <script async type="module"         src="https://cdn.jsdelivr.net/npm/@finsweet/attributes@2/attributes.js"         fs-c
+nization-wide management for skills</em></a><em>, a </em><a href="https://claude.com/connectors"><em>directory</em></a><em> featuring partner-built skills, and published </em><a href="https://agentskills.io"><em>Agent Skills</em></a><em> as an open standard for cross-platform portability. (December 18, 2025)</em></p><p>Claude can now use <em>Skills</em> to improve how it performs specific tasks. Skills are folders that include instructions, scripts, and resources that Claude 
+PATTERN Oct
+<!DOCTYPE html><!-- Last Published: Thu May 14 2026 22:26:11 GMT+0000 (Coordinated Universal Time) --><html data-wf-domain="websitemain.claude.com" data-wf-page="68de89a2fbe1f683b08de180" data-wf-site="6889473510b50328dbb70ae6" data-wf-intellimize-customer-id="117902971" lang="en-US" data-wf-collection="68de89a1fbe1f683b08de151" data-wf-item-slug="skills"><head><meta charset="utf-8"/><link href="https://cdn.prod.website-files.com" rel="preconnect" crossorigin="anonymous"/><ti
+8a4adf2207b6/6902681b6935a6f61e64165c_og_introducing-agent-skills.jpg",   "publisher": {     "@id": "https://claude.com/#organization"   },   "datePublished": "Oct 16, 2025",   "dateModified": "Jan 06, 2026",   "mainEntityOfPage": {     "@type": "WebPage",     "@id": "https://claude.com/blog/skills"   } } </script>  <!-- Finsweet Attributes --> <script async type="module"         src="https://cdn.jsdelivr.net/npm/@finsweet/attributes@2/attributes.js"         fs-copyclip > </s
+/svg></div></div><div class="hero_blog_post_details_content"><div class="u-text-style-caption u-foreground-tertiary">Date</div><div class="u-text-style-body-3">October 16, 2025</div></div></li><li class="hero_blog_post_details_item"><div class="hero_blog_post_details_icon"><div class="icon_wrap u-display-contents"><svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 20 20" fill="none" class="u-svg"><path d="M11.5 2C11.7761 2 12 2.22386 12 2.5C12 2.77614 11.7761 3
+PATTERN github.com/anthropics/skills
+f="https://docs.claude.com/en/docs/claude-code/skills">Documentation</a></li><li><strong>Example Skills to customize:</strong> <a target="_blank" href="https://github.com/anthropics/skills">GitHub repository</a></li></ul><h2>What&#x27;s next</h2><p>We&#x27;re working toward simplified skill creation workflows and enterprise-wide deployment capabilities, making it easier for organizations to distribute skills across teams.</p><p>Keep in mind, this feature gives Claude access t
+PATTERN anthropics/skills
+-richtext"><h3><strong>Claude Code</strong></h3><p>Skills extend Claude Code with your team&#x27;s expertise and workflows. Install skills via plugins from the anthropics/skills marketplace. Claude loads them automatically when relevant. Share skills through version control with your team. You can also manually install skills by adding them to <code>~/.claude/skills</code>. The Claude Agent SDK provides the same Agent Skills support for building custom agents.</p><h2>Getting 
+docs.claude.com/en/docs/claude-code/skills">Documentation</a></li><li><strong>Example Skills to customize:</strong> <a target="_blank" href="https://github.com/anthropics/skills">GitHub repository</a></li></ul><h2>What&#x27;s next</h2><p>We&#x27;re working toward simplified skill creation workflows and enterprise-wide deployment capabilities, making it easier for organizations to distribute skills across teams.</p><p>Keep in mind, this feature gives Claude access to execute c
+PATTERN Boris
+NO_MATCH
+PATTERN Cherny
+NO_MATCH
+PATTERN author
+NO_MATCH
+PATTERN creator
+dbb70ae6/68c469d23594abeb9ab6ee48_70ed020ecf8fa028b9bc95fa819720b6_og_claude-generic.jpg"/> <meta name="twitter:site" content="@claudeai"/> <meta name="twitter:creator" content="@claudeai"/> <meta name="apple-itunes-app" content="app-id=6473753684">  <!-- Swiper CSS for Slider component --> <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />  <!-- Prevent flicker from global GSAP animations --> <style>   html:not(.gsap-not-found) [dat
+task—no manual selection needed. You&#x27;ll even see skills in Claude&#x27;s chain of thought as it works.<br/><br/>Creating skills is simple. The &quot;skill-creator&quot; skill provides interactive guidance: Claude asks about your workflow, generates the folder structure, formats the SKILL.md file, and bundles the resources you need. No manual file editing required.</p><figure style="padding-bottom:56.25%" class="w-richtext-align-fullwidth w-richtext-figure-type-video"><di
+
+ succeeded in 6258ms:
+PATTERN author
+odule__nsPAba__code">reference.md</code> and <code class="InlineCodeBlock-module-scss-module__nsPAba__code">forms.md</code>) that the skill author chooses to bundle alongside the core <code class="InlineCodeBlock-module-scss-module__nsPAba__code">SKILL.md</code>. By moving the form-filling instructions to a separate file (<code class="InlineCodeBlock-module-scss-module__nsPAba_
+he form-filling instructions to a separate file (<code class="InlineCodeBlock-module-scss-module__nsPAba__code">forms.md</code>), the skill author is able to keep the core of the skill lean, trusting that Claude will read <code class="InlineCodeBlock-module-scss-module__nsPAba__code">forms.md</code> only when filling out a form.</p><div class="Body-module-scss-module__z40yvW__m
+<p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Here are some helpful guidelines for getting started with authoring and testing skills:</p><ul class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text"><li><strong>Start with evaluation:</strong> Identify specific gaps in your agents’ capabilities by running them on represent
+,null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]]}],{\"children\":[[\"$\",\"$1\",\"c\",{\"children\":[null,[\"$\",\"$L4\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"templa
+,null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]]}],{\"children\":[[\"$\",\"$1\",\"c\",{\"children\":[\"$L6\",[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/chunks/7eed6fc2b2823a30.css\",\"precedence\":\"next\",\"crossOrigin\":\"$unde
+t\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],[]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]}]}]\n"])</script><script nonce="ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4">self.__next_f.push([1,"3:[\"$\",\"$Lf\",null,{\"nonce\":\"ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4\",\"children\":[\"$\"
+\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4\"}]]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]]}]}]\nb:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}],[\"$\",\"meta\",\"2\",{\"name\":\"theme-color\",\"conte
+\"span\",\"marks\":[\"code\"],\"text\":\"forms.md\"},{\"_key\":\"f51a244ebbd1\",\"_type\":\"span\",\"marks\":[],\"text\":\") that the skill author chooses to bundle alongside the core \"},{\"_key\":\"f241e8ccc347\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\":\"SKILL.md\"},{\"_key\":\"4a5568dcfefb\",\"_type\":\"span\",\"marks\":[],\"text\":\". By moving the form-filling ins
+e\":\"span\",\"marks\":[\"code\"],\"text\":\"forms.md\"},{\"_key\":\"3d8269148d74\",\"_type\":\"span\",\"marks\":[],\"text\":\"), the skill author is able to keep the core of the skill lean, trusting that Claude will read \"},{\"_key\":\"408be303359a\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\":\"forms.md\"},{\"_key\":\"d1868b0b26a0\",\"_type\":\"span\",\"marks\":[],\"tex
+hildren\":[{\"_key\":\"c104cc2258de0\",\"_type\":\"span\",\"marks\":[],\"text\":\"Here are some helpful guidelines for getting started with authoring and testing skills:\"}],\"markDefs\":[],\"style\":\"normal\"},{\"_key\":\"7aec58d50bd0\",\"_type\":\"block\",\"children\":[{\"_key\":\"3ef07a7f026a0\",\"_type\":\"span\",\"marks\":[\"strong\"],\"text\":\"Start with evaluation:\"},
+PATTERN authors
+NO_MATCH
+PATTERN byline
+NO_MATCH
+PATTERN By 
+ces that agents can discover and load dynamically to perform better at specific tasks.<strong> </strong>Skills extend Claude’s capabilities by packaging your expertise into composable resources for Claude, transforming general-purpose agents into specialized agents that fit your needs.</p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Building
+stead of building fragmented, custom-designed agents for each use case, anyone can now specialize their agents with composable capabilities by capturing and sharing their procedural knowledge. In this article, we explain what Skills are, show how they work, and share best practices for building your own.</p><div class="Body-module-scss-module__z40yvW__media-column Body-module-s
+his file is the <strong>second level</strong> of detail. If Claude thinks the skill is relevant to the current task, it will load the skill by reading its full <code class="InlineCodeBlock-module-scss-module__nsPAba__code">SKILL.md</code> into context.</p><div class="Body-module-scss-module__z40yvW__media-column Body-module-scss-module__z40yvW__inline"><figure class="ImageWithC
+hat’s relevant only in specific scenarios. In these cases, skills can bundle additional files within the skill directory and reference them by name from <code class="InlineCodeBlock-module-scss-module__nsPAba__code">SKILL.md</code>. These additional linked files are the <strong>third level</strong> (and beyond) of detail, which Claude can choose to navigate and discover only as
+ that the skill author chooses to bundle alongside the core <code class="InlineCodeBlock-module-scss-module__nsPAba__code">SKILL.md</code>. By moving the form-filling instructions to a separate file (<code class="InlineCodeBlock-module-scss-module__nsPAba__code">forms.md</code>), the skill author is able to keep the core of the skill lean, trusting that Claude will read <code c
+0&amp;q=75"/><figcaption class="caption">You can incorporate more context (via additional files) into your skill that can then be triggered by Claude based on the system prompt.</figcaption></figure></div><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Progressive disclosure is the core design principle that makes Agent Skills flexible and scal
+module__z40yvW__reading-column body-2 serif post-text">The following diagram shows how the context window changes when a skill is triggered by a user’s message.</p><div class="Body-module-scss-module__z40yvW__media-column Body-module-scss-module__z40yvW__inline"><figure class="ImageWithCaption-module-scss-module__Duq99q__e-imageWithCaption"><img alt="This image depicts how skil
+stem prompt and the metadata for each of the installed skills, along with the user’s initial message;</li><li>Claude triggers the PDF skill by invoking a Bash tool to read the contents of <code class="InlineCodeBlock-module-scss-module__nsPAba__code">pdf/SKILL.md</code>;</li><li>Claude chooses to read the <code class="InlineCodeBlock-module-scss-module__nsPAba__code">forms.md</
+yvW__reading-column body-2 serif post-text"><li><strong>Start with evaluation:</strong> Identify specific gaps in your agents’ capabilities by running them on representative tasks and observing where they struggle or require additional context. Then build skills incrementally to address these shortcomings.</li><li><strong>Structure for scale: </strong>When the <code class="Inli
+mend installing skills only from trusted sources. When installing a skill from a less-trusted source, thoroughly audit it before use. Start by reading the contents of the files bundled in the skill to understand what it does, paying particular attention to code dependencies and bundled resources like images or scripts. Similarly, pay attention to instructions or code within the
+an complement <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener noreferrer">Model Context Protocol</a> (MCP) servers by teaching agents more complex workflows that involve external tools and software.</p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Looking further ahead, we hope to enable agents to create, edit, and ev
+dy-module-scss-module__z40yvW__reading-column body-2 serif post-text">We’re excited to see what people build with Skills. Get started today by checking out our Skills <a href="https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview" target="_blank" rel="noopener noreferrer">docs</a> and <a href="https://github.com/anthropics/claude-cookbooks/tree/main/skills" tar
+ction" id="acknowledgements">Acknowledgements</h2><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">Written by Barry Zhang, Keith Lazuka, and Mahesh Murag, who all really like folders. Special thanks to the many others across Anthropic who championed, supported, and built Skills.</p></div></div></article><div class="NewsletterSubscribe-module-scs
+artners/powered-by-claude" class="SiteFooter-module-scss-module__JdOqwq__listItem body-4" target="_blank" rel="noopener noreferrer">Powered by Claude</a></li><li><a href="https://claude.com/partners/services" class="SiteFooter-module-scss-module__JdOqwq__listItem body-4" target="_blank" rel="noopener noreferrer">Service partners</a></li><li><a href="https://claude.com/programs/
+s\":[\"strong\"],\"text\":\" \"},{\"_key\":\"c9c0ba73d30f4\",\"_type\":\"span\",\"marks\":[],\"text\":\"Skills extend Claude’s capabilities by packaging your expertise into composable resources for Claude, transforming general-purpose agents into specialized agents that fit your needs.\"}],\"markDefs\":[{\"_key\":\"05263b268e6a\",\"_type\":\"link\",\"blank\":true,\"href\":\"htt
+stead of building fragmented, custom-designed agents for each use case, anyone can now specialize their agents with composable capabilities by capturing and sharing their procedural knowledge. In this article, we explain what Skills are, show how they work, and share best practices for building your own.\"}],\"markDefs\":[],\"style\":\"normal\"},{\"_key\":\"954090494a16\",\"_ty
+",\"_type\":\"span\",\"marks\":[],\"text\":\" of detail. If Claude thinks the skill is relevant to the current task, it will load the skill by reading its full \"},{\"_key\":\"d3b2e3b4ad29\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\":\"SKILL.md\"},{\"_key\":\"be4e9182d0d6\",\"_type\":\"span\",\"marks\":[],\"text\":\" into context.\"}],\"markDefs\":[],\"style\":\"normal\"}
+hat’s relevant only in specific scenarios. In these cases, skills can bundle additional files within the skill directory and reference them by name from \"},{\"_key\":\"d1a807ef732f\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\":\"SKILL.md\"},{\"_key\":\"48f5e528ad86\",\"_type\":\"span\",\"marks\":[],\"text\":\". These additional linked files are the \"},{\"_key\":\"a79ab8e
+47\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\":\"SKILL.md\"},{\"_key\":\"4a5568dcfefb\",\"_type\":\"span\",\"marks\":[],\"text\":\". By moving the form-filling instructions to a separate file (\"},{\"_key\":\"ad6589b2aa33\",\"_type\":\"span\",\"marks\":[\"code\"],\"text\":\"forms.md\"},{\"_key\":\"3d8269148d74\",\"_type\":\"span\",\"marks\":[],\"text\":\"), the skill aut
+_type\":\"span\",\"marks\":[],\"text\":\"You can incorporate more context (via additional files) into your skill that can then be triggered by Claude based on the system prompt.\"}],\"markDefs\":[],\"style\":\"normal\"}],\"description\":\"How to bundle additional content into a SKILL.md file.\",\"height\":1069,\"markDefs\":null,\"style\":\"inline\",\"url\":\"https://cdn.sanity.
+PATTERN createdBy
+NO_MATCH
+PATTERN name
+_variable tiempostext_4eff4b4c-module__mpviCW__variable jetbrainsmono_7d7bdbc6-module__j_XgJq__variable"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/chunks/365eca5272a6c334.css" nonce="ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4" data-precedence="next"/><link rel="stylesheet" h
+ipt><script src="/_next/static/chunks/fba43d7d87521a3b.js" async="" nonce="ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4"></script><meta name="next-size-adjust" content=""/><meta name="theme-color" content="#141413"/><script src="/_next/static/chunks/a6dad97d9634a72d.js" noModule="" nonce="ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4"></script></head><body><div hidden=""
+3d7d87521a3b.js" async="" nonce="ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4"></script><meta name="next-size-adjust" content=""/><meta name="theme-color" content="#141413"/><script src="/_next/static/chunks/a6dad97d9634a72d.js" noModule="" nonce="ZjUzOGIxZTUtZGRkNi00YTcxLTkwNzMtM2JiYTFiYjY0MWE4"></script></head><body><div hidden=""><!--$?--><template id="B:0"></template><!
+ file must start with YAML frontmatter that contains some required metadata: <code class="InlineCodeBlock-module-scss-module__nsPAba__code">name</code> and <code class="InlineCodeBlock-module-scss-module__nsPAba__code">description</code>. At startup, the agent pre-loads the <code class="InlineCodeBlock-module-scss-module__nsPAba__code">name</code> and <code class="InlineCodeBlo
+odule__nsPAba__code">description</code>. At startup, the agent pre-loads the <code class="InlineCodeBlock-module-scss-module__nsPAba__code">name</code> and <code class="InlineCodeBlock-module-scss-module__nsPAba__code">description</code> of every installed skill into its system prompt.</p><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">This met
+ass="ImageWithCaption-module-scss-module__Duq99q__e-imageWithCaption"><img alt="Anatomy of a SKILL.md file including the relevant metadata: name, description, and context related to the specific actions the skill should take." loading="lazy" width="1650" height="929" decoding="async" data-nimg="1" style="color:transparent" srcSet="/_next/image?url=https%3A%2F%2Fwww-cdn.anthropi
+17b6d2-1650x929.jpg&amp;w=3840&amp;q=75"/><figcaption class="caption">A SKILL.md file must begin with YAML Frontmatter that contains a file name and description, which is loaded into its system prompt at startup.</figcaption></figure></div><p class="Body-module-scss-module__z40yvW__reading-column body-2 serif post-text">As skills grow in complexity, they may contain too much co
+’s relevant only in specific scenarios. In these cases, skills can bundle additional files within the skill directory and reference them by name from <code class="InlineCodeBlock-module-scss-module__nsPAba__code">SKILL.md</code>. These additional linked files are the <strong>third level</strong> (and beyond) of detail, which Claude can choose to navigate and discover only as ne
+ajectories or overreliance on certain contexts. Pay special attention to the <code class="InlineCodeBlock-module-scss-module__nsPAba__code">name</code> and <code class="InlineCodeBlock-module-scss-module__nsPAba__code">description</code> of your skill. Claude will use these when deciding whether to trigger the skill in response to its current task.</li><li><strong>Iterate with 
+" aria-label="Email address" placeholder="Enter your email" class="NewsletterSubscribe-module-scss-module__MOPAja__email-input" required="" name="email" value=""/><button type="submit" class="NewsletterSubscribe-module-scss-module__MOPAja__submit-button" aria-label="Subscribe"><svg class="Icon-module-scss-module__lqbdHG__icon" width="20" height="20" viewBox="0 0 21 21"><path d=
+xLTkwNzMtM2JiYTFiYjY0MWE4" id="_R_" async=""></script><title>Equipping agents for the real world with Agent Skills \ Anthropic</title><meta name="description" content="Discover how Anthropic builds AI agents with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta name="msapplication-TileColor" c
+with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta name="msapplication-TileColor" content="141413"/><meta name="msapplication-config" content="/browserconfig.xml"/><meta property="og:title" content="Equipping agents for the real world with Agent Skills"/><meta property="og:description" cont
+bling them to handle complex real-world tasks more effectively and reliably."/><meta name="msapplication-TileColor" content="141413"/><meta name="msapplication-config" content="/browserconfig.xml"/><meta property="og:title" content="Equipping agents for the real world with Agent Skills"/><meta property="og:description" content="Discover how Anthropic builds AI agents with pract
+cd9f6e08cfd9358b8-2400x1260.png"/><meta property="og:image:alt" content="Anthropic logo"/><meta property="og:type" content="website"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:site" content="@AnthropicAI"/><meta name="twitter:creator" content="@AnthropicAI"/><meta name="twitter:title" content="Equipping agents for the real world with Agent Ski
+e:alt" content="Anthropic logo"/><meta property="og:type" content="website"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:site" content="@AnthropicAI"/><meta name="twitter:creator" content="@AnthropicAI"/><meta name="twitter:title" content="Equipping agents for the real world with Agent Skills"/><meta name="twitter:description" content="Discover 
+g:type" content="website"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:site" content="@AnthropicAI"/><meta name="twitter:creator" content="@AnthropicAI"/><meta name="twitter:title" content="Equipping agents for the real world with Agent Skills"/><meta name="twitter:description" content="Discover how Anthropic builds AI agents with practical capa
+content="summary_large_image"/><meta name="twitter:site" content="@AnthropicAI"/><meta name="twitter:creator" content="@AnthropicAI"/><meta name="twitter:title" content="Equipping agents for the real world with Agent Skills"/><meta name="twitter:description" content="Discover how Anthropic builds AI agents with practical capabilities through modular skills, enabling them to han
+"twitter:creator" content="@AnthropicAI"/><meta name="twitter:title" content="Equipping agents for the real world with Agent Skills"/><meta name="twitter:description" content="Discover how Anthropic builds AI agents with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta name="twitter:image" con
+with practical capabilities through modular skills, enabling them to handle complex real-world tasks more effectively and reliably."/><meta name="twitter:image" content="https://cdn.sanity.io/images/4zrzovbb/website/f10f90c11a484ad8bdf11ffcd9f6e08cfd9358b8-2400x1260.png"/><meta name="twitter:image:alt" content="Anthropic logo"/><link rel="shortcut icon" href="/favicon.ico"/><li
+ name="twitter:image" content="https://cdn.sanity.io/images/4zrzovbb/website/f10f90c11a484ad8bdf11ffcd9f6e08cfd9358b8-2400x1260.png"/><meta name="twitter:image:alt" content="Anthropic logo"/><link rel="shortcut icon" href="/favicon.ico"/><link rel="icon" href="/images/icons/favicon-32x32.png"/><link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png"/><link rel="ap
+
+codex
+I found a plausible Axis-2 pass for `anthropics/skills`: the README links an Anthropic engineering post that is dated and names Anthropic staff authors, and the post links into the `anthropics/skills` repo. I’m doing one final same-site/internal pass for Simon’s blog queries, then I’ll emit the strict JSON.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$queries=@('"'claude-mem','anthropics/skills','ruflo','wshobson agents','claude-context','lean-ctx'); foreach("'$q in $queries){$url='"'https://simonwillison.net/search/?q='+[uri]::EscapeDataString("'$q); Write-Output "QUERY $q"; try{$resp=Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 20; "'$text=$resp.Content; Write-Output ('"'STATUS '+[int]"'$resp.StatusCode+'"' LENGTH '+"'$text.Length); $hits=[regex]::Matches($text,'"'claude-mem|anthropics/skills|ruflo|wshobson|claude-context|lean-ctx','IgnoreCase') | Select-Object -First 20; if("'$hits.Count -eq 0){'"'NO_REPO_MATCH'} else { foreach("'$m in $hits){$start=[Math]::Max(0,$m.Index-160);$len=[Math]::Min(450,$text.Length-$start);($text.Substring($start,$len) -replace "`r|`n",'"' ')}}}catch{Write-Output ('ERROR '+"'$_.Exception.Message)}}' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$terms=@('"'claude-mem','anthropics/skills','ruflo','wshobson','claude-context','lean-ctx'); "'$users=@('"'karpathy','simonw','addyosmani','obra'); foreach("'$user in $users){ foreach($term in $terms){ $q='"'from:'+ "'$user + '"' ' + "'$term; $url='"'https://twitter.com/search?q='+[uri]::EscapeDataString("'$q)+'"'&src=typed_query&f=live'; Write-Output \"QUERY "'$q"; try{$resp=Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ '"'User-Agent'='Mozilla/5.0 codex-t1' } -TimeoutSec 15; "'$text=$resp.Content; $hit=[regex]::Match($text,[regex]::Escape($term),'"'IgnoreCase'); if("'$hit.Success){$start=[Math]::Max(0,$hit.Index-160);$len=[Math]::Min(450,$text.Length-$start);('"'HIT '+("'$text.Substring($start,$len) -replace "`r|`n",'"' '))} else {'NO_VISIBLE_MATCH'} } catch { Write-Output ('ERROR '+"'$_.Exception.Message) } } }' in Z:\claude-sota-installed
+ succeeded in 719ms:
+QUERY claude-mem
+ERROR Response status code does not indicate success: 403 (Forbidden).
+QUERY anthropics/skills
+ERROR Response status code does not indicate success: 403 (Forbidden).
+QUERY ruflo
+ERROR Response status code does not indicate success: 403 (Forbidden).
+QUERY wshobson agents
+ERROR Response status code does not indicate success: 403 (Forbidden).
+QUERY claude-context
+ERROR Response status code does not indicate success: 403 (Forbidden).
+QUERY lean-ctx
+ERROR Response status code does not indicate success: 403 (Forbidden).
+
+ succeeded in 7035ms:
+QUERY from:karpathy claude-mem
+NO_VISIBLE_MATCH
+QUERY from:karpathy anthropics/skills
+NO_VISIBLE_MATCH
+QUERY from:karpathy ruflo
+NO_VISIBLE_MATCH
+QUERY from:karpathy wshobson
+NO_VISIBLE_MATCH
+QUERY from:karpathy claude-context
+NO_VISIBLE_MATCH
+QUERY from:karpathy lean-ctx
+NO_VISIBLE_MATCH
+QUERY from:simonw claude-mem
+NO_VISIBLE_MATCH
+QUERY from:simonw anthropics/skills
+NO_VISIBLE_MATCH
+QUERY from:simonw ruflo
+NO_VISIBLE_MATCH
+QUERY from:simonw wshobson
+NO_VISIBLE_MATCH
+QUERY from:simonw claude-context
+NO_VISIBLE_MATCH
+QUERY from:simonw lean-ctx
+NO_VISIBLE_MATCH
+QUERY from:addyosmani claude-mem
+NO_VISIBLE_MATCH
+QUERY from:addyosmani anthropics/skills
+NO_VISIBLE_MATCH
+QUERY from:addyosmani ruflo
+NO_VISIBLE_MATCH
+QUERY from:addyosmani wshobson
+NO_VISIBLE_MATCH
+QUERY from:addyosmani claude-context
+NO_VISIBLE_MATCH
+QUERY from:addyosmani lean-ctx
+NO_VISIBLE_MATCH
+QUERY from:obra claude-mem
+NO_VISIBLE_MATCH
+QUERY from:obra anthropics/skills
+NO_VISIBLE_MATCH
+QUERY from:obra ruflo
+NO_VISIBLE_MATCH
+QUERY from:obra wshobson
+NO_VISIBLE_MATCH
+QUERY from:obra claude-context
+NO_VISIBLE_MATCH
+QUERY from:obra lean-ctx
+NO_VISIBLE_MATCH
+
+codex
+The same-site Simon search endpoint returned 403, so it cannot be used as reliable evidence. X search pages also exposed no visible tweet matches in the fetched HTML.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'codex exec --help' in Z:\claude-sota-installed
+ succeeded in 472ms:
+Run Codex non-interactively
+
+Usage: codex exec [OPTIONS] [PROMPT]
+       codex exec [OPTIONS] <COMMAND> [ARGS]
+
+Commands:
+  resume  Resume a previous session by id or pick the most recent with --last
+  review  Run a code review against the current repository
+  help    Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [PROMPT]
+          Initial instructions for the agent. If not provided as an argument (or if `-` is used),
+          instructions are read from stdin. If stdin is piped and a prompt is also provided, stdin
+          is appended as a `<stdin>` block
+
+Options:
+  -c, --config <key=value>
+          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.
+          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed
+          as TOML. If it fails to parse as TOML, the raw string is used as a literal.
+          
+          Examples: - `-c model="o3"` - `-c 'sandbox_permissions=["disk-full-read-access"]'` - `-c
+          shell_environment_policy.inherit=all`
+
+      --enable <FEATURE>
+          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`
+
+      --disable <FEATURE>
+          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`
+
+  -i, --image <FILE>...
+          Optional image(s) to attach to the initial prompt
+
+  -m, --model <MODEL>
+          Model the agent should use
+
+      --oss
+          Use open-source provider
+
+      --local-provider <OSS_PROVIDER>
+          Specify which local provider to use (lmstudio or ollama). If not specified with --oss,
+          will use config default or show selection
+
+  -p, --profile <CONFIG_PROFILE>
+          Configuration profile from config.toml to specify default options
+
+  -s, --sandbox <SANDBOX_MODE>
+          Select the sandbox policy to use when executing model-generated shell commands
+          
+          [possible values: read-only, workspace-write, danger-full-access]
+
+      --dangerously-bypass-approvals-and-sandbox
+          Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY
+          DANGEROUS. Intended solely for running in environments that are externally sandboxed
+
+  -C, --cd <DIR>
+          Tell the agent to use the specified directory as its working root
+
+      --add-dir <DIR>
+          Additional directories that should be writable alongside the primary workspace
+
+      --skip-git-repo-check
+          Allow running Codex outside a Git repository
+
+      --ephemeral
+          Run without persisting session files to disk
+
+      --ignore-user-config
+          Do not load `$CODEX_HOME/config.toml`; auth still uses `CODEX_HOME`
+
+      --ignore-rules
+          Do not load user or project execpolicy `.rules` files
+
+      --output-schema <FILE>
+          Path to a JSON Schema file describing the model's final response shape
+
+      --color <COLOR>
+          Specifies color settings for use in the output
+          
+          [default: auto]
+          [possible values: always, never, auto]
+
+      --json
+          Print events to stdout as JSONL
+
+  -o, --output-last-message <FILE>
+          Specifies file where the last message from the agent should be written
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+
+**Exploring codex CLI usage**
+
+The user is asking about using the BRIDGE-MODE codex CLI, and I want to approach it carefully, preferably aiming for a non-destructive method. I think I'll rely on shell commands. If something doesn't work, I want to have a final fallback prepared. It’s important to ensure that any command I use does not involve writing to files, except temporarily. I also need to create a prompt in PowerShell using here-string and pipe it.
+codex
+I’m running a short Codex CLI synthesis pass over the constrained evidence now, with no broader search requested, so the final verdict is generated in the requested bridge path.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$prompt = @'"'
+WAVE 220 R7 NARROW PATH P CODEX T1 — Axis-2 named-T2 endorsements ONLY.
+
+Return strict JSON only. Use the evidence below; do not do generic web search. Classify missing evidence as HONEST-NON-FINDING.
+
+Candidates:
+1. thedotmack/claude-mem
+2. anthropics/skills
+3. ruvnet/ruflo
+4. wshobson/agents
+5. zilliztech/claude-context
+6. yvgude/lean-ctx
+
+Allowed probe evidence already gathered:
+- GitHub API README raw content for all six repos: exact practitioner-name grep for Karpathy/Andrej, Simon Willison/Willison/simonw, Boris Cherny/Cherny/Boris, Addy Osmani/Osmani/addyosmani, Jesse Vincent/obra, and likely named Anthropic staff returned NO_NAMED_PRACTITIONER_MATCH for all six READMEs.
+- Direct URL probes:
+  - https://simonwillison.net/2026/ status 200, no exact candidate repo/name matches.
+  - https://twitter.com/karpathy status 200, profile HTML visible, no exact candidate repo/name matches.
+  - https://twitter.com/simonw status 200, profile HTML visible, no exact candidate repo/name matches.
+  - https://twitter.com/addyosmani status 200, profile HTML visible, no exact candidate repo/name matches.
+  - https://twitter.com/obra status 200, profile HTML visible, no exact candidate repo/name matches.
+  - Twitter direct search URLs for from:karpathy/from:simonw/from:addyosmani/from:obra with candidate terms returned no visible matches in fetched HTML.
+  - https://cultofclaude.com/skills/ status 200: exact candidate-ish snippets only for generic directory entries such as claude-mem project and Claude Context Mode, not a named-practitioner endorsement of candidate repos.
+- Simon same-site search URLs returned 403 and are not reliable evidence.
+- README for anthropics/skills links https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills . Direct probe status 200. Page title: \"Equipping agents for the real world with Agent Skills\". Date visible: Published Oct 16, 2025. Byline/acknowledgement visible: \"Written by Barry Zhang, Keith Lazuka, and Mahesh Murag, who all really like folders. Special thanks to the many others across Anthropic who championed, supported, and built Skills.\" The page links to https://github.com/anthropics/skills/tree/main/document-skills/pdf and discusses Agent Skills. Treat Barry Zhang, Keith Lazuka, and Mahesh Murag as named Anthropic staff authors for Axis-2 if sufficient.
+- https://www.anthropic.com/news/skills / claude.com blog status 200, dated Oct 16, 2025, links https://github.com/anthropics/skills but no named author found; do not use as named-practitioner evidence.
+
+Output schema:
+{
+  \"verdict\": \"<APPROVE|NEEDS-REVISION|REJECT>\",
+  \"confidence\": <0.0-1.0>,
+  \"axis_2_findings\": [
+    {\"repo\": \"<full_name>\", \"named_practitioner\": \"<name or NONE>\", \"endorsement_url\": \"<URL or NONE>\", \"date\": \"<YYYY-MM-DD or N/A>\", \"verification_method\": \"<direct-url-probe | readme-grep | gh-api-readme | HONEST-NON-FINDING>\"}
+  ],
+  \"axis_2_pass_count\": <int 0-6>,
+  \"axis_2_partial_count\": <int 0-6>,
+  \"axis_2_hnf_count\": <int 0-6>
+}
+'@
+"'$prompt | codex exec --ephemeral -p deep-review-exec --color never --model gpt-5.5 -' in Z:\claude-sota-installed
+ succeeded in 15283ms:
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.92,
+  "axis_2_findings": [
+    {
+      "repo": "thedotmack/claude-mem",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "anthropics/skills",
+      "named_practitioner": "Barry Zhang, Keith Lazuka, Mahesh Murag",
+      "endorsement_url": "https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills",
+      "date": "2025-10-16",
+      "verification_method": "direct-url-probe"
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "wshobson/agents",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "zilliztech/claude-context",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "yvgude/lean-ctx",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    }
+  ],
+  "axis_2_pass_count": 1,
+  "axis_2_partial_count": 0,
+  "axis_2_hnf_count": 5
+}
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e2dec-d2f0-75d1-84b0-6694584b3e3f
+--------
+user
+WAVE 220 R7 NARROW PATH P CODEX T1 — Axis-2 named-T2 endorsements ONLY.
+
+Return strict JSON only. Use the evidence below; do not do generic web search. Classify missing evidence as HONEST-NON-FINDING.
+
+Candidates:
+1. thedotmack/claude-mem
+2. anthropics/skills
+3. ruvnet/ruflo
+4. wshobson/agents
+5. zilliztech/claude-context
+6. yvgude/lean-ctx
+
+Allowed probe evidence already gathered:
+- GitHub API README raw content for all six repos: exact practitioner-name grep for Karpathy/Andrej, Simon Willison/Willison/simonw, Boris Cherny/Cherny/Boris, Addy Osmani/Osmani/addyosmani, Jesse Vincent/obra, and likely named Anthropic staff returned NO_NAMED_PRACTITIONER_MATCH for all six READMEs.
+- Direct URL probes:
+  - https://simonwillison.net/2026/ status 200, no exact candidate repo/name matches.
+  - https://twitter.com/karpathy status 200, profile HTML visible, no exact candidate repo/name matches.
+  - https://twitter.com/simonw status 200, profile HTML visible, no exact candidate repo/name matches.
+  - https://twitter.com/addyosmani status 200, profile HTML visible, no exact candidate repo/name matches.
+  - https://twitter.com/obra status 200, profile HTML visible, no exact candidate repo/name matches.
+  - Twitter direct search URLs for from:karpathy/from:simonw/from:addyosmani/from:obra with candidate terms returned no visible matches in fetched HTML.
+  - https://cultofclaude.com/skills/ status 200: exact candidate-ish snippets only for generic directory entries such as claude-mem project and Claude Context Mode, not a named-practitioner endorsement of candidate repos.
+- Simon same-site search URLs returned 403 and are not reliable evidence.
+- README for anthropics/skills links https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills . Direct probe status 200. Page title: "Equipping agents for the real world with Agent Skills". Date visible: Published Oct 16, 2025. Byline/acknowledgement visible: "Written by Barry Zhang, Keith Lazuka, and Mahesh Murag, who all really like folders. Special thanks to the many others across Anthropic who championed, supported, and built Skills." The page links to https://github.com/anthropics/skills/tree/main/document-skills/pdf and discusses Agent Skills. Treat Barry Zhang, Keith Lazuka, and Mahesh Murag as named Anthropic staff authors for Axis-2 if sufficient.
+- https://www.anthropic.com/news/skills / claude.com blog status 200, dated Oct 16, 2025, links https://github.com/anthropics/skills but no named author found; do not use as named-practitioner evidence.
+
+Output schema:
+{
+  "verdict": "<APPROVE|NEEDS-REVISION|REJECT>",
+  "confidence": <0.0-1.0>,
+  "axis_2_findings": [
+    {"repo": "<full_name>", "named_practitioner": "<name or NONE>", "endorsement_url": "<URL or NONE>", "date": "<YYYY-MM-DD or N/A>", "verification_method": "<direct-url-probe | readme-grep | gh-api-readme | HONEST-NON-FINDING>"}
+  ],
+  "axis_2_pass_count": <int 0-6>,
+  "axis_2_partial_count": <int 0-6>,
+  "axis_2_hnf_count": <int 0-6>
+}
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.92,
+  "axis_2_findings": [
+    {
+      "repo": "thedotmack/claude-mem",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "anthropics/skills",
+      "named_practitioner": "Barry Zhang, Keith Lazuka, Mahesh Murag",
+      "endorsement_url": "https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills",
+      "date": "2025-10-16",
+      "verification_method": "direct-url-probe"
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "wshobson/agents",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "zilliztech/claude-context",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "yvgude/lean-ctx",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    }
+  ],
+  "axis_2_pass_count": 1,
+  "axis_2_partial_count": 0,
+  "axis_2_hnf_count": 5
+}
+tokens used
+2,454
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.92,
+  "axis_2_findings": [
+    {
+      "repo": "thedotmack/claude-mem",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "anthropics/skills",
+      "named_practitioner": "Barry Zhang, Keith Lazuka, Mahesh Murag",
+      "endorsement_url": "https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills",
+      "date": "2025-10-16",
+      "verification_method": "direct-url-probe"
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "wshobson/agents",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "zilliztech/claude-context",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "yvgude/lean-ctx",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    }
+  ],
+  "axis_2_pass_count": 1,
+  "axis_2_partial_count": 0,
+  "axis_2_hnf_count": 5
+}
+tokens used
+61,163
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.92,
+  "axis_2_findings": [
+    {
+      "repo": "thedotmack/claude-mem",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "anthropics/skills",
+      "named_practitioner": "Barry Zhang, Keith Lazuka, Mahesh Murag",
+      "endorsement_url": "https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills",
+      "date": "2025-10-16",
+      "verification_method": "direct-url-probe"
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "wshobson/agents",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "zilliztech/claude-context",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    },
+    {
+      "repo": "yvgude/lean-ctx",
+      "named_practitioner": "NONE",
+      "endorsement_url": "NONE",
+      "date": "N/A",
+      "verification_method": "HONEST-NON-FINDING"
+    }
+  ],
+  "axis_2_pass_count": 1,
+  "axis_2_partial_count": 0,
+  "axis_2_hnf_count": 5
+}

@@ -1,0 +1,153 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 2344a287fbe282ceeea448d3ce033d7e2ceca2fe</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/context_window_statusline.sh | 121 +++++++++++++++++++++
+ 1 file changed, 121 insertions(+)
+
+=== git show --format=fuller ===
+commit 2344a287fbe282ceeea448d3ce033d7e2ceca2fe
+Author:     42 <42@local>
+AuthorDate: Thu May 14 09:16:35 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 14 09:16:35 2026 -0400
+
+    chore(w193-p1): track context_window_statusline.sh — codex KEEP+COMMIT verdict
+    
+    W193 P1 orchestrator-arc: codex bxp8np7r7 (REAL GPT-5.5 Path P) verdict = KEEP+COMMIT —
+    SOTA-grounded (cites Anthropic statusline JSON contract), sidecar producer for the
+    context monitor/reader hooks; was untracked. Narrow `git commit -o -F` per FM-02
+    (shared working tree, parallel W193 arc active). P1 definitive verdict + 5-step ship
+    plan: tmp/wave193-orchestrator-close-synthesis-2026-05-14.md. MEMORY.md L2 entry
+    persisted on disk (gitignored auto-memory — durable, not git-tracked).
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/context_window_statusline.sh b/.claude/hooks/scripts/context_window_statusline.sh
+new file mode 100644
+index 0000000..8ed0bba
+--- /dev/null
++++ b/.claude/hooks/scripts/context_window_statusline.sh
+@@ -0,0 +1,121 @@
++#!/usr/bin/env bash
++# W166 P3 context-window bridge.
++# SOTA: Claude Code status line commands receive JSON on stdin with
++# context_window.used_percentage and session_id fields:
++# https://code.claude.com/docs/en/statusline:189-224 [VERIFIED 2026-05-13]
++
++set -uo pipefail
++
++ROOT="${CLAUDE_PROJECT_DIR:-Z:/claude-sota-installed}"
++PYTHON_BIN="${PYTHON_BIN:-Z:/venvs/claude/Scripts/python.exe}"
++SIDEcar="$ROOT/.claude/state/context_window_sidecar.json"
++ERROR_LOG="$ROOT/.claude/state/context_window_statusline_errors.jsonl"
++STATUSLINE_CMD=(node C:/Users/42/AppData/Roaming/npm/node_modules/ccstatusline/dist/ccstatusline.js --config "$ROOT/.claude/ccstatusline/settings.json")
++
++payload="$(cat)"
++export CW_STATUSLINE_PAYLOAD="$payload"
++
++sidecar_stderr="$(mktemp 2>/dev/null || printf '%s' "$ROOT/.claude/state/context_window_statusline_stderr.tmp")"
++if ! "$PYTHON_BIN" - "$SIDEcar" "$ERROR_LOG" <<'PY' 2>"$sidecar_stderr"; then
++import json
++import os
++import sys
++import tempfile
++from datetime import UTC, datetime
++from pathlib import Path
++
++sidecar = Path(sys.argv[1])
++error_log = Path(sys.argv[2])
++raw = os.environ.get("CW_STATUSLINE_PAYLOAD", "")
++
++
++def log_error(stage, exc):
++    try:
++        error_log.parent.mkdir(parents=True, exist_ok=True)
++        record = {
++            "schema": "context_window_statusline_error.v1",
++            "ts": datetime.now(UTC).isoformat(),
++            "stage": stage,
++            "error_type": type(exc).__name__,
++            "error": str(exc)[-2000:],
++        }
++        with error_log.open("a", encoding="utf-8") as f:
++            f.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
++    except OSError:
++        pass
++
++
++try:
++    event = json.loads(raw or "{}")
++except json.JSONDecodeError:
++    sys.exit(0)
++
++session_id = event.get("session_id")
++window = event.get("context_window") or {}
++if not session_id or not isinstance(window, dict):
++    sys.exit(0)
++
++row = {
++    "session_id": session_id,
++    "used_percentage": window.get("used_percentage"),
++    "remaining_percentage": window.get("remaining_percentage"),
++    "total_input_tokens": window.get("total_input_tokens"),
++    "total_output_tokens": window.get("total_output_tokens"),
++    "context_window_size": window.get("context_window_size"),
++    "updated_at": datetime.now(UTC).isoformat(),
++}
++
++try:
++    sidecar.parent.mkdir(parents=True, exist_ok=True)
++    if sidecar.is_file():
++        with sidecar.open(encoding="utf-8") as f:
++            data = json.load(f)
++        if not isinstance(data, dict):
++            data = {}
++    else:
++        data = {}
++    data[session_id] = row
++    fd, tmp_name = tempfile.mkstemp(
++        prefix=f".{sidecar.name}.", suffix=".tmp", dir=str(sidecar.parent)
++    )
++    try:
++        with os.fdopen(fd, "w", encoding="utf-8") as f:
++            json.dump(data, f, ensure_ascii=True, indent=2, sort_keys=True)
++            f.write("\n")
++        os.replace(tmp_name, sidecar)
++    finally:
++        if os.path.exists(tmp_name):
++            os.unlink(tmp_name)
++except OSError as exc:
++    log_error("sidecar_write", exc)
++PY
++    "$PYTHON_BIN" - "$ERROR_LOG" "$sidecar_stderr" <<'PYERR' 2>/dev/null || true
++import json
++import sys
++from datetime import UTC, datetime
++from pathlib import Path
++
++error_log = Path(sys.argv[1])
++stderr_path = Path(sys.argv[2])
++try:
++    stderr = stderr_path.read_text(encoding="utf-8", errors="replace").strip()
++except OSError:
++    stderr = ""
++try:
++    error_log.parent.mkdir(parents=True, exist_ok=True)
++    record = {
++        "schema": "context_window_statusline_error.v1",
++        "ts": datetime.now(UTC).isoformat(),
++        "stage": "sidecar_subprocess",
++        "error_type": "SubprocessError",
++        "error": stderr[-2000:] if stderr else "sidecar writer exited non-zero",
++    }
++    with error_log.open("a", encoding="utf-8") as f:
++        f.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
++except OSError:
++    pass
++PYERR
++fi
++rm -f "$sidecar_stderr" 2>/dev/null || true
++
++printf '%s' "$payload" | "${STATUSLINE_CMD[@]}"</repository_context>

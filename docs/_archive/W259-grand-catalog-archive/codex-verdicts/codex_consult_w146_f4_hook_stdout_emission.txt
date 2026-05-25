@@ -1,0 +1,153 @@
+W146-F4 CODEX T1 PATH P AUDIT — codex_t1_consult_gate.py hook stdout emission verification
+
+PURPOSE: Verify whether existing JSONL state-writing already surfaces via hook stdout as
+system-reminder to Claude per Anthropic CC hooks spec, OR whether new emission code is
+needed in codex_t1_consult_gate.py. Single-claim audit; 60-180s budget target.
+
+ORIGIN: Wave 146 Fire 1 Agent C MODIFY #1 codex T1 verdict deferred to W146-F4 deeper
+probe. Prior orchestrator Mia probe at L1670-1730 + L1790-1860 of
+.claude/hooks/scripts/codex_t1_consult_gate.py (1903 LOC) found 3 emission paths
+(STRICT/WARN/AUTO).
+
+═══════════════════════════════════════════════════════════════════════════════
+THE QUESTION (single-claim audit)
+═══════════════════════════════════════════════════════════════════════════════
+
+Does the current emission pattern of codex_t1_consult_gate.py satisfy
+"hook output surfaces to Claude as system-reminder per CC hooks spec at
+https://code.claude.com/docs/en/hooks" — OR is new emission code required?
+
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCE (actual code from codex_t1_consult_gate.py @ HEAD; L1670-1727 verbatim)
+═══════════════════════════════════════════════════════════════════════════════
+
+PATH 1 — STRICT mode (CODEX_T1_GATE_STRICT=1) emits deny:
+```python
+# L1675-1683
+payload = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    },
+}
+sys.stdout.write(json.dumps(payload))
+sys.stderr.write(f"[codex-t1-gate STRICT] DENY {target_path}: T1 consult missing\n")
+```
+
+PATH 2 — WARN mode (default; T1 absent but proceed):
+```python
+# L1696-1703
+payload = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "additionalContext": additional,   # <— text describing missing T1 + bypass instruction
+    },
+}
+sys.stdout.write(json.dumps(payload))
+sys.stderr.write(f"[codex-t1-gate WARN] {target_path}: T1 consult missing (allowing)\n")
+```
+
+PATH 3 — AUTO mode (auto-spawn codex T1 result):
+```python
+# L1706-1727
+decision = result.get("decision", "deny")
+if decision == "allow":
+    sys.stderr.write(
+        f"[codex-t1-gate AUTO] ALLOW {result.get('target_path', '?')} "
+        f"verdict={result.get('verdict')}\n",
+    )
+    return    # <— stderr ONLY; NO stdout JSON; NO additionalContext
+payload = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    },
+}
+sys.stdout.write(json.dumps(payload))
+sys.stderr.write(f"[codex-t1-gate AUTO {classification}] DENY ...\n")
+```
+
+JSONL TELEMETRY (separate; .claude/state/codex_t1_consult_gate.jsonl + codex_t1_auto_spawn.jsonl):
+11+ state codes recorded: in_progress / launch_error / stale_lock_released / lock_race /
+prompt_build_failed / mock_resolved / mock_skip / cmd_not_found / blocked_sensitive /
+resolved / mock_write / fail_open_error / fail_closed_error / allow_t1_present /
+deny_t1_missing / warn_t1_missing
+
+═══════════════════════════════════════════════════════════════════════════════
+12-AXIS COMPREHENSIVE SOTA CONVERGENCE LATTICE (compressed for single-claim audit)
+═══════════════════════════════════════════════════════════════════════════════
+
+AXIS 1   TIER-1 multi-org provenance:
+         Anthropic CC hooks docs `https://code.claude.com/docs/en/hooks` — canonical authority
+         for PreToolUse hookSpecificOutput shape. Verify the `additionalContext` field
+         semantics + whether it surfaces to model as system-reminder.
+
+AXIS 2   Time-decay / 2026 currency:
+         Cite the hooks docs URL as of 2026-05-11. Verify `additionalContext` is current
+         (not deprecated). Flag if Anthropic recently changed PreToolUse JSON contract.
+
+AXIS 3   Missing SOTA repos: HONEST-NON-FINDING expected (focused single-claim audit)
+
+AXIS 4   Failure-mode coverage:
+         What classes of state-events are NOT surfaced to Claude under current emission
+         pattern? E.g., AUTO-ALLOW path emits stderr-only — is that a gap or intentional?
+         Does Claude need to see ALL state changes or just BLOCKING ones?
+
+AXIS 5   Install-priority: N/A (codification fire, no install ship)
+
+AXIS 6   License-use-class: N/A (internal hook)
+
+AXIS 7   Maintainer-provenance: TIER-1-OFFICIAL Anthropic (CC hooks spec authoritative)
+
+AXIS 8   Mode-harness: N/A (hook IS the harness)
+
+AXIS 9   CR-12 disposition: N/A (no upstream candidate; internal hook)
+
+AXIS 10  Anthropic policy alignment:
+         Does current emission match what `https://code.claude.com/docs/en/hooks`
+         prescribes for PreToolUse JSON output + when text surfaces to model?
+
+AXIS 11  Cross-validation: W146-F1 Agent C MODIFY #1 prior verdict context.
+
+AXIS 12  Recursive self-improvement: any axes/disciplines missing from this 12-axis audit?
+
+═══════════════════════════════════════════════════════════════════════════════
+NOT-IN-SCOPE (Forward Discipline #2 hard gate)
+═══════════════════════════════════════════════════════════════════════════════
+
+- DO NOT explore other hook scripts beyond codex_t1_consult_gate.py
+- DO NOT explore CC source code (only public hooks spec docs)
+- DO NOT propose architectural rewrites of the gate
+- DO NOT explore historical fire deliverables beyond Agent C MODIFY #1 context
+- DO NOT propose new emission code in this verdict if existing pattern is sufficient —
+  ship_readiness=READY when existing satisfies; NEEDS-PATTERN-A only if gap is real
+- Single-claim focus: ONLY the question above
+
+═══════════════════════════════════════════════════════════════════════════════
+JSON-STRICT EOF VERDICT SCHEMA (REQUIRED)
+═══════════════════════════════════════════════════════════════════════════════
+
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT | NEEDS-MORE-RESEARCH | BLOCK",
+  "confidence": 0.85-0.95,
+  "summary": "(2-3 sentences answering the single-claim question)",
+  "answer_yes_or_no": "YES | NO | PARTIAL",
+  "axis_1_tier1_provenance": {finding},
+  "axis_2_time_decay": {finding},
+  "axis_4_failure_mode_coverage": {finding on AUTO-ALLOW gap if any},
+  "axis_10_anthropic_policy_alignment": {finding citing hooks spec verbatim},
+  "axis_11_cross_validation": {finding vs W146-F1 Agent C MODIFY #1},
+  "axis_12_recursive_self_improvement": {findings or HNF},
+  "cc_hooks_spec_verbatim_quote": "(verbatim quote of additionalContext semantic from CC docs)",
+  "gap_assessment": {
+    "warn_mode_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN",
+    "strict_mode_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN",
+    "auto_allow_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN",
+    "auto_deny_path": "SUFFICIENT | INSUFFICIENT | UNKNOWN"
+  },
+  "prescribed_edits": [...cap at 5; empty array if no edits needed...],
+  "ship_readiness": "READY | NEEDS-PATTERN-A | NEEDS-MORE-RESEARCH | BLOCK",
+  "dogfood_metrics": {"wall_clock_sec": N, "verdict_loc": N, "axes_with_findings": N}
+}

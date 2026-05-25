@@ -1,0 +1,210 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b28685bf9eaec7b2215255703af425964fa94724
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../00-hnf-convergence.md                          | 155 +++++++++++++++++++++
+ 1 file changed, 155 insertions(+)
+
+=== git show --format=fuller ===
+commit b28685bf9eaec7b2215255703af425964fa94724
+Author:     42 <42@local>
+AuthorDate: Mon May 11 01:33:17 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 01:33:17 2026 -0400
+
+    docs(research-architecture): Wave 145 Fire 7 — W145-F1 Axis-6/7/8/10 narrowed audit · HONEST-NON-FINDING + Wave 145 arc convergence signal (12/12 axes audited across 6 fires; 6th consecutive no-Path-P-dispatch cumulative ~1080s/30K tokens/2400 LOC saved; STEP 12 fresh-discovery-sweep trigger watch ON)
+    
+    /loop tick 6 cron `*/12 * * * *` id `84da0f2f` fire. Auto-pick Forward Top-5 🥇
+    W145-F8-NEW W145-F1 Axis-6/7/8/10 narrowed runtime audit per W145-F6 close-synthesis.
+    
+    ## Mia probe outcome (n=237 → n=240, +3)
+    
+    All 7 W145-F1 Axis-1 borderline picks REMEDIATED-DOC-LEVEL via W145-F1 Pattern A
+    apply at `01-corrected-architecture.md` (commit `15faebc` ED-1 + ED-7):
+    
+    | Pick | Manifest install state | W145-F1 remediation |
+    |---|---|---|
+    | ossinsight | NOT INSTALLED | DEMOTE rubric → auxiliary discovery |
+    | star-history | NOT INSTALLED | DEMOTE rubric → soft signal only |
+    | snyk-advisor | NOT INSTALLED (SaaS) | DEMOTE → composite with OSV+deps.dev+Scorecard |
+    | skill-creator | INSTALLED (plugin) | MOVE L4 evaluation → L7 construction |
+    | log4brains | NOT INSTALLED | DELAY Day-1 → Week-1 (plain MADR baseline) |
+    | splitrail | NOT INSTALLED | MARK experimental |
+    | claude_telemetry | NOT INSTALLED | MARK fallback-only |
+    
+    6/7 not-installed = no install-state to re-verify. 1/7 (skill-creator) installed
+    but already layer-reclassified per W145-F1 Pattern A.
+    
+    ## Axis-6/7/8/10 audit verdict
+    
+    | Axis | Verdict |
+    |---|---|
+    | A6 license-use-class (SRA D1) | NO NEW PRESCRIPTIONS — use-class classifications already established W145-F1 + manifest sister-rule cite trail |
+    | A7 maintainer tier (SRA D4) | NO NEW PRESCRIPTIONS — tier classifications align with W145-F1 Axis-1 borderline flagging (TIER-3/4 picks properly DEMOTED) |
+    | A8 mode-harness compat (SRA D6 + Probe 5) | NO NEW PRESCRIPTIONS — Probe 5 classifications align with W145-F1 install-priority decisions |
+    | A10 Anthropic-policy alignment (SRA D7) | NO NEW PRESCRIPTIONS — CC docs don't apply stricter standard than W145-F1 |
+    
+    **Verdict: HONEST-NON-FINDING** per synthesis-layer-verify §Reporting categories.
+    
+    ## Wave 145 arc convergence — 12/12 axes audited across 6 fires
+    
+    | Axis | Audit fire | Disposition |
+    |---|---|---|
+    | A1 TIER-1 multi-org | W145-F1 + reaudit W145-F8 | 7 borderline picks REMEDIATED-DOC-LEVEL |
+    | A2 Time-decay | W145-F1 | 5 stale claims corrected via Pattern A |
+    | A3 Missing-SOTA | W145-F1+F2+F3+F4 | 1 INSTALL APPROVE (garak operator-gated) + 4 RETIRE-DEAD |
+    | A4 FM gaps | W145-F5 | 7/9 schema ALREADY CAPTURED + cwc INSTALLED-DORMANT operator-gated |
+    | A5 Install-priority | W145-F4 | 6/6 Day-1 PROMOTIONS ALREADY INSTALLED + codification shipped |
+    | A6 license-use-class | W145-F8 (this fire) | HNF |
+    | A7 maintainer tier | W145-F8 (this fire) | HNF |
+    | A8 mode-harness | W145-F8 (this fire) | HNF |
+    | A9 CR-12 5-class | W145-F2-F5 | Full 5-class lattice exercised |
+    | A10 Anthropic-policy | W145-F8 (this fire) | HNF |
+    | A11 Cross-validation | per-fire across 6 | 100% Wave 134 Fire 27 maintained |
+    | A12 Recursive self-improvement | W145-F2 + W145-F5 | 4 new dims proposed |
+    
+    **12/12 axes audited = Wave 145 arc substantively complete** pending operator-gated
+    installs (W145-F6 garak + W145-F5b cwc) + minor doc-only follow-ups.
+    
+    ## Ladder advances
+    
+    | Ladder | Prior | This fire |
+    |---|---|---|
+    | Mia pre-apply | n=237 | n=240 (+3 remediation-status probes) |
+    | FM-20 cascade | n=15 | n=15 (no new — HNF this fire) |
+    | W145-F1 prescription audit | Axis-3+4+5 confirmed | +Axis-6+7+8+10 = 12/12 axes audited |
+    | Path P + FD#2 | unchanged | no dispatch (6 consecutive fires) |
+    | Cumulative Mia+FM-20 savings | ~900s+25K tokens+2250 LOC | ~1080s+30K tokens+2400 LOC across 6 fires |
+    | Wave 145 arc convergence | 5/12 axes | 12/12 axes — convergence signal |
+    
+    ## REVISED Forward Top-5 (post-Wave-145.7)
+    
+    🥇 W145-F9-NEW Manifest drift sweep (ALL `PLANNED` entries vs runtime install-state) — doc-only
+    🥈 W145-F10-NEW dep_lock per-loop snapshot hook codification
+    🥉 W145-F11-NEW test_command capture hook codification
+    #4 W145-F12-NEW replay-session.py CLI consolidation codification
+    OPERATOR-GATED: W145-F6 garak install fire (HIGH-RISK) + W145-F5b cwc wire-activation (HIGH-RISK)
+    
+    **STEP 12 TRIGGER WATCH**: post-W145-F9 + F10/F11/F12 (all doc-only auto-proceed), Forward
+    Top-5 will be EMPTY except OPERATOR-GATED. Next-cron-fire trigger: fresh ecosystem
+    discovery sweep (Brave + Exa + DeepWiki + Firecrawl + arXiv + Semantic Scholar + Papers
+    With Code) per STEP 12 TERMINATION CRITERIA.
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-1-DIRECT manifest + agent-harness-fit-verification.md SRA D6 + W145-F1 close-synthesis Pattern A trail)
+    N/A CR-3 cross-model (HNF audit + META-CODIFICATION; no cross-model gate)
+    N/A CR-9 install-risk (no install)
+    ✅ CR-10 research-first (Research = Mia + cross-axis classification; codification = HNF doc)
+    ✅ CR-11 META-process
+    N/A CR-12 5-class (META-codification + HNF)
+    ✅ Mia pre-apply n=240
+    ✅ FM-20 cascade n=15 unchanged (no new cascade)
+    ✅ FM-02 sub-class (b)+(c) atomic
+    ✅ synthesis-layer-verify HONEST-NON-FINDING category explicitly applied
+    ✅ Forward Discipline #2 (NO codex dispatch 6 consecutive fires; cumulative ~1080s+30K tokens saved)
+    ✅ kiss-dry-yagni Must-Never #4 (re-audit-already-audited REJECTED)
+    ✅ port-note-discipline §6 forward-only
+    ✅ AUTO-PROCEED DEFAULTS MEDIUM-risk audit
+    ✅ git-cli-grammar
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-35-w145-axis-6-7-8-10-audit/00-hnf-convergence.md
+    Cite: TIER-3-LOCAL-COMPOSITION via Mia n=240 + W145-F1 Pattern A apply trail + Wave 145 arc 6-fire HNF convergence-signal (cite-class per citation-discipline.md rule #8 MIN_PRECEDENCE)
+    Verify: [VERIFIED via grep ZERO manifest entries for 6/7 W145-F1 Axis-1 borderline picks (ossinsight + star-history + snyk-advisor + log4brains + splitrail + claude_telemetry — none installed) + skill-creator installed but layer-reclassified per W145-F1 ED-1 + cross-axis classification probes confirm Axis-6/7/8/10 surface ZERO new prescriptions = HONEST-NON-FINDING per synthesis-layer-verify §Reporting categories + 12/12 axes audited across 6 fires = Wave 145 arc convergence signal + STEP 12 TERMINATION CRITERIA fresh-ecosystem-discovery-sweep trigger watch ON for post-W145-F9/F10/F11/F12 cron fire]
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-35-w145-axis-6-7-8-10-audit/00-hnf-convergence.md b/docs/sota-architecture-audit/fire-35-w145-axis-6-7-8-10-audit/00-hnf-convergence.md
+new file mode 100644
+index 0000000..b862548
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-35-w145-axis-6-7-8-10-audit/00-hnf-convergence.md
+@@ -0,0 +1,155 @@
++# Wave 145 Fire 7 — W145-F1 Axis-6/7/8/10 narrowed audit · HONEST-NON-FINDING + arc convergence signal
++
++> **Verdict**: `HONEST-NON-FINDING` per `synthesis-layer-verify.md §Reporting categories` — the 7 W145-F1 Axis-1 borderline picks flagged for cross-axis (Axis-6 license-use-class / Axis-7 maintainer tier / Axis-8 mode-harness / Axis-10 Anthropic-policy) review are ALL **already remediated via W145-F1 Pattern A apply** at `01-corrected-architecture.md` (commit `15faebc`) AND none are currently INSTALLED in eee runtime. Axis-6/7/8/10 audit surfaces **zero new prescriptions** beyond W145-F1 close-synthesis.
++> **Closed-loop disposition**: Outcome A ACCEPT-WITH-HNF — Wave 145 arc convergence signal documented;
+
+[prompt truncated]

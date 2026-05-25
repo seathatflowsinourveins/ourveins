@@ -1,0 +1,995 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1f5a-85a3-7e80-90df-2cedda06bfbb
+--------
+user
+## W161 SB11 — `_observation_writer.append_observation` retrofit to use `atomic_append`
+
+Audit the proposed retrofit of `_observation_writer.py:append_observation` to use the cite-imported `atomic_append()` from `scripts/_atomic_jsonl_append.py` per W161 SB10 install. Bundle 1 phase 2 retrofit per `docs/architecture-audit-scorecard.md` P1 #2 priority queue.
+
+### Context
+
+- **SB10 just landed** (commits ed38d2a + fdbd73e round-2): cite-imported `scripts/_atomic_jsonl_append.py` (423 LOC) with Round-3-7b cumulative invariants (O_CREAT|O_APPEND|O_WRONLY + lock + os.write + fsync + mode 0o600 + RecordTooLarge + Windows lock-via-sidecar)
+- **Sibling Ship 2a + Ship 2b precedent** (n=2): `Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52` + `memory_persist_sessionend.py:40-49` use identical retrofit pattern (sys.path.insert + try/except import + fail-open `atomic_append = None`)
+
+### Current state (`_observation_writer.py`)
+
+```python
+# L34-45 imports
+from __future__ import annotations
+import hashlib, json, os, re, sys
+from datetime import UTC, datetime
+from pathlib import Path
+sys.path.insert(0, os.path.dirname(__file__))
+from _guard_base import _parse_stdin_json
+from utils import log_swallow
+
+# L51-53 path resolution
+OBSERVATIONS_JSONL = (
+    Path(__file__).resolve().parent.parent.parent / "state" / "observations.jsonl"
+)
+
+# L206-232 target function
+def append_observation(obs: dict, ctx: str, payload: dict | None = None) -> bool:
+    try:
+        OBSERVATIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
+        row = _externalize_stop_reason_if_needed(obs, ctx)
+        row = merge_agent_context(row, payload)
+        with OBSERVATIONS_JSONL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        return True
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.observations_append")
+        return False
+```
+
+### Proposed retrofit (mirrors sibling Ship 2a/2b R2 pattern)
+
+```python
+# Add after line 45 (after existing _guard_base + utils imports):
+# Wave 161 SB11: import atomic_append() from cite-imported _atomic_jsonl_append
+# module (W161 SB10). Mirrors sibling Ship 2a/2b R2 codex T3 pattern at
+# Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52.
+# Per Ship 2a R2 codex T3 conf=0.82: wrap import in try/except to prevent
+# helper-failure (missing / syntax / runtime / version-skew) from breaking
+# module load. atomic_append=None triggers fail-open legacy fallback in
+# append_observation.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+try:
+    from _atomic_jsonl_append import atomic_append, RecordTooLarge  # noqa: E402
+except Exception:  # noqa: BLE001 — fail-open import per Ship 2a R2 codex T3
+    atomic_append = None  # type: ignore[assignment]
+    RecordTooLarge = type("RecordTooLarge", (Exception,), {})  # type: ignore[assignment]
+
+# Replace L206-232:
+def append_observation(obs: dict, ctx: str, payload: dict | None = None) -> bool:
+    """Append one JSONL row. Returns True on success, False on I/O error.
+
+    Fail-open: any OSError is log_swallow'd. Callers can still return 0.
+
+    Wave 161 SB11: uses atomic_append() from cite-imported _atomic_jsonl_append
+    module (W161 SB10) — Round-3-7b cumulative invariants (O_CREAT|O_APPEND
+    |O_WRONLY + lock + os.write + fsync + mode 0o600 + RecordTooLarge bound +
+    Windows lock-via-sidecar). Falls back to legacy with-open path when
+    atomic_append is None (helper missing/skew/syntax error).
+    """
+    try:
+        OBSERVATIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
+        row = _externalize_stop_reason_if_needed(obs, ctx)
+        row = merge_agent_context(row, payload)
+        if atomic_append is not None:
+            try:
+                atomic_append(OBSERVATIONS_JSONL, row)
+            except RecordTooLarge as exc:
+                log_swallow(exc, f"{ctx}.observations_append.record_too_large")
+                return False
+        else:
+            # Fail-open legacy fallback when atomic_append unavailable
+            with OBSERVATIONS_JSONL.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(row) + "\n")
+        return True
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.observations_append")
+        return False
+```
+
+### Audit dimensions
+
+1. **Path resolution correctness**: `Path(__file__).resolve().parents[3]` — verify resolves to `Z:/claude-sota-installed/` (not `.claude/` or `hooks/`). Layout: file at `.claude/hooks/scripts/_observation_writer.py` → parents[0]=scripts/, parents[1]=hooks/, parents[2]=.claude/, parents[3]=Z:/claude-sota-installed/.
+
+2. **Fail-open import discipline**: try/except wraps import per sibling Ship 2a R2. Stub `RecordTooLarge = type(...)` when import fails ensures the `except RecordTooLarge` branch doesn't raise NameError. Acceptable shape?
+
+3. **Backward compatibility**: legacy code path preserved as fallback when atomic_append is None. Byte-for-byte JSONL output identical to pre-SB11 (atomic_append uses same `json.dumps(row) + "\n"` shape per source body inspection).
+
+4. **RecordTooLarge handling**: Round-5 F-5 invariant raises RecordTooLarge for records exceeding PIPE_BUF_BYTES=4096. New `except RecordTooLarge` branch log_swallows and returns False. This is correct per Round-5 F-5 "RecordTooLarge raises; do NOT silently truncate".
+
+5. **Cycle-300 ONE-LOGICAL-UNIT scope**: single-file retrofit (~25 LOC delta). SB12+ retrofits deferred per scorecard P1 #2 priority queue.
+
+6. **Hook critical-path safety**: append_observation is called from observer hooks (subagent_start_observer, subagent_stop_telemetry, task_completed_observer). atomic_append takes a lock + fsyncs — performance impact acceptable (~1-5ms overhead per call)?
+
+7. **FM-02 (b)+(c) defense**: single-shell `git add -- <path> && git commit -o -F <msg> -- <path>` atomic commit.
+
+### Verdict shape (JSON-strict at EOF — NO prose preamble)
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "prescribed_edits": [
+    {"file": "<path>", "edit": "<verbatim text or diff hunk>", "reason": "<one line>"}
+  ],
+  "audit_dimensions": {
+    "path_resolution": "PASS|NEEDS-REVISION",
+    "fail_open_import": "PASS|NEEDS-REVISION",
+    "backward_compat": "PASS|NEEDS-REVISION",
+    "record_too_large_handling": "PASS|NEEDS-REVISION",
+    "cycle300_scope": "PASS|NEEDS-REVISION",
+    "hook_critical_path_safety": "PASS|NEEDS-REVISION",
+    "fm02_defense": "PASS|NEEDS-REVISION"
+  },
+  "sibling_precedent_fidelity": "FULL|PARTIAL|DIVERGED"
+}
+```
+
+Budget: 60-120s per codex-t1-pattern-b-forward-discipline.md Forward Discipline #2. Do NOT explore historical fire deliverables beyond cite anchors. Verdict at EOF.
+
+codex
+I’ll verify the target file layout and the SB10 helper surface, then return the requested JSON-only verdict.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p = Resolve-Path .claude/hooks/scripts/_observation_writer.py; $path = [System.IO.FileInfo]$p; $parents = @(); $d=$path.Directory; for($i=0;$i -lt 5;$i++){ $parents += "parents[$i]=$($d.FullName)"; $d=$d.Parent }; $parents -join "`n"' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "def atomic_append|class RecordTooLarge|json.dumps|PIPE_BUF|O_APPEND|fsync|chmod|lock" scripts/_atomic_jsonl_append.py .claude/hooks/scripts/_observation_writer.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/_observation_writer.py -TotalCount 260' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path scripts/_atomic_jsonl_append.py -TotalCount 260' in Z:\claude-sota-installed
+ succeeded in 343ms:
+.claude/hooks/scripts/_observation_writer.py:228:            f.write(json.dumps(row) + "\n")
+scripts/_atomic_jsonl_append.py:18:# empty; symbol probe shows only PIPE_BUF_BYTES + LOCK_PROTOCOL_VERSION + 3
+scripts/_atomic_jsonl_append.py:26:# lock_primitive=msvcrt". Local smoke probe in SB10 commit body / wave161-progress.jsonl.
+scripts/_atomic_jsonl_append.py:43:mandates at HEAD f5c68f2 (Round-7) + Round-7b Windows-lock fix (this commit).
+scripts/_atomic_jsonl_append.py:49:- Round-3 commit `622b664`: O_CREAT|O_APPEND|O_WRONLY + lock + low-level os.write
+scripts/_atomic_jsonl_append.py:50:- Round-4 commit `c2b5dee`: lock-discipline + max-record + fsync semantics
+scripts/_atomic_jsonl_append.py:53:- Round-7 commit `f5c68f2`: POSIX fchmod-after-open coercion for legacy 0o644 files
+scripts/_atomic_jsonl_append.py:54:- Round-7b (this fire): Windows lock-via-separate-file (file-pointer-stable);
+scripts/_atomic_jsonl_append.py:55:  msvcrt.locking on JSONL fd directly fails because O_APPEND moves pointer
+scripts/_atomic_jsonl_append.py:61:- fcntl.flock LOCK_EX: blocking exclusive advisory lock on WHOLE file (no byte-range);
+scripts/_atomic_jsonl_append.py:62:  file-pointer movement during O_APPEND is irrelevant
+scripts/_atomic_jsonl_append.py:63:- write(2) under O_APPEND ≤ PIPE_BUF (4KB Linux): line-atomic concurrent appends
+scripts/_atomic_jsonl_append.py:66:- os.fchmod is POSIX-only (raises AttributeError on Windows). Module SKIPS fchmod
+scripts/_atomic_jsonl_append.py:69:- msvcrt.locking: locks `nbytes` from CURRENT file-pointer position (not whole file)
+scripts/_atomic_jsonl_append.py:70:- Round-7b: lock byte 0 of a SEPARATE <path>.lock file with 1-byte placeholder;
+scripts/_atomic_jsonl_append.py:71:  no writes to lockfile means file pointer doesn't move; LK_UNLCK at byte 0 succeeds
+scripts/_atomic_jsonl_append.py:75:2. Round-7: fchmod-after-open coercion (POSIX only)
+scripts/_atomic_jsonl_append.py:77:4. Round-3-4: exclusive advisory lock held across encode + write
+scripts/_atomic_jsonl_append.py:78:5. Round-5 F-2: lock-unavailable fail-closed (no platform primitive)
+scripts/_atomic_jsonl_append.py:80:7. Round-5 F-5 + Ship 1.5: encode-then-byte-len ≤ record byte-bound (4KB POSIX / 64 KiB Windows sanity cap; Windows treats lock as sole correctness boundary per rule option (c))
+scripts/_atomic_jsonl_append.py:81:   Round-5 F-4: fsync raises propagate when durable=True
+scripts/_atomic_jsonl_append.py:85:- Ship 3: migrate codex_t1_consult_gate.py (2 lock-file sites)
+scripts/_atomic_jsonl_append.py:101:# Cross-platform lock primitive selection (Round-3-4 + Round-5 F-2)
+scripts/_atomic_jsonl_append.py:102:# Detection only at module-level; actual symbol imports happen inside lock fns
+scripts/_atomic_jsonl_append.py:118:# POSIX: PIPE_BUF=4096 defense-in-depth for O_APPEND lockless line-atomicity
+scripts/_atomic_jsonl_append.py:119:# Windows: R7d-R7j separate lockfile + protocol marker IS the correctness
+scripts/_atomic_jsonl_append.py:121:# lock as the sole correctness boundary". 64 KiB is a sanity cap to reject
+scripts/_atomic_jsonl_append.py:123:# Reference: https://man7.org/linux/man-pages/man7/pipe.7.html (PIPE_BUF semantics)
+scripts/_atomic_jsonl_append.py:124:PIPE_BUF_BYTES = 4096 if sys.platform != "win32" else 65536
+scripts/_atomic_jsonl_append.py:127:# Round-7d: lock-protocol version marker (closes T3 R7c2 conf=0.78 SAME-CLASS
+scripts/_atomic_jsonl_append.py:128:# version-skew finding on commit `ba3f52c`). Written to byte 0 of lockfile;
+scripts/_atomic_jsonl_append.py:129:# read-after-acquire-lock; fail-closed on mismatch. Bump to 2+ if mechanism
+scripts/_atomic_jsonl_append.py:130:# changes (e.g., hierarchical lock files); old v1 writers will fail-closed
+scripts/_atomic_jsonl_append.py:131:# rather than silently splitting the lock domain.
+scripts/_atomic_jsonl_append.py:135:class RecordTooLarge(Exception):
+scripts/_atomic_jsonl_append.py:142:    Raised when `_acquire_lock` finds a lockfile whose byte-0 protocol-version
+scripts/_atomic_jsonl_append.py:144:    writer running OLD-version lock code or NEW-version-N+1 lock code is
+scripts/_atomic_jsonl_append.py:151:    """No platform lock primitive available (Round-5 F-2 fail-closed contract)."""
+scripts/_atomic_jsonl_append.py:154:def _acquire_lock(fd: int, path: Path) -> int | None:
+scripts/_atomic_jsonl_append.py:155:    """Take exclusive advisory lock per Round-3-4 (Round-5 F-2 fail-closed).
+scripts/_atomic_jsonl_append.py:158:        int — lock_fd to release on Windows (separate <path>.lock file)
+scripts/_atomic_jsonl_append.py:159:        None — POSIX uses jsonl fd directly via fcntl.flock
+scripts/_atomic_jsonl_append.py:161:    POSIX semantic: fcntl.flock locks the WHOLE file (no byte-range);
+scripts/_atomic_jsonl_append.py:162:    file-pointer movement during O_APPEND writes is irrelevant.
+scripts/_atomic_jsonl_append.py:164:    Windows semantic (Round-7b fix): msvcrt.locking locks `nbytes` from
+scripts/_atomic_jsonl_append.py:165:    CURRENT file-pointer position. Under O_APPEND, the JSONL fd's pointer
+scripts/_atomic_jsonl_append.py:166:    moves on each write, breaking lock-release symmetry (LK_UNLCK at new
+scripts/_atomic_jsonl_append.py:167:    pointer would find no lock at the byte we LK_LOCK'd). Workaround: lock
+scripts/_atomic_jsonl_append.py:168:    byte 0 of a SEPARATE <path>.lock file — no writes, no pointer movement.
+scripts/_atomic_jsonl_append.py:172:        # pyright Windows stubs lack POSIX flock/LOCK_EX attrs — runtime POSIX has them
+scripts/_atomic_jsonl_append.py:173:        fcntl.flock(fd, fcntl.LOCK_EX)  # pyright: ignore[reportAttributeAccessIssue]
+scripts/_atomic_jsonl_append.py:177:        # Round-7b: separate <path>.lock file avoids file-pointer race under O_APPEND
+scripts/_atomic_jsonl_append.py:178:        lock_path = str(path) + ".lock"
+scripts/_atomic_jsonl_append.py:183:        # lockfile and atomically linking/renaming it into place").
+scripts/_atomic_jsonl_append.py:184:        # Race-class invariant: live writer cannot leave lockfile in empty
+scripts/_atomic_jsonl_append.py:188:            os.stat(lock_path)  # lockfile already finalized; skip bootstrap
+scripts/_atomic_jsonl_append.py:194:            # re-entrant calls in same process targeting missing lockfile).
+scripts/_atomic_jsonl_append.py:197:            _lp = _P(lock_path)
+scripts/_atomic_jsonl_append.py:203:                os.fsync(bootstrap_fd)
+scripts/_atomic_jsonl_append.py:206:            # Atomic publish: tmp -> lock_path. POSIX rename(2) + NTFS
+scripts/_atomic_jsonl_append.py:209:            # (no partial-state visibility — lockfile transitions from
+scripts/_atomic_jsonl_append.py:212:                os.replace(bootstrap_tmp, lock_path)
+scripts/_atomic_jsonl_append.py:220:        # Open the now-existing lockfile (NO O_CREAT — file MUST exist by now
+scripts/_atomic_jsonl_append.py:222:        lock_fd = os.open(lock_path, os.O_RDWR, 0o600)
+scripts/_atomic_jsonl_append.py:223:        os.lseek(lock_fd, 0, os.SEEK_SET)
+scripts/_atomic_jsonl_append.py:224:        msvcrt.locking(lock_fd, msvcrt.LK_LOCK, 1)
+scripts/_atomic_jsonl_append.py:226:        # Round-7d/e/h: read protocol marker AFTER acquiring lock; fail-closed
+scripts/_atomic_jsonl_append.py:228:        # §Outcome A). Round-7e/h empty-fail-closed: covers race where lockfile
+scripts/_atomic_jsonl_append.py:232:        # Operator-side recovery on empty: manually `rm <path>.lock` (rare;
+scripts/_atomic_jsonl_append.py:234:        os.lseek(lock_fd, 0, os.SEEK_SET)
+scripts/_atomic_jsonl_append.py:235:        marker = os.read(lock_fd, 1)
+scripts/_atomic_jsonl_append.py:237:            # Release lock + close before raising — preserve invariant that
+scripts/_atomic_jsonl_append.py:238:            # ProtocolMismatch raises propagate cleanly without lock leak
+scripts/_atomic_jsonl_append.py:239:            os.lseek(lock_fd, 0, os.SEEK_SET)
+scripts/_atomic_jsonl_append.py:240:            msvcrt.locking(lock_fd, msvcrt.LK_UNLCK, 1)
+scripts/_atomic_jsonl_append.py:241:            os.close(lock_fd)
+scripts/_atomic_jsonl_append.py:244:                    f"Lockfile {lock_path} is empty (post-lock); bootstrap "
+scripts/_atomic_jsonl_append.py:246:                    "Operator recovery: rm the lockfile and retry. Refuse to "
+scripts/_atomic_jsonl_append.py:251:                f"Lockfile {lock_path} has protocol version {marker!r}; "
+scripts/_atomic_jsonl_append.py:255:        return lock_fd
+scripts/_atomic_jsonl_append.py:258:            "No platform lock primitive (missing fcntl/msvcrt). "
+scripts/_atomic_jsonl_append.py:259:            "Cannot proceed without lock per Round-5 F-2 fail-closed contract."
+scripts/_atomic_jsonl_append.py:263:def _release_lock(fd: int, lock_fd: int | None) -> None:
+scripts/_atomic_jsonl_append.py:264:    """Release exclusive lock acquired by _acquire_lock.
+scripts/_atomic_jsonl_append.py:266:    POSIX: lock_fd is None; release via fcntl.flock(fd, LOCK_UN) on jsonl fd.
+scripts/_atomic_jsonl_append.py:267:    Windows: lock_fd is the separate .lock file fd from _acquire_lock; seek
+scripts/_atomic_jsonl_append.py:268:        back to byte 0 (file-pointer-stable since we don't write to lockfile)
+scripts/_atomic_jsonl_append.py:273:        fcntl.flock(fd, fcntl.LOCK_UN)  # pyright: ignore[reportAttributeAccessIssue]
+scripts/_atomic_jsonl_append.py:274:    elif _LOCK_PRIMITIVE == "msvcrt" and lock_fd is not None:
+scripts/_atomic_jsonl_append.py:276:        os.lseek(lock_fd, 0, os.SEEK_SET)
+scripts/_atomic_jsonl_append.py:277:        msvcrt.locking(lock_fd, msvcrt.LK_UNLCK, 1)
+scripts/_atomic_jsonl_append.py:278:        os.close(lock_fd)
+scripts/_atomic_jsonl_append.py:281:def atomic_append(
+scripts/_atomic_jsonl_append.py:296:        durable: if True, os.fsync(fd) after write per Round-3-5 F-4 contract.
+scripts/_atomic_jsonl_append.py:303:        OSError: from os.open / os.write / os.fsync (Round-5 F-1 + F-4)
+scripts/_atomic_jsonl_append.py:304:        PermissionError: from os.fchmod when caller-uid mismatch on POSIX (Round-7)
+scripts/_atomic_jsonl_append.py:305:        TypeError / ValueError / UnicodeEncodeError: from json.dumps (Round-5 F-3)
+scripts/_atomic_jsonl_append.py:307:        LockUnavailable: no platform lock primitive (Round-5 F-2)
+scripts/_atomic_jsonl_append.py:308:        ProtocolMismatch: lockfile version-skew detected (Round-7d, Windows only)
+scripts/_atomic_jsonl_append.py:314:        os.O_CREAT | os.O_APPEND | os.O_WRONLY,
+scripts/_atomic_jsonl_append.py:319:        # Round-7: POSIX fchmod-after-open coercion for legacy files
+scripts/_atomic_jsonl_append.py:321:        # On Windows, os.fchmod is POSIX-only (AttributeError) — skip; rely on
+scripts/_atomic_jsonl_append.py:328:                    # Round-7 fchmod raises propagate (PermissionError, EROFS,
+scripts/_atomic_jsonl_append.py:330:                    os.fchmod(fd, mode)
+scripts/_atomic_jsonl_append.py:334:        # Round-3-4: take exclusive advisory lock; Round-5 F-2 fail-closed
+scripts/_atomic_jsonl_append.py:335:        # Round-7b: lock_fd captures Windows separate-lockfile fd (None on POSIX)
+scripts/_atomic_jsonl_append.py:336:        lock_fd = _acquire_lock(fd, path)
+scripts/_atomic_jsonl_append.py:340:            line = json.dumps(record, ensure_ascii=False) + "\n"
+scripts/_atomic_jsonl_append.py:344:            if len(encoded_bytes) > PIPE_BUF_BYTES:
+scripts/_atomic_jsonl_append.py:347:                    f"exceeds platform record byte bound {PIPE_BUF_BYTES} bytes. "
+scripts/_atomic_jsonl_append.py:351:            # Round-3 atomic write: low-level os.write under lock
+scripts/_atomic_jsonl_append.py:355:                # Short-write defense: rare under O_APPEND but possible
+scripts/_atomic_jsonl_append.py:361:            # Round-3-5 F-4: fsync if durable contracted; raises propagate
+scripts/_atomic_jsonl_append.py:363:                os.fsync(fd)
+scripts/_atomic_jsonl_append.py:367:            _release_lock(fd, lock_fd)
+scripts/_atomic_jsonl_append.py:407:        big_record = {"data": "x" * (PIPE_BUF_BYTES + 100)}
+scripts/_atomic_jsonl_append.py:418:            f"lock_primitive={_LOCK_PRIMITIVE}"
+scripts/_atomic_jsonl_append.py:422:        # Round-7b: clean up Windows .lock companion file
+scripts/_atomic_jsonl_append.py:423:        lock_companion = Path(str(tmp_path) + ".lock")
+scripts/_atomic_jsonl_append.py:424:        lock_companion.unlink(missing_ok=True)
+
+ succeeded in 362ms:
+# Port-note (Wave 161 SB10 cite-import 2026-05-12): cite-imported from sibling
+# Z:/claude-sota/scripts/_atomic_jsonl_append.py @ HEAD f30597d (latest commit
+# "Ship 1.5 Windows record byte-bound 512→65536") per CR-12 CITE-CLASS-CANONICAL
+# + CLAUDE.md §14.5 cite-import-AMBER lattice. Module provides atomic JSONL
+# append with cumulative Round-3-7b invariants per
+# parallel-session-worktree-isolation.md §Mandatory mechanical collision-guard.
+#
+# CR-9 pre-cite-import REVERT check: PASS (10 FIX/FEAT commits sibling history,
+# zero REVERT-AND-REMOVE precedents per `git -C Z:/claude-sota log --all --oneline
+# -- scripts/_atomic_jsonl_append.py`).
+#
+# Path-portability: runtime-neutral; module uses caller-supplied JSONL paths and
+# stdlib Path/os operations only; no hard-coded Z:/claude-sota paths or sibling
+# module imports IN THE SOURCE BODY (the port-note header itself necessarily
+# contains the Z:/claude-sota cite anchor for provenance audit-trail; Mia probe
+# scoped to the source body below the header via `tail -n +86
+# scripts/_atomic_jsonl_append.py | grep -nE 'Z:/claude-sota[^-]'` returns
+# empty; symbol probe shows only PIPE_BUF_BYTES + LOCK_PROTOCOL_VERSION + 3
+# exception classes + 3 functions, no _PROJECT_ROOT — codex T1 W161 SB10
+# NEEDS-REVISION conf=0.89 prescription #1 verbatim integration; T3 round-1
+# round-2 fix-forward closes 2 low-severity port-note evidence accuracy
+# findings at conf=0.91+0.88 per `codex-t1-fix-forward-pattern.md` Pattern A).
+#
+# Codex T1 smoke probe (sibling-context) PASSED 414ms: "3 records appended
+# (incl Ship 1.5 2200-byte sentinel), mode 0o600, RecordTooLarge raised,
+# lock_primitive=msvcrt". Local smoke probe in SB10 commit body / wave161-progress.jsonl.
+#
+# Retires the FORWARD-REF promotion pin in §Mandatory-guard promotion section
+# of parallel-session-worktree-isolation.md (sibling Round-2 commit `8eb368d`).
+#
+# Cite class: constituents=[TIER-1-DIRECT @ Z:/claude-sota/scripts/_atomic_jsonl_append.py
+# @ HEAD f30597d via 9-round cumulative fix-forward, TIER-2 sister-rule cite
+# parallel-session-worktree-isolation.md §Mandatory mechanical collision-guard,
+# TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 161 SB10 codex T1 NEEDS-REVISION conf=0.89
+# Pattern A apply]; effective_tier=TIER-3-LOCAL-COMPOSITION per
+# Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+#
+"""_atomic_jsonl_append.py — Shared atomic JSONL append per Round-3-7 cumulative invariants.
+
+Orchestrator-substitute per Wave 15 Agent E salvage pattern (codex-rescue Wave 22
+dispatch a8a7cb7c53a1713dc 429 fleet-depleted before substantive work). Apply-ready
+per .claude/rules/parallel-session-worktree-isolation.md option (c) cumulative
+mandates at HEAD f5c68f2 (Round-7) + Round-7b Windows-lock fix (this commit).
+
+Retires the FORWARD-REF promotion pin in §Mandatory-guard promotion section of
+that rule (Round-2 commit `8eb368d` introduced the forward-ref).
+
+References (rule body cumulative invariants):
+- Round-3 commit `622b664`: O_CREAT|O_APPEND|O_WRONLY + lock + low-level os.write
+- Round-4 commit `c2b5dee`: lock-discipline + max-record + fsync semantics
+- Round-5 commit `5001a78`: 5 silent-failure error-propagation amendments (F-1..F-5)
+- Round-6 commit `df37fb1`: mode default 0o600 (was 0o644 — world-readable leak)
+- Round-7 commit `f5c68f2`: POSIX fchmod-after-open coercion for legacy 0o644 files
+- Round-7b (this fire): Windows lock-via-separate-file (file-pointer-stable);
+  msvcrt.locking on JSONL fd directly fails because O_APPEND moves pointer
+  between LK_LOCK and LK_UNLCK — naive 1:1 POSIX/Windows symmetry was incorrect
+
+POSIX semantics:
+- os.open(2) man page: "The mode argument specifies the file mode bits be applied
+  when a new file is created" — mode applied ONLY on O_CREAT-driven actual creation
+- fcntl.flock LOCK_EX: blocking exclusive advisory lock on WHOLE file (no byte-range);
+  file-pointer movement during O_APPEND is irrelevant
+- write(2) under O_APPEND ≤ PIPE_BUF (4KB Linux): line-atomic concurrent appends
+
+Windows semantics:
+- os.fchmod is POSIX-only (raises AttributeError on Windows). Module SKIPS fchmod
+  on Windows; relies on inherited NTFS ACL + operator-side icacls migration
+  documented in rule body Round-7 §Migration semantic for legacy files.
+- msvcrt.locking: locks `nbytes` from CURRENT file-pointer position (not whole file)
+- Round-7b: lock byte 0 of a SEPARATE <path>.lock file with 1-byte placeholder;
+  no writes to lockfile means file pointer doesn't move; LK_UNLCK at byte 0 succeeds
+
+The 7 invariants enforced (per rule body option (c)):
+1. Round-6: mode default 0o600 (owner-only)
+2. Round-7: fchmod-after-open coercion (POSIX only)
+3. Round-5 F-1: os.open raises propagate (read-only mount, perm denied, disk full)
+4. Round-3-4: exclusive advisory lock held across encode + write
+5. Round-5 F-2: lock-unavailable fail-closed (no platform primitive)
+6. Round-5 F-3: json encode raises propagate (UnicodeEncodeError, non-serializable)
+7. Round-5 F-5 + Ship 1.5: encode-then-byte-len ≤ record byte-bound (4KB POSIX / 64 KiB Windows sanity cap; Windows treats lock as sole correctness boundary per rule option (c))
+   Round-5 F-4: fsync raises propagate when durable=True
+
+Wire-up plan (deferred to next fires per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+- Ship 2: migrate codex_postcommit_review.py to use atomic_append()
+- Ship 3: migrate codex_t1_consult_gate.py (2 lock-file sites)
+- Ship 4: migrate auto_proceed_gate.py
+- Ship 5: batch-migrate remaining 6 hooks (eval_case + arxiv + huggingface + memory_persist + memory_preserve + ccusage)
+- Ship 6: one-time migration shell command for existing JSONL files (POSIX find / Windows icacls)
+"""
+
+from __future__ import annotations
+
+import errno
+import json
+import os
+import stat
+import sys
+from pathlib import Path
+from typing import Any
+
+# Cross-platform lock primitive selection (Round-3-4 + Round-5 F-2)
+# Detection only at module-level; actual symbol imports happen inside lock fns
+# below to avoid pyright "fcntl undefined" on Windows static analysis (the POSIX
+# branch is statically unreachable on Windows analyzer).
+if sys.platform == "win32":
+    _LOCK_PRIMITIVE: str | None = "msvcrt"
+else:
+    try:
+        import fcntl as _fcntl_probe  # probe import; deferred actual usage to fn
+
+        del _fcntl_probe
+        _LOCK_PRIMITIVE = "fcntl"
+    except ImportError:
+        _LOCK_PRIMITIVE = None  # Round-5 F-2: FAIL CLOSED on attempt
+
+
+# Round-5 F-5 + Ship 1.5: platform-specific record byte-bound
+# POSIX: PIPE_BUF=4096 defense-in-depth for O_APPEND lockless line-atomicity
+# Windows: R7d-R7j separate lockfile + protocol marker IS the correctness
+# boundary per parallel-session-worktree-isolation.md option (c) "treat the
+# lock as the sole correctness boundary". 64 KiB is a sanity cap to reject
+# pathological audit records (different bug class), not an atomic-write guarantee.
+# Reference: https://man7.org/linux/man-pages/man7/pipe.7.html (PIPE_BUF semantics)
+PIPE_BUF_BYTES = 4096 if sys.platform != "win32" else 65536
+
+
+# Round-7d: lock-protocol version marker (closes T3 R7c2 conf=0.78 SAME-CLASS
+# version-skew finding on commit `ba3f52c`). Written to byte 0 of lockfile;
+# read-after-acquire-lock; fail-closed on mismatch. Bump to 2+ if mechanism
+# changes (e.g., hierarchical lock files); old v1 writers will fail-closed
+# rather than silently splitting the lock domain.
+LOCK_PROTOCOL_VERSION = 1
+
+
+class RecordTooLarge(Exception):
+    """Encoded record byte-count exceeds configured platform record bound (Round-5 F-5)."""
+
+
+class ProtocolMismatch(Exception):
+    """Lockfile protocol version mismatch — version-skew detected (Round-7d).
+
+    Raised when `_acquire_lock` finds a lockfile whose byte-0 protocol-version
+    marker does not equal `LOCK_PROTOCOL_VERSION`. Indicates a concurrent
+    writer running OLD-version lock code or NEW-version-N+1 lock code is
+    racing against this writer. Per Round-7d enforcement, this writer
+    fail-closes rather than silently splitting the synchronization domain.
+    """
+
+
+class LockUnavailable(Exception):
+    """No platform lock primitive available (Round-5 F-2 fail-closed contract)."""
+
+
+def _acquire_lock(fd: int, path: Path) -> int | None:
+    """Take exclusive advisory lock per Round-3-4 (Round-5 F-2 fail-closed).
+
+    Returns:
+        int — lock_fd to release on Windows (separate <path>.lock file)
+        None — POSIX uses jsonl fd directly via fcntl.flock
+
+    POSIX semantic: fcntl.flock locks the WHOLE file (no byte-range);
+    file-pointer movement during O_APPEND writes is irrelevant.
+
+    Windows semantic (Round-7b fix): msvcrt.locking locks `nbytes` from
+    CURRENT file-pointer position. Under O_APPEND, the JSONL fd's pointer
+    moves on each write, breaking lock-release symmetry (LK_UNLCK at new
+    pointer would find no lock at the byte we LK_LOCK'd). Workaround: lock
+    byte 0 of a SEPARATE <path>.lock file — no writes, no pointer movement.
+    """
+    if _LOCK_PRIMITIVE == "fcntl":
+        import fcntl  # POSIX-only; cached after first import
+        # pyright Windows stubs lack POSIX flock/LOCK_EX attrs — runtime POSIX has them
+        fcntl.flock(fd, fcntl.LOCK_EX)  # pyright: ignore[reportAttributeAccessIssue]
+        return None
+    elif _LOCK_PRIMITIVE == "msvcrt":
+        import msvcrt  # Windows-only; cached after first import
+        # Round-7b: separate <path>.lock file avoids file-pointer race under O_APPEND
+        lock_path = str(path) + ".lock"
+        # Round-7i: sidecar+atomic-rename bootstrap. Lockfile only EXISTS in
+        # finalized state — eliminates dead-bootstrap persistent-unavailability
+        # (closes T3 R7h2 conf=0.84 medium NEW-CLASS via codex-prescribed
+        # atomic publish pattern: "creating the protocol marker in a temporary
+        # lockfile and atomically linking/renaming it into place").
+        # Race-class invariant: live writer cannot leave lockfile in empty
+        # state under any execution path; empty marker post-existence implies
+        # external truncation (R7h fail-closed preserved at operator-recovery).
+        try:
+            os.stat(lock_path)  # lockfile already finalized; skip bootstrap
+        except FileNotFoundError:
+            # Bootstrap via per-attempt sidecar tmp + atomic os.replace publish.
+            # Round-7j: use tempfile.mkstemp for OS-guaranteed-unique tmp name
+            # per attempt (closes R7i2 conf=0.78 intra-process re-entrancy race
+            # caught by codex T3 — pid-scoped name collided across threads /
+            # re-entrant calls in same process targeting missing lockfile).
+            import tempfile  # stdlib; cached after first import
+            from pathlib import Path as _P
+            _lp = _P(lock_path)
+            bootstrap_fd, bootstrap_tmp = tempfile.mkstemp(
+                dir=str(_lp.parent), prefix=_lp.name + ".bootstrap.tmp."
+            )
+            try:
+                os.write(bootstrap_fd, bytes([LOCK_PROTOCOL_VERSION]))
+                os.fsync(bootstrap_fd)
+            finally:
+                os.close(bootstrap_fd)
+            # Atomic publish: tmp -> lock_path. POSIX rename(2) + NTFS
+            # MoveFileEx are both kernel-atomic. Concurrent bootstraps: last
+            # replace wins; all tmp files have identical valid markers
+            # (no partial-state visibility — lockfile transitions from
+            # not-exist to fully-finalized in a single atomic step).
+            try:
+                os.replace(bootstrap_tmp, lock_path)
+            except OSError:
+                try:
+                    os.unlink(bootstrap_tmp)
+                except FileNotFoundError:
+                    pass
+                raise
+
+        # Open the now-existing lockfile (NO O_CREAT — file MUST exist by now
+        # per O_CREAT|O_EXCL bootstrap above OR pre-existing from prior writer).
+        lock_fd = os.open(lock_path, os.O_RDWR, 0o600)
+        os.lseek(lock_fd, 0, os.SEEK_SET)
+        msvcrt.locking(lock_fd, msvcrt.LK_LOCK, 1)
+
+        # Round-7d/e/h: read protocol marker AFTER acquiring lock; fail-closed
+        # on version mismatch OR empty (concrete-verification per closed-loop
+        # §Outcome A). Round-7e/h empty-fail-closed: covers race where lockfile
+        # exists but bootstrap was interrupted mid-write OR external truncation
+        # post-bootstrap (R7g2 closed via Outcome B narrow REVERT — codex T3
+        # R7g2 conf=0.82 caught silent-downgrade risk in R7g self-recovery).
+        # Operator-side recovery on empty: manually `rm <path>.lock` (rare;
+        # bounded to dead-bootstrap microsecond window OR external truncation).
+        os.lseek(lock_fd, 0, os.SEEK_SET)
+        marker = os.read(lock_fd, 1)
+        if marker != bytes([LOCK_PROTOCOL_VERSION]):
+            # Release lock + close before raising — preserve invariant that
+            # ProtocolMismatch raises propagate cleanly without lock leak
+            os.lseek(lock_fd, 0, os.SEEK_SET)
+            msvcrt.locking(lock_fd, msvcrt.LK_UNLCK, 1)
+            os.close(lock_fd)
+            if not marker:
+                raise ProtocolMismatch(
+                    f"Lockfile {lock_path} is empty (post-lock); bootstrap "
+                    "race, dead-creator, or external truncation detected. "
+                    "Operator recovery: rm the lockfile and retry. Refuse to "
+                    "append per Round-7e/h enforcement (Outcome B narrow REVERT "
+                    "of R7g self-recovery — silent-downgrade risk)."
+                )
+            raise ProtocolMismatch(
+                f"Lockfile {lock_path} has protocol version {marker!r}; "
+                f"this writer expected v{LOCK_PROTOCOL_VERSION}. "
+                "Refuse to append — version-skew detected per Round-7d enforcement."
+            )
+        return lock_fd
+    else:
+        raise LockUnavailable(
+            "No platform lock primitive (missing fcntl/msvcrt). "
+            "Cannot proceed without lock per Round-5 F-2 fail-closed contract."
+        )
+
+ succeeded in 392ms:
+#!/usr/bin/env python3
+# Reference: Z:/repos/deps/everything-claude-code/skills/continuous-learning-v2/SKILL.md:40-45,82-124 @ 841beea45cb25ba51f29fa45b7e272938d19b80a [content-SHA 5153a2aa688c37e5b515a3caff4adcdbe4de3964]
+#   (instinct/observation pipeline and observations.jsonl hook capture) [VERIFIED 2026-04-28]
+# Reference: https://code.claude.com/docs/en/hooks (PostToolUse + Stop event observation contract)
+# Reference (PARENT CONSUMER — TIER-3, not external SOTA): Z:/claude/scripts/observer_run.py (consumer schema — match)
+# Reference (RUNTIME CACHE COPY — non-authority literal, not a cite): .claude/plugins/cache/everything-claude-code/everything-claude-code/1.10.0/skills/continuous-learning-v2/SKILL.md:82-124  # noqa: E501
+# Reference (LOCAL SIBLING — TIER-3, not SOTA authority): Z:/claude-sota/.claude/hooks/scripts/_guard_base.py:_parse_stdin_json (TTY-safe stdin parser)
+# Reference (LOCAL SIBLING — TIER-3, not SOTA authority): Z:/claude-sota/.claude/hooks/scripts/utils.py:log_swallow (sibling helper)
+#
+# Port-provenance (TIER-3, not SOTA authority): claude-sota Wave-B sequential-recovery from Z:/claude/hooks/_observation_writer.py @ 3267c25e
+#   (parent snapshot 2026-04-27 from `git -C Z:/claude rev-parse HEAD`). Mechanical port — claude-sota's
+#   _guard_base.py already exposes _parse_stdin_json (cycle-278 consolidation), so the import path
+#   stays unchanged. OBSERVATIONS_JSONL adapts to claude-sota project root via Path(__file__) chain.
+#   Per Z:/claude-sota/.claude/rules/port-note-discipline.md §2 Discipline 1: cite-line-bump n/a —
+#   port-note is pure header insertion; symbol-anchor used for sibling cites (`:_parse_stdin_json`,
+#   `:log_swallow`) per SOTA stability rationale.
+"""Shared observation-writer for Karpathy L1->L2 producer hooks.
+
+Cycle-147 H3-C1 fix for cycle-146 H2 Agent C finding #5: three H1 hooks
+(tool_failure_observer.py, subagent_stop_telemetry.py, task_completed_observer.py)
+shared ~150 LOC of identical scaffolding. This module consolidates:
+
+- Path to observations.jsonl
+- ISO timestamp helper
+- stdin payload parse + fail-open contract
+- observation append with mkdir
+- stderr telemetry line
+
+Contract preserved byte-for-byte: callers still emit valid JSONL rows with
+the exact field shapes observer_run.py detectors expect. This is pure
+refactor, no schema change.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(__file__))
+from _guard_base import _parse_stdin_json  # noqa: E402
+from utils import log_swallow  # noqa: E402
+
+# claude-sota path adaptation: parent layout is Z:/claude/hooks/<file>.py with
+# state at Z:/claude/.claude/state/. claude-sota layout is
+# Z:/claude-sota/.claude/hooks/scripts/<file>.py with state at
+# Z:/claude-sota/.claude/state/. Compute via two .parent hops vs parent's one.
+OBSERVATIONS_JSONL = (
+    Path(__file__).resolve().parent.parent.parent / "state" / "observations.jsonl"
+)
+
+# Ship #221 — content-addressed stop_reason snapshots (codex T1 NEEDS-REVISION
+# conf=0.90, applied per Pattern A; verdict at
+# .claude/state/codex_consult_ship221_observations_stop_reason_snapshot_OUT.txt).
+# F2 P1: hash raw UTF-8 stop_reason — NO timestamp canonicalization (unlike
+# Ship #219 mcp_health) because stop_reason IS the event payload itself, not
+# volatile probe noise. F4 P2: validated 64-hex sha gate prevents directory
+# traversal in resolver. F3 P2: env-tunable threshold with strict fallback.
+STOP_REASON_SNAPSHOT_DIR = OBSERVATIONS_JSONL.parent / "observation_stop_reasons"
+_STOP_REASON_SCHEMA = "obs.v2.stop_reason_externalized"
+_STOP_REASON_INLINE_THRESHOLD_DEFAULT = 2048
+_STOP_REASON_PREVIEW_CHARS = 200
+_STOP_REASON_SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+_STOP_REASON_THRESHOLD_ENV = "OBSERVATIONS_STOP_REASON_INLINE_THRESHOLD"
+
+
+def now_iso() -> str:
+    """Canonical UTC timestamp matching ECC continuous-learning-v2 schema."""
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def merge_agent_context(record: dict, payload: dict | None) -> dict:
+    """Merge agent_id + agent_type from stdin payload into a JSONL record.
+
+    Per Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:246-262
+    @ HEAD b512f256 _SubagentContextMixin: tool-lifecycle hook inputs carry
+    agent_id (str) + agent_type (str) at top level. Persisting them in JSONL
+    audit rows enables parallel-sub-agent attribution per
+    Z:/claude-sota/.claude/rules/audit-action-loop.md §Hook telemetry contract.
+
+    Returns a shallow copy of record with agent_id/agent_type added when
+    payload provides them. Existing non-None values in record are preserved;
+    existing None values are treated as absent (per Wave 160 SB8 codex T1
+    NEEDS-REVISION conf=0.90 prescription — a placeholder None must not
+    suppress valid top-level SDK agent context).
+    """
+    if not isinstance(payload, dict):
+        return record
+    merged = dict(record)
+    ai = payload.get("agent_id")
+    if ai is not None and merged.get("agent_id") is None:
+        merged["agent_id"] = ai
+    at = payload.get("agent_type")
+    if at is not None and merged.get("agent_type") is None:
+        merged["agent_type"] = at
+    return merged
+
+
+def read_stdin_payload(disable_env: str, ctx: str) -> dict | None:
+    """Parse stdin JSON payload with fail-open contract + DISABLE-env gate.
+
+    Cycle-278: disable-env gate preserved at observer-layer; body delegates
+    to `_guard_base._parse_stdin_json` for TTY-safe + broad-except semantics.
+
+    Returns:
+      dict if stdin was valid JSON dict
+      None if: disable_env is set to "1", stdin empty, JSON malformed,
+      or non-dict payload. Callers should `return 0` in any of those cases.
+    """
+    if os.environ.get(disable_env) == "1":
+        return None
+    return _parse_stdin_json(ctx)
+
+
+def _stop_reason_inline_threshold() -> int:
+    """Resolve threshold from env (codex T1 F3 P2 — validated env override).
+
+    Invalid / negative values fall back to default 2048 chars (no silent
+    misconfiguration that accidentally externalizes everything OR disables
+    compaction entirely).
+    """
+    raw = os.environ.get(_STOP_REASON_THRESHOLD_ENV, "").strip()
+    if not raw:
+        return _STOP_REASON_INLINE_THRESHOLD_DEFAULT
+    try:
+        value = int(raw)
+    except ValueError:
+        return _STOP_REASON_INLINE_THRESHOLD_DEFAULT
+    return value if value >= 0 else _STOP_REASON_INLINE_THRESHOLD_DEFAULT
+
+
+def _externalize_stop_reason_if_needed(obs: dict, ctx: str) -> dict:
+    """Externalize subagent_stop.stop_reason if > threshold; else passthrough.
+
+    Per codex T1 F1 P1 (all-or-inline): snapshot MUST be written successfully
+    BEFORE the compact pointer row is composed; on snapshot OSError, return
+    the original obs UNMODIFIED so the inline stop_reason is preserved (no
+    unrecoverable pointer in observations.jsonl).
+    """
+    if obs.get("type") != "subagent_stop":
+        return obs
+    stop_reason = obs.get("stop_reason")
+    if not isinstance(stop_reason, str):
+        return obs
+    if len(stop_reason) <= _stop_reason_inline_threshold():
+        return obs
+
+    raw_bytes = stop_reason.encode("utf-8")
+    sha = hashlib.sha256(raw_bytes).hexdigest()
+    snap_path = STOP_REASON_SNAPSHOT_DIR / f"{sha}.txt"
+    try:
+        STOP_REASON_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        if not snap_path.is_file():
+            with snap_path.open("x", encoding="utf-8", newline="") as fh:
+                fh.write(stop_reason)
+    except FileExistsError:
+        # Race: another writer wrote the same content-addressed file. Idempotent.
+        pass
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.stop_reason_snapshot")
+        return obs
+
+    compact = dict(obs)
+    compact.pop("stop_reason", None)
+    compact.update(
+        {
+            "schema": _STOP_REASON_SCHEMA,
+            "stop_reason_sha": sha,
+            "stop_reason_size": len(stop_reason),
+            "stop_reason_preview": stop_reason[:_STOP_REASON_PREVIEW_CHARS],
+        }
+    )
+    return compact
+
+
+def resolve_stop_reason(record: dict, state_dir: Path | None = None) -> tuple[str | None, bool]:
+    """Resolve stop_reason from inline OR content-addressed snapshot.
+
+    Returns (text, snapshot_missing). For v1 inline → (text, False); for v2
+    externalized with valid sha + readable snapshot → (text, False); for v2
+    with invalid sha (not 64-hex) OR unreadable snapshot → (None, True).
+
+    Per codex T1 F4 P2: validate stop_reason_sha as 64-hex digest BEFORE
+    reading sidecar path — prevents directory-traversal via maliciously
+    crafted JSONL records.
+    """
+    inline = record.get("stop_reason")
+    if isinstance(inline, str):
+        return inline, False
+
+    sha = record.get("stop_reason_sha")
+    if not isinstance(sha, str) or not _STOP_REASON_SHA_RE.fullmatch(sha):
+        return None, record.get("schema") == _STOP_REASON_SCHEMA
+
+    base_state_dir = state_dir if state_dir is not None else OBSERVATIONS_JSONL.parent
+    snap_path = base_state_dir / "observation_stop_reasons" / f"{sha}.txt"
+    try:
+        return snap_path.read_text(encoding="utf-8"), False
+    except OSError:
+        return None, True
+
+
+def append_observation(obs: dict, ctx: str, payload: dict | None = None) -> bool:
+    """Append one JSONL row. Returns True on success, False on I/O error.
+
+    Fail-open: any OSError is log_swallow'd. Callers can still return 0.
+
+    Ship #221: subagent_stop records with stop_reason > threshold are
+    transparently externalized to .claude/state/observation_stop_reasons/<sha>.txt
+    via _externalize_stop_reason_if_needed (raw UTF-8 SHA256 of the exact
+    stop_reason text; no canonicalization per codex T1 F2). Other record
+    types (subagent_start, task_completed) and short stop_reasons pass
+    through unchanged.
+
+    Wave 160 SB8: optional `payload` parameter accepts the parsed stdin
+    payload so agent_id + agent_type are merged top-level per SDK
+    _SubagentContextMixin contract. Default None preserves byte-for-byte
+    schema for legacy callers; backward-compatible per codex T1 audit.
+    """
+    try:
+        OBSERVATIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
+        row = _externalize_stop_reason_if_needed(obs, ctx)
+        row = merge_agent_context(row, payload)
+        with OBSERVATIONS_JSONL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        return True
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.observations_append")
+        return False
+
+
+def emit_telemetry(msg: str) -> None:
+    """Write a one-line [hook-name] telemetry note to stderr."""
+    sys.stderr.write(msg.rstrip() + "\n")
+
+ succeeded in 494ms:
+parents[0]=
+parents[1]=
+parents[2]=
+parents[3]=
+parents[4]=
+[31;1mInvalidArgument: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m … cripts/_observation_writer.py; [36;1m$path = [System.IO.FileInfo]$p[0m; $paren …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot convert the "Z:\claude-sota-installed\.claude\hooks\scripts\_observation_writer.py" value of type "System.Management.Automation.PathInfo" to type "System.IO.FileInfo".[0m
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p = (Resolve-Path .claude/hooks/scripts/_observation_writer.py).Path; $item = Get-Item -LiteralPath $p; $d=$item.Directory; for($i=0;$i -lt 5;$i++){ "parents[$i]=$($d.FullName)"; $d=$d.Parent }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path scripts/_atomic_jsonl_append.py | Select-Object -Skip 280 -First 105' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Test-Path Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py; if (Test-Path Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py) { rg -n \"_atomic_jsonl_append|atomic_append|RecordTooLarge|sys\\.path\\.insert\" Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py }" in Z:\claude-sota-installed
+ succeeded in 341ms:
+def atomic_append(
+    path: Path,
+    record: dict[str, Any],
+    *,
+    mode: int = 0o600,
+    durable: bool = True,
+) -> int:
+    """Append a single JSONL record to `path` enforcing all Round-3-7 invariants.
+
+    Args:
+        path: target JSONL file path; auto-creates if missing via O_CREAT
+        record: dict to JSON-encode; appended as a single line + newline byte
+        mode: file mode bits, default 0o600 (Round-6 owner-only). Caller MAY pass
+            0o640 for shared-CI cases with explicit umask 0o027 documentation.
+            Mode MUST NOT be 0o644 — REJECTED by rule per Round-6.
+        durable: if True, os.fsync(fd) after write per Round-3-5 F-4 contract.
+            False for ephemeral telemetry; True for audit-trail (default).
+
+    Returns:
+        Number of bytes written (encoded byte count, including trailing newline).
+
+    Raises:
+        OSError: from os.open / os.write / os.fsync (Round-5 F-1 + F-4)
+        PermissionError: from os.fchmod when caller-uid mismatch on POSIX (Round-7)
+        TypeError / ValueError / UnicodeEncodeError: from json.dumps (Round-5 F-3)
+        RecordTooLarge: encoded bytes exceed configured platform record bound (Round-5 F-5)
+        LockUnavailable: no platform lock primitive (Round-5 F-2)
+        ProtocolMismatch: lockfile version-skew detected (Round-7d, Windows only)
+    """
+    # Round-5 F-1: os.open raises propagate (do NOT catch-and-ignore)
+    # Mode is applied ONLY on O_CREAT-driven actual creation per POSIX
+    fd = os.open(
+        os.fspath(path),
+        os.O_CREAT | os.O_APPEND | os.O_WRONLY,
+        mode,
+    )
+
+    try:
+        # Round-7: POSIX fchmod-after-open coercion for legacy files
+        # POSIX os.open `mode` is creation-only; existing files retain prior perms.
+        # On Windows, os.fchmod is POSIX-only (AttributeError) — skip; rely on
+        # operator-side icacls migration per rule body Round-7.
+        if sys.platform != "win32":
+            current_mode = stat.S_IMODE(os.fstat(fd).st_mode)
+            if current_mode != mode:
+                file_uid = os.fstat(fd).st_uid
+                if file_uid == os.getuid():
+                    # Round-7 fchmod raises propagate (PermissionError, EROFS,
+                    # alien-owner errno) — caller sees the failure, no silent-pass.
+                    os.fchmod(fd, mode)
+                # alien-owner case: leave perms intact; operator runs migration
+                # command per rule body §Migration semantic for legacy files
+
+        # Round-3-4: take exclusive advisory lock; Round-5 F-2 fail-closed
+        # Round-7b: lock_fd captures Windows separate-lockfile fd (None on POSIX)
+        lock_fd = _acquire_lock(fd, path)
+
+        try:
+            # Round-5 F-3: json encode raises propagate (no silent-drop)
+            line = json.dumps(record, ensure_ascii=False) + "\n"
+            encoded_bytes = line.encode("utf-8")
+
+            # Round-5 F-5: byte-count check (NOT key count of the dict)
+            if len(encoded_bytes) > PIPE_BUF_BYTES:
+                raise RecordTooLarge(
+                    f"Encoded record is {len(encoded_bytes)} bytes; "
+                    f"exceeds platform record byte bound {PIPE_BUF_BYTES} bytes. "
+                    f"Reject record OR shard via filename-namespace per Round-5 F-5."
+                )
+
+            # Round-3 atomic write: low-level os.write under lock
+            # Never use buffered text writes (f.write splits into multiple syscalls)
+            bytes_written = os.write(fd, encoded_bytes)
+            if bytes_written != len(encoded_bytes):
+                # Short-write defense: rare under O_APPEND but possible
+                raise OSError(
+                    errno.EIO,
+                    f"Short write: {bytes_written} of {len(encoded_bytes)} bytes",
+                )
+
+            # Round-3-5 F-4: fsync if durable contracted; raises propagate
+            if durable:
+                os.fsync(fd)
+
+            return bytes_written
+        finally:
+            _release_lock(fd, lock_fd)
+    finally:
+        os.close(fd)
+
+
+def _smoke_test() -> None:
+    """Minimal smoke test — exercise the 7-invariant happy path on a temp file.
+
+    Full pytest suite at scripts/test_atomic_jsonl_append.py (FORWARD-REF;
+    next-fire ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE).
+    """
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+        tmp_path = Path(f.name)
+
+    try:
+        # Append 2 small records + 1 legitimate 2200-byte audit record (Ship 1.5
+        # regression sentinel: 2200 > old Windows 512 bound, < new 65536 bound;
+
+ succeeded in 345ms:
+parents[0]=Z:\claude-sota-installed\.claude\hooks\scripts
+parents[1]=Z:\claude-sota-installed\.claude\hooks
+parents[2]=Z:\claude-sota-installed\.claude
+parents[3]=Z:\claude-sota-installed
+parents[4]=Z:\
+
+ succeeded in 368ms:
+True
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:31:sys.path.insert(0, str(Path(__file__).parent))
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:40:# Ship 2b Wave 18 PSW arc 2: import atomic_append() from converged R7j module.
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:41:# Mirrors Ship 2a verbatim — top-level sys.path.insert + try/except fail-open
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:43:# break module load; atomic_append=None triggers degraded fallback in
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:45:sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:47:    from _atomic_jsonl_append import atomic_append  # noqa: E402
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:49:    atomic_append = None  # type: ignore[assignment]
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:52:# atomic_append unavailable. Surfaces degraded path to operator without
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:75:    """Atomic single-call append via atomic_append() (Ship 2b Wave 18 PSW arc 2).
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:78:    bits, no lock, no fsync, line-atomicity gap) with atomic_append() which
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:96:    prescriptions: when atomic_append is None (helper missing/skew/syntax error),
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:105:    if atomic_append is None:
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:111:                "[memory_persist_sessionend] WARN: atomic_append unavailable; "
+Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:165:    atomic_append(path, row)
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42:# Ship 2a Wave 18 PSW arc 2: import atomic_append() from converged R7j module.
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:44:# Option I1: sys.path.insert + import. Mirrors existing pattern; minimal coupling.
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:47:# breaking module load. atomic_append=None triggers fail-open in _append_jsonl.
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:48:sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:50:    from _atomic_jsonl_append import atomic_append  # noqa: E402
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:52:    atomic_append = None  # type: ignore[assignment]
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:55:# atomic_append unavailable. Surfaces degraded path to operator without spamming
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:128:    """Atomic single-call append via atomic_append() (Ship 2a Wave 18 PSW arc 2).
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:131:    no lock, no fsync) with atomic_append() which enforces 7 invariants:
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:143:    when atomic_append is None (helper missing/skew/syntax error), emit bounded
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:150:    if atomic_append is None:
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:157:                "[eval_case_observer] WARN: atomic_append unavailable; "
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:174:            # scripts/_atomic_jsonl_append.py:283-292.
+Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:221:    atomic_append(path, row)
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.9,
+  "prescribed_edits": [
+    {
+      "file": "scripts/_atomic_jsonl_append.py",
+      "edit": "Change `line = json.dumps(record, ensure_ascii=False) + \"\\n\"` to `line = json.dumps(record) + \"\\n\"`.",
+      "reason": "Required for the retrofit's byte-for-byte legacy JSONL claim; current helper emits raw non-ASCII while legacy append escapes it."
+    },
+    {
+      "file": ".claude/hooks/scripts/_observation_writer.py",
+      "edit": "Import `LockUnavailable` and `ProtocolMismatch` with `RecordTooLarge`, provide fail-open stubs on import failure, and catch `(RecordTooLarge, LockUnavailable, ProtocolMismatch)` around `atomic_append(...)` with `log_swallow(...)` + `return False`.",
+      "reason": "Prevents helper lock/protocol custom exceptions from breaking observer hook critical paths while preserving no-append fail-closed behavior."
+    }
+  ],
+  "audit_dimensions": {
+    "path_resolution": "PASS",
+    "fail_open_import": "PASS",
+    "backward_compat": "NEEDS-REVISION",
+    "record_too_large_handling": "PASS",
+    "cycle300_scope": "NEEDS-REVISION",
+    "hook_critical_path_safety": "NEEDS-REVISION",
+    "fm02_defense": "PASS"
+  },
+  "sibling_precedent_fidelity": "PARTIAL"
+}
+tokens used
+28,394
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.9,
+  "prescribed_edits": [
+    {
+      "file": "scripts/_atomic_jsonl_append.py",
+      "edit": "Change `line = json.dumps(record, ensure_ascii=False) + \"\\n\"` to `line = json.dumps(record) + \"\\n\"`.",
+      "reason": "Required for the retrofit's byte-for-byte legacy JSONL claim; current helper emits raw non-ASCII while legacy append escapes it."
+    },
+    {
+      "file": ".claude/hooks/scripts/_observation_writer.py",
+      "edit": "Import `LockUnavailable` and `ProtocolMismatch` with `RecordTooLarge`, provide fail-open stubs on import failure, and catch `(RecordTooLarge, LockUnavailable, ProtocolMismatch)` around `atomic_append(...)` with `log_swallow(...)` + `return False`.",
+      "reason": "Prevents helper lock/protocol custom exceptions from breaking observer hook critical paths while preserving no-append fail-closed behavior."
+    }
+  ],
+  "audit_dimensions": {
+    "path_resolution": "PASS",
+    "fail_open_import": "PASS",
+    "backward_compat": "NEEDS-REVISION",
+    "record_too_large_handling": "PASS",
+    "cycle300_scope": "NEEDS-REVISION",
+    "hook_critical_path_safety": "NEEDS-REVISION",
+    "fm02_defense": "PASS"
+  },
+  "sibling_precedent_fidelity": "PARTIAL"
+}

@@ -1,0 +1,130 @@
+VERDICT: NEEDS-REVISION  
+confidence: 0.89
+
+**Findings**
+[VERIFIED] Q1: Context7 and DeepWiki cite anchors are valid and load-bearing. Context7’s README line 59 supports `https://mcp.context7.com/mcp` with `CONTEXT7_API_KEY` as a header. DeepWiki docs lines 128 and 146-180 support no-auth remote HTTP at `https://mcp.deepwiki.com/mcp`.
+
+[VERIFIED] Q1/Q3: The GitHub binary cite at `Z:/repos/deps/github-mcp-server/docs/installation-guides/install-claude.md:70-77 @ 62266f8` is valid for the local binary lane, but it is not sufficient for using the pre-existing shared `Z:/tools/github-mcp-server.exe` as an install-class dependency. That binary reports placeholder version metadata and has `LastWriteTime=2026-04-13`, while `gh release list` shows latest `v1.0.3` published `2026-04-24`. Under `Z:/claude-sota-installed/CLAUDE.md:49-57` and `docs/install-from-github-discipline.md:1-17`, that is a CR-6 freshness violation unless Fire 37 fresh-installs/logs the binary.
+
+[VERIFIED] Better fix-forward: use GitHub’s hosted HTTP server, preferably read-only for Tier 2A research. GitHub upstream says the remote server is the easiest path at `README.md:19-23`, the Claude install guide supports HTTP add-json at `install-claude.md:29-42`, and `docs/remote-server.md:17,22` documents `/readonly`. This also aligns with `Z:/claude-sota-installed/docs/sota-installed-manifest.md:120`, which already lists HTTP primary and release fallback.
+
+[VERIFIED] Q2: Do not add per-server `_comment` fields to `.mcp.json`. Claude Code docs define `.mcp.json` under `mcpServers`, document `type/http/url/headers/env`, and say JSON must conform to the MCP server config schema. Existing sibling `_comment` usage is local precedent, not Tier-1 schema authority. Put cite trails in `docs/install-provenance.md`, `docs/sota-installed-manifest.md`, and the commit body.
+
+[VERIFIED] Q5: Proposed Edit 2’s insertion point is wrong. `tools/eee.ps1:104-105` initializes `$EEE_HARD_FAILURES` and `$EEE_ADVISORY_WARNS`; inserting warnings at line 57 means any `$EEE_ADVISORY_WARNS += ...` is later reset to `@()`. Insert credential warnings after line 105, not between lines 57 and 60.
+
+[VERIFIED] Q4: Sibling `Z:/claude-sota/.claude/state/` is not an acceptable canonical evidence path for an installed-runtime commit. `Z:/claude-sota-installed/.claude/state` exists; `Z:/claude-sota-installed-state/.codex` does not. The “codex unavailable” fallback in `cross-model-consensus.md:107-131` is about codex execution failure, not about relocating verdict evidence into a sibling repo. Persist this verdict under `Z:/claude-sota-installed/.claude/state/` before commit.
+
+[INFERRED] Q7: Pattern A single-iter is fine if GitHub uses remote HTTP read-only and the docs rows are updated in the same commit. Split only if you insist on local binary install, because then Fire 37a should fresh-download/extract/checksum/log `github-mcp-server_Windows_x86_64.zip`, and Fire 37b should wire `.mcp.json`.
+
+**Prescribed Edits**
+1. `Z:/claude-sota-installed/.mcp.json:1` — replace the full file with schema-clean config, no per-server comments:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/readonly",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "deepwiki": {
+      "type": "http",
+      "url": "https://mcp.deepwiki.com/mcp"
+    }
+  }
+}
+```
+
+2. `Z:/claude-sota-installed/tools/eee.ps1:105` — insert after `$EEE_ADVISORY_WARNS = @()`:
+
+```powershell
+# T0.0 — MCP credential passthrough validation (no setters; state stays outside repo)
+if (-not $env:GITHUB_TOKEN) {
+    $EEE_ADVISORY_WARNS += "GITHUB_TOKEN is unset; github MCP Authorization header in .mcp.json will not expand/connect"
+}
+if (-not $env:CONTEXT7_API_KEY) {
+    $EEE_ADVISORY_WARNS += "CONTEXT7_API_KEY is unset; context7 MCP header in .mcp.json will not expand/connect"
+}
+```
+
+3. `Z:/claude-sota-installed/tools/eee.ps1:159` — insert after the T0.5 codex check block and before current `# T1 ADVISORY`:
+
+```powershell
+# T0.6 ADVISORY — Tier 2A MCP registry present (github + context7 + deepwiki)
+$mcpConfigPath = Join-Path $env:USERPROFILE '.mcp.json'
+if (-not (Test-Path $mcpConfigPath)) {
+    $EEE_ADVISORY_WARNS += ".mcp.json missing at $mcpConfigPath (Tier 2A MCP registry target: github + context7 + deepwiki)"
+} else {
+    try {
+        $mcpConfig = Get-Content $mcpConfigPath -Raw | ConvertFrom-Json
+        $mcpCount = 0
+        if ($mcpConfig.mcpServers) {
+            $mcpCount = $mcpConfig.mcpServers.PSObject.Properties.Count
+        }
+        if ($mcpCount -lt 3) {
+            $EEE_ADVISORY_WARNS += ".mcp.json has $mcpCount MCP server(s); Tier 2A target is 3 (github + context7 + deepwiki)"
+        }
+    } catch {
+        $EEE_ADVISORY_WARNS += ".mcp.json parse failure: $($_.Exception.Message)"
+    }
+}
+```
+
+4. `Z:/claude-sota-installed/docs/sota-installed-manifest.md:117-120` — update the Section 8 rows so status no longer says `PLANNED`. Minimal replacement for those four rows:
+
+```markdown
+| Context7 (HTTP) | .mcp.json HTTP entry | `.mcp.json` project-scope entry: `type=http`, `url=https://mcp.context7.com/mcp`, `headers.CONTEXT7_API_KEY=${CONTEXT7_API_KEY}` | Context7 README `Z:/repos/deps/context7/README.md:59 @ HEAD 795d5da720e16c417ae30a548a475672ae35e92f` + Context7 client docs `https://context7.com/docs/resources/all-clients` | INSTALLED — Tier 2A remote HTTP; credential-gated by `CONTEXT7_API_KEY` advisory in `tools/eee.ps1` |
+| DeepWiki (HTTP) | .mcp.json HTTP entry | `.mcp.json` project-scope entry: `type=http`, `url=https://mcp.deepwiki.com/mcp` | Devin DeepWiki MCP docs `https://docs.devin.ai/work-with-devin/deepwiki-mcp` | INSTALLED — Tier 2A remote HTTP; free public no-auth endpoint |
+| arXiv MCP | uv tool install OR PyPI + .mcp.json | `uv tool install arxiv-mcp-server@0.4.12` OR `python -m pip install --target Z:/claude-sota-installed/.venv/Lib/site-packages arxiv-mcp-server==0.4.12` [VERIFIED 2026-05-06 via Agent N fire 15 — pkg version pinned] | https://github.com/blazickjp/arxiv-mcp-server | PLANNED |
+| GitHub MCP | HTTP host PRIMARY | `.mcp.json` project-scope entry: `type=http`, `url=https://api.githubcopilot.com/mcp/readonly`, `headers.Authorization=Bearer ${GITHUB_TOKEN}` | GitHub MCP README `Z:/repos/deps/github-mcp-server/README.md:19-23 @ HEAD 62266f804b1e24b5c22f158c4c79b1db4950967c` + remote readonly docs `Z:/repos/deps/github-mcp-server/docs/remote-server.md:17,22 @ HEAD 62266f804b1e24b5c22f158c4c79b1db4950967c` | INSTALLED — Tier 2A remote HTTP read-only; credential-gated by `GITHUB_TOKEN` advisory in `tools/eee.ps1` |
+```
+
+5. `Z:/claude-sota-installed/docs/install-provenance.md:<end>` — append a Fire 37 row, not cite comments inside `.mcp.json`:
+
+```markdown
+---
+
+## 2026-05-07T00:00Z — Wave 50 fire 37 Tier 2A MCP registry
+
+- **Section**: Section 8 — Search + research MCPs
+- **Pattern**: Project `.mcp.json` HTTP entries (Claude Code project-scope MCP config)
+- **Command**: manual `.mcp.json` project-scope edit; no copied sibling MCP entries
+- **Upstream HEAD SHA / version**:
+  - GitHub MCP: `Z:/repos/deps/github-mcp-server @ HEAD 62266f804b1e24b5c22f158c4c79b1db4950967c`; remote HTTP read-only per `docs/remote-server.md:17,22`
+  - Context7: `Z:/repos/deps/context7 @ HEAD 795d5da720e16c417ae30a548a475672ae35e92f`; HTTP + `CONTEXT7_API_KEY` header per `README.md:59`
+  - DeepWiki: `https://docs.devin.ai/work-with-devin/deepwiki-mcp`; streamable HTTP `/mcp`, no-auth public endpoint
+- **Stdout/stderr summary**: N/A config edit
+- **Smoke probe**: parse `.mcp.json` with `ConvertFrom-Json`; run `eee` and confirm T0.6 sees 3 MCP servers. Live MCP auth smoke deferred when `GITHUB_TOKEN` and `CONTEXT7_API_KEY` are available.
+- **Axis verdict**: axis-1=official/provider-hosted / axis-2=official docs / axis-3=REMOTE-STABLE
+- **Probe DAG**: P1=PASS / P2=PASS / P3=PASS / P4=credential-gated / P5=PASS / P6=deferred-live-auth
+- **Disposition**: INSTALLED-AMBER (config parse + advisory checks; live auth smoke pending credentials)
+- **Manifest row updated**: yes
+```
+
+**Answers**
+Q1: APPROVE for Context7/DeepWiki cites; NEEDS-REVISION for GitHub cite because the binary cite supports only the local lane and does not justify `Z:/tools/github-mcp-server.exe` freshness. Use GitHub HTTP read-only citations instead, or fresh-install `v1.0.3` into `Z:/claude-sota-installed/bin/`.
+
+Q2: Cites should live in commit body + `install-provenance.md` + manifest. Avoid per-server `_comment`.
+
+Q3: Yes, as proposed, `Z:/tools/github-mcp-server.exe` violates the installed runtime’s fresh-install discipline. Preferred fix is remote HTTP read-only. Acceptable fallback is `gh release download v1.0.3 --repo github/github-mcp-server --pattern github-mcp-server_Windows_x86_64.zip` into the installed runtime, checksum/log it, then point `.mcp.json` at that installed binary.
+
+Q4: Sibling state path is acceptable only as transient operator scratch, not as canonical evidence. Copy/persist the verdict to `Z:/claude-sota-installed/.claude/state/codex_consult_wave50_fire37_tier2a_mcp_OUT.txt`.
+
+Q5: Advisory wiring is justified, but keep it to the two minimal blocks above and place the credential block after `$EEE_ADVISORY_WARNS` initialization.
+
+Q6: [UNKNOWN] I could not probe HH V1; `tmp/wave50-fire35-agentHH-tier2a-mcp-design-2026-05-06.md` was absent under both sibling and installed `tmp/`. Based on the prompt summary only, this real GPT-5.5 consult agrees with NEEDS-REVISION and tightens the likely HH issues around CR-6 freshness, schema-clean `.mcp.json`, and insertion-point correctness.
+
+Q7: Single Pattern A iteration if you take the remote HTTP read-only prescription and update docs in the same commit. Split into 37a/37b only for the local-binary lane.
+
+**Sources Used**
+Local verified sources: `github-mcp-server` install guide/README/remote docs at HEAD `62266f804b1e24b5c22f158c4c79b1db4950967c`; `context7` README at HEAD `795d5da720e16c417ae30a548a475672ae35e92f`; installed runtime `CLAUDE.md`, `tools/eee.ps1`, manifest, and provenance docs.  
+Web verified sources: Anthropic Claude Code MCP docs (`https://code.claude.com/docs/en/mcp`), Anthropic SDK MCP docs (`https://code.claude.com/docs/en/agent-sdk/mcp`), Context7 client docs (`https://context7.com/docs/resources/all-clients`), and Devin DeepWiki MCP docs (`https://docs.devin.ai/work-with-devin/deepwiki-mcp`).

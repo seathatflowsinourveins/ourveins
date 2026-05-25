@@ -1,0 +1,183 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit ea15c938c4b0705b70336a121807fa20372f0f7f
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/.claude.json       |   8 ++--
+ docs/install-provenance.md | 105 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit ea15c938c4b0705b70336a121807fa20372f0f7f
+Author:     42 <42@local>
+AuthorDate: Tue May 12 01:14:06 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 01:14:06 2026 -0400
+
+    session checkpoint: 2026-05-12 01:14
+
+=== diff ===
+diff --git a/.claude/.claude.json b/.claude/.claude.json
+index 63f6273..5a8a3a2 100644
+--- a/.claude/.claude.json
++++ b/.claude/.claude.json
+@@ -12,7 +12,7 @@
+     "enter-to-steer-in-relatime": 64,
+     "todo-list": 66,
+     "auto-copy-config-hint": 67,
+-    "install-github-app": 59,
++    "install-github-app": 75,
+     "install-slack-app": 59,
+     "drag-and-drop-images": 67,
+     "double-esc-code-restore": 67,
+@@ -31,7 +31,7 @@
+     "custom-commands": 68,
+     "default-permission-mode-config": 12
+   },
+-  "promptQueueUseCount": 896,
++  "promptQueueUseCount": 902,
+   "btwUseCount": 6,
+   "showExpandedTodos": true,
+   "cachedGrowthBookFeatures": {
+@@ -476,8 +476,8 @@
+       "lastUsedAt": 1778549606744
+     },
+     "loop": {
+-      "usageCount": 118,
+-      "lastUsedAt": 1778562089585
++      "usageCount": 120,
++      "lastUsedAt": 1778562630813
+     }
+   },
+   "changelogLastFetched": 1778528188963,
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 0b02172..1ec805c 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -22686,3 +22686,108 @@ Per W155 F1 V2+V3 CONVERGENCE + V3 scope-creep risk #1: F5 = `.claude/agents/` +
+ - **W155 F8 V3 prescribed_edits queue progress**: prescribed_edit #3 4+1-evidence-cell pack applied to L240 (W155 F9) + L242 (W155 F10) + L243 (W155 F11) + L256 (W155 F12 §Section 14 extension)
+ - **§Section 14 mutation queue progress**: 1/8 row groups updated (L256 sota-researcher closed; L257-L263 remaining)
+ - Cron `a83ecd8c` iteration ~9/N
++
++## 2026-05-12T08:00Z — W156 F1 Tier 1a Section 2 manifest reconciliation (codex hooks row L84 Status flip PARTIAL→INSTALLED with full evidence cell; FM-17.e V2+V3 BRIDGE-MODE both fell autocompact-thrashing n=2 same-fire → orchestrator-direct Path P recovery; FM-09 codex-rescue blind-spot 13/13→14/14 firm via V1 SHA-citation OVER catch; FM-02 (c) constructive absorption of parallel W155 F11 L240 codex_*observability row + W155 F12 L256 sota-researcher row + W155-arc-close-58e7cbe; CR-3 cross-model FULLY satisfied via orchestrator-direct REAL GPT-5.5; W156 FRESH ARC OPENS post-W155 arc-close at `58e7cbe`)
++
++**Source HEAD**: `58e7cbe` (W155 arc-close convergence synthesis; W155 F11+F12 §Section 13+14 row mutations landed concurrently during this fire's dispatch window)
++**Cron state (FM-21.b STATE PROBE per `fm21-queue-time-prompt-freeze.md`)**: parallel `a83ecd8c` iter ~9/N ACTIVE (running W155 F12 then arc-close at fire-start; manifest L240+L256 + install-provenance W155 F12 entry ABSORBED per FM-02 (c) constructive); my session = INTERACTIVE-USER-DIRECT (not cron-queued); **W155 arc CLOSED via 58e7cbe; W156 fresh arc OPENS** with this F1 ship
++**Output**: `docs/sota-installed-manifest.md` Section 2 codex hooks row L84 Status flip + this provenance entry; atomic narrow `--only docs/sota-installed-manifest.md docs/install-provenance.md`
++
++### Dispatch architecture (3-agent fan-out per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md`)
++
++- **V1 sota-researcher (Sonnet stand-in)** agentId `a8b2553b5fa053c29` — 269s 462k tokens 19 tool_uses; ARTIFACT at `tmp/wave156-f1-V1-sota-researcher-tier1a-hooks-2026-05-12.md` (305 LOC). **FM-20 path-drift cascade defense at brief-vs-reality boundary KEY FINDING**: Tier 1a NOT install gap; substantially INSTALLED already. 6 T-touchpoint Python hooks present (`codex_t{1,2,3,4,5,7}_*.py`) + 6 settings.json wires active + 283 codex telemetry files + plugin T6 `stop-review-gate-hook.mjs` at settings.json:409 + `.codex/config.toml` at state-outside-repo per Wave 75. V1 verdict: F1.D manifest reconciliation can ship FIRST (lowest risk, doc-only); cited sibling commit `3de349d` as T6 REVERT-AND-REMOVE precedent (LATER REFUTED by codex T1 P2 saved_ship_catch — FM-20 cascade caught V1 OVER).
++- **V2 codex-rescue BRIDGE-MODE T1 review** agentId `a25aee2bae214a808` — **FM-17.e FELL** at 824s / 158 tokens / 4 tool_uses: `<status>completed</status>` + literal "Autocompact is thrashing: the context refilled to the limit within 3 turns of the previous compact, 3 times in a row". Codex CLI NEVER invoked. V2 verdict LOST.
++- **V3 codex-rescue BRIDGE-MODE adversarial** agentId `a9311675bee356a73` — **FM-17.e FELL identically** at 1101s / 105 tokens / 4 tool_uses; same autocompact-thrashing signature; codex CLI never invoked. V3 verdict LOST. (Same-fire double-failure confirms BRIEF SHAPE causality — dense heredoc + JSON schema + cat-V1's-305-LOC + write-own-consult shape consistently triggers CC-runtime autocompact-thrashing per `fm17-subagent-fleet-depletion.md §FM-17.e`.)
++- **Orchestrator-direct Path P recovery** per `fm17-subagent-fleet-depletion.md §FM-17.e Recovery`: `timeout 300 codex exec --skip-git-repo-check --color never < .claude/state/codex_consult_w156_f1_orchestrator_direct.txt > .claude/state/codex_consult_w156_f1_orchestrator_direct_OUT.txt 2>&1` — codex v0.130.0 model `gpt-5.5` provider=openai approval=never sandbox=workspace-write (network access enabled); 60s wall-clock; exit=0; 3792 LOC OUT (1.05MB); session id `019e1a90-10f0-7db3-bfdb-8853f0398701`. VERDICT JSON-strict at EOF per `feedback_codex_t1_verdict_reading_discipline.md`.
++
++### Codex T1 verdict (REAL GPT-5.5 orchestrator-direct)
++
++```json
++{
++  "verdict": "APPROVE-F1D-MANIFEST-FIRST",
++  "confidence": 0.82,
++  "v1_reframe_correct": "PARTIAL",
++  "t6_revert_precedent_verified": "INCONCLUSIVE",
++  "f1d_scope_correct": "YES_MANIFEST_FIRST",
++  "siblings_bleed_22_refs_class": "READ_ONLY_PROBE_EXCEPTION",
++  "fm02_race_defense": "ATOMIC_ONLY_ADEQUATE",
++  "prescribed_edits": [],
++  "saved_ship_catches": [<5 catches enumerated below>]
++}
++```
++
++### 5 saved_ship_catches (advisory; codex prescribed_edits=[] so no Pattern A fix-forward)
++
++1. **CR-9 P2** — V1's cited SHA `3de349d` NOT LOCALLY VERIFIABLE: `git -C Z:/claude-sota show 3de349d --stat` returns `fatal: bad revision`. Local sibling history shows `codex_stop_review_gate.py` PRESENT through `af54fef..0a7c101`. **FM-20 path-drift cascade DETECTED in V1's reframe** — codex T1 caught V1's SHA-citation OVER. **Reframe disposition**: T6 absence justified via CR-12 DUPLICATE-FUNCTIONALITY (plugin provides Stop review gate at settings.json:409) + `deprecation-discipline.md` Advisory deprecation (replacement = plugin's mjs hook; zero consumers; zero migration cost), NOT verified sibling REVERT-precedent.
++2. **CR-12 P1** — DO-NOT-REINSTALL-T6 STILL CORRECT but justify via CR-12 DUPLICATE-FUNCTIONALITY (eee `.claude/settings.json:409` wires `openai-codex` plugin's `stop-review-gate-hook.mjs`; both marketplace + cache plugin copies contain the mjs hook), NOT unverified sibling REVERT.
++3. **CR-12 P2** — V1 reframe directionally correct but overstates one proof point (T6 REVERT precedent unverified).
++4. **CR-9 P3** — 22 sibling-bleed refs in hooks are READ_ONLY_PROBE_EXCEPTION per CR-9.4 carve-out (cite-comments, provenance markers, illustrative path examples only; executable paths resolve via runtime root / CODEX_HOME / plugin root / settings wiring). Treat Task A as cleanup-audit not blocker.
++5. **FM-02 P3** — manifest reconciliation atomic-narrow-`--only` shippable; parallel W155 F11 Section 13 L240 codex_*observability row + W155 F12 Section 14 L256 sota-researcher row Pattern A apply absorption acceptable per FM-02 (c) constructive absorption (commit body names absorbed scope + cite evidence files).
++
++### Pattern A apply scope (codex T1 prescribed_edits=[])
++
++Empty prescribed_edits per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A` semantic: no fix-forward edits re
+
+[prompt truncated]

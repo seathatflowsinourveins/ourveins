@@ -1,0 +1,32 @@
+SB11 — fm17d_stall_detector RE-ENABLE (Wave 158 PRIORITY-B)
+
+CONTEXT (TIER-1 + TIER-3 cites):
+- fm17d_stall_detector.py disabled Wave 76 (2026-05-08) via env flag FM17_STALL_DETECTOR_DISABLE=1 in .claude/settings.json:9
+- Original disable rationale: 100% schema-rot (172/172 schema_missing across 2 sessions; script expected stop_reason/tool_uses at TOP-LEVEL of SubagentStop input; CC v2.1.119/2.1.132 didn't emit them top-level)
+- Wave 83b (2026-05-08, commit 9227e78) fixed schema parsing per TIER-1-DIRECT SDK contract (Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:309-316 @ HEAD b512f256 SubagentStopHookInput: only {hook_event_name, stop_hook_active, agent_id, agent_transcript_path, agent_type})
+- Script now mines agent_transcript_path JSONL per .claude/rules/synthesis-layer-verify.md §SubagentStop transcript-mining
+- Wave 83b codex T1 NEEDS-REVISION conf=0.86 Pattern A applied (5 prescribed_edits: F-001 EDGE_CASES, F-002 CORRECTNESS assistant-only, F-003 SECURITY path/size guards, F-004 stream-read memory-pressure, F-005 status discrimination)
+- No state file at .claude/state/fm17d_stall_detector*.jsonl yet (env flag preventing execution since Wave 76)
+
+PROPOSED EDIT to .claude/settings.json:
+1. Line 9: remove "FM17_STALL_DETECTOR_DISABLE": "1", line (or change to "0")
+2. Line 10: replace _comment_fm17d_disabled with _comment_fm17d_active (forward-only per port-note-discipline.md §6) citing Wave 83b fix commit 9227e78 + Wave 158 SB11 re-enable rationale
+
+GATE: launch-discipline.md D1 pre-deploy 6-axis:
+- Code quality: minimal change; script already passed Wave 83b T1
+- Security: hook fires on PostToolUse SubagentStop only (no new attack surface)
+- Performance: per-event JSONL append (minimal overhead)
+- Infrastructure: ADVISORY mode (always exit 0); never blocks subagent termination per script line 24+301
+- Communication: provenance documented
+- OS-State-Mutation: N/A (internal env flag, not OS-level mutation)
+- Reversibility: ✅ git revert flips back
+- Observability: ✅ JSONL writes to .claude/state/fm17d_stall_detector.jsonl
+
+QUESTIONS (JSON-at-EOF VERDICT shape; ≤4 prescribed_edits expected):
+1. SAFETY: Is removing the disable flag safe given (a) Wave 83b fix committed (9227e78), (b) script reads transcript via SDK-canonical agent_transcript_path with path-guard + size-cap + .jsonl-suffix-check, (c) ADVISORY mode never blocks?
+2. KEEP-vs-REMOVE: Should we keep "FM17_STALL_DETECTOR_DISABLE": "0" (explicit off; operator-toggle-convenience) vs removing the key entirely (surface-clean; saves 1 line)?
+3. COMMENT-SHAPE: Should the comment update be (a) replace _comment_fm17d_disabled with new _comment_fm17d_active inline, OR (b) keep historical comment + add new Wave 158 SB11 comment as supplement (forward-only per port-note-discipline.md §6 anti-pattern "do not rewrite historical commit bodies")? Note: settings.json comments are not commit bodies; in-place edit may be acceptable.
+4. CR-1 CITE-TRAIL: does the new comment satisfy CR-1 forward-only convention requirements (cite Wave 83b fix commit 9227e78 + Wave 158 SB11 commit + SDK contract types.py:309-316 @ b512f256)?
+
+VERDICT JSON shape (emit at FILE-END after analysis):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"prescribed_edits":[{"file":"path","old":"...","new":"...","reason":"..."}],"summary":"..."}

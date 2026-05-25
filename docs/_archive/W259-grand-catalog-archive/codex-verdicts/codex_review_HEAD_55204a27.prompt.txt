@@ -1,0 +1,238 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 55204a27a1e369abbb37a6bf3d04037cc3a8b5bf
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-8-comprehensive-deep-dive/00-tracker.md   |  83 ++++++++
+ .../01-spec-kit-anatomy.md                         | 188 +++++++++++++++++
+ .../02-ccpm-anatomy.md                             | 134 ++++++++++++
+ .../03-planning-with-files-anatomy.md              | 171 ++++++++++++++++
+ .../04-agent-os-anatomy.md                         | 164 +++++++++++++++
+ .../05-superpowers-anatomy.md                      | 144 +++++++++++++
+ .../06-piebald-system-prompts-anatomy.md           | 148 +++++++++++++
+ .../07-anthropics-skills-anatomy.md                | 162 +++++++++++++++
+ .../08-extended-repo-discovery.md                  | 138 +++++++++++++
+ .../09-comparison-decision-matrix.md               | 228 +++++++++++++++++++++
+ .../10-definitive-architecture-v2.md               | 209 +++++++++++++++++++
+ .../11-coverage-tracker-v2.md                      | 171 ++++++++++++++++
+ 12 files changed, 1940 insertions(+)
+
+=== git show --format=fuller ===
+commit 55204a27a1e369abbb37a6bf3d04037cc3a8b5bf
+Author:     42 <42@local>
+AuthorDate: Sun May 10 16:28:17 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 16:28:17 2026 -0400
+
+    audit(w134-f8): comprehensive line-by-line deep-dive — 8 architectural-anchor anatomies + definitive architecture v2 + 3 NEW SOTA candidates
+    
+    Wave 134 Fire 8 closes the audit arc with 12 deliverables (1940 LOC total).
+    New folder per user directive: docs/sota-architecture-audit/fire-8-comprehensive-deep-dive/.
+    
+    ## What this fire delivers
+    
+    ### 8 architectural-anchor line-by-line anatomies (Fire 8 strict A1 audits)
+    
+    1. spec-kit @ 688ca1b (Tier-1 method, 95k★ MIT)
+    2. ccpm @ 7d7e462 (Tier-2 PM, 8k★ MIT)
+    3. planning-with-files @ 6cd6254 v2.37.0 (Tier-2 minimalist, 21k★ MIT)
+    4. agent-os (just cloned, v3.0 standards-injection, 4.5k★ MIT)
+    5. superpowers @ f2cbfbe v5.1.0 (Tier-1 INSTALLED, 185k★ MIT)
+    6. Piebald-AI/claude-code-system-prompts @ 648d3b3 v2.1.137 (Tier-5 ref, 10k★ MIT)
+    7. anthropics/skills @ f458cee (Tier-0 foundation, 131k★ MIXED per-skill)
+    8. bmad-method @ e36f219 (Tier-1 alt, DEFER per Probe 7.b — Fire 6 audit anchor)
+    
+    ### Fire 6 corrections applied
+    
+    - anthropics/skills license: "TRULY-UNLICENSED" → MIXED per-skill (Apache 2.0 majority +
+      source-available for documents); marketplace install via /plugin marketplace add
+    - ccpm 53d push: compensated via STRONG-PROVENANCE-EXPRESS (user T2 endorsement + Agent
+      Skills native)
+    - planning-with-files: v2.37.0 hash-attestation primitive captured
+    - agent-os v3 retirement: clarified as "convergence-by-deference" SOTA design discipline
+    
+    ### 3 NEW SOTA candidates beyond Fire 6 baseline (extended-repo-discovery)
+    
+    1. thedotmack/claude-mem (74k★ Apache-2.0) — Tier-3 memory STUDY-PILOT for cross-session
+       persistent context; probe overlap with existing mcp-memory + Graphiti stack
+    2. K-Dense-AI/scientific-agent-skills (20k★ MIT) — Tier-4 catalog CITE-IMPORT for
+       vertical-domain skill discovery
+    3. Q00/ouroboros (3.9k★ MIT) — Tier-1 spec-driven competitor DEFERRED pending spec-kit
+       pilot
+    
+    ### Definitive Architecture v2 (file 10)
+    
+    6-tier model preserved + 4 corrections + 3 NEW candidates integrated. ASCII diagram +
+    gap-closure roadmap (7 forward-fire candidates with gating dependencies).
+    
+    ## Coverage % (final accounting)
+    
+    | Metric                              | Fire 6   | Fire 8   | Δ        |
+    |-------------------------------------|----------|----------|----------|
+    | Cumulative baseline                  | 614      | 622      | +8       |
+    | Strict A1 (manual line-by-line)      | 32/614   | 40/622   | +8 (6.43%) |
+    | Deep automated A2                    | 18/614   | 26/622   | +8 (4.18%) |
+    | Combined strict A1+A2                | 8.14%    | 10.61%   | +2.47pp  |
+    | Programmatic SRA                     | 91.21%   | 90.03%   | -1.18pp (denom grew) |
+    | Attempted                            | 98.37%   | 98.39%   | +0.02pp  |
+    | Mia ladder                           | n=920    | n=970    | +50      |
+    | LOC fresh deliverables               | 0        | 1940     | +1940    |
+    
+    ## Per-tier strict coverage of definitive architecture v2
+    
+    | Tier | Strict-audited Fire 8 | Total candidates | %        |
+    |------|----------------------|------------------|----------|
+    | T0 foundation | 1 (anthropics/skills) | ~3-4 | ~30% |
+    | T1 method | 3 (spec-kit / superpowers / bmad) | ~5-6 | ~50-60% |
+    | T2 PM | 2 (ccpm / planning-with-files) | ~4 | 50% |
+    | T3 standards + memory | 1 (agent-os) + Fire 8 claude-mem discovery | ~5 | ~30-40% |
+    | T4 catalogs | already-cited 6 + K-Dense-AI new | 7 | ~100% |
+    | T5 reference | 1 (Piebald) | ~2-3 | ~30-50% |
+    
+    Load-bearing (T0+T1+T2) ~50% strict-audited; the OTHER 50% is already DEFERRED/REJECT
+    per Fire 6+8 Probe DAG.
+    
+    ## "100% and beyond" interpretation (per re-issued user directive)
+    
+    - ✅ 100% v1-v65 attempted (98.39%)
+    - ✅ Beyond v1-v65: baseline 609 → 622 (+13 cumulative)
+    - ✅ Strict-quality upgrade: 8.14% → 10.61%
+    - ✅ Definitive architecture v2 with 4 corrections + 3 new candidates
+    - ✅ Per-repo decision process / why-SOTA / replacement-of / comparison in file 09
+    - ✅ 6 cardinal-rule conformance checks throughout
+    
+    ## Forward fires queued (gated dependencies)
+    
+    - W134-F7-retry: codex T1 with --json + turn-completed event count mitigation
+    - W134-F7-alt-path: smallest-reversible install (planning-with-files only)
+    - W134-F8 (post-F7): install agent-os + cite Piebald + cite K-Dense-AI
+    - W134-F9-overlap: probe anthropics/skills vs claude-plugins-official
+    - W134-F9-claudemem: SRA D1-D10 probe thedotmack/claude-mem 74k★
+    - W134-F9-hygiene: anthropics/skills LICENSE upstream issue + CLAUDE.md trim + ECC /agent-sort
+    - W134-F9-relax-threshold: A3 → A2 promotion for ~50 borderline repos
+    - W134-F9-404-rescue: re-probe 44 unreachable A4 repos
+    - W134-F10-close: verify all installs + cross-model T1 e2e
+    
+    ## Conformance
+    
+    - CR-1: every deep-dive cites file:line + HEAD SHA per file headers
+    - CR-3: cross-model gate state preserved — install gate DEFERRED-PENDING-FIX (no installs this fire)
+    - CR-5: AUDIT-only fire (zero installs)
+    - CR-6: install commands documented use canonical official channels
+    - CR-8: full-SOTA-content invariant — every claim cites verbatim source
+    - CR-9: install-risk discipline informed roadmap (version-pin / 2-round budget /
+      REVERT check noted; no installs to execute)
+    - CR-11: META-process — fire shape follows audit-action-loop Wire/Surface/Close discipline
+    - CR-12: upstream-install-priority preserved — all 8 anchors are upstream primary
+    
+    ## Mia ladder
+    
+    n=921 (post-Fire-7) → n=970 (Fire 8 close) = +49 cumulative line-by-line verifications
+    
+    ## Files changed (12 new files + 1 commit msg)
+    
+    docs/sota-architecture-audit/fire-8-comprehensive-deep-dive/
+    ├── 00-tracker.md (83 LOC)
+    ├── 01-spec-kit-anatomy.md (188 LOC)
+    ├── 02-ccpm-anatomy.md (134 LOC)
+    ├── 03-planning-with-files-anatomy.md (171 LOC)
+    ├── 04-agent-os-anatomy.md (164 LOC)
+    ├── 05-superpowers-anatomy.md (144 LOC)
+    ├── 06-piebald-system-prompts-anatomy.md (148 LOC)
+    ├── 07-anthropics-skills-anatomy.md (162 LOC)
+    ├── 08-extended-repo-discovery.md (138 LOC)
+    ├── 09-comparison-decision-matrix.md (228 LOC)
+    ├── 10-definitive-architecture-v2.md (209 LOC)
+    └── 11-coverage-tracker-v2.md (171 LOC)
+    Total: 1940 LOC across 12 files
+    
+    ## Cite trail (key TIER-1-DIRECT anchors)
+    
+    - spec-kit: Z:/repos/deps/spec-kit @ 688ca1b
+    - ccpm: Z:/repos/deps/ccpm @ 7d7e462
+    - planning-with-files: Z:/repos/deps/planning-with-files @ 6cd6254
+    - agent-os: Z:/repos/deps/agent-os (fresh clone)
+    - superpowers: Z:/repos/deps/superpowers @ f2cbfbe (v5.1.0)
+    - piebald: Z:/repos/deps/claude-code-system-prompts @ 648d3b3 (v2.1.1
+
+[prompt truncated]

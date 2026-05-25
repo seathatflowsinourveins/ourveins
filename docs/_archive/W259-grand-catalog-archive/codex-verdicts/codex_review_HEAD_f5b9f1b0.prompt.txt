@@ -1,0 +1,238 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit f5b9f1b04689c72729b52fd65a78a6697827db98
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/.claude.json             |  10 +--
+ tools/eee_install_cron_tasks.ps1 | 139 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 105 insertions(+), 44 deletions(-)
+
+=== git show --format=fuller ===
+commit f5b9f1b04689c72729b52fd65a78a6697827db98
+Author:     42 <42@local>
+AuthorDate: Tue May 12 09:36:51 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 09:36:51 2026 -0400
+
+    session checkpoint: 2026-05-12 09:36
+
+=== diff ===
+diff --git a/.claude/.claude.json b/.claude/.claude.json
+index 72a6ffd..d601a44 100644
+--- a/.claude/.claude.json
++++ b/.claude/.claude.json
+@@ -31,7 +31,7 @@
+     "custom-commands": 68,
+     "default-permission-mode-config": 12
+   },
+-  "promptQueueUseCount": 1290,
++  "promptQueueUseCount": 1307,
+   "btwUseCount": 6,
+   "cachedGrowthBookFeatures": {
+     "tengu_mcp_elicitation": true,
+@@ -475,8 +475,8 @@
+       "lastUsedAt": 1778549606744
+     },
+     "loop": {
+-      "usageCount": 268,
+-      "lastUsedAt": 1778591353466
++      "usageCount": 276,
++      "lastUsedAt": 1778592779795
+     },
+     "superpowers:verification-before-completion": {
+       "usageCount": 1,
+@@ -522,8 +522,8 @@
+       "lastModelUsage": {},
+       "lastSessionId": "d3a83412-12fb-4741-a8cf-cd054ec59e5a",
+       "lastHintSessionId": "159bd985-bd15-4181-bf41-c776bd02294d",
+-      "lastSessionFirstPrompt": "using sota skilss resolve it spwanning",
+-      "lastSessionModified": 1778591080056,
++      "lastSessionFirstPrompt": "with gpt5.5 convegergence consensus, deep reesarch, audit, proceed with convergence,commit , with sota referennces andr repos deep dive and find resolution with sota references",
++      "lastSessionModified": 1778592435795,
+       "lastVersionBase": "2.1.139"
+     }
+   },
+diff --git a/tools/eee_install_cron_tasks.ps1 b/tools/eee_install_cron_tasks.ps1
+index 92c06f0..80050df 100644
+--- a/tools/eee_install_cron_tasks.ps1
++++ b/tools/eee_install_cron_tasks.ps1
+@@ -1,25 +1,53 @@
+-# Wave 94 — Ship 1W + 1X cron deployment helper for Windows Task Scheduler
++# Wave 156 — Daemon-mode conversion (was Wave 94 spawn-per-tick)
+ #
+-# CLOSES the persistence gap surfaced Wave 93: CLIProxyAPI auto-refresh-workers
+-# rewrite OAuth files every 14400s (4h) per refresh_interval_seconds in OAuth
+-# JSON, OVERWRITING the `disabled` flag set by Ship 1X. This script registers
+-# Windows Scheduled Tasks that run Ship 1W (60s poll) + Ship 1X (5min plan) so
+-# the disabled flag is re-applied within minutes of any auto-refresh rewrite.
++# Replaces spawn-per-60s `--once` Scheduled Task with single-boot `--start`
++# long-running daemon. Eliminates spawn-churn: ~60 python.exe/hour -> 1 per boot
++# (poller) + ~12/hour -> 1 (planner). Both Python scripts already ship `--start`
++# loop mode (poller L378-426 PID file + stop-sentinel; planner L218,L240 same).
+ #
+-# Cite (TIER-1 SOTA chain):
+-# - Wave 91 commit `6ebcf08` Ship 1W: tools/aperant_rate_limit_poller.py
+-# - Wave 93 commit `63cc261` Ship 1X: tools/eee_account_rotation_planner.py
+-# - Microsoft Learn: https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/register-scheduledtask
++# Cite chain (per CR-1 + citation-discipline.md rule #8):
++# constituents=[
++#   TIER-1-NAMED-AUTHOR-QUOTE @ Adam Wiggins (Heroku) Twelve-Factor App §VIII
++#     "Disposability" https://12factor.net/disposability — "Processes are
++#     disposable, meaning they can be started or stopped at a moment's notice",
++#   TIER-1-DIRECT @ Microsoft Learn New-ScheduledTaskTrigger -AtStartup
++#     https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasktrigger,
++#   TIER-1-DIRECT @ Microsoft Learn New-ScheduledTaskSettingsSet
++#     -ExecutionTimeLimit (PT0S=disabled, here `New-TimeSpan -Days 0`)
++#     https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset,
++#   TIER-1-DIRECT @ Aperant rate-limits research
++#     Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027,
++#   TIER-1-DIRECT @ local poller --start impl
++#     tools/aperant_rate_limit_poller.py:378-426 (PID file + stop-sentinel),
++#   TIER-1-DIRECT @ local planner --start impl
++#     tools/eee_account_rotation_planner.py:218,240,
++#   TIER-3-LOCAL-COMPOSITION @ claude-sota-installed Wave 156 daemon-mode glue
++# ]; effective_tier=TIER-3-LOCAL-COMPOSITION (MIN_PRECEDENCE per citation-discipline.md rule #8)
+ #
+-# LAUNCH-DISCIPLINE D1 invariants:
+-# - REVERSIBLE: --uninstall removes all 2 tasks; tasks themselves call --restore-capable scripts
+-# - OBSERVABLE: tasks log to .claude/state/{aperant_poller,eee_rotation_planner}.jsonl
+-# - INCREMENTAL: --dry-run shows what would be created; --once-each runs single pass
++# CR-3 cross-model gate (Phase 1 bootstrap exception): codex T1 NEEDS-REVISION
++# conf=0.89 + 4 prescribed_edits applied per codex-t1-fix-forward-pattern.md
++# Pattern A. Verdict file: .claude/state/codex_consult_w156_aperant_daemon_mode_OUT.txt
++#
++# LAUNCH-DISCIPLINE D1 invariants (per .claude/rules/launch-discipline.md):
++# - REVERSIBLE: -Uninstall sends cooperative `--stop` sentinel to poller, then
++#   Stop-ScheduledTask + Unregister-ScheduledTask. Git revert restores Wave 94.
++# - OBSERVABLE: daemons append to .claude/state/{aperant_poller,eee_rotation_planner}.jsonl
++#   continuously; -Status shows last-run + next-run + state.
++# - INCREMENTAL: -DryRun preview before mutation; PROBE 18 OS-State-Mutation
++#   stop-if-running before Register-ScheduledTask -Force.
++#
++# DEPRECATION-DISCIPLINE (per .claude/rules/deprecation-discipline.md):
++# Wave 94 spawn-per-tick `--once` model deprecated -> replaced by daemon `--start`.
++# 4-stage migration: parallel-deploy N/A (single instance); telemetry via existing
++# JSONL signals; cutover via -Uninstall + -Install; removal complete in this commit.
++#
++# Wave 91 commit `6ebcf08` Ship 1W: tools/aperant_rate_limit_poller.py (original)
++# Wave 93 commit `63cc261` Ship 1X: tools/eee_account_rotation_planner.py (original)
+ #
+ # Usage:
+ #   tools/eee_install_cron_tasks.ps1 -DryRun       # preview
+-#   tools/eee_install_cron_tasks.ps1 -Install      # register both tasks
+-#   tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks
++#   tools/eee_install_cron_tasks.ps1 -Install      # register + start both daemons
++#   tools/eee_install_cron_tasks.ps1 -Uninstall    # cooperative stop + remove tasks
+ #   tools/eee_install_cron_tasks.ps1 -Status       # show registered tasks + last-run
+ 
+ param(
+@@ -42,22 +70,25 @@ $PollerTaskName = 'EEE-Aperant-Poller'
+ $PlannerTaskName = 'EEE-Rotation-Planner'
+ 
+ function Show-Plan {
+-    Write-Host "Wave 94 Ship 1W+1X cron deployment plan:" -ForegroundColor Cyan
++    Write-Host "Wave 156 daemon-mode cron deployment plan:" -ForegroundColor Cyan
+     Write-Host ""
+     Write-Host "Task 1: $PollerTaskName"
+     Write-Host "  Script:   $PollerScript"
+-    Write-Host "  Args:     --once"
+-    Write-Host "  Trigger:  every ${PollIntervalSec}s"
+-    Write-Host "  Action:   $PythonBin --once (single poll + SQLite UPDATE + JSONL append)"
++    Write-Host "  Args:     --start --interval-seconds $PollIntervalSec"
++    Write-Host "  Trigger:  AtStartup (single boot-time launch; internal loop polls every ${PollIntervalSec}s)"
++    Write-Host "  Recovery: -RestartCount 3, -RestartInterval 1min, -ExecutionTimeLimit unlimited"
++    Write-Host "  Stop:     cooperative via PID-file stop-sentinel (--stop)"
+     Write-Host ""
+     Write-Host "Task 2: $PlannerTaskName"
+     Write-Host "  Script:   $PlannerScript"
+-    Write-Host "  Args:     --once --threshold-pct 80"
+-    Write-Host "  Trigger:  every ${PlanIntervalMin}min"
+-    Write-Host "  Action:   $PythonBin --once (single rotation pass)"
++    $plannerSec = $PlanIntervalMin * 60
++    Write-Host "  Args:     --start --interval-seconds $plannerSec --threshold-pct 80"
++    Write-Host "  Trigger:  AtStartup (single boot-time launch; internal loop runs every ${PlanIntervalMin}min)"
++    Write-Host "  Recovery: -RestartCount 3, -RestartInterval 1min, -ExecutionTimeLimit unlimited"
+     Write-Host ""
+-    Write-Host "Ef
+
+[prompt truncated]

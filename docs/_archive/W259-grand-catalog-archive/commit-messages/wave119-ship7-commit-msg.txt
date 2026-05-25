@@ -1,0 +1,123 @@
+feat(tools): wave 119 ship 7 — cpa-cache-rate aggregator + Pattern A apply
+
+Closes operator's recurring "give me cache rate" question with operational
+session-affinity telemetry per claude account from CLIProxyAPI main.log.
+
+Standing-directive-conformant fan-out per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md`
+invariant #1+2+5+6 (cite-import-AMBER per CLAUDE.md Section 14.5).
+
+## Agent team fired (parallel — CADP rule 5 fleet-probe SAFE)
+
+1. **Codex T1 BRIDGE-MODE GPT-5.5** (foreground+tee per FM-17.f workaround):
+   `codex exec --ephemeral -p deep-review-exec --color never < .claude/state/codex_consult_wave119_ship7_cpa_cache_rate.txt`
+   PID 354103, 300s budget, 2630 lines / 2506 verdict-file lines. Verdict:
+   NEEDS-REVISION conf=0.9 with 2 prescribed-edits (Pattern A trigger).
+   Real GPT-5.5 (codex CLI = OpenAI not Anthropic — bypasses FM-17.f
+   1M-context-entitlement subagent-pre-fire).
+
+2. **Explore Sonnet stand-in** (parallel direct factual brief):
+   agent `a01e3a1f6bfbc701d`, 8-claim audit, 6 tool_uses, 25270ms.
+   Verdict: 8/8 PASS — file exists 84 LOC / regex correct / log has 1065 hit + 63 miss /
+   smoke 720m=98.2% / smoke 1m=HNF correct / pyright clean / auth regex matches all 3 names /
+   selector.go emit sites confirmed at lines 503,513,523,535.
+
+## Pre-commit Mia OVER #50 — script's own smoke caught regex whitespace bug
+
+Initial regex `(cache hit|cache miss[^|]*)\|` expected NO whitespace before `|`,
+but actual log has ` cache hit | session=`. First smoke returned 11 miss / 0 hit
+(silent classification failure). Fixed `\|` → `\s*\|`. Re-smoke: 605 hits / 11 miss / 98.2%.
+
+## Pattern A applied (per codex-t1-fix-forward-pattern.md §Pattern A)
+
+Codex T1 NEEDS-REVISION at conf 0.9 with 2 prescriptions = sweet-spot Pattern A trigger
+(0.88-0.93 conf range, ≤10 prescriptions). Both Mia-pre-applied + verified before Edit.
+
+### Prescription 1 (P-1): Regex silently dropped 53 of 1108 claude cache events
+
+Pre-fix regex matched only `cache hit` and `cache miss[^|]*?` — missed `selector.go:513`
+emits "cache hit but auth unavailable, reselected | ..." (53 events) AND `:523` emits
+"fallback cache hit | ..." (rare).
+
+Post-fix per codex prescription:
+- Regex extends to 4-alternation (longer specifics first per regex engine left-to-right):
+  `(cache hit but auth unavailable, reselected|fallback cache hit|cache hit|cache miss[^|]*?)`
+- 3-bucket classifier: hit (`:503` true hit + `:523` fallback hit) / reselect (`:513` cached
+  binding invalidated mid-flight) / miss (`:535` new binding)
+- 3-column output table (was 2-column hit/miss; now hit/rsel/miss)
+- Cache rate computed honestly: `hit / (hit + reselect + miss)` — does NOT count
+  degraded reselected events as full hits
+
+Mia probe: regex matched 1055/1108 (53 silent-drops); selector.go:503,513,523,535
+verified via grep on `Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/selector.go @ HEAD 785b00c3`.
+
+### Prescription 2 (P-2): Default `--since-mins 60` returns zero events
+
+Last cache event was 8.6h old per log timestamps; default 60min window made `python
+tools/cpa-cache-rate.py` (no args) return "(no session-affinity events in window)" —
+misleading default UX.
+
+Post-fix:
+- `--since-mins` default 60 → 1440 (24h)
+- `--lines` default 5000 → 10000 (covers 24h activity even at peak rate)
+
+Mia probe: log timestamp probe confirms last event 02:44 / current ~11:23 = 8.6h gap.
+
+## Cite trail refresh (docstring)
+
+Pre-fix: `selector.go:498-535` (vague range)
+Post-fix: `selector.go:503,513,523,535` (4 specific emit sites)
+HEAD SHA pin retained: `785b00c3`
+
+## Operational result post-fix (live runtime)
+
+```
+=== CPA cache-rate (last 1440min, 10000 log lines tailed) ===
+auth                                                      hit  rsel  miss    rate
+------------------------------------------------------------------------------------
+claude-739955940fc@gmail.com.json                           0     0     3    0.0%
+claude-aesthetic9c@gmail.com.json                         570    12    14   95.6%
+claude-mr.euphoriaincarnate@gmail.com.json                 38    10     0   79.2%
+------------------------------------------------------------------------------------
+TOTAL                                                     608    22    17  94.0%
+```
+
+mr.euphoriaincarnate's 10 reselects = diagnostic surface for unhealthy-auth events
+that the prior 2-bucket regex hid behind 100% rate.
+
+## CR conformance
+
+- CR-1: TIER-1-DIRECT to selector.go:503,513,523,535 @ HEAD 785b00c3 + codex T1 verdict
+  file at .claude/state/codex_consult_wave119_ship7_cpa_cache_rate_OUT.txt
+- CR-3: cross-model T1 e2e SATISFIED via foreground+tee codex BRIDGE-MODE GPT-5.5
+  (NEEDS-REVISION conf=0.9; 2 prescribed_edits applied Pattern A); T2 commit-time hook
+  fires on this commit
+- CR-5 install-priority: NO new install — pure tool authoring (single-file aggregator);
+  zero deps beyond Python stdlib
+- CR-7 graduated unleash: no env/permission changes
+- CR-8 full-SOTA-content: ADAPTED-FROM-SOTA — codex T1 prescriptions applied verbatim;
+  selector.go upstream cite at file:line + HEAD SHA
+- CR-9 install-risk: ZERO-RISK — read-only tool aggregating existing log; reversible via
+  `git rm tools/cpa-cache-rate.py`
+- CR-10 research-first: codex T1 + Explore Sonnet stand-in research BEFORE Pattern A
+  apply; both Mia-pre-applied prescriptions before Edit
+- CR-11 META-process: standing-directive operational shape under FM-17.f constraint
+  VALIDATED — Explore subagent (Sonnet stand-in factual audit) + foreground+tee codex T1
+  (real GPT-5.5 BRIDGE-MODE adversary) IN PARALLEL = full advanced-agent-team pattern
+
+Files changed: 1 NEW (101 LOC final after Pattern A fix-forward)
+- tools/cpa-cache-rate.py (NEW; ~85 LOC initial + 16 LOC Pattern A regex/classifier/output)
+
+Wave 119 ships:
+- ✅ Ship 1 (`29adfb4`): AGENTS.md cross-tool contract (175 LOC NEW)
+- ✅ Ship 2 (`a7f47bc`): ast-grep documentation (+13 LOC)
+- ✅ Ship 3 (`e101a6d`): gitnexus HNF-4 root cause identified (+38 LOC)
+- ✅ Ship 4 (`3f766e2`): Phoenix observability HONEST-CORRECTION (+22 LOC)
+- ✅ Ship 5 (`232c65d`): promptfoo eval scaffold + 0.121.11 upgrade (+109 LOC)
+- ✅ Ship 6 (`5d11020`): adversarial agent-team Pattern A apply (-7 +7 LOC)
+- ✅ Ship 7 (THIS COMMIT): cpa-cache-rate aggregator + Pattern A apply (101 LOC NEW)
+
+Mia OVER ladder Wave 97-119: n=49 → **n=50** (this fire's regex whitespace bug
+caught by the script's own smoke test BEFORE any commit landed).
+
+Wave 118+119 cumulative: 12 ships (5 Wave 118 + 7 Wave 119).
+Cron `0cd7135e` armed `*/15 * * * *`.

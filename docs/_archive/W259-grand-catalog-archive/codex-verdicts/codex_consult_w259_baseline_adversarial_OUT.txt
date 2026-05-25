@@ -1,0 +1,95 @@
+§1 — Saturation gaps: specific SOTA layers and specific repos still missing from W258 v13. Be concrete — name the repo, org, star count if known.
+
+Input availability finding:
+- The requested W258 file was not present at `docs/architecture/W258-final-synthesis-2026-05-16-v13.md`.
+- No W253 GRAND-CATALOG file was found under `docs/` or `docs/architecture/` by filename/content probes.
+- `docs/architecture/W259-grand-catalog/` exists but contained zero files at probe time; therefore it could not substitute for W253.
+- Fallback grounding used: `docs/architecture-audit-2026-05-10.md`, `docs/sota-architecture-audit/future-evolution/04-tier-by-tier-synthesis.md`, `docs/sota-installed-manifest.md`, provenance references to `v13 baseline`, and `tmp-layer-c-repos.json`.
+
+Grounded saturation gaps from fallback docs, not direct W258 v13:
+- Memory/KG layer: getzep/graphiti remains a gap in the fallback architecture audit as "L3 Graphiti MCP wiring incomplete (P0)"; star tier not read directly here, likely 10k+ [INFERRED].
+- Mechanical cross-model gate: OpenAI codex-plugin-cc / local codex T1 PreToolUse Edit gate is called out as a P0 gap in the fallback audit, despite codex itself being installed.
+- Governance/provenance layer: AWS Cedar, Microsoft AGT, sigstore/SLSA, and signed-audit-trails are staged/partial in fallback docs rather than fully operational. Repo specifics include sigstore/cosign 10k+ [INFERRED] and cedar-policy/cedar 1k+ [INFERRED].
+- Agent interoperability layer: ACP integration is explicitly P2 in the fallback audit; `agentclientprotocol/claude-agent-acp` is named as the candidate. Star tier likely 1k+ [INFERRED].
+- Eval/agent-benchmark saturation: fallback manifest lists promptfoo/deepeval/openlit as partial, while `tmp-layer-c-repos.json` shows adopted real-world eval repos not clearly promoted into the synthesis: UKGovernmentBEIS/inspect_ai 1k+, truera/trulens 1k+, Giskard-AI/giskard-oss 5k+, EleutherAI/lm-evaluation-harness 10k+, sierra-research/tau-bench 1k+, openai/mle-bench 1k+.
+- Observability saturation: fallback docs include Phoenix and Langfuse surfaces, but `tmp-layer-c-repos.json` shows additional high-adoption observability options underweighted or absent from architecture recommendations: comet-ml/opik 10k+, Helicone/helicone 5k+, traceloop/openllmetry 5k+, pydantic/logfire 1k+, mlflow/mlflow 10k+.
+- Local serving/router layer: `tmp-layer-c-repos.json` identifies vllm-project/vllm 50k+, ggml-org/llama.cpp 50k+, ollama/ollama 50k+, sgl-project/sglang 10k+, NVIDIA/TensorRT-LLM 10k+. For this single-dev MAX-Claude profile these are mostly optional, but their absence should be explicit rather than silently omitted.
+- Live Claude Code marketplace/discovery layer: fallback manifest Section 19.1 names external plugin indexes and research-only queue, but the final synthesis should explicitly account for marketplace drift rather than relying on Wave 47/W134 static catalogs. Current web-discovered examples include Awesome Claude Plugins and claude-code-plugins-plus/Tons of Skills; use as discovery-only, not bulk install.
+
+§2 — Architecture re-think: operator profile is single dev, multi-MAX Claude accounts, unlimited codex usage, Z:-portable Windows install, 12 MCPs already installed. Where did W258 over-shoot (unnecessary complexity) or under-shoot (missed leverage)? Give ≥3 concrete recommendations.
+
+1. Over-shoot: plugin/catalog mass creates context and maintenance drag. Fallback docs admit 26+ plugins and 1,556 SKILL.md across 21 plugins, while user-research warns "2-3 active plugins." W259 should split installed assets into ACTIVE / DORMANT / DISCOVERY-ONLY and enforce an active-plugin budget.
+
+2. Over-shoot: Docker-heavy memory/KG completion is probably too much before MCP health is green. For a single Windows operator, first make the existing 12 MCPs observable, smoke-tested, and restartable. Defer more Graphiti/Qdrant/FalkorDB complexity until current MCP uptime is measured.
+
+3. Under-shoot: unlimited Codex usage is the largest leverage point. Treat Codex as the always-on adversarial verifier, diff reviewer, and CI-rescue lane, not only a T1/T2 ritual. Add a queue of small Codex probes for every candidate repo: install friction, Windows portability, secret surface, and ROI.
+
+4. Under-shoot: Windows portability should be a first-class dimension. Prefer npm/uvx/winget/standalone exe/native PowerShell paths. Penalize bash-only, Docker-only, Linux daemon, symlink, or chmod-centric repos even if their SRA score is high.
+
+5. Under-shoot: 12 MCPs already installed means the next architecture win is routing and policy, not more servers. Add a "tool budget" layer: which MCP is default for docs, code intel, memory, browser, repo search, and when to disable the rest.
+
+6. Over-shoot: grand-catalog adoption percent is a misleading success metric for a single-dev install. Replace "more of catalog touched" with ROI-per-layer and time-to-first-use. A 1k-star tool used daily beats a 50k-star framework that never fires.
+
+§3 — Scoring matrix additional dimensions: beyond SRA D1-D10, what dimensions should a final scoring matrix include? Cover at minimum: NATIVE-CC-PATHWAY, COMMUNITY-CONSENSUS, ROI-PER-LAYER, WINDOWS-PORTABLE-COMPAT, MAINTENANCE-VELOCITY. Add others you identify.
+
+Add these dimensions to the W259 final matrix:
+
+| Dimension | Why it matters | Scoring hint |
+|---|---|---|
+| NATIVE-CC-PATHWAY | Claude Code-native plugin/skill/agent/hook/MCP path beats generic framework import. | 0=no CC path, 1=adaptable, 2=native plugin/skill/MCP. |
+| COMMUNITY-CONSENSUS | Stars alone are weak; repeated independent mentions and marketplace presence matter. | Count independent orgs, catalogs, issues, releases, practitioner writeups. |
+| ROI-PER-LAYER | Prevents catalog completionism. | Daily/weekly utility divided by install/runtime/maintenance burden. |
+| WINDOWS-PORTABLE-COMPAT | This runtime is Z:-portable Windows. | Penalize Docker-only, POSIX-only, hardcoded home dirs, chmod/bash assumptions. |
+| MAINTENANCE-VELOCITY | Fast-moving agent repos can be good or unstable. | Recent releases + issue velocity + breaking-change cadence. |
+| CONTEXT-BUDGET-COST | Skills/plugins impose prompt/runtime discovery tax. | LOC/SKILL.md count, auto-trigger breadth, SessionStart injection cost. |
+| MCP-TRUST-SURFACE | MCPs execute tools and can leak context/secrets. | Permission scope, auth model, sandboxing, source verification. |
+| SMOKE-TESTABILITY | A primitive must be cheaply verifiable. | One-command local smoke, JSON health, deterministic failure mode. |
+| DEACTIVATION-SAFETY | Easy rollback matters in a plugin-heavy runtime. | Can disable via settings without deleting cache or breaking launch. |
+| SECRET-DATA-BOUNDARY | Especially important for memory/observability/search MCPs. | Local-only vs cloud, redaction, key scope, log retention. |
+| SINGLE-DEV-FIT | Many team governance tools are low ROI here. | Solo utility, low ceremony, no org admin dependency. |
+| CROSS-MODEL-LEVERAGE | Repos that improve Claude+Codex cooperation deserve extra weight. | Supports Codex CLI, AGENTS.md, SKILL.md, MCP, review artifacts. |
+
+§4 — 2026 Q1-Q2 frontier: what Q1-Q2 2026 releases, standards, repos, or patterns should be in the synthesis that are absent or underweighted in W258 v13?
+
+Because W258 v13 was absent, this section marks frontier items as [INFERRED] unless they were visible in fallback docs.
+
+- Claude Code plugin/skill surface is moving fast [INFERRED]. Web-discovered May 2026 marketplace reports mention root-level `SKILL.md` recognition, large plugin indexes, and thousands of public skill components. W259 should treat marketplace drift as a live feed, not a fixed Wave 47 catalog.
+- Codex CLI/desktop became more relevant for Windows and long-running multi-agent work in Q1-Q2 2026 [INFERRED]. W259 should explicitly include native Windows Codex app/CLI leverage, PowerShell workflows, and Codex background/parallel task orchestration.
+- Agent Skills empirical research appeared in 2026 [INFERRED]. The Feb 2026 arXiv "Agent Skills" analysis reports large-scale skill corpus behavior; W259 should use it to score skill quality and auto-trigger risk.
+- MCP security moved from theoretical to urgent [INFERRED]. April 2026 public reporting on MCP RCE risk means MCP adoption must include exploit-class checks, least-privilege tool scopes, and source attestation.
+- Agent interoperability standards accelerated [partly grounded]. Fallback docs already name ACP as P2; W259 should also compare MCP/A2A/ACP roles instead of treating all protocols as equivalent.
+- Eval and observability stacks matured into agent-improvement loops [grounded by tmp-layer-c]. promptfoo, inspect_ai, deepeval, trulens, giskard, Langfuse, Phoenix, Opik, Weave, Logfire, and MLflow should be scored by solo-dev ROI and Windows deployability.
+- Local model serving/router layer is underweighted for resilience [grounded by tmp-layer-c]. vLLM/llama.cpp/Ollama/SGLang/LiteLLM are not necessarily install priorities for multi-MAX Claude, but W259 should explicitly classify them as optional fallback/resilience rather than omitted.
+
+§5 — Concrete repo list: table with columns [Repo, Org, Stars-tier, Layer, Gap-it-fills, Priority]. Minimum 10 rows. Focus on repos with real-world adoption evidence, not obscure forks.
+
+| Repo | Org | Stars-tier | Layer | Gap-it-fills | Priority |
+|---|---|---:|---|---|---|
+| getzep/graphiti | getzep | 10k+ [INFERRED] | Memory/KG | Complete L3 temporal memory MCP path called out as P0 in fallback audit. | P0 if MCP health budget passes |
+| agentclientprotocol/claude-agent-acp | agentclientprotocol | 1k+ [INFERRED] | Interop | ACP bridge for IDE/agent interoperability, already named P2 in fallback audit. | P1 |
+| UKGovernmentBEIS/inspect_ai | UKGovernmentBEIS | 1k+ | Eval | Serious eval harness from public-sector org; complements promptfoo/deepeval. | P1 |
+| promptfoo/promptfoo | promptfoo | 10k+ | Eval/redteam | Prompt/agent tests and red-team harness; fallback docs list partial status. | P0/P1 |
+| NVIDIA/garak | NVIDIA | 5k+ | LLM security eval | Vulnerability scanner for LLM apps; fallback audit has dedicated garak deep dive. | P1 |
+| Giskard-AI/giskard-oss | Giskard-AI | 5k+ | Eval/testing | Agent/RAG testing layer with active 2026 maintenance in tmp inventory. | P2 |
+| truera/trulens | truera | 1k+ | Eval/observability | Evaluation and tracking; active 2026 maintenance in tmp inventory. | P2 |
+| langfuse/langfuse | langfuse | 10k+ | Observability | Open-source traces, evals, prompts; useful if Phoenix alone is insufficient. | P1 |
+| comet-ml/opik | comet-ml | 10k+ | Observability/evals | Strong OSS LLM observability alternative; active 2026 maintenance in tmp inventory. | P2 |
+| Helicone/helicone | Helicone | 5k+ | Gateway observability | Lightweight request/cost monitoring; useful for multi-provider spend visibility. | P2 |
+| traceloop/openllmetry | traceloop | 5k+ | OTel instrumentation | Standardizes LLM traces via OpenTelemetry; complements OpenLit/Phoenix. | P2 |
+| pydantic/logfire | pydantic | 1k+ | Observability | Python-native telemetry with trusted Pydantic org fit. | P3 |
+| vllm-project/vllm | vllm-project | 50k+ | Local serving | Optional resilience/local inference lane; likely not daily priority for MAX-Claude. | P3 |
+| ggml-org/llama.cpp | ggml-org | 50k+ | Local serving | Portable local fallback; classify explicitly as optional, not missing core. | P3 |
+| ollama/ollama | ollama | 50k+ | Local serving | Easy Windows local-model fallback already indicated installed in provenance snippets. | P2/P3 verify |
+| BerriAI/litellm | BerriAI | 10k+ [INFERRED] | Router/gateway | Provider abstraction and routing; useful only if CLIProxyAPI does not already fill lane. | P3 |
+
+§6 — Overall verdict: one of APPROVE-W258-AS-BASELINE / NEEDS-EXTENSION / NEEDS-REVISION-FOR-W259. State the verdict on its own line, then explain in ≤100 words.
+
+NEEDS-REVISION-FOR-W259
+
+The requested W258 v13 and W253 GRAND-CATALOG artifacts were absent from the worktree, and the W259 grand-catalog tree was empty. Fallback docs show strong prior architecture work, but also stale/partial surfaces, plugin overgrowth, missing Windows-portability scoring, weak ROI discipline, and underweighted 2026 eval/observability/security-frontier layers. W259 should not merely extend W258; it needs a corrected, file-backed synthesis with explicit missing-input disclosure and a practical single-dev operating model.
+
+§7 — Top-3 highest-impact fixes for W259: numbered list, each fix ≤30 words, most impactful first.
+
+1. Rebuild final synthesis from present files; include explicit W258/W253 absence note, fallback evidence table, and confidence markers per claim.
+2. Add ROI, Windows portability, context-budget, MCP trust, and native-Claude/Codex pathway scoring before ranking any repo.
+3. Convert plugin/catalog sprawl into ACTIVE/DORMANT/DISCOVERY-ONLY budgets with smoke tests and disable-first rollback paths.

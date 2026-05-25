@@ -1,0 +1,698 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e0cf9-471b-79c0-b015-8ae11e09f790
+--------
+user
+ROLE: cross-model T1 reviewer (REAL GPT-5.5 BRIDGE-MODE foreground+tee per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate). Phase 1 bootstrap exception per CLAUDE.md cardinal-rule-3.
+
+CONTEXT (TIER-1-DIRECT only):
+
+1. Official Anthropic CC env-vars docs (https://code.claude.com/docs/en/env-vars) verbatim quote:
+   "CLAUDE_CODE_DISABLE_1M_CONTEXT | Set to `1` to disable 1M context window support. When set, 1M model variants are unavailable in the model picker. Useful for enterprise environments with compliance requirements"
+
+2. Official Anthropic CC sub-agents docs (https://code.claude.com/docs/en/sub-agents §"Choose a model") verbatim quote:
+   "Claude Code resolves the subagent's model in this order:
+    1. The CLAUDE_CODE_SUBAGENT_MODEL environment variable, if set
+    2. The per-invocation `model` parameter
+    3. The subagent definition's `model` frontmatter
+    4. The main conversation's model"
+
+3. CHANGELOG cite chain (TIER-1-DIRECT Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD):
+   - L1349: "Added 1M context window for Opus 4.6 by default for Max, Team, and Enterprise plans" (Opus 4.7 NOT in this list — newer)
+   - L1761: "Added CLAUDE_CODE_DISABLE_1M_CONTEXT environment variable to disable 1M context window support"
+   - L1782: "Sonnet 4.5 with 1M context is being removed from the Max plan in favor of our frontier Sonnet 4.6 model, which now has 1M context"
+   - L2367: "Fixed subagents sometimes not inheriting the parent's model by default"
+   - L1396: "Fixed subagents with `model: opus`/`sonnet`/`haiku` being silently downgraded to older model versions"
+   - L436: "Fixed subagents running a different model than the main agent incorrectly flagging file reads"
+
+4. Failure observation: Agent({subagent_type:"codex:codex-rescue", model:sonnet frontmatter}) from parent `claude-opus-4-7[1m]` session fails with:
+   "API Error: Extra usage is required for 1M context · run /extra-usage to enable, or /model to switch to standard context"
+   at 648ms / 0 tool_uses / 0 tokens (PRE-FIRE).
+
+5. Hypothesis: 1M entitlement is SESSION-LEVEL billing-context (not model-level). Parent's `[1m]` flag attaches to subagent session-creation request before step 3 frontmatter model resolution binds. Plan-tier check rejects because Opus 4.7 1M is not in CHANGELOG L1349 Max-auto-include list (only Opus 4.6 is).
+
+PROPOSED SETUP (THIS FIRE):
+
+A. Add CLAUDE_CODE_DISABLE_1M_CONTEXT to CLAUDE.local.md ENV (h) as GUARDED COMMENT (operator activates per-Wave when fan-out needed; default UNSET preserves 1M for orchestrator-direct work)
+B. Update CLAUDE.local.md ENV (g) deprecation comment — point CLAUDE_CODE_SUBAGENT_MODEL users to ENV (h) Path D instead (Path S deprecation per cross-model-consensus.md STAND-IN-NOTICE risk)
+C. Update docs/install-provenance.md FM-17.f reclassification — REFRAMED from "n=1 candidate" to "architectural-property + Path D activation discipline" (no n=3 codification needed; Anthropic shipped the workaround at TIER-1-DIRECT)
+D. NO change to current operational state — Path P (direct codex exec foreground+tee) remains PRIMARY cross-model gate; Path D is documented standby for explicit fan-out Waves
+
+REVIEW AXES (TIGHT — ≤180s budget):
+
+AXIS-1 — TIER-1 cite admissibility:
+  Are the 2 official-docs cites (env-vars + sub-agents) sufficient to satisfy CR-1 cite-class lattice for THIS edit class (CLAUDE.local.md ENV block + provenance reclassification)? Does the constituents form per citation-discipline.md rule #8 apply (effective_tier=TIER-3-LOCAL-COMPOSITION because CLAUDE.local.md is local-machine config)?
+
+AXIS-2 — refined root-cause accuracy:
+  Is the SESSION-LEVEL billing-context entitlement (vs model-level) hypothesis CORRECT? Per the 4-step model resolution order at sub-agents docs §"Choose a model", does step 4 (main conversation model fallback) bind BEFORE step 3 (frontmatter) at session-creation in the case where plan-tier 1M-entitlement check fires? Cite docs section if it speaks to session-creation timing.
+
+AXIS-3 — Path D activation discipline:
+  Is the "guarded comment + operator activates per-Wave" pattern (vs always-on) correct for THIS runtime where parent 1M context is load-bearing for long-arc autonomous /loop sessions per Karpathy §5 Wiki Compounding Surface? Trade-off rationale: 200k vs 1M context ceiling.
+
+OUTPUT_BUDGET: 250 LOC
+
+VERDICT SHAPE per cross-model-consensus.md §Verdict shapes:
+  APPROVE | NEEDS-REVISION conf=<0.85-0.95> + prescribed_edits | REJECT
+  + ONE-LINE: "[VERIFIED via TIER-1 cite] <approach correct/needs adjust>"
+
+codex
+I’ll verify the local consensus/citation rules and the cited Anthropic docs sections, then keep the verdict scoped to the three requested axes.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg --files -g 'cross-model-consensus.md' -g 'citation-discipline.md' -g 'CLAUDE*.md' -g 'install-provenance.md'" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "rule #?8|constituents|effective_tier|Verdict shapes|Env-funneled|STAND-IN|FM-17|CLAUDE_CODE_SUBAGENT_MODEL|CLAUDE_CODE_DISABLE_1M_CONTEXT|Path D|Path P" -S .' in Z:\claude-sota-installed
+ succeeded in 328ms:
+CLAUDE.md
+CLAUDE.local.md
+docs\install-provenance.md
+
+ succeeded in 367ms:
+.\CLAUDE.md:8:**The `Z:/repos/deps/` SHA cite anchors below are CITE-REFERENCE-ONLY, NOT install sources** per `docs/install-from-github-discipline.md §Acceptable cite-import (NOT install-import)`. Cardinal-rule-6 forbids `Z:/repos/deps/<repo>/` as install source (Marker Decay risk); it does NOT forbid `Z:/repos/deps/<repo>/file:line` as cite anchor (immutable at recorded SHA). **Sibling-as-cite-source is NOT acceptable for cardinal rules** per cardinal-rule-8 (sibling claude-sota is TIER-3-LOCAL-OPERATOR-DERIVED per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 lattice — NOT TIER-1 SOTA). Cardinal rules 1-4 cite UPSTREAM directly. Where sibling-novel discipline has no upstream parity, Section 14.5 cite-import-AMBER exception applies with strict commit-SHA cite trail (per cardinal-rule-9).
+.\CLAUDE.md:12:1. **Every architectural edit cites a SOTA primary source.** Acceptable cite tiers (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 lattice — cite-import-AMBER from sibling per Section 14.5):
+.\CLAUDE.md:19:   **Cite-class reframe discipline** (per Wave 82x codex T1 fix-forward F-001 lesson, 2026-05-08): when the source is **repo-housed** (SKILL.md / README.md / file in a marketplace clone or upstream repo at `Z:/repos/deps/` or `.claude/plugins/marketplaces/`), the cite class is **TIER-1-DIRECT** (with file:line + HEAD SHA), NOT `TIER-1-NAMED-AUTHOR-QUOTE` even when the repo is named-author-attributed. Per `citation-discipline.md` rule #6: `TIER-1-NAMED-AUTHOR-QUOTE` applies to named-author published work such as book / paper / conference talk used alongside repo file:line cites. When the source is a repo-housed skill / doc / config, use rule #8 constituents form: `constituents=[TIER-1-DIRECT @ <file>:<line> @ <SHA>, TIER-3-LOCAL-COMPOSITION @ local adaptation]; effective_tier=TIER-3-LOCAL-COMPOSITION`. Empirical validation: Wave 82w shipped 2 new rules with `TIER-1-NAMED-AUTHOR-QUOTE` cite class; Wave 82x codex T1 caught the misclassification + prescribed reframe to constituents form (deprecation-discipline.md L9, launch-discipline.md L10) — reframe applied Pattern A.
+.\CLAUDE.md:37:   **Phase 1 bootstrap exception (per Wave 50 fire 10 Pattern A on Agent L F-P1 Dimension 4)**: while cardinal-rule-7 Phase 1 is active AND Tier 1a (codex T1-T7 hooks per manifest §Section 2 + §18.1) is NOT-yet-INSTALLED, the cross-model consensus discipline is satisfied by **orchestrator-side `codex exec` foreground+tee dispatch** (per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate`) OR **REAL GPT-5.5 BRIDGE-MODE subagent dispatch** (per `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md §FM-17.d recovery`). Pattern A apply during Phase 1 MUST cite the cross-model-gate-satisfaction-status (FULL / PARTIAL via STAND-IN-NOTICE / FAILED-policy-blocked) in commit body per `cross-model-consensus.md §Verdict report shape`. Phase 2 transition (per cardinal-rule-7 Phase 2 trigger predicate (c)) flips this exception OFF — codex T1-T7 hooks become mechanically enforced post-Tier-1a-INSTALLED.
+.\CLAUDE.md:107:    - **(a) Install canonical SOTA solution** — research surfaces an upstream repo that solves the class (e.g., FM-17.d watchdog stall → install `fm17d_stall_detector.py` from sibling cite-import per Section 13 — corrected from prior stale "Section 13.1" reference per Wave 50 fire 10 Pattern A on Agent I F-14 + Agent L Dimension 3 P3)
+.\CLAUDE.md:124:    - **Agent dispatch** — every fan-out follows `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` (Wave 24-D OWNED at n=3 user-trigger, cite-import-AMBER per Section 14.5) + `Z:/claude-sota/.claude/rules/parallel-agent-wave.md §CADP rule 5` (≥3 accounts <50% session pre-dispatch fleet probe — cite-import-AMBER) + Wave 44 invariant #1 per-call codex 90-180s budget (cite-import-AMBER from `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md` FM-17.d sub-class).
+.\CLAUDE.md:149:    - (iv) Manifest row records HNF evidence (sota-researcher dispatch ID + probes + return) in `docs/install-provenance.md` under `effective_tier=TIER-3-LOCAL-COMPOSITION` marker per cardinal-rule-1 cite-class lattice (sibling-derived CANNOT be elevated to TIER-1 SOTA per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8)
+.\PROGRESS.md:13:- 4 of 7 Claude accounts disabled by Ship 1X cycle-aware rotation (≥80% secondary window threshold) — explains FM-17.b.i sensitivity
+.\PROGRESS.md:45:7. **Ship 2G** — Priority-bucket equalization (operator-decision; user mandate to choose). Equalize 3 active accounts to P20 for 3-account burst distribution. Closes FM-17.b.i Wave 97 fan-2-C 429 root cause.
+.\PROGRESS.md:64:- **codex-rescue subagent class triggers 1M-context billing** in this session (n=2 same-arc; 1297ms+268ms / 0-tokens both `1M context billing not enabled` failure). Recovery pivot: sota-researcher Sonnet stand-in with STAND-IN-NOTICE + cross-model gate satisfied via orchestrator-direct codex exec foreground+tee BEFORE commit (per CR-3 Phase 1 bootstrap exception). Codification candidate: FM-17.b.iii NEW class.
+.\docs\fm17f-deep-dive-2026-05-09.md:2:title: FM-17.f Deep-Dive — 1M-Context-Entitlement Subagent Dispatch Failure
+.\docs\fm17f-deep-dive-2026-05-09.md:9:# FM-17.f Deep-Dive — 1M Context Entitlement vs Subagent Dispatch
+.\docs\fm17f-deep-dive-2026-05-09.md:45:- L1761: "Added `CLAUDE_CODE_DISABLE_1M_CONTEXT` environment variable to disable 1M context window support" — **the documented kill-switch**
+.\docs\fm17f-deep-dive-2026-05-09.md:53:### Path P (PRIMARY — RECOMMENDED): Direct `codex exec` foreground+tee from main session
+.\docs\fm17f-deep-dive-2026-05-09.md:57:**Mechanics** per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate`:
+.\docs\fm17f-deep-dive-2026-05-09.md:81:**When Path P is sufficient**: every commit-class ship (T1 pre-edit / T2 pre-commit / T3 postcommit). Wave 118 proved end-to-end e2e.
+.\docs\fm17f-deep-dive-2026-05-09.md:83:### Path D (SECONDARY for parallelism): `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` env + eee restart
+.\docs\fm17f-deep-dive-2026-05-09.md:90:$env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'
+.\docs\fm17f-deep-dive-2026-05-09.md:103:**When Path D is justified**: when a Wave demands fan-out parallelism (3-5 agents simultaneously) AND the ship is bounded enough that dropping parent context to ~200k won't trigger excessive `/compact` cycles.
+.\docs\fm17f-deep-dive-2026-05-09.md:112:- Path P already satisfies cardinal-rule-3 cross-model gate at ZERO cost
+.\docs\fm17f-deep-dive-2026-05-09.md:113:- Path D enables fan-out parallelism at ZERO marginal cost (parent context trade-off only)
+.\docs\fm17f-deep-dive-2026-05-09.md:114:- `/extra-usage` is recurring billing for a capability we already have via Path P
+.\docs\fm17f-deep-dive-2026-05-09.md:118:- If Path D's parent-context drop materially impedes long-arc /loop sessions (n=3+ same-arc evidence required per cycle-322)
+.\docs\fm17f-deep-dive-2026-05-09.md:119:- If Path P proves insufficient for a class of work that genuinely requires Anthropic SDK subagent dispatch (e.g., Anthropic ships an SDK feature that BRIDGE-MODE fan-out exclusively unlocks)
+.\docs\fm17f-deep-dive-2026-05-09.md:122:### Path S (DEPRECATED — STAND-IN-NOTICE risk): `CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6` ENV (g)
+.\docs\fm17f-deep-dive-2026-05-09.md:129:- Per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate`: every gpt5-reviewer / gpt5-archaeologist dispatch under env-funneling MUST return BLOCK or carry STAND-IN-NOTICE in verdict body
+.\docs\fm17f-deep-dive-2026-05-09.md:132:- Path D achieves the same parallelism without the stand-in tax
+.\docs\fm17f-deep-dive-2026-05-09.md:136:**Adopt Path P as PRIMARY** for all Wave 119+ cross-model gate satisfaction.
+.\docs\fm17f-deep-dive-2026-05-09.md:138:**Adopt Path D as SECONDARY** activated only when a specific Wave declares fan-out parallelism is load-bearing (NOT a default — explicit per-Wave decision).
+.\docs\fm17f-deep-dive-2026-05-09.md:142:**RETIRE Path S** notice from CLAUDE.local.md ENV (g) — replace comment with explicit deprecation note pointing at Path D.
+.\docs\fm17f-deep-dive-2026-05-09.md:146:### §4.1 Path P PRIMARY (no changes required — already operational)
+.\docs\fm17f-deep-dive-2026-05-09.md:148:- ✅ Wave 118 codex T1 already used Path P (foreground+tee bg-job pattern)
+.\docs\fm17f-deep-dive-2026-05-09.md:153:### §4.2 Path D SECONDARY (activation procedure when needed)
+.\docs\fm17f-deep-dive-2026-05-09.md:158:# $env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'   # Activate ONLY for fan-out Waves
+.\docs\fm17f-deep-dive-2026-05-09.md:161:$env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'
+.\docs\fm17f-deep-dive-2026-05-09.md:171:### §4.3 FM-17.f reclassification (forward-only correction)
+.\docs\fm17f-deep-dive-2026-05-09.md:174:- FM-17.f n=1 candidate REFRAMED — not a failure mode
+.\docs\fm17f-deep-dive-2026-05-09.md:177:- Replace task #58 codification target with: "FM-17.f reclassified to architectural-property + Path D activation discipline"
+.\docs\fm17f-deep-dive-2026-05-09.md:184:# Use Path D `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` instead per docs/fm17f-deep-dive-2026-05-09.md §3
+.\docs\fm17f-deep-dive-2026-05-09.md:185:# Setting this forces stand-in dispatch with STAND-IN-NOTICE per cross-model-consensus.md mandate
+.\docs\fm17f-deep-dive-2026-05-09.md:187:# $env:CLAUDE_CODE_SUBAGENT_MODEL = 'claude-sonnet-4-6'
+.\docs\fm17f-deep-dive-2026-05-09.md:192:The original FM-17.f framing implied a defect requiring operator decision. The actual situation:
+.\docs\fm17f-deep-dive-2026-05-09.md:195:2. **Path P (foreground+tee codex exec) is more SOTA than Path X (extra-usage purchase)** because it doesn't depend on Anthropic SDK subagent layer for cross-model gate
+.\docs\fm17f-deep-dive-2026-05-09.md:196:3. **Path D (DISABLE_1M_CONTEXT) is documented architectural escape valve** — explicit env var named for this exact scenario
+.\docs\fm17f-deep-dive-2026-05-09.md:197:4. **Cardinal-rule-3 cross-model gate is structurally satisfied via Path P alone** — fan-out parallelism is a nice-to-have, not a blocker
+.\docs\fm17f-deep-dive-2026-05-09.md:199:The architectural lesson: when a "blocker" surfaces, **research-first per cardinal-rule-10** before classifying. The CHANGELOG had the answer in 4 distinct lines (L436, L1349, L1761, L2367) that document the exact mechanism + workaround. Codifying as failure-mode FM-17.f without first probing CHANGELOG was the actual defect — research discipline, not architecture.
+.\docs\fm17f-deep-dive-2026-05-09.md:204:2. **Ship F2** (P1): forward-only update to `docs/install-provenance.md` reclassifying FM-17.f from "candidate" to "architectural-property" + cite this doc
+.\docs\fm17f-deep-dive-2026-05-09.md:206:4. **Ship F4** (P2): when next fan-out Wave is needed, demonstrate Path D activation/deactivation per §4.2 (operationalizes the discipline)
+.\docs\fm17f-deep-dive-2026-05-09.md:207:5. **Ship F5** (P3): close task #58 — FM-17.f reclassified, no n=3 codification needed
+.\docs\fm17f-deep-dive-2026-05-09.md:211:- `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md` — FM-17.a/b/c/d/e taxonomy (this REFRAMED candidate sits OUTSIDE the fleet-depletion framing — it's plan-tier entitlement, not pool exhaustion)
+.\docs\fm17f-deep-dive-2026-05-09.md:212:- `Z:/claude-sota/.claude/rules/cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` — STAND-IN-NOTICE discipline that Path S would have triggered
+.\docs\fm17f-deep-dive-2026-05-09.md:213:- `Z:/claude-sota/.claude/rules/cross-model-consensus.md §"On codex unavailable"` — Path P documented as Phase 1 bootstrap recovery
+.\docs\fm17f-deep-dive-2026-05-09.md:214:- `Z:/claude-sota/.claude/rules/parallel-agent-wave.md §Cache-Aware Dispatch Pacing` — fan-out cap discipline (Path D users still must honor CADP)
+.\docs\fm17f-deep-dive-2026-05-09.md:215:- `Z:/claude-sota-installed/CLAUDE.md §cardinal-rule-3` — Phase 1 bootstrap exception that authorizes Path P
+.\docs\fm17f-deep-dive-2026-05-09.md:217:- `Z:/claude-sota-installed/.claude/state/codex_consult_w118_autoupdate_path_OUT.txt` — Wave 118 PROOF that Path P works end-to-end at 1168 LOC verdict depth
+.\docs\v64-cache-aware-routing-convention.md:4:**Origin**: V64-adoption-plan §1 (orchestrator-pivot post Wave 80 Agent B+C FM-17.e failures); ADOPT TOP-4 conf=0.86 verdict
+.\docs\v64-cache-aware-routing-convention.md:207:- FM-17.e n=3 promotion → consolidate cache-locality verification into the FM-17.e mitigation path (parent-child cache reuse on parallel fan-out)
+.\docs\eee-launch-design-cliproxyapi.md:5:**Class**: TIER-3-LOCAL-COMPOSITION over TIER-1-DIRECT substrates per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 lattice
+.\docs\eee-launch-design-cliproxyapi.md:472:Sub-class peer to FM-17.b pool-depletion 429 per `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md`:
+.\docs\eee-launch-design-cliproxyapi.md:1193:- (a) FM-17.d-class wrapper internal-stall at codex's compact-remote endpoint (codex's own internal context-management API rejected `service_tier=fast`)
+.\docs\eee-launch-design-cliproxyapi.md:1216:Per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` mandatory disclosure shape:
+.\docs\eee-launch-design-cliproxyapi.md:1221:- T1 codex GPT-5.5 BRIDGE-MODE attempted; FM-17.d-class internal-compaction failure at 309K tokens
+.\docs\eee-launch-design-cliproxyapi.md:1249:Per `synthesis-layer-verify.md §Reporting categories`: this T1 fire is a **HONEST-NON-FINDING** — substantive 309K-token investigation produced no terminal verdict, NOT because design was perfect (would be APPROVE) but because codex's own infrastructure broke before completion. Categorize this as failure-class FM-17.d (BRIDGE-MODE wrapper internal-stall) at the codex-CLI-vendor layer, not at design-quality layer.
+.\docs\wave119-next-session-plan.md:15:- Every edit cites TIER-1-DIRECT upstream OR `effective_tier=TIER-3-LOCAL-COMPOSITION` per citation-discipline rule #8 lattice
+.\docs\wave119-next-session-plan.md:32:| Open failure-mode candidates | 1 | FM-17.f n=1 (1M-context-entitlement subagent dispatch); promotes at n=3 per cycle-322 |
+.\docs\wave119-next-session-plan.md:75:**SHIP A2 — FM-17.f operator decision (P0; blocks future cross-model gate)**
+.\docs\wave119-next-session-plan.md:76:- Decision required: enable `/extra-usage` (Anthropic 1M-context billing) OR set `CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6` in CLAUDE.local.md ENV (g)
+.\docs\wave119-next-session-plan.md:77:- Trade-off: `/extra-usage` keeps cardinal-rule-3 mechanically enforceable via Agent() subagent dispatch ($$$); ENV (g) reverts to Sonnet stand-in (FM-17.b.i risk; STAND-IN-NOTICE per cross-model-consensus.md mandate)
+.\docs\wave119-next-session-plan.md:90:- Per-call codex budget: 90s default, 120s cap, 180s with reason (Wave 44 FM-17.d defense)
+.\docs\wave119-next-session-plan.md:168:- gstack/codex (FM-17.d mitigation patterns)
+.\docs\wave119-next-session-plan.md:180:5. **FM-17.f mitigation** — 1M-context-entitlement subagent dispatch failure blocks BRIDGE-MODE fan-out via Agent() tool
+.\docs\wave119-next-session-plan.md:202:3. Carry per-call codex time-budget mandate (90s default / 120s cap / 180s with reason — Wave 44 FM-17.d defense)
+.\docs\wave119-next-session-plan.md:209:- SECONDARY: BRIDGE-MODE subagent dispatch via Agent() tool (BLOCKED until FM-17.f resolved)
+.\docs\wave119-next-session-plan.md:251:2. Operator decides FM-17.f path (Ship A2): /extra-usage OR ENV (g) Sonnet pin
+.\docs\wave119-next-session-plan.md:270:- FM-17.f decision ratified + implemented OR codified n=2/3
+.\docs\wave119-next-session-plan.md:278:- Wave 119 close-synthesis surfaces NEW failure-mode candidate (FM-17.g+)
+.\docs\wave119-next-session-plan.md:282:- FM-17.f reaches n=3 same-arc — promote to dedicated rule per cycle-322
+.\docs\sota-installed-manifest.md:194:| **safety_guard.py (catastrophic patterns)** | **Path B HONEST-NON-FINDING (REFRAMED Wave 14 verdict)** — pre-port verification revealed ECC ⊊ sibling: ECC ships SKILL-shape (user-invoked) at `skills/safety-guard/SKILL.md @ 841beea4` + pre-bash-dispatcher.js chain has block-no-verify only; ECC HOOK chain does NOT carry the 12 auto-blocked destructive-Bash patterns (rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd). Defense-in-depth gap of 12 vs 1 → Path B HNF justified. | n/a — Path A FAILED scope check; HOOK-shape is sibling-novel | sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/safety_guard.py @ 32fbcb0d082bb9297d8fc3ad4655c69f301b33c1` (PINNED) per Section 14.5 last-resort | **INSTALLED-AMBER** | **Wave 62 fire 17 Wave 14b cite-import 2026-05-07**: ported with CR-9 sub-rules (REVERT check PASS — false-positive corrected per Wave 14 fork verdict); 0 sibling-bleed in body; CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION marker present; HNF evidence block present; smoke probe PASS (benign + empty + non-Bash all exit 0; destructive-pattern path covered by sibling operational testing of identical regex set per port-note-discipline.md §1 1:1 verbatim contract). 16,294 bytes. NOT yet wired into settings.json hook chain (DORMANT until operator approval per CR-7 Phase 2 trigger predicate). |
+.\docs\sota-installed-manifest.md:195:| **fm17d_stall_detector.py** | **Path B — HONEST-NON-FINDING** per Agent J row-8 verdict (FM-17.d is sibling-discovered named-failure-mode codification at sibling Wave 46 `eb15fd1`; 0 upstream parity across obra/superpowers + ECC + codex-plugin-cc + cookbook + mattpocock-skills) | n/a — Path B is the disposition | sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/fm17d_stall_detector.py @ <SHA-PENDING-AT-EXECUTION>` per Section 14.5 last-resort | PLANNED-Path-B-HNF-confirmed (CR-9 sub-rule: REVERT check + sibling-bleed audit + 2-round budget at install execution) |
+.\docs\sota-installed-manifest.md:196:| **agent_plan_readonly_bash_guard.py** | **Path B — HONEST-NON-FINDING** per Agent J row-7 verdict (FM-19 readonly-guard sidestep mechanism is sibling-discovered Wave 16-17 fire arc; 0 upstream parity across same 5 repos probed) | n/a — Path B is the disposition | sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py @ f57c74dd68bb52771633d6ea76426842669fa499` (PINNED) per Section 14.5 last-resort | **INSTALLED-AMBER** | **Wave 62 fire 17 Wave 14 cite-import 2026-05-07**: ported with CR-9 sub-rules; REVERT check PASS — directive-claimed-revert was FALSE-POSITIVE (CLAUDE.md CR-9 actual REVERT list is bash_command_allowlist.py / fleet_health_start.py / permission_request_auto_approve.py — NOT this file; commit `f57c74d` title concerned bash_command_allowlist removal, different file). 1 path-rewrite class × 2 occurrences (`in sss` → `in eee` body lines 5+65). 0 sibling-bleed in body via 6-class pattern set. CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION marker present. HNF evidence block present. 48,037 bytes. NOT yet wired into settings.json hook chain (DORMANT until operator approval). |
+.\docs\sota-installed-manifest.md:211:| **sota-researcher** | **Path C — ALTERNATIVE-PATTERN** per Agent J row-1 verdict | `/plugin marketplace add affaan-m/everything-claude-code && /plugin install everything-claude-code@2.0.0-rc.1` (provides skills/deep-research + skills/research-ops as user-invoked SKILLS, NOT auto-triggered subagent) | n/a — sibling sota-researcher (sibling SHA `5099454a08642fddd477218009652e38c0e3cce8` Path-C delta cite-anchor for the SUBAGENT shape) | sibling cite-extend for SUBAGENT shape (vs SKILL shape that ECC ships) — sibling design (9-cohort discovery menu C1-C9 + 6-Probe DAG + 4-axis harness-fit verification) is sibling-novel ENRICHMENT around ECC SKILLS substrate; anthropic-cookbook `patterns/agents/prompts/research_subagent.md @ 33424c3e` is read-only cite-anchor (TIER-1-DIRECT pattern source per CR-1 lattice) | **INSTALLED-AMBER** | **Wave 62 fire 5+8+9+10+11 closure 2026-05-07**: `Z:/claude-sota-installed/.claude/agents/sota-researcher.md` PORTED at sibling SHA `5099454a` (Wave 5); recursive transitive rule-port chain CLOSED via Wave 8 (7 rules) → Wave 9 (16+2HNF) → Wave 10 (9+1HNF) → Wave 11 (1) for total 33 files / 770KB in `.claude/rules/`. All citations resolve. CR-9 sibling-bleed defense PASS (0 path leaks in body across all ports). CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION marker present. AMBER classification permanent per CR-12 (sibling-derived cannot elevate to TIER-1 SOTA per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8). Re-evaluation gate triggers if sibling commit-SHA churns >50% post-import. Smoke probe verdict: subagent dispatch READ-RESOLUTION READY (no missing rule citations). |
+.\docs\sota-installed-manifest.md:213:| **gpt5-archaeologist** | **Path B — HONEST-NON-FINDING** per Agent J row-3 verdict (probed obra/superpowers 13 skills + ECC 48 agents + mattpocock-skills + anthropics/skills 17 skills + anthropic-cookbook patterns — ZERO archaeology / hotspot / git-blame agent class found upstream) | n/a — Path B is the disposition | sibling cite-import-AMBER from `Z:/claude-sota/.claude/agents/gpt5-archaeologist.md @ <SHA-PENDING-AT-EXECUTION>` per Section 14.5 last-resort (sibling discovered HNF + composes upstream constituents adamtornhill/code-maat + codex-plugin-cc CLI) | n/a | PLANNED-Path-B-HNF-confirmed (CR-9 sub-rule applies: REVERT check + sibling-bleed audit + 2-round budget at install execution; FORWARD-REF: if obra/superpowers v2 ships archaeology subagent, flip to Path A) |
+.\docs\sota-installed-manifest.md:340:> 5. `effective_tier=TIER-3-LOCAL-COMPOSITION` marker per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 (sibling-derived CANNOT be elevated to TIER-1 SOTA)
+.\docs\sota-installed-manifest.md:345:| **gpt5-archaeologist subagent** (sibling claude-sota Class A novel) | `Z:/claude-sota/.claude/agents/gpt5-archaeologist.md @ <SHA-PENDING-AT-EXECUTION>` (capture via `git -C Z:/claude-sota log -1 --pretty=format:%H -- .claude/agents/gpt5-archaeologist.md` at install time) | **HNF CONFIRMED via Wave 50 fire 9 Agent J row-3 verdict** — probe scope: (i) obra/superpowers 13 skills — ZERO archaeology agent (only `using-git-worktrees`); (ii) ECC 48 agents — ZERO archaeology (closest: code-explorer ≠ archaeology); (iii) mattpocock-skills 4 buckets — ZERO; (iv) anthropics/skills 17 skills — ZERO archaeology (mostly canvas-design/docx/pdf/mcp-builder/pptx); (v) anthropic-cookbook patterns — ZERO archaeology subagent (only research_subagent + tool-use). Probe DAG: P1=N/A LICENSE; P2=N/A registry; P3=namespace-unique; P4=NEGATIVE across 5 marketplaces; P5=N/A README; P6=N/A LICENSE blocker. Classification: HONEST-NON-FINDING per `synthesis-layer-verify.md §Reporting categories` GENUINE-GAP. effective_tier=TIER-3-LOCAL-COMPOSITION per `citation-discipline.md` rule #8 | PENDING — needs sibling-bleed audit at install execution | CITE-IMPORT-AMBER STAGED-PENDING-SHA-CAPTURE per CR-9 sub-rule pre-cite-import REVERT check |
+.\docs\sota-installed-manifest.md:346:| **agent_plan_readonly_bash_guard.py hook** (sibling Class A Wave 11A safety-floor companion) | `Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py @ <SHA-PENDING-AT-EXECUTION>` | **HNF CONFIRMED via Wave 50 fire 9 Agent J row-7 verdict** — probe scope: (i) ECC `hooks/hooks.json @ 841beea4` PreToolUse:Bash dispatcher BUT NOT plan-mode-readonly-specific (no policy=readonly OR policy=codex-readonly OR policy=verifier mode-discrimination as sibling implements); (ii) obra/superpowers — uses `using-git-worktrees` for parallel-session isolation but ZERO Bash readonly guard hook; (iii) codex-plugin-cc `hooks.json @ 807e03ac` — only SessionStart/SessionEnd/Stop hooks, ZERO PreToolUse:Bash gate; (iv) mattpocock-skills SKILL-only no hooks; (v) anthropic-cookbook patterns/prompts only no hooks. Probe DAG: P1=N/A; P2=N/A; P3=namespace-unique; P4=NEGATIVE; P5=N/A; P6=N/A. Classification: HONEST-NON-FINDING — sibling FM-19 readonly-guard sidestep mechanism (multiline/redirect/substitution/write-verb policy + 3 sub-classes M1/M2/M3) is sibling-discovered + codified at sibling Wave 16-17 fire arc. effective_tier=TIER-3-LOCAL-COMPOSITION | PENDING at install execution | CITE-IMPORT-AMBER STAGED-PENDING-SHA-CAPTURE per CR-9 sub-rule (FORWARD-REF: if Anthropic ships per-subagent permissionMode runtime enforcement that obviates this hook, flip to RETIRE) |
+.\docs\sota-installed-manifest.md:347:| **fm17d_stall_detector.py hook** (sibling Wave 46 codification) | `Z:/claude-sota/.claude/hooks/scripts/fm17d_stall_detector.py @ <SHA-PENDING-AT-EXECUTION>` (sibling Wave 46 commit `eb15fd1` is starting reference) | **HNF CONFIRMED via Wave 50 fire 9 Agent J row-8 verdict** — probe scope: (i) obra/superpowers/skills/dispatching-parallel-agents has parallel-agent dispatch SKILL but ZERO stream-watchdog stall detector; (ii) ECC 48 agents + 182 skills — ZERO FM-17.d-class detection (closest: agent-introspection-debugging SKILL but generic); (iii) codex-plugin-cc Stop review gate hook BUT not stall detector for BRIDGE-MODE Sonnet wrapper; (iv) anthropic-cookbook research_subagent.md mentions diminishing-returns but no detector mechanic. Classification: HONEST-NON-FINDING — sibling-discovered named-failure-mode codified at sibling `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md` Wave 44 promotion at n=3 same-arc; runtime detector at sibling SHA `eb15fd1` is sibling-novel codification. effective_tier=TIER-3-LOCAL-COMPOSITION | PENDING at install execution | CITE-IMPORT-AMBER STAGED-PENDING-SHA-CAPTURE per CR-9 sub-rule (FORWARD-REF: if Anthropic CC ships per-dispatch model attestation primitive that exposes stream-watchdog state, flip to RETIRE / OPERATOR-PREVENTION-ONLY) |
+.\docs\sota-installed-manifest.md:349:| **Class A sibling-novel codex hooks observability layer** (codex_stuck_detector / codex_mcp_healthcheck / codex_failure_audit / codex_review_queue / codex_review_thread_bridge / codex_review_trace) | each at sibling `Z:/claude-sota/.claude/hooks/scripts/codex_*.py @ <SHA-PENDING>` | **HNF PARTIALLY CONFIRMED via Agent J row-9** — sibling-novel observability layer (sibling Wave-N codifications wrapping upstream codex-plugin-cc commands); sibling-novel orchestration around upstream review primitives. Probe DAG: P4 fine-grained recursive `plugins/codex/hooks/` audit deferred to fire 12+ (broad probe class confirmed HNF; per-hook probe pending). Classification: HONEST-NON-FINDING for the observability ENRICHMENT layer; codex-plugin-cc PRIMARY install delivers underlying review/adversarial-review commands (Path A for the substrate); these hooks are Path C ALTERNATIVE-PATTERN delta cite-extend. effective_tier=TIER-3-LOCAL-COMPOSITION for the delta only | PENDING at install execution | CITE-IMPORT-AMBER STAGED-PENDING-SHA-CAPTURE for delta-only (Path A install of codex-plugin-cc covers substrate) |
+.\docs\sota-installed-manifest.md:597:- Path D: --with-access-token if operator has OAuth access token
+.\scripts\codex-plugin-hooks-rewrite.py:20:# CITE-IMPORT-AMBER provenance (TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8):
+.\scripts\codex-plugin-hooks-rewrite.py:21:# - constituents=[TIER-1-DIRECT @ codex-plugin-cc substrate above (function-symbol-anchored, full SHA), TIER-3-LOCAL-OPERATOR-DERIVED @ sibling claude-sota commit 46358c2 (Wave 50 Fire 46 origin) + d298d47 (Wave 50 Fire 43 path-mangling actual-fix) + Wave 80 P#3 extension]
+.\scripts\codex-plugin-hooks-rewrite.py:22:# - effective_tier = TIER-3-LOCAL-COMPOSITION (MIN_PRECEDENCE due to eee-local glue: Win32 path absolutization + version-globbed cache discovery + idempotent backup + dual-runtime targeting; HONEST-NON-FINDING gate per CR-12 step (iii) satisfied — mcp__github__search_code "openai/codex-plugin-cc plugin-hook-bootstrap rewrite" total_count=0)
+.\docs\v64-noise-risk-classifier-convention.md:4:**Origin**: V64-adoption-plan §4 (orchestrator-pivot post Wave 80 Agent B+C FM-17.e failures); ADOPT TOP-4 conf=0.86 verdict
+.\docs\v64-noise-risk-classifier-convention.md:53:    - mid-wave context-bloat dumps (per FM-17.e mitigation)
+.\docs\v64-noise-risk-classifier-convention.md:60:  - READ-CHUNK-SIZE: ≤500 lines per Read call (operator threshold; FM-17.e mitigation)
+.\docs\v64-noise-risk-classifier-convention.md:128:## §6 Forward-Compatibility With FM-17.e Mitigation
+.\docs\v64-noise-risk-classifier-convention.md:130:The Wave 80 FM-17.e candidate sub-class (autocompact-thrashing n=2 same-arc) was a **`child_explore`-class failure** — agents tried broad-axis investigation without context discipline. The classifier's `child_explore` predicates MUST mandate the FM-17.e mitigation slot from Wave 81 §3:
+.\docs\v64-noise-risk-classifier-convention.md:148:- **Skipping CLASS classification at brief time** — agent has no canonical role; orchestrator can't predict noise budget; FM-17.e risk reintroduced
+.\docs\v64-noise-risk-classifier-convention.md:173:- FM-17.e candidate sub-class reaches n=3 (Wave 82+) — promote to OWNED-rule per cycle-322 jurisdiction
+.\docs\v64-stable-prefix-convention.md:4:**Origin**: V64-adoption-plan §2 (orchestrator-pivot post Wave 80 Agent B+C FM-17.e failures); ADOPT TOP-4 conf=0.86 verdict
+.\docs\v64-stable-prefix-convention.md:248:- FM-17.e candidate sub-class reaches n=3 — promote to OWNED-rule per cycle-322; integrate prefix-freeze into FM-17.e mitigation slot (children that breach prefix while exploring trigger autocompact-thrashing as sister failure mode)
+.\docs\v64-child-artifact-lanes-convention.md:4:**Origin**: V64-adoption-plan §3 (orchestrator-pivot post Wave 80 Agent B+C FM-17.e failures); ADOPT TOP-4 conf=0.86 verdict
+.\docs\v64-child-artifact-lanes-convention.md:73:  - **READ-CHUNK-SIZE: ≤500 lines per Read call; summarize-then-discard pattern (FM-17.e mitigation)**
+.\docs\v64-child-artifact-lanes-convention.md:90:## §4 FM-17.e Mitigation Slot (Wave 80 Agents B+C n=2 evidence)
+.\docs\v64-child-artifact-lanes-convention.md:100:Per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 jurisdiction self-observed n>=3 promotion bar: FM-17.e candidate sub-class needs 1 more instance for OWNED-rule promotion. This convention's mitigation slot is the forward-only fix-forward.
+.\docs\v64-child-artifact-lanes-convention.md:117:- (d) `verdict_origin` honestly discloses Sonnet-stand-in / failed status (per cardinal-rule-3 §Env-funneled subagent stand-in disclosure mandate)
+.\docs\v64-child-artifact-lanes-convention.md:135:- **Allowing parent context to ingest raw `large_tool_results/*`** — defeats the deepagents/Continuous-Claude-v3 filesystem-offload primitive; reintroduces FM-17.e autocompact-thrashing at parent layer
+.\docs\v64-child-artifact-lanes-convention.md:150:- FM-17.e candidate sub-class reaches n=3 (Wave 81+) — promote to OWNED-rule per cycle-322 jurisdiction
+.\scripts\ecc-plugin-hooks-rewrite.py:23:# CITE-IMPORT-AMBER provenance (TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8):
+.\scripts\ecc-plugin-hooks-rewrite.py:24:# - constituents=[TIER-1-DIRECT @ everything-claude-code plugin-hook-bootstrap.js substrate, TIER-3-LOCAL-OPERATOR-DERIVED @ sibling claude-sota commit 062455b (Wave 52 runtime rescue) + 4b26416 (eee runtime port + env scrub)]
+.\scripts\ecc-plugin-hooks-rewrite.py:25:# - effective_tier = TIER-3-LOCAL-COMPOSITION (MIN_PRECEDENCE due to eee-local glue: __dirname-relative fallback + inline-bootstrap-to-direct-command rewriting + dual-runtime targeting)
+.\docs\install-provenance.md:62:  - Agent C (gpt5-reviewer BRIDGE-MODE PARTIAL STAND-IN) — 3 P1 (bypassPermissions safety, cite-import from deps, Section 14 missing axes) + 4 P2 (PLUGIN_ROOT update, divergences section, Pattern 3 write-redirect, circular memory cite) + 4 P3 advisory. STAND-IN-NOTICE: GPT-5.5 confirmed on test call (model=gpt-5.5, provider=openai) but 3 detailed codex calls inherited wrong cwd (FM-17.c.i). Cross-model gate PARTIALLY satisfied — re-fire from main session with `-C Z:/claude-sota-installed` for full file-grounded GPT-5.5 review. Output: `a41447e94a0e7128d.output`
+.\docs\install-provenance.md:73:- **Disposition**: INSTALLED-AMBER (Pattern A complete; AMBER pending Agent C re-fire from main session for full cross-model gate per FM-17.c.i recovery)
+.\docs\install-provenance.md:161:  - Agent C-redo: STAND-IN Sonnet (NEW policy-blocked failure class — codex-readonly Bash guard blocks `-a never` + bare exec hits codex untrusted-directory rejection); 3 P1 + 4 P2 + 4 P3 + 87.5% fire-2 completeness assessment. Output: `a62a5c4dc4651a3ff.output`
+.\docs\install-provenance.md:164:  - Agent F-recovery: SendMessage-resumed FM-17.a recovery; HIGH-RISK archaeology — sibling 7 files at 90-100% bug-magnet ratio + 6 archetypal anti-patterns + sibling-bleed risk. Output: `a46cdf29f482db95e.output`
+.\docs\install-provenance.md:200:- **Defect identified**: my fire 1+2 cardinal rules used "Inherited verbatim from `Z:/claude-sota/CLAUDE.md` cardinal-rule-N" framing — this treated sibling as cite-source, violating cardinal-rule-1 + cardinal-rule-8 strict reading. Sibling claude-sota is TIER-3-LOCAL-OPERATOR-DERIVED per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 lattice, NOT TIER-1 SOTA. Sibling itself cites upstream directly (CCBP + Karpathy + cross-model-workflow + RPI); claude-sota-installed's cardinal rules now do the same — citing the upstream sources directly.
+.\docs\install-provenance.md:212:Fire 6 itself dogfoods cardinal-rule-11: the meta-process of writing cardinal-rule-11 followed all 9 operational sub-bullets above (bootstrap edit per cardinal-rule-5 / cite anchors per cardinal-rule-1 TIER-1-DIRECT to user-trigger 2026-05-06 + Wave 50 fire 3 Agent C-redo P1-2 finding / Pattern A apply per codex-t1-fix-forward-pattern / provenance log per audit-action-loop). The codification fire executes under its own discipline — n=4 cumulative recursive-promotion-fire dogfood evidence (per FM-17 + FM-19 + FM-20 + cardinal-rule-11 promotion precedents).
+.\docs\install-provenance.md:232:  - Agent I (gpt5-reviewer **REAL GPT-5.5 BRIDGE-MODE**) — cardinal-rules-1-11 cohesion + cite-trail discipline closure. Cross-model gate **FULL satisfied** (model=gpt-5.5, provider=openai, 102,795 review tokens at xhigh, no FM-17.c.ii cert-store ACL block; 2 codex calls — 1 ping + 1 review). Verdict: **NEEDS-REVISION conf=0.92** with 6 P1 + 6 P2 + 2 P3 findings. Persisted at `Z:/claude-sota/tmp/wave50-agent-I-bridge-mode-cardinal-rules-2026-05-06.md`.
+.\docs\install-provenance.md:285:  - **Agent L (gpt5-reviewer REAL GPT-5.5 BRIDGE-MODE)** — **BLOCK verdict + STAND-IN-NOTICE**: codex-readonly bash guard blocked `2>&1` write-redirection on first codex invocation attempt; cross-model gate FAILED-policy-blocked; Sonnet stand-in analysis under explicit STAND-IN-NOTICE provided 2 P1 + 5 P2 + 3 P3 findings. P1 findings: (1) Architecture cite-triple needs explicit shanraisshan org-independence-from-Anthropic clarification; (2) CR-3 ALWAYS T1/T2 mandate has no Phase 1 bootstrap exception (structural gap when codex T1-T7 hooks are PLANNED-not-INSTALLED). P3 finding "install-provenance.md fire 7+8 missing" REFUTED-OVER per FM-20 path-drift cascade Mia probe (entry was appended at L195+ in fire 8 Pattern A apply; Agent L was reading stale state). Persisted at `Z:/claude-sota/tmp/wave50-agent-L-bridge-mode-adversarial-2026-05-06.md`.
+.\docs\install-provenance.md:295:- **Disposition**: INSTALLED — fire 10 close-fix-forward complete; cardinal-rule-12 codified establishes upstream-install-priority lattice; Agent J + M convergence collapses to clear install order (superpowers / codex-plugin-cc / everything-claude-code); cross-model gate **PARTIAL** for fire 9 (Agent L policy-blocked → Sonnet STAND-IN); fire 11 will execute (a) Section 14/14.5/13/§18.1 row rewrites with 3-path template per Agent K design + Agent J verdicts AND (b) re-dispatch Agent L from main-session foreground+tee for FULL cross-model gate satisfaction on fire 10 cardinal-rule-12 codification.
+.\docs\install-provenance.md:304:- **Fire 16+**: Agent L re-dispatch from main-session foreground+tee for FULL cross-model gate satisfaction on Wave 50 fire 10 cardinal-rule-12 codification (FAILED → FULL recovery per FM-17.d recovery + cross-model-consensus.md §"On codex unavailable" recovery options).
+.\docs\install-provenance.md:310:- **Cardinal-rule-11 META-process discipline**: 4-agent BRIDGE-MODE fan-out per Wave 24-D + per-call codex 90-180s budget per Wave 44 invariant #1 + FM-19 ARTIFACT-INLINE persisted for all 4 verdicts + Pattern A applied at NEEDS-REVISION-equivalent confidence band (Agent K Option A rationale + Agent J probe-coverage matrix + Agent L STAND-IN-NOTICE qualified verdict + Agent M Mia-probe of Agent G prior reasoning) + provenance log per audit-action-loop.md (this row) + cardinal-rule-9 pre-cite-import REVERT check upheld for sota-researcher + safety_guard sibling SHAs.
+.\docs\install-provenance.md:312:- **STAND-IN-NOTICE discipline (per cross-model-consensus.md)**: Agent L's BLOCK verdict requires explicit STAND-IN-NOTICE in any commit body that uses the Sonnet stand-in findings. Fire 10 commit body MUST include "FAILED-policy-blocked → Sonnet STAND-IN; cross-model gate NOT satisfied for fire 10 cardinal-rule-12 codification; T1 re-review queued via main-session foreground+tee dispatch in fire 16+" per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate.
+.\docs\install-provenance.md:326:  4. `docs/sota-installed-manifest.md` Section 14.5 tightening: heading rewrite (LAST-RESORT exception per cardinal-rule-12; HONEST-NON-FINDING-gated) + per-row HNF Evidence column MANDATE per Agent K Task 3 (5 enumerated requirements: dispatch ID + probe scope + Probe DAG outcome + HNF classification + effective_tier marker); 6 rows (AGENTS.md / gpt5-archaeologist / agent_plan_readonly_bash_guard / fm17d_stall_detector / loop_remediation_cron / Class A codex hooks observability layer) — 3 with HNF CONFIRMED via Agent J verdicts (gpt5-archaeologist + agent_plan_readonly_bash_guard + fm17d_stall_detector), 3 with HNF PENDING-AGENT-J-FIRE-12+ (AGENTS.md + loop_remediation_cron + Class A codex hooks delta).
+.\docs\install-provenance.md:459:Wave 50 fire 9 Agent L hit FM-17.c codex-readonly bash-guard policy block in subagent context — STAND-IN-NOTICE applied. Post-fire-13 codex-plugin-cc INSTALLED, Tier 1a ALWAYS-T1/T2 mandate now mechanically enforceable via codex hooks. Recommended: fire 15+ should run a smoke probe of `codex exec` from main-session foreground+tee against the new codex hooks to verify mechanical enforcement; if successful, the CR-3 Phase 1 bootstrap exception (added in fire 10) RETIRES per its operational predicate.
+.\docs\install-provenance.md:486:| P (gpt5-reviewer BRIDGE-MODE → STAND-IN-NOTICE Sonnet) | Adversarial review of fire 14 close + cardinal-rule conformance | 9264 | NEEDS-REVISION conf=0.84; 2 P1 + 2 P2 + 2 P3 findings; FM-17.c.ii cross-model gate FAILED (codex-readonly subagent block; n=3 same-arc with Agent C-redo + Agent L) |
+.\docs\install-provenance.md:568:Wave 50 fire 15 dispatched 3 agents in parallel; Agent P (gpt5-reviewer BRIDGE-MODE) hit FM-17.c.ii codex-readonly bash-guard policy block; third same-arc instance (Agent C-redo earlier in arc + Agent L fire 9 + Agent P fire 15). Pattern firm at n=3.
+.\docs\install-provenance.md:570:**Recovery path verified post-fire-15**: orchestrator main-session `codex --version` + `codex exec --help` probe confirmed codex CLI 0.125.0 RESPONSIVE from main-session Bash context. FM-17.c.ii cross-model recovery via main-session foreground+tee available; subagent-context BRIDGE-MODE cross-model-gate path BLOCKED until codex-readonly bash-guard relaxation OR alternative subagent invocation lifecycle. STAND-IN-NOTICE per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` applies to Agent P verdict.
+.\docs\install-provenance.md:692:| T (sota-researcher) | (A) Cross-model gate readiness probe + (B) research-beyond auto-skill-invocation patterns | ~14K | **Task A PASS 3/3** (codex 0.125.0 + `exec review --help` confirmed + git working tree clean); **Task B**: 9 net-new findings — CCBP why-harness 10-axis matrix verbatim + skills/subagents auto-invocation rules + 6 Boris Cherny tips + ECC 13 PROACTIVE agents (BIGGEST FINDING — `code-reviewer` "MUST BE USED" strongest auto-invocation language) + codex-rescue PROACTIVELY discipline + adversarial-review gating SOTA | NO codex calls — operator-direct read-only research; STAND-IN-NOTICE Sonnet 4.6 per CLAUDE_CODE_SUBAGENT_MODEL env-pin |
+.\docs\install-provenance.md:693:| U (gpt5-reviewer) | (1) Adversarial review of fire 20 baseline + (2) auto-skill-invocation discipline design | ~12K | **NEEDS-REVISION conf=0.74**; 1 P1 (.gitignore missing `.claude/worktrees/`) + 1 P2 (codex `stopReviewGate` not activated post-install — needs `/codex:setup`) + 2 P3; 12 VERIFIED-CORRECT items including independent verification of upstream hooks.json (SessionStart/SessionEnd/Stop ONLY); 5 design sub-tasks delivered | **STAND-IN-NOTICE**: agent_plan_readonly_bash_guard.py blocked `2>&1` redirection on Bash from agent worktree — FM-17.c.ii n=4 same-arc. Sonnet stand-in; cross-model gate NOT structurally satisfied |
+.\docs\install-provenance.md:744:- **Advanced-agent-team standing-directive**: 3-agent fan-out per `n=3+ user-trigger every fire 3-5 agents` discipline. ARTIFACT-INLINE pre-mandate per FM-19 + invariant #5. Per-call codex budget 90-180s per FM-17.d. STAND-IN-NOTICE fallback path for FM-17.c.ii (fired n=4 same-arc on Agent U).
+.\docs\install-provenance.md:762:| Q (sota-researcher) | Research-beyond CCBP `64fffd53` + outer-research kits v62-v64 for net-new SOTA candidates | ~13K | 5 TIER-A NET-NEW (A1 `memory:` frontmatter / A2 PTC+Dynamic Filtering+Tool Use Examples / A3 monorepo Skills semantic / A4 12 CCBP `reports/` cites / A5 5 CCBP `changelog/` cites / A6 Windows tutorial); 9 TIER-B clusters (B1-B9) needing Probe DAG; 3 TIER-C cite-anchor refreshes (C1-C3); 0 NEW SOTA primitives in v63→v64 delta (HNF) | NO codex calls — operator-direct read-only research; FM-17.b/c/d preventive |
+.\docs\install-provenance.md:763:| R (gpt5-reviewer) | Adversarial review of fire 16 + fire 17 ships (cardinal-rule conformance + Phase 2 trigger predicate accuracy + cite-trail purity) | ~10K | **APPROVE conf=0.82**; 0 P1 / 2 P2 (Section 3 status flips + Section 13 Path A→Path B HNF) / 3 P3 (hooks.json HEAD SHA / n-counter off-by-one / CR-3 binary nuance); 9 VERIFIED-CORRECT items including independent verification of upstream hooks.json content (SessionStart/SessionEnd/Stop ONLY) | **STAND-IN-NOTICE**: SONNET STAND-IN, NOT REAL GPT-5.5. FM-17.c.ii codex-readonly bash-guard policy block confirmed (n=3 same-arc per fire 16). Cross-model gate NOT satisfied for this adversarial review fire; T1 re-review via main-session foreground+tee available for escalation per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` Option 2 |
+.\docs\install-provenance.md:867:**Agent X** (gpt5-reviewer Sonnet STAND-IN per FM-17.c.ii n=5 same-arc; cross-model gate NOT structurally satisfied for this review): adversarial review of fire 22 commit `34a3415` VERDICT = NEEDS-REVISION conf=0.73; no P1 blockers; 2 P2 forward-correction findings logged below; 3 P3 advisories. Artifact persisted at `Z:/claude-sota/tmp/wave50-fire23-agentX-adversarial-review-of-fire22-2026-05-06.md`.
+.\docs\install-provenance.md:878:- **P3-3** — FM-17.c.ii n=4 (now n=5 with this fire's Agent X) chain internally consistent across fire 16/18/21/23 instances; not independently cross-verified from primary fire 16 Agent P artifact.
+.\docs\install-provenance.md:880:### FM-17.c.ii ladder advance — n=5 same-arc
+.\docs\install-provenance.md:882:This fire's Agent X confirmed FM-17.c.ii at n=5 same-arc cumulative (fire 16 Agent P n=1 / fire 18 Agent R n=2 / fire 18 Agent P n=3 / fire 21 Agent U n=4 / fire 23 Agent X n=5). Pattern stable: codex-readonly bash-guard policy consistently blocks `2>&1` redirection + PowerShell verbs from agent worktree sandbox context. All 8 of Agent X's probes were completed via allowed primitives (Bash git/ls/du, Glob, Read). Per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` Option 2 — STAND-IN-NOTICE applied; cross-model gate substituted via Sonnet 4.6 STAND-IN, NOT real GPT-5.5. T1 re-review via main-session foreground+tee `codex exec --ephemeral -p deep-review` available for escalation if operator wishes to satisfy cross-model gate before fire 24 ships.
+.\docs\install-provenance.md:908:- **FM-17.c.ii ladder advance n=5**: BRIDGE-MODE Sonnet STAND-IN pattern is now stable observation; cross-model gate satisfaction requires either main-session foreground+tee escalation OR codex-readonly policy reform (FORWARD-REF; not this fire's scope).
+.\docs\install-provenance.md:1103:- **CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE (codex T1 PreToolUse:Edit gate WARN-only since this fork made no design-surface edits; only file copies + provenance append. Bootstrap-class artifact relocation under cardinal-rule-5 §"Bootstrap-only files" exemption.)
+.\docs\install-provenance.md:1167:  - **a63f16c1a2b6f8947 (Wave 5 — sota-researcher port)**: cite-extend `Z:\claude-sota\.claude\agents\sota-researcher.md @ SHA 5099454a08642fddd477218009652e38c0e3cce8` → `Z:\claude-sota-installed\.claude\agents\sota-researcher.md` with CR-9 sibling-bleed path-rewrites + CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION marker + HNF evidence comment block. CR-7 Phase 2 BLOCKER unblock.
+.\docs\install-provenance.md:1182:- **Smoke probe**: `Z:/claude-sota/`=0 occurrences ✓ / `Z--claude-sota[^-]`=0 ✓ / `claude-sota-state`=0 ✓ / `effective_tier: TIER-3-LOCAL-COMPOSITION`=1 ✓
+.\docs\install-provenance.md:1184:- **CR-12 effective_tier**: TIER-3-LOCAL-COMPOSITION (sibling-derived; cannot elevate to TIER-1 SOTA per citation-discipline.md rule #8)
+.\docs\install-provenance.md:1199:- **Per-file ports** (all CR-9 path-rewritten + CR-12 effective_tier marker added; smoke probe PASS = zero residual sibling-bleed in body):
+.\docs\install-provenance.md:1224:- Cross-model-gate-satisfaction: **PARTIAL via STAND-IN-NOTICE** (codex sandbox blocked local probes; web evidence + reasoning only)
+.\docs\install-provenance.md:1253:CR-12 effective_tier marker present: PASS.
+.\docs\install-provenance.md:1349:- **CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE (Wave 9 was a fork-driven port, not codex-T1-bridged at PreToolUse:Edit; acceptable per CR-3 Phase 1 bootstrap exception + post-T5 fix-forward shape)
+.\docs\install-provenance.md:1372:- **CR-12 effective_tier marker**: TIER-3-LOCAL-COMPOSITION present on all 9 ported files.
+.\docs\install-provenance.md:1394:- **CR-12 marker**: `effective_tier: TIER-3-LOCAL-COMPOSITION` present in port-note frontmatter
+.\docs\install-provenance.md:1408:**Final `.claude/rules/` shape**: 33 files / 770,000 bytes (was 0 / 0 pre-Wave-8). All sibling-bleed defense PASS. All CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION markers present. All HNF evidence blocks present.
+.\docs\install-provenance.md:1433:**CR-3 cross-model gate satisfaction (cumulative)**: PARTIAL via STAND-IN-NOTICE for the recursive ports (codex T1 gate fired WARN-acknowledged-known-false-positive per the meta-review-fallback discipline; the discipline ITSELF is the rule that was just installed, recursively closing its own gate-satisfaction status).
+.\docs\install-provenance.md:1594:- Each ported file carries the CR-12 `effective_tier: TIER-3-LOCAL-COMPOSITION` marker, which OPERATIONALLY documents that the entire file is sibling-derived provenance.
+.\docs\install-provenance.md:1811:**CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE — operator interactive `/plugin install` is the canonical Anthropic CC mechanism per `https://code.claude.com/docs/en/install` (TIER-1-DIRECT); no T1/T2/T5 codex review gate fires on plugin-install events (out-of-scope for hook-event lifecycle).
+.\docs\install-provenance.md:1918:- **CR-3** ✅: cross-model gate satisfaction PARTIAL via STAND-IN-NOTICE (operator interactive `/plugin install` is canonical Anthropic mechanism per https://code.claude.com/docs/en/install; no T1/T2/T5 codex review needed for plugin-install events)
+.\docs\install-provenance.md:2037:- FAILED with FM-17.d internal-compaction error: `Unknown parameter: 'service_tier'` at codex's compact_remote endpoint
+.\docs\install-provenance.md:2694:| B | codex:codex-rescue (BRIDGE-MODE → GPT-5.5) | CLIProxyAPI v6.10.9 source + comparable proxies + fleet-starvation defense | **FM-17.e candidate FAILED** | 4 | 792s / 261 tokens |
+.\docs\install-provenance.md:2695:| C | codex:codex-rescue (BRIDGE-MODE → GPT-5.5) | Subagent context efficiency + Wave 79 adversarial challenge | **FM-17.e candidate FAILED** | 4 | 1004s / 172 tokens |
+.\docs\install-provenance.md:2697:### FM-17.e candidate sub-class — autocompact-thrashing (n=2 same-arc)
+.\docs\install-provenance.md:2699:Per `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md` (cite-import-AMBER): both Agents B + C returned identical self-diagnostic — "context refilled to the limit within 3 turns of the previous compact, 3 times in a row". Distinct from FM-17.a (truncated `<result>`), FM-17.b (429), FM-17.c.i (codex bg state miss), FM-17.c.ii (Windows cert ACL), FM-17.d (600s watchdog stall). Agents ran 13-17min producing only 261/172 tokens — most consumed by recursive /compact loops. Pattern hypothesis: codex-rescue BRIDGE-MODE wrapper accumulates tool-result bloat from large file reads (CLIProxyAPI source / awesome-agentic-patterns / deepagents middleware) BEFORE compact can reclaim, hits 1M ceiling.
+.\docs\install-provenance.md:2734:5. FM-17.e mitigation: brief-template "read in 500-line chunks max" CONSTRAINTS slot for next BRIDGE-MODE dispatch
+.\docs\install-provenance.md:2739:- TIER-3-LOCAL: `tmp/wave-arch-opt-sota-agentA-2026-05-08.md` (Agent A return + Mia override) / `tmp/wave-cliproxy-arch-deepdive-agentB-2026-05-08.md` (Agent B FM-17.e failure log) / `tmp/wave-subagent-context-deepdive-agentC-2026-05-08.md` (Agent C failure log) / `tmp/wave-subagent-context-v64-adoption-plan-2026-05-08.md` (orchestrator pivot V64-adoption-plan ADOPT TOP-4 conf=0.86)
+.\docs\install-provenance.md:2756:   - effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+.\docs\install-provenance.md:2762:   - effective_tier=TIER-3-LOCAL-COMPOSITION
+.\docs\install-provenance.md:2815:- F-001: cite-class reframe — TIER-1-NAMED-AUTHOR-QUOTE → constituents=[TIER-1-DIRECT @ file:line, TIER-3-LOCAL-COMPOSITION] per citation-discipline.md rule #8 (file:line depth added: SKILL.md:10-12 @742dca5)
+.\docs\install-provenance.md:2844:3. **Cite-class reframe on TIER-1-NAMED-AUTHOR-QUOTE**: when source is repo-housed (not standalone book/paper/talk), use citation-discipline.md rule #8 constituents form with TIER-1-DIRECT primary + TIER-3-LOCAL-COMPOSITION glue
+.\docs\install-provenance.md:2981:### STAND-IN-NOTICE
+.\docs\install-provenance.md:2983:Agent ran as Sonnet stand-in via CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6 (cross-model gate NOT structurally satisfied for this dispatch). STUDY-PILOT verdicts require operator decision + codex T1 second-stage validation per FM-09 codex-rescue blind-spot specialization before any adoption fires.
+.\docs\install-provenance.md:3021:- Empirical validation cite: Wave 82w shipped 2 rules with NAMED-AUTHOR-QUOTE class; Wave 82x codex T1 caught misclassification + prescribed constituents-form reframe
+.\docs\install-provenance.md:3022:- Forward-only application: this discipline applies to NEW cite anchors going forward; existing constituents-form citations in deprecation-discipline.md + launch-discipline.md preserved as Wave 82x Pattern A snapshot
+.\docs\install-provenance.md:3217:- 2 PASS findings: PASS-001 CITE_TRAIL (TIER-1 SDK schema confirmed) + PASS-002 HARNESS_FIT (FM-17 classification precedence preserved)
+.\docs\install-provenance.md:3250:- Agent A: sota-researcher (Sonnet stand-in; STAND-IN-NOTICE present at agent layer)
+.\docs\install-provenance.md:3297:- Agent A: sota-researcher (Opus 4.7 — no STAND-IN-NOTICE; cross-model gate at agent layer needs codex T1 closure)
+.\docs\install-provenance.md:3530:- FM-17.e n=3 promotion to OWNED-rule per cycle-322 (currently n=2)
+.\docs\install-provenance.md:3639:Wave 87 dispatched 2 BRIDGE-MODE codex-rescue subagents for Aperant deep-dive + outer-research kits/v64 audit. Both PRE-FIRE'd with `API Error: Extra usage is required for 1M context · run /extra-usage to enable` (NEW FM-17.b variant on Sonnet wrapper layer 220-372ms / 0 tokens / 0 tools). Pivoted to orchestrator-direct work via Bash + Read + direct file probes.
+.\docs\install-provenance.md:3642:- 2 BRIDGE-MODE subagent attempts FAILED FM-17.b.i wrapper-funneling extra-usage variant (5 distinct failure modes catalogued this session)
+.\docs\install-provenance.md:5054:This T1 supersedes Agent B STAND-IN-NOTICE (Sonnet stand-in dispatch) per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate`. Cross-model gate satisfied.
+.\docs\install-provenance.md:5119:- **CR-3**: real GPT-5.5 codex T1 e2e BEFORE commit (APPROVE conf=0.90; supersedes Agent B STAND-IN-NOTICE)
+.\docs\install-provenance.md:5384:- **2-round fix-forward expectation MET**: Round-1 NEEDS-REV → Pattern A 4-prescription apply → Round-2 Pattern B HNF (per FM-17.b/FM-01 expectation)
+.\docs\install-provenance.md:5453:## 2026-05-08 Wave 97 — Ship 1J: CLIProxyAPI strategy `fill-first` → `round-robin` (FM-17.b.i 429 root-cause closure)
+.\docs\install-provenance.md:5459:### FM-17.b.i fire that motivated this ship
+.\docs\install-provenance.md:5461:Wave 97 fan-2 Agent fan2-C 429'd at <12s / 1 tool_use / 2 tokens with `API Error: Server is temporarily limiting requests` — wrapper-funneling PRE-FIRE class per `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md §FM-17.b.i`. Pivoted to orchestrator-direct investigation per `cross-model-consensus.md §Orchestrator-direct fallback constraints`.
+.\docs\install-provenance.md:5584:- `fm17-subagent-fleet-depletion.md §FM-17.b.i`: this ship addresses the root cause of FM-17.b.i wrapper-funneling PRE-FIRE 429 fires
+.\docs\install-provenance.md:5596:| **97-1J** | **THIS** | **1J — CLIProxyAPI strategy fill-first → round-robin (FM-17.b.i root-cause closure)** |
+.\docs\install-provenance.md:5604:- A 2nd FM-17.b.i fire occurs post-restart with round-robin active (would invalidate the fix and require deeper investigation)
+.\docs\install-provenance.md:6003:- Script 1 constituents: TIER-1-DIRECT @ codex-plugin-cc substrate (above) + TIER-3-LOCAL-OPERATOR-DERIVED @ sibling claude-sota commits `46358c2` (Wave 50 Fire 46 origin) + `d298d47` (Wave 50 Fire 43 path-mangling actual-fix) + Wave 80 P#3 extension
+.\docs\install-provenance.md:6004:- Script 2 constituents: TIER-1-DIRECT @ everything-claude-code substrate (above) + TIER-3-LOCAL-OPERATOR-DERIVED @ sibling claude-sota commits `062455b` (Wave 52 runtime rescue) + `4b26416` (eee runtime port + env scrub)
+.\docs\install-provenance.md:6005:- effective_tier (BOTH): **TIER-3-LOCAL-COMPOSITION** (MIN_PRECEDENCE per citation-discipline.md rule #8 due to eee-local composition glue)
+.\docs\install-provenance.md:6784:- SHIP-2 Wave 98 Ship A + D (priority-bucket equalize + FM-17.b.i combo defense)
+.\docs\install-provenance.md:6916:- SHIP-2 Wave 98 Ship A + D (priority-bucket equalize + FM-17.b.i combo defense; operator-decision)
+.\docs\install-provenance.md:6932:Operator-requested comprehensive overview surfaced 20 missing-SOTA gaps. Wave 85 dispatched 3-agent advanced team (CADP rule 2 max 3 concurrent) to research top-3 highest-leverage gaps with FM-17.e mitigation slot + V64 §3 LANE convention applied.
+.\docs\install-provenance.md:6939:| B | codex:codex-rescue (STAND-IN) | Memory L2 (Qdrant) + L3 (Graphiti FalkorDB MCP) wire | DONE | 5 prescriptions w/ FALKORDB_URI correction | 1 | 297s |
+.\docs\install-provenance.md:6940:| C | codex:codex-rescue (STAND-IN) | ACP wiring (claude-agent-acp adapter) | DONE | ADOPT-ADAPTER-CONSUMER conf=0.78 | 1 | 231s |
+.\docs\install-provenance.md:6942:### STAND-IN-NOTICE per cardinal-rule-3
+.\docs\install-provenance.md:6943:Agents B + C explicitly returned STAND-IN-NOTICE — codex CLI subprocess NOT spawned; direct deep-dive against local repo checkouts. Per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate: cross-model gate at agent layer NOT structurally satisfied. Orchestrator-side GPT-5.5 review via proxy /v1/chat/completions IS the synthesis-layer cross-model satisfaction per cardinal-rule-3 Phase 1 bootstrap exception.
+.\docs\install-provenance.md:7136:- **TIER-3-LOCAL-COMPOSITION**: throttle predicate (Lamport timestamp + git porcelain shortstat) is sss-novel mechanical composition over TIER-1 cwc primitive. Per CR-1 rule #8 lattice: `effective_tier=TIER-3-LOCAL-COMPOSITION`.
+.\docs\install-provenance.md:7211:- **CR-1**: TIER-3-LOCAL-COMPOSITION over TIER-1 cwc primitive (rule #8 lattice)
+.\docs\install-provenance.md:7232:- SHIP-2 Wave 98 Ship A + D (priority-bucket equalize + FM-17.b.i defense; operator-decision)
+.\docs\install-provenance.md:7720:| B | codex:codex-rescue (BRIDGE-MODE) | **FAILED** API-error 1M-ctx (FM-17.d wrapper limit) | recovery via orchestrator codex foreground+tee |
+.\docs\install-provenance.md:8447:## 2026-05-09 Wave 112 Ship A1: 5-CLI batch install — Agent A SOTA delta Pattern A apply (FM-17.e n=3 caught; parallel-session reconciliation)
+.\docs\install-provenance.md:8460:**FM-17.e autocompact-thrashing — n=3 cumulative same-arc** (eligible for catalog → OWNED rule promotion per `Z:/claude-sota/.claude/rules/named-failure-modes.md` §Promotion threshold + cycle-322): Agent C (codex-rescue BRIDGE-MODE → real GPT-5.5, scope: arch-opt + research-arch v2) FAILED at 989s with notification `Autocompact is thrashing: context refilled 3 turns in a row, 3 times`. Agent C verdict FORFEITED. Per FM-17.d defense: per-call codex 90/120/180s budget was specified in brief but did NOT prevent autocompact-thrashing (DIFFERENT failure mode — fires when single tool output too large for context window). Recovery: re-dispatch with TIGHTER scope (research-arch v2 ONLY, arch-opt deferred) on next fire OR orchestrator-direct probe substitute.
+.\docs\install-provenance.md:8476:- ❌ Agent C arch-opt+research-arch-v2 (FM-17.e FAILED — re-dispatch tighter scope queued)
+.\docs\install-provenance.md:8480:- 🆕 FM-17.e n=3 promotion to OWNED rule per cycle-322
+.\docs\install-provenance.md:8624:| CR-3 (cross-model T1) | ✅ Phase 1 bootstrap exception | Sonnet stand-in dispatch per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate`; cleanup ship low-risk so T1 N/A; T3 post-commit auto-fires per settings.json |
+.\docs\install-provenance.md:8690:**CR-3 Phase 1 bootstrap exception**: codex T1 deep-review-exec foreground+tee fired BEFORE this commit (240s budget per FM-17.d defense; output at `.claude/state/codex_consult_wave112_ship2aa_gitnexus_install_OUT.txt` 2403 LOC). Result: timeout exit=124 → **Pattern B HONEST-NON-FINDING** per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern B. codex was actively investigating: SRA D2 5-band table + GitNexus README community-integrations + gitnexus-claude-plugin git-log. Trace-mined embedded evidence:
+.\docs\install-provenance.md:8712:- 🆕 FM-17.e n=4 catalog→OWNED rule promotion (per cycle-322 + Wave 112 Ship A1 catch)
+.\docs\install-provenance.md:8724:## 2026-05-09 Wave 112 Ship F: FM-17.e sub-class codification (CC-runtime autocompact-thrashing; n=4 cumulative same-arc)
+.\docs\install-provenance.md:8726:**Origin**: Wave 112 Ship A1 commit `f29c973` body queued: "FM-17.e n=4 catalog→OWNED rule promotion (per cycle-322 + Wave 112 Ship A1 catch)". Per existing rule's §Update triggers L183 ("A 5th sub-class emerges (FM-17.e candidate at n=2+) -- would split rule into 5-section structure"): TRIGGER SATISFIED at n=4 cumulative.
+.\docs\install-provenance.md:8730:1. **`### FM-17.e -- Subagent autocompact-thrashing (CC-runtime context-window saturation; no partial output)`**:
+.\docs\install-provenance.md:8734:   - Recovery: re-dispatch with TIGHTER probe scope (substitute Read with `mcp__plugin_context-mode_context-mode__ctx_execute_file`; substitute WebFetch with `mcp__plugin_context-mode_context-mode__ctx_fetch_and_index`; cap exa/perplexity with `head_limit`; bound Bash outputs with `head -N`); orchestrator-direct codex exec foreground+tee (sister to FM-17.d recovery)
+.\docs\install-provenance.md:8739:3. **§Anti-patterns**: added FM-17.e-specific anti-pattern (re-dispatch with same brief that triggered .e; brief tightening MUST substitute large-output tool calls with bounded variants)
+.\docs\install-provenance.md:8741:4. **§Promotion threshold + §Update triggers**: cumulative ladder n=11+ → n=15+; LOC 140 → 165 (within 200 ceiling); SATISFIED Wave 112 Ship F (this fire); 5-sibling taxonomy (a/b/c/d/e); FM-17.f candidate at n=2+ trigger added
+.\docs\install-provenance.md:8743:**File git status**: rule file was UNTRACKED pre-this-ship (per Wave 112 Ship A1 git status output); commit `5fb281f` is FIRST git tracking + the 43 LOC FM-17.e additions; total 208 LOC under git tracking now (per cardinal-rule-9 governance-class — sibling-cite-imported rule now under repo tracking).
+.\docs\install-provenance.md:8745:**CR-3 Phase 1 bootstrap exception**: codex T1 gate WARN fired 4x during Edit (`codex_consult_<topic>_OUT.txt` missing for fm17e_n4_promotion topic). Per `Z:/claude-sota-installed/.claude/rules/codex-t1-system-meta-review-fallback.md` n=7 evidence: SYSTEM-meta-review fallback applies — Wave 112 Ship A1 commit `f29c973` body classified this codification verbatim ("FM-17.e cumulative n=4 same-arc 2026-05-09 — DEFINITIVELY past cycle-322 n=3 promotion threshold. Catalog→OWNED rule promotion queued."). T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net per cardinal-rule-3 Phase 1 bootstrap exception. Same disposition pattern as Wave 109 closure + Wave 112 Ship A1 + Wave 112 Ship 2AA.
+.\docs\install-provenance.md:8747:**CR conformance**: CR-1 ✅ (TIER-1 cite preserved — Wave 112 Ship A1 commit `f29c973` body as system-meta-review per fallback rule n=7 evidence; existing rule's TIER-1 cite chain at L7-L17 unchanged) + CR-3 ⚠️ Phase 1 bootstrap exception (T1 gate WARN x4 acknowledged + SYSTEM-meta-review fallback cited; T2 commit-gate net) + CR-5 ✓ N/A (rule extension not install-class) + CR-7 ✅ Phase 3 preserved + CR-8 ✅ ADAPTED-FROM-SOTA (existing rule extension; sister-rule pattern from FM-17.d codification at Wave 44) + CR-9 ⚠️ MEDIUM (rule edit MEDIUM risk per `Z:/claude-sota-installed/.claude/rules/launch-discipline.md`; LOC within 200 ceiling; reversible via revert) + CR-10 ✅ research-first (probed existing FM-17 sub-class structure + sister rules + grep for FM-17.e references BEFORE Edit) + CR-11 ✅ META-process (cycle-322 jurisdiction codification; sister rule precedent FM-17.d Wave 44; Mia pre-apply on cumulative count via session-summary cite) + CR-12 ✅ N/A.
+.\docs\install-provenance.md:8753:- META-router catalog at `Z:/claude-sota/.claude/rules/named-failure-modes.md` FM-17 row should be updated to mention 5-sibling taxonomy (a/b/c/d/e) — DEFERRED to next fire per ONE-LOGICAL-UNIT-PER-FIRE
+.\docs\install-provenance.md:8755:**T1 gate WARN incident-class** (4x same-fire): may indicate `codex_t1_consult_gate.py` gate config could benefit from FM-17.e-specific topic-keyword recognition. Currently the gate looks for `codex_consult_<this-edit-topic>_OUT.txt` exact-match; SYSTEM-meta-review fallback is the operator-side discipline. Forward-only audit candidate: extend gate to recognize `commit-body-as-system-meta-review` pattern (probe last N commit bodies for current-edit-target-classification text). Queued separately per ONE-LOGICAL-UNIT-PER-FIRE.
+.\docs\install-provenance.md:8762:- 🆕 Ship F-router-update: `Z:/claude-sota/.claude/rules/named-failure-modes.md` FM-17 META-router row update mentioning 5-sibling taxonomy (a/b/c/d/e) — DEFERRED next fire
+.\docs\install-provenance.md:8775:- Wave 112 Ship F FM-17.e codification + this provenance → commits `5fb281f` + this commit (40th + 41st)
+.\docs\install-provenance.md:8780:## 2026-05-09 Wave 112 Ship 2BB+F-router (combined): Scrapling REJECT-FOR-FIT + FM-17 META-router 5-sibling update
+.\docs\install-provenance.md:8784:**Origin**: operator URL `https://github.com/D4Vinci/Scrapling` 2026-05-09 (queued in Wave 112 Ship A1 + Ship 2AA outstanding queue). NARROW-scope sota-researcher dispatched per FM-17.e mitigation (single-agent + bounded probes; substitute large-output tool calls).
+.\docs\install-provenance.md:8786:**Agent dispatch metrics** (FM-17.e mitigation VALIDATED):
+.\docs\install-provenance.md:8813:### Ship F-router-update — META-router catalog FM-17 row update (5-sibling taxonomy)
+.\docs\install-provenance.md:8815:**Origin**: Wave 112 Ship F commit `5fb281f` (FM-17.e codification) + provenance `55f058d` queued META-router catalog update as next-fire ship. Per `Z:/claude-sota/.claude/rules/named-failure-modes.md:12-17` jurisdiction (catalog routes to OWNED rules; mechanics live in OWNED rule files): the catalog FM-17 row at `.claude/rules/named-failure-modes.md:45` should mention 5-sibling taxonomy (a/b/c/d/e) post Wave 112 Ship F codification.
+.\docs\install-provenance.md:8818:- n=11+ cumulative ladder → **n=15+ cumulative cross-arc 2026-05-04 → 2026-05-09** (added n=4 FM-17.e Wave 51 prior arc + Wave 112 Ship A1)
+.\docs\install-provenance.md:8819:- Added FM-17.e signature description inline in row's signature column ("CC-runtime autocompact-thrashing class — subagent task-notification arrives `<status>completed</status>` + literal 'Autocompact is thrashing' + minimal usage / ~989-1180s")
+.\docs\install-provenance.md:8821:- Added FM-17.e recovery action ("brief tightening MUST substitute large-output tool calls (Read large files → ctx_execute_file; WebFetch → ctx_fetch_and_index; exa/perplexity → head_limit; Bash dumps → head -N); orchestrator-direct codex exec foreground+tee bypasses subagent context entirely (sister to FM-17.d recovery)")
+.\docs\install-provenance.md:8827:Both Ship 2BB (Scrapling REJECT) and Ship F-router-update (catalog FM-17 row) are doc-only per `Z:/claude-sota/.claude/rules/research-protocol.md` — no install-class artifact. T1 codex consult was DEFERRED for both (Ship 2BB used sota-researcher Sonnet agent dispatch; Ship F-router was direct Edit). T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net per cardinal-rule-3 Phase 1 bootstrap exception. Same disposition pattern as Wave 109 closure + Wave 112 Ship A1 + Ship 2AA + Ship F.
+.\docs\install-provenance.md:8833:| CR-1 (cite SOTA primary) | ✅ | TIER-1 cites preserved (Scrapling: GitHub API + PyPI + README cites; FM-17 row: rule's own cite chain at L7-L17 unchanged + Wave 112 Ship F commit `5fb281f` cited) |
+.\docs\install-provenance.md:8837:| CR-8 (full-SOTA-content) | ✅ ADAPTED-FROM-SOTA (Scrapling SRA per upstream README+API+PyPI; FM-17 catalog update per existing OWNED rule's codified content) |
+.\docs\install-provenance.md:8839:| CR-10 (research-first) | ✅ Agent A 11-tool-use 174s SRA D1-D10 probe BEFORE REJECT verdict; orchestrator probed FM-17 row at L45 BEFORE Edit |
+.\docs\install-provenance.md:8840:| CR-11 (META-process) | ✅ FM-17.e codification → catalog row update closure (Wire/Surface/Close cycle complete); Mia pre-apply on Scrapling claim against incumbent surfaces caught DUPLICATE-FUNCTIONALITY; SRA D1-D10 scoring per `sota-research-architecture.md` |
+.\docs\install-provenance.md:8846:- META-router FM-17 row reflects 5-sibling taxonomy → cross-rule consumers can cite catalog as authoritative for sub-class enumeration
+.\docs\install-provenance.md:8847:- FM-17.e mitigation discipline DOGFOOD-VALIDATED (Wave 112 Ship 2BB Agent A: 11 narrow calls / 174s / no thrash vs Wave 112 Ship A1 B+C: 4 calls / 989-1179s / both thrash)
+.\docs\install-provenance.md:8851:This combined ship lands narrowly via single-shell `git commit --only -- .claude/rules/named-failure-modes.md docs/install-provenance.md tmp/wave112-shipBB-scrapling-sra-2026-05-09.md`. Combined commit because Ship 2BB and Ship F-router-update are intrinsically linked — Ship F codified FM-17.e (rule-layer); Ship F-router-update propagates the codification to catalog-layer; Ship 2BB validates the FM-17.e mitigation discipline via dogfood (first agent dispatch post-codification used the discipline + succeeded).
+.\docs\install-provenance.md:8858:- 🆕 Ship cleanup-worktrees: 29+ stale agent worktrees from FM-17.b.ii/.e cleanup-leak (per parallel-session-worktree-isolation.md)
+.\docs\install-provenance.md:8867:42nd commit in this session arc. This /loop fire arc total: 5 substantive ships landed (Wave 109 OTel closure + Wave 112 Ship A1 5-CLI install + Wave 112 Ship 2AA gitnexus MCP wire + Wave 112 Ship F FM-17.e codification + Wave 112 Ship 2BB+F-router combined). Cron `ae540201` armed `7,22,37,52 * * * *` for autonomous /loop continuation.
+.\docs\install-provenance.md:8874:**Trigger**: 30 stale `agent-*/` worktrees in `.claude/worktrees/` totaling 42MB — FM-17.b.ii cleanup-leak signature (LOCKED state from prior Sonnet wrapper crashes per Wave 110 fire 1 + Wave 112 Ship A1 + earlier fires).
+.\docs\install-provenance.md:8889:**Sister rule**: per `Z:/claude-sota/.claude/rules/parallel-session-worktree-isolation.md §FM-17.b.ii cleanup-leak` — agent worktrees should be ephemeral; LOCKED state indicates wrapper crash before unlock; bulk-cleanup is sanctioned operational hygiene.
+.\docs\install-provenance.md:8944:| CR-1 (cite SOTA primary) | ✅ | Mia archeology cites cycle-322 jurisdiction + parallel-session-worktree-isolation.md FM-17.b.ii cleanup-leak |
+.\docs\install-provenance.md:8951:| CR-11 (META-process) | ✅ Mia ladder advanced n=31→36 with explicit cite trail; cleanup-worktrees per FM-17.b.ii recovery action |
+.\docs\install-provenance.md:9110:Wave 113 close-synthesis lands as next ship in session arc. Audit-trail Wire/Surface/Close cycle complete for Wave 113. Cron `5e0c7efb` next tick at :30/:45 local (15-min cadence). Parallel session continues shipping FM-17.e codification (Ship F at `5fb281f`/`55f058d`). Cooperative parallel-shipping mode confirmed by operator silence on topology question.
+.\docs\install-provenance.md:9214:Wave 114 Ship 2W-cleanup-C lands as next ship in session arc. Audit-trail Wire/Surface/Close cycle complete. Cron `5e0c7efb` next tick. Parallel session continues shipping cooperatively (FM-17.e codification at `5fb281f`/`55f058d` Ship F). Wave 114 deferred CAPTURE design to Wave 115+ per ONE-LOGICAL-UNIT-PER-FIRE — concrete cleanup ship landed instead.
+.\docs\install-provenance.md:9634:| CR-8 (full-SOTA-content) | ✅ ADAPTED-FROM-SOTA (existing rule extension; sister-rule pattern from FM-17.e codification at Wave 112 Ship F) |
+.\docs\install-provenance.md:9637:| CR-11 (META-process) | ✅ cycle-322 jurisdiction codification; Mia ladder n=36 → discipline codification; sister rule precedent FM-17.e Wave 112 Ship F |
+.\docs\install-provenance.md:9886:- **gitnexus HNF-3** (Wave 118 Ship A2 closure of Wave 112 Ship 2AA-followup-2 HNF-2): `.gitnexusignore` excluding AppData/ + node_modules/ + .bun/ + .cache/ + state/ + plugins/cache/ DID NOT fix the silent-bail. lbug+wal lands (32KB) but `meta.json` MISSING + `gitnexus list` returns "No indexed repositories found" — same shape as prior HNF-2. Hypothesis 1 REFUTED. Root cause likely deeper (per prior session note: "broken native bindings (LadybugDB lbugjs.node had cleanup warnings at install)"). Time-boxed per FM-17.e — queued for operator-side investigation session (operator action: probe @ladybugdb/core install state; possibly reinstall gitnexus@1.6.3 + verify lbugjs.node integrity).
+.\docs\install-provenance.md:9888:- **FM-17.f candidate (NEW failure class n=1, 2026-05-09)**: Agent() subagent dispatch fails with "API Error: Extra usage is required for 1M context · run /extra-usage to enable, or /model to switch to standard context" at 648ms / 0 tool_uses / 0 tokens. Tested with `codex:codex-rescue` agent type which has `model: sonnet` frontmatter — error fires anyway. Hypothesis: Anthropic CC SDK propagates parent `claude-opus-4-7[1m]` context-window-entitlement check at subagent instantiation BEFORE frontmatter `model:` takes effect. Distinct from FM-17.b.i wrapper-funneling pre-fire (429 cooling-down) and FM-17.d wrapper-watchdog stall (600s). Cross-model coverage IMPACT: blocks BRIDGE-MODE GPT-5.5 subagent fan-out via Anthropic SDK path — must pivot to direct `codex exec` foreground+tee from main session for cross-model verification. Operator decision needed: enable `/extra-usage` (costs money) OR set `CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6` in CLAUDE.local.md ENV (g) to bypass 1M-context-entitlement (next session only — requires eee restart). Codification queued at task #58 — promote to FM-17.f when n>=3 same-arc per cycle-322.
+.\docs\install-provenance.md:9894:- 🆕 Ship A3 (queued): codex T1 narrowed re-fire on selector.go round-robin verification (Pattern B HNF didn't converge in Ship A1; narrower 1-axis prompt may converge in <120s budget per FM-17.d defense)
+.\docs\install-provenance.md:9925:- **CR-3 satisfaction path**: Pattern B HNF + cross-model gate satisfied via foreground+tee codex BRIDGE-MODE (real GPT-5.5; bypasses FM-17.f 1M-context-entitlement issue that blocks Anthropic SDK Agent() subagent fan-out). T2 commit-time hook `codex_t2_pre_commit_gate.py` is the cross-model verification net per `cross-model-consensus.md §The contract` Phase 1 bootstrap exception.
+.\docs\install-provenance.md:9964:- **Disposition**: HNF-4 (HONEST-NON-FINDING). Pattern B HNF per `synthesis-layer-verify.md §Reporting categories`. Native bindings hypothesis REFUTED. Root cause STILL unknown. Time-boxed per FM-17.e — queued for operator-side debug session with differential vs sibling claude-sota's working gitnexus.
+.\docs\install-provenance.md:9967:## 2026-05-09T09:30Z — Wave 118 Ship A4: FM-17.f candidate codification (1M-context-entitlement subagent pre-fire)
+.\docs\install-provenance.md:9977:- **Distinct from prior FM-17 sub-classes**:
+.\docs\install-provenance.md:9978:  - NOT FM-17.b (post-substantive-work 429 cooling-down) — this is pre-fire, 0 tool_uses, 648ms
+.\docs\install-provenance.md:9979:  - NOT FM-17.b.i (wrapper-funneling 429 PRE-FIRE) — this is 1M-context-entitlement, NOT 429
+.\docs\install-provenance.md:9980:  - NOT FM-17.b.ii (wrapper MID-EXEC 429 0-public-tokens) — this is pre-instantiation
+.\docs\install-provenance.md:9981:  - NOT FM-17.d (BRIDGE-MODE wrapper-watchdog 600s stall) — this is sub-second
+.\docs\install-provenance.md:9982:  - NOT FM-17.e (CC-runtime autocompact-thrashing) — this is API-Error not autocompact
+.\docs\install-provenance.md:9983:- **Workaround verified**: direct `codex exec` foreground+tee from main session bypasses FM-17.f entirely. codex CLI uses OpenAI API not Anthropic — no 1M-context-entitlement check at subagent instantiation. Verified via ping test returning `READY-FOR-T1` in <60s with 6678 tokens.
+.\docs\install-provenance.md:9986:  - (b) Edit CLAUDE.local.md ENV (g): uncomment `$env:CLAUDE_CODE_SUBAGENT_MODEL = 'claude-sonnet-4-6'` + restart eee (FREE; user prior directive: 1M context is correct, do NOT change)
+.\docs\install-provenance.md:9989:- **Codification queued**: task #58 — promote to FM-17.f when n>=3 same-arc per cycle-322. Currently n=1.
+.\docs\install-provenance.md:9994:50th commit-equivalent in this session arc. Wave 118 fire scope: 4 ships (A1 filesystem CPA equalization + A2 RTK install/wire + A3 gitnexus HNF-4 + A4 FM-17.f candidate codification). T1 e2e cross-model gate satisfied via direct codex exec foreground+tee BRIDGE-MODE (FM-17.f workaround verified). 3 Mia OVER catches integrated (FM-20 path-drift defense — Agent B session-affinity claim REFUTED + phantom repos REFUTED + mcp-router miscategorization REFUTED). Mia OVER ladder Wave 97-118: n=44 → n=48. cumulative Wave 118 fire arc: 4 substantive ships + 1 NEW-failure-class discovery + 4 OVER catches + 1 fully unzipped v65 kit (24 MD + 6 agents + 7 skills awaiting Probe-4 plugin-namespace overlap audit before extraction).
+.\docs\install-provenance.md:10005:- FM-17 sub-class ladder: a/b/c/d/e firm + .f candidate at n=1
+
+web search: 
+web search: https://code.claude.com/docs/en/env-vars
+web search: 
+web search: 'Choose a model' in https://code.claude.com/docs/en/sub-agents
+web search: 
+web search: 'starts in the main conversation’s current working directory' in https://code.claude.com/docs/en/sub-agents
+web search: 
+web search: https://code.claude.com/docs/en/model-config
+codex
+The official model-config page adds an important current fact: extended context now lists Opus 4.7 as 1M-capable and says Opus 1M is included on Max/Team/Enterprise, while Sonnet 1M requires extra usage. That changes the root-cause wording even if the guarded-disable operational pattern still looks right.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"rule #8|TIER-3-LOCAL-COMPOSITION|constituents=|effective_tier|local adaptation|local-machine|CLAUDE.local\" Z:\\claude-sota\\.claude\\rules\\citation-discipline.md" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"Verdict shapes|Env-funneled subagent stand-in disclosure mandate|STAND-IN-NOTICE|foreground\\+tee|Path P|On codex unavailable|Verdict report shape\" Z:\\claude-sota\\.claude\\rules\\cross-model-consensus.md" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"CLAUDE_CODE_SUBAGENT_MODEL|CLAUDE_CODE_DISABLE_1M_CONTEXT|ENV \\(g\\)|ENV \\(h\\)|Path D\" CLAUDE.local.md" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"FM-17\\.f|1M-context|Extra usage|CLAUDE_CODE_DISABLE_1M_CONTEXT|CLAUDE_CODE_SUBAGENT_MODEL|architectural-property|n=1\" docs\\install-provenance.md" in Z:\claude-sota-installed
+ succeeded in 302ms:
+56:# true GPT-5.5 penetration ~25% under env-funneling, NOT 75% nominal. Use Path D ENV (h) instead.
+60:# $env:CLAUDE_CODE_SUBAGENT_MODEL = 'claude-sonnet-4-6'
+62:# (h) Path D — 1M context kill-switch for fan-out Waves (TIER-1-DIRECT Anthropic env var)
+64:#   "CLAUDE_CODE_DISABLE_1M_CONTEXT | Set to `1` to disable 1M context window support.
+79:# $env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'
+
+ succeeded in 313ms:
+38:   - `constituents=[<class1@cite1>, <class2@cite2>, ...]` — explicit list of each constituent primitive at file:line + SHA OR official-docs URL
+39:   - `effective_tier=<class>` — the EFFECTIVE class of the composed claim, computed by the reduction lattice below
+43:   2. `TIER-3-LOCAL-COMPOSITION` (any local glue / sss-novel composition over TIER-1/TIER-2 substrates)
+47:   6. `TIER-1-COMPOSED` (ALL constituents TIER-1 with disclosed local glue) — still TIER-3-LOCAL-COMPOSITION as effective tier
+50:   **Reduction rule (mechanical)**: `effective_tier = MIN_PRECEDENCE(constituents)`. Concretely: if ANY constituent contains "TIER-3-LOCAL-*" OR the composition glue itself is local-codified (e.g., sss-novel composition pattern), the effective tier is `TIER-3-LOCAL-COMPOSITION` regardless of how many TIER-1 primitives are cited. EXCEPTION: if the composed claim is ONLY about an upstream primitive's EXISTENCE (e.g., "asyncRewake field exists" cited verbatim from Anthropic docs), it remains `TIER-1-DIRECT` because there's no local composition glue.
+55:   - `constituents=[TIER-1-DIRECT @ Anthropic-CC-hooks-docs-L1021-1023, TIER-2 @ CCBP-cross-model-workflow.md:1-48, TIER-3-LOCAL-COMPOSITION @ sss-novel T0+T7+profile-selection]`
+56:   - `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE = 2 due to sss-novel glue)
+57:   - Despite Anthropic CC + CCBP being upstream-authority for primitives, the composition itself is sss-local and EFFECTIVE class is TIER-3-LOCAL-COMPOSITION
+
+ succeeded in 307ms:
+659:**Cumulative recursive-promotion-fire dogfood evidence**: n=10 (Wave 50 fires 6+7+8+9+10+11+12+13+14+16 + this fire 17 + 3 prior precedents).
+692:| T (sota-researcher) | (A) Cross-model gate readiness probe + (B) research-beyond auto-skill-invocation patterns | ~14K | **Task A PASS 3/3** (codex 0.125.0 + `exec review --help` confirmed + git working tree clean); **Task B**: 9 net-new findings — CCBP why-harness 10-axis matrix verbatim + skills/subagents auto-invocation rules + 6 Boris Cherny tips + ECC 13 PROACTIVE agents (BIGGEST FINDING — `code-reviewer` "MUST BE USED" strongest auto-invocation language) + codex-rescue PROACTIVELY discipline + adversarial-review gating SOTA | NO codex calls — operator-direct read-only research; STAND-IN-NOTICE Sonnet 4.6 per CLAUDE_CODE_SUBAGENT_MODEL env-pin |
+746:**Cumulative recursive-promotion-fire dogfood evidence**: n=12 (Wave 50 fires 6+7+8+9+10+11+12+13+14+16+17+18+19+20 + this fires 21+22 combined + 3 prior precedents).
+828:**Cumulative recursive-promotion-fire dogfood evidence**: n=11 (Wave 50 fires 6+7+8+9+10+11+12+13+14+16+17 + this fire 18+19 combined + 3 prior precedents).
+882:This fire's Agent X confirmed FM-17.c.ii at n=5 same-arc cumulative (fire 16 Agent P n=1 / fire 18 Agent R n=2 / fire 18 Agent P n=3 / fire 21 Agent U n=4 / fire 23 Agent X n=5). Pattern stable: codex-readonly bash-guard policy consistently blocks `2>&1` redirection + PowerShell verbs from agent worktree sandbox context. All 8 of Agent X's probes were completed via allowed primitives (Bash git/ls/du, Glob, Read). Per `cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` Option 2 — STAND-IN-NOTICE applied; cross-model gate substituted via Sonnet 4.6 STAND-IN, NOT real GPT-5.5. T1 re-review via main-session foreground+tee `codex exec --ephemeral -p deep-review` available for escalation if operator wishes to satisfy cross-model gate before fire 24 ships.
+910:**Cumulative recursive-promotion-fire dogfood evidence**: n=12 (n=11 prior + this fire 23 hard-gate eee).
+2528:- 2026-05-08: input=11,691 / output=647,899 / cache_creation=15,048,771 / cache_read=328,500,xxx / total=344,209,2xx / cost=$273.84
+2983:Agent ran as Sonnet stand-in via CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6 (cross-model gate NOT structurally satisfied for this dispatch). STUDY-PILOT verdicts require operator decision + codex T1 second-stage validation per FM-09 codex-rescue blind-spot specialization before any adoption fires.
+3639:Wave 87 dispatched 2 BRIDGE-MODE codex-rescue subagents for Aperant deep-dive + outer-research kits/v64 audit. Both PRE-FIRE'd with `API Error: Extra usage is required for 1M context · run /extra-usage to enable` (NEW FM-17.b variant on Sonnet wrapper layer 220-372ms / 0 tokens / 0 tools). Pivoted to orchestrator-direct work via Bash + Read + direct file probes.
+6162:This is forward-only operator-discipline; no rule promotion needed at n=1 per `codification-threshold.md` cycle-322 jurisdiction.
+6347:2. `PROGRESS.md` — NEW file at workspace root. 4 sections per cwc CLAUDE.md verbatim convention (## Done / ## In progress / ## Next / ## Notes) + Wave 97+98 historical state + 11 ranked Tier-1/2/3/4 next-ships from 3-agent fan-out verdicts + critical operational state (CPA down + 3-of-7 Claude active + capacity_score stale) + NEW failure mode (codex-rescue 1M-context billing).
+6696:- n=1: Wave 98 Ship 2A `00d1bde` (9 unrelated tracked files swept)
+7057:- n=1: Wave 98 `00d1bde` (9 unrelated tracked files swept)
+7264:- **TIER-2 sister precedent**: openviking AGPLv3 REJECT (n=1; n=2 cumulative AGPL-3 REJECT including this Ship 2T)
+7323:### Forward discipline (Wave 102 audit lesson n=1 NEW; codification queued as separate Ship 2X)
+7494:- Wave 102 lesson n=1: 4-out-of-4 over-applied REJECTs caused by missing T1 verification step
+8546:Wave 112 Ship 2W-cleanup-A may land alone OR be absorbed into next session checkpoint per FM-02(c) recurrence pattern. Cumulative ladder n=9→**n=10** if absorbed; either way audit-trail preserved here.
+8741:4. **§Promotion threshold + §Update triggers**: cumulative ladder n=11+ → n=15+; LOC 140 → 165 (within 200 ceiling); SATISFIED Wave 112 Ship F (this fire); 5-sibling taxonomy (a/b/c/d/e); FM-17.f candidate at n=2+ trigger added
+8818:- n=11+ cumulative ladder → **n=15+ cumulative cross-arc 2026-05-04 → 2026-05-09** (added n=4 FM-17.e Wave 51 prior arc + Wave 112 Ship A1)
+9093:n=11 → may advance n=12 if this Wave 113 close-synthesis bundle absorbs into auto-checkpoint per cwc-throttled wrapper. Forward-only audit-trail discipline per `parallel-session-worktree-isolation.md` §Sub-class (c) Recovery — accept absorption, do NOT rewrite history.
+9198:n=11 → may advance n=12 if absorbed into next session checkpoint per cwc-throttled wrapper. Forward-only audit-trail discipline.
+9403:n=12 → may advance n=13 if absorbed into next session checkpoint per cwc-throttled wrapper. Forward-only audit-trail discipline.
+9564:n=13 → may advance n=14 if absorbed into next session checkpoint per cwc-throttled wrapper.
+9741:n=13 → may advance n=14 if absorbed into next session checkpoint per cwc-throttled wrapper.
+9888:- **FM-17.f candidate (NEW failure class n=1, 2026-05-09)**: Agent() subagent dispatch fails with "API Error: Extra usage is required for 1M context · run /extra-usage to enable, or /model to switch to standard context" at 648ms / 0 tool_uses / 0 tokens. Tested with `codex:codex-rescue` agent type which has `model: sonnet` frontmatter — error fires anyway. Hypothesis: Anthropic CC SDK propagates parent `claude-opus-4-7[1m]` context-window-entitlement check at subagent instantiation BEFORE frontmatter `model:` takes effect. Distinct from FM-17.b.i wrapper-funneling pre-fire (429 cooling-down) and FM-17.d wrapper-watchdog stall (600s). Cross-model coverage IMPACT: blocks BRIDGE-MODE GPT-5.5 subagent fan-out via Anthropic SDK path — must pivot to direct `codex exec` foreground+tee from main session for cross-model verification. Operator decision needed: enable `/extra-usage` (costs money) OR set `CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6` in CLAUDE.local.md ENV (g) to bypass 1M-context-entitlement (next session only — requires eee restart). Codification queued at task #58 — promote to FM-17.f when n>=3 same-arc per cycle-322.
+9893:- 🚧 Ship A2 (in-flight): Wave 118 Agent B Explore subagent — outer-research kit + token-eff repo audit + account-rotation patterns beyond session-affinity. Sonnet stand-in NOT BRIDGE-MODE (Explore is read-only, bypasses 1M-context-entitlement issue). Cross-model gate satisfaction pending agent return + orchestrator codex T1 follow-up before any cited prescription ships
+9925:- **CR-3 satisfaction path**: Pattern B HNF + cross-model gate satisfied via foreground+tee codex BRIDGE-MODE (real GPT-5.5; bypasses FM-17.f 1M-context-entitlement issue that blocks Anthropic SDK Agent() subagent fan-out). T2 commit-time hook `codex_t2_pre_commit_gate.py` is the cross-model verification net per `cross-model-consensus.md §The contract` Phase 1 bootstrap exception.
+9967:## 2026-05-09T09:30Z — Wave 118 Ship A4: FM-17.f candidate codification (1M-context-entitlement subagent pre-fire)
+9973:  result: API Error: Extra usage is required for 1M context · run /extra-usage to enable, or /model to switch to standard context
+9979:  - NOT FM-17.b.i (wrapper-funneling 429 PRE-FIRE) — this is 1M-context-entitlement, NOT 429
+9983:- **Workaround verified**: direct `codex exec` foreground+tee from main session bypasses FM-17.f entirely. codex CLI uses OpenAI API not Anthropic — no 1M-context-entitlement check at subagent instantiation. Verified via ping test returning `READY-FOR-T1` in <60s with 6678 tokens.
+9985:  - (a) Run `/extra-usage` to enable 1M-context entitlement (costs $$ per Anthropic billing)
+9986:  - (b) Edit CLAUDE.local.md ENV (g): uncomment `$env:CLAUDE_CODE_SUBAGENT_MODEL = 'claude-sonnet-4-6'` + restart eee (FREE; user prior directive: 1M context is correct, do NOT change)
+9989:- **Codification queued**: task #58 — promote to FM-17.f when n>=3 same-arc per cycle-322. Currently n=1.
+9994:50th commit-equivalent in this session arc. Wave 118 fire scope: 4 ships (A1 filesystem CPA equalization + A2 RTK install/wire + A3 gitnexus HNF-4 + A4 FM-17.f candidate codification). T1 e2e cross-model gate satisfied via direct codex exec foreground+tee BRIDGE-MODE (FM-17.f workaround verified). 3 Mia OVER catches integrated (FM-20 path-drift defense — Agent B session-affinity claim REFUTED + phantom repos REFUTED + mcp-router miscategorization REFUTED). Mia OVER ladder Wave 97-118: n=44 → n=48. cumulative Wave 118 fire arc: 4 substantive ships + 1 NEW-failure-class discovery + 4 OVER catches + 1 fully unzipped v65 kit (24 MD + 6 agents + 7 skills awaiting Probe-4 plugin-namespace overlap audit before extraction).
+10005:- FM-17 sub-class ladder: a/b/c/d/e firm + .f candidate at n=1
+
+ succeeded in 326ms:
+31:| §Verdict shapes + closed-loop integration | TIER-2-SISTER-RULE | APPROVE/NEEDS-REVISION/REJECT disposition + first-round-vs-re-fire distinction | `.claude/rules/closed-loop-recursive-narrowing.md §Disposition signal severity gate` + Outcomes A/B/C |
+34:| §Env-funneled subagent stand-in disclosure mandate | TIER-1-DIRECT mechanism + TIER-3-LOCAL policy | `CLAUDE_CODE_SUBAGENT_MODEL` overrides per-invocation + frontmatter model selection (mechanism); stand-in dispatch must BLOCK or disclose (policy) | TIER-1-DIRECT mechanism: `https://code.claude.com/docs/en/sub-agents` lines 340-345 (subagent model precedence). TIER-3-LOCAL policy: cycle-322 self-promoted at n=5 same-arc Wave 17 evidence per `tmp/wave17-E2-arc-level-review-2026-05-04.md §5`. Promotion to standalone rule requires cycle-322 cross-arc threshold OR user-trigger explicit |
+35:| §Verdict report shape (synthesis-layer-verify integration) | TIER-2-SISTER-RULE | OVER/UNDER/HONEST-NON-FINDING categories applied to codex output | `.claude/rules/synthesis-layer-verify.md §Reporting categories` + §Subclaim-type discriminator |
+53:3. **Verdict integrates**. Apply first-round dispositions from `§Verdict shapes + closed-loop integration`: APPROVE → ship; NEEDS-REVISION → apply prescribed edits as Pattern A fix-forward per `.claude/rules/codex-t1-fix-forward-pattern.md` (max 1 fix-forward iter per round) and re-fire T1 on the patched design surface; REJECT → STOP, report, and do not commit (remove untracked file before commit).
+71:| **T0** candidate-list challenge (PROPOSED-PILOT) | DURING sota-researcher R1→R2 boundary; **cost-gated trigger ONLY** — fires when ANY of: (a) expensive/cross-domain R2 wave queued, (b) candidate list from known blind-spot path (codex-rescue abstract-pattern adoption per FM-09 ladder, breadth-first awesome-list crawl), (c) cheap local preflight finds likely duplicate-functionality / phantom-package / license-blocker hits, OR (d) operator explicit escalation. **NOT mandatory per discovery**. | `deep-review` | 240s | **PROPOSED-PILOT** — codex GPT-5.5 reviews **CANDIDATE-LIST COMPOSITION ONLY**: add/drop/merge candidates, duplicate local/plugin coverage, missing category coverage, candidate metadata sufficiency (CATEGORY-CLAIM + OPERATIONAL-CLAIM composition review per `synthesis-layer-verify.md:66-83`). T0 does NOT verify R2 claims, score adoption readiness, or replace R3/T1/T5. **Required cheap preflight before T0 fires**: extract candidate names/slugs and `rg` them across `.claude/agents/`, `.claude/skills/`, `.claude/rules/`, `.claude/commands/`, `CLAUDE.md`, `docs/sota-grand-catalog/`, `.codex-plugin/plugin.json`, plugin cache manifests/skill lists; attach the preflight output to the T0 prompt so codex reviews the preflight rather than rediscovering it from scratch. **FM-09 qualification**: the n=5 / 100% same-arc base rate at `agent-harness-fit-verification.md:115-125` justifies T0 escalation for abstract-pattern adoption cohorts AND known codex-rescue blind-spot paths — NOT a universal expected catch-rate for all discovery topics. **Operator-side foreground tee invocation** (transitional pilot shape; aligns with `/sota-loop` Phase 2b foreground+tee pattern that avoids the run_in_background+--json truncation failure mode): `codex exec --ephemeral -p deep-review < .claude/state/codex_consult_t0_candidates_<topic>.txt 2>&1 \| tee .claude/state/codex_consult_t0_candidates_<topic>_OUT.txt`. Verdict shape: APPROVE-LIST / REVISE-LIST / REJECT-LIST + concrete add/drop prescriptions. **Distinct from T1** (T1 reviews ADOPTION-DECISION post-discovery on a design-surface edit) and **T5** (plan-stage review of implementation plan); T0 reviews candidate-generation upstream of decision. **Forward-ref**: if T0 graduates from pilot, port to `/research-list-review` or `/sota-loop` Phase 1.5 with prompt construction, JSON validation, logging, and skip/timeout handling modeled after `/plan-codex-review`. Closes G7 (cross-model adversarial discovery — currently codex challenges only at adoption-decision T1, not at candidate-list generation) per research-architect-w1 trade-off table 2026-05-02. Codex T1 NEEDS-REVISION conf=0.88 [VERIFIED via `.claude/state/codex_consult_ship7a_t0_candidate_challenge_OUT.txt`] — 8 prescribed_edits applied per `codex-t1-fix-forward-pattern.md` Pattern A. |
+107:**On codex unavailable** (`codex exec` returns cmd-not-found / 3 consecutive failures): the documented `local-judge` MCP fallback is currently UNAVAILABLE — `local-judge` is in `.claude/settings.json:disabledMcpjsonServers` as of 2026-05-03, so `mcp__local-judge__route` + `invoke_judge` will return tool-not-found. Recovery options:
+112:> **⚠️ CAUTION — Option (b) `/api/generate` endpoint is UNCERTIFIED.** Neither the `/api/generate` endpoint nor the `qwen3.6:judge` model's verdict-shape compatibility has been smoke-tested for cross-model T1 verdict-composition. **First-use of option (b) MUST probe before trusting verdicts**: send a minimal payload with `"stream": false` set explicitly (e.g., `{"model": "qwen3.6:judge", "prompt": "APPROVE, NEEDS-REVISION, or REJECT?", "stream": false}` — without `"stream": false`, Ollama `/api/generate` defaults to NDJSON streaming and the JSON-shape parse below will false-negative even when endpoint is healthy) + verify `{"response": "..."}` JSON shape returns within 60s + verify model emits APPROVE / NEEDS-REVISION / REJECT structured output as expected by `cross-model-consensus.md §Verdict shapes`. If smoke-probe fails, fall back to option (a) deferred-queue rather than trust an uncertified verdict.
+116:## Env-funneled subagent stand-in disclosure mandate (Wave 17 fire-24 codification per E2 audit P1-A)
+130:2. **(Explicit-disclosure)** Return APPROVE / NEEDS-REVISION / REJECT WITH explicit `STAND-IN-NOTICE: agent ran under CLAUDE_CODE_SUBAGENT_MODEL=<model> stand-in per CLAUDE.local.md ENV block (f); cross-model gate NOT structurally satisfied for this dispatch` in the verdict body's first 5 lines. The orchestrator then bears the integration decision: re-fire via real codex CLI, accept stand-in verdict with documented gate-bypass rationale, or REVERT-AND-REMOVE per `closed-loop-recursive-narrowing.md` Outcome B.
+131:3. **(Operator escalation)** If codex CLI is unreachable (FM-03 D1 transport): return BLOCK + queue-and-retry per the existing "On codex unavailable" recovery options at §"Timeout + failover policy" above.
+135:When integrating a STAND-IN-NOTICE verdict into a composite synthesis (e.g., Wave fan-out close-synthesis.md), the orchestrator MUST:
+151:True GPT-5.5 penetration ~25% (5 codex CLI jobs out of ~20 total dispatches per E2 §5 fleet dispatch classification) — NOT 75% as previously claimed. The user directive "USE GPT5.5 AGGRESSIVELY" has NOT been operationally satisfied at the gpt5-* subagent layer; it IS satisfied at the codex CLI layer when foreground+tee fires successfully.
+157:- **Compose**: orchestrator-side prompt to gpt5-reviewer/gpt5-archaeologist MUST include `IF YOUR FRONTMATTER MODEL ≠ gpt-5.5 OR YOUR DISPATCH RUNS UNDER CLAUDE_CODE_SUBAGENT_MODEL=<not-gpt-5.5>: return VERDICT: BLOCK + STAND-IN-NOTICE per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate.` This forces explicit disclosure rather than relying on agent self-awareness.
+176:## Verdict shapes + closed-loop integration
+248:## Verdict report shape (synthesis-layer-verify integration)
+311:- `.claude/rules/research-protocol.md` — §Tool Routing table provides the MCP surface this rule uses (mcp__local-judge for failover **[CURRENTLY DISABLED — see `.claude/settings.json:disabledMcpjsonServers`; recovery alternatives at §"On codex unavailable" above]**, mcp__github for source verification). VERIFY corollaries 1+2 are pre-edit and post-edit observability that bookend this rule's during-edit consensus.
+312:- `.claude/rules/closed-loop-recursive-narrowing.md` — re-fire arc disposition: **Outcome A ACCEPT-WITH-DOC** / **Outcome B REVERT-AND-REMOVE** / **Outcome C MANUAL-OVERRIDE**. First-round T1 verdict disposition is distinct (see §Verdict shapes); closed-loop outcomes only invoke on same-surface re-fire.
+342:- Local-judge MCP enablement transition (`.claude/settings.json:disabledMcpjsonServers` flips on/off for `local-judge`) — re-evaluate §"On codex unavailable" recovery option ranking; currently option (a) deferred-queue is default while MCP frontend is disabled. OR Local-judge SOTA model rotation (qwen3.6:judge / gemma4:vision per research-protocol.md §Tool Routing) changes the failover landscape.
+
+**Reviewing proposed setup**
+
+I think the user might be asking about the current proposed CLAUDE.local setup. It seems likely that this setup has already been applied. I could mention if the current state matches the proposal, but I'm not sure if that's necessary. Maybe it would be more helpful to inspect the exact block to confirm if any edits already exist. It feels like I should clarify before moving forward!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path CLAUDE.local.md | Select-Object -Skip 48 -First 36' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Path Z:\\claude-sota\\.claude\\rules\\citation-discipline.md | Select-Object -Skip 34 -First 26" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Path Z:\\claude-sota\\.claude\\rules\\cross-model-consensus.md | Select-Object -Skip 116 -First 24" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Path Z:\\claude-sota\\.claude\\rules\\cross-model-consensus.md | Select-Object -Skip 176 -First 28" in Z:\claude-sota-installed
+ succeeded in 359ms:
+
+# Reference: TIER-2 `Z:/claude-sota/CLAUDE.local.md` ENV block (f) — `CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6` (Anthropic Max Opus depletion fallback, deployed 2026-04-29)
+# Reference: TIER-2 `Z:/claude-sota/tmp/wave17-E2-arc-level-review-2026-05-04.md §5` (P1-A finding: A3+C2+B2+D2+E2 ran as Sonnet stand-ins; true GPT-5.5 penetration ~25% not asserted 75%)
+# Reference: TIER-2 `Z:/claude-sota/.claude/rules/named-failure-modes.md` FM-17 row (subagent fleet-depletion final-return-loss; pool-funneling parent class)
+# Reference: TIER-2 `Z:/claude-sota/.claude/agents/gpt5-reviewer.md` frontmatter — fail-closed contract: "Codex unavailable is never a SKIP condition; invoke this agent and return VERDICT: BLOCK"
+
+When `CLAUDE_CODE_SUBAGENT_MODEL` is set to a model OTHER than the canonical gpt5-reviewer / gpt5-archaeologist target (currently `gpt-5.5` via codex CLI), the subagent runs as a **same-model stand-in** rather than a true cross-model voice. The cross-model consensus invariant — that codex GPT-5.5 catches what Opus/Sonnet self-audit miss — does NOT structurally hold under stand-in dispatch. The dispatch surface looks identical to the orchestrator (same agent name, same prompt template, same return shape) but the model-asymmetry that makes the gate meaningful is silently absent.
+
+### The mandate
+
+A `gpt5-reviewer` / `gpt5-archaeologist` dispatch under env-funneling MUST do ONE of:
+
+1. **(Default)** Return `VERDICT: BLOCK` per the agent's fail-closed contract at `.claude/agents/gpt5-reviewer.md` frontmatter. Stand-in dispatch does NOT satisfy the cross-model gate; BLOCK is the safe action under structural same-model degradation.
+2. **(Explicit-disclosure)** Return APPROVE / NEEDS-REVISION / REJECT WITH explicit `STAND-IN-NOTICE: agent ran under CLAUDE_CODE_SUBAGENT_MODEL=<model> stand-in per CLAUDE.local.md ENV block (f); cross-model gate NOT structurally satisfied for this dispatch` in the verdict body's first 5 lines. The orchestrator then bears the integration decision: re-fire via real codex CLI, accept stand-in verdict with documented gate-bypass rationale, or REVERT-AND-REMOVE per `closed-loop-recursive-narrowing.md` Outcome B.
+3. **(Operator escalation)** If codex CLI is unreachable (FM-03 D1 transport): return BLOCK + queue-and-retry per the existing "On codex unavailable" recovery options at §"Timeout + failover policy" above.
+
+### Orchestrator integration discipline
+
+When integrating a STAND-IN-NOTICE verdict into a composite synthesis (e.g., Wave fan-out close-synthesis.md), the orchestrator MUST:
+
+1. **Surface the stand-in penetration rate** in the close-synthesis verdict body — e.g., "5/9 dispatches ran as Sonnet stand-in (~56%); cross-model coverage is ~44% of nominal; treat composite verdict accordingly".
+2. **Reject blanket "N% GPT-5.5 dispatched" claims** without per-dispatch classification (true GPT-5.5 via `codex exec` CLI vs Sonnet stand-in via Anthropic SDK vs codex-rescue wrapper-around-codex-CLI). This was the empirical class-error caught in Wave 17 E2 review §5 — claimed 75% GPT-5.5 vs measured ~25%.
+3. **Cite the stand-in classification** in commit body when the ship integrates a stand-in verdict (e.g., `T1 NEEDS-REVISION conf=0.83 [STAND-IN per CLAUDE.local.md ENV (f); see tmp/wave17-E2-arc-level-review-2026-05-04.md §5]`). Per `evidence-policy.md` Marker Decay corollary + the MUST-USE `[VERIFIED via <path>]` extension at §"Evidence marker discipline" above.
+
+
+ succeeded in 358ms:
+
+Codex T1 verdicts come in 3 shapes. **First-round T1 verdict disposition is distinct from closed-loop arc disposition** — closed-loop outcomes (A/B/C) only invoke when the SAME logical surface re-fires across rounds:
+
+| Verdict | First-round disposition | Re-fire (closed-loop arc) |
+|---|---|---|
+| **APPROVE** | Ship as-designed (commit lands with verdict file referenced) | n/a — first-round APPROVE never invokes closed-loop |
+| **NEEDS-REVISION** | Apply findings, single fix-forward (max 1 per iter per `.claude/rules/sota-loop-discipline.md` §G5 — pending P2.h port). Re-fire codex T1 on the patched file | If re-fire NEEDS-REVISION → Outcome A ACCEPT-WITH-DOC (cap-exit at iter-5 per §closed-loop §G5) |
+| **REJECT** | STOP, do not commit; if file is untracked remove it; escalate | If re-fire still REJECT → Outcome B REVERT-AND-REMOVE (per `closed-loop-recursive-narrowing.md` §Disposition signal severity-gate hard-deny on unresolved high/critical) |
+
+Confidence trajectory is the load-bearing signal across re-fires. Track across rounds, not just final round. Manual override (Outcome C MANUAL-OVERRIDE) requires explicit `[OVERRIDE]` marker per `evidence-policy.md` and applies only to medium-severity findings with strong mitigation documented in commit body.
+
+## Severity taxonomy mapping (codex P0-P3 ↔ industry Critical/Important/Minor)
+
+# Reference: Z:/repos/deps/superpowers/skills/requesting-code-review/code-reviewer.md:64-93 @ HEAD e7a2d16476bf042e9add4699c9d018a90f86e4a6 [VERIFIED 2026-04-30 via wave-3 source-mining methodology-audit-PASS at docs/sota-grand-catalog/wave-3-2026-04-30/source-mining/superpowers-deep-read.md (commit 11bf5eb)]
+
+Per superpowers (named-T2 author obra; 3-axis convergence-gate PASS per wave-3 source-mining), industry-standard code-review severity vocabulary maps to sss codex P0/P1/P2/P3 numeric scale. Use this mapping in T1/T2/T3 verdict reports for cross-tool portability:
+
+| Codex severity | Industry vocab | Action threshold | Example |
+|---|---|---|---|
+| **P0** (CRITICAL) | **Critical** | STOP; do not commit; revert if landed | Security vulnerability; data loss; default-allow on destructive Bash; secret leak |
+| **P1** (HIGH) | **Important** | Block commit; require fix-forward before merge | Logic bug in load-bearing path; broken contract; missing test for DENY-emitting hook |
+| **P2** (MEDIUM) | **Minor (high)** | Apply fix-forward in same PR; not blocking | Suboptimal pattern; dead code; marker discipline gap; cite-tier downgrade |
+| **P3** (LOW) | **Minor (low)** | Queue as separate ship; document in commit body | Stylistic; naming consistency; doc-only nits |
+
+Source convention: superpowers `code-reviewer.md:64-93` uses Critical / Important / Minor as the 3-tier external-facing taxonomy; sss codex uses P0/P1/P2/P3 4-tier internal numeric scale. This mapping bridges the two so cross-tool review reports (e.g., when codex T2 verdict is consumed by external reviewers using superpowers-style rubric, or when sss reviews a PR authored against superpowers conventions) maintain semantic equivalence.
+
+Cross-references:
+- `closed-loop-recursive-narrowing.md §Disposition signal severity-gate` — hard-deny triggers on unresolved Critical/Important (P0/P1) findings
+
+ succeeded in 378ms:
+$env:CODEX_HOME              = 'Z:/claude-sota-installed-state/.codex'             # codex CLI auth + sessions
+
+# (g) DEPRECATED — Subagent model fallback (depletion-mode bypass)
+# Per Wave 119 FM-17.f deep-dive (docs/fm17f-deep-dive-2026-05-09.md §3 Path S DEPRECATED):
+# Setting this funnels ALL subagents to Sonnet stand-in regardless of frontmatter `model:`.
+# Triggers STAND-IN-NOTICE per Z:/claude-sota/.claude/rules/cross-model-consensus.md §Env-funneled
+# subagent stand-in disclosure mandate. Wave 17 E2 audit established n=5 same-arc base rate —
+# true GPT-5.5 penetration ~25% under env-funneling, NOT 75% nominal. Use Path D ENV (h) instead.
+# Per TIER-1-DIRECT https://code.claude.com/docs/en/sub-agents §"Choose a model" model-resolution
+# precedence: this env is step 1 (TOP — overrides per-invocation model param + frontmatter +
+# main conversation). The override is real but defeats the cross-model gate it appears to satisfy.
+# $env:CLAUDE_CODE_SUBAGENT_MODEL = 'claude-sonnet-4-6'
+
+# (h) Path D — 1M context kill-switch for fan-out Waves (TIER-1-DIRECT Anthropic env var)
+# Per TIER-1-DIRECT https://code.claude.com/docs/en/env-vars verbatim:
+#   "CLAUDE_CODE_DISABLE_1M_CONTEXT | Set to `1` to disable 1M context window support.
+#    When set, 1M model variants are unavailable in the model picker. Useful for enterprise
+#    environments with compliance requirements"
+# Cite chain: CHANGELOG L1761 (env var introduction) + L1349 (Opus 4.6 1M plan-tier auto-include;
+# Opus 4.7 NOT in list) + L1782 (Sonnet 4.6 has 1M; Sonnet 4.5 1M removed from Max).
+# Use case: enables Agent() subagent dispatch on `claude-opus-4-7[1m]` parent sessions where
+# the 1M-billing-context entitlement check fails at session-creation BEFORE per-subagent
+# frontmatter `model:` resolves (FM-17.f reframe — see docs/fm17f-deep-dive-2026-05-09.md).
+# Activation: uncomment + restart eee. Banner shows "Opus 4.7" WITHOUT "(1M context)" suffix.
+# Trade-off: parent session loses 1M ceiling (drops to ~200k); long-arc /loop hits /compact more
+# aggressively per Karpathy §5 Wiki Compounding Surface (rot threshold ~150-180k vs ~300-400k).
+# Default UNSET preserves 1M for orchestrator-direct work where Path P (codex exec foreground+tee
+# per cross-model-consensus.md §"On codex unavailable") satisfies cross-model gate at ZERO cost.
+# Activate ONLY for explicit fan-out Waves declaring 3-5 BRIDGE-MODE subagent dispatch as
+# load-bearing per advanced-agent-team-standing-directive invariants.
+# $env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'
+```
+
+## Key Paths
+
+| Path | Purpose | Status |
+
+ succeeded in 424ms:
+7. **Anthropic-bundled-skill cites: cite the current slash command, not local folder names** — *(specialization of rule #4 for bundled-skill identifier divergence)* — Bundled skill identifiers can diverge across local folders, CCBP tables, changelogs, and official docs. Example: CCBP `changelog/best-practice/concepts/changelog.md:410 @ 76599cb` records a stale-name correction from `/fewer-permission-prompts` to `/less-permission-prompts`, while CCBP `best-practice/claude-skills.md:48 @ 76599cb` still lists the folder-style `fewer-permission-prompts`, AND the current official Commands page (`code.claude.com/docs/en/commands` line 90 [VERIFIED 2026-05-01 via codex T1 web-fetch]) shows `/fewer-permission-prompts` — so the three authoritative surfaces actively disagree. **Discipline**: when sss documents an Anthropic-bundled skill invocation, cite the current command from `code.claude.com/docs/en/commands` FIRST as the tie-breaker; use `code.claude.com/docs/en/skills` only for general skill mechanics; use CCBP tables/changelogs as secondary drift evidence when they conflict. Never treat `.claude/skills/<folder>` or plugin cache paths as proof of the user-visible slash command. Apply to: `CLAUDE.md`, `.claude/agents/*.md`, `.claude/commands/**`, `.claude/skills/**/SKILL.md`, `.claude/rules/**`, `docs/sota-grand-catalog/**`, active adoption/citation docs, and commit bodies citing skill invocations. n=1 per `codification-threshold.md`: observed live conflict across official Commands docs / official Skills docs / CCBP changelog / CCBP skills table / sss docs costs ~15 min to re-derive per stale cite, this rule is <200 LOC; re-evaluate at the next Anthropic bundled-skill rename or official/CCBP conflict.
+
+8. **Composed-claims discipline + mechanical source-class reduction lattice** — *(Wave 17 fire-31 v1 codification per codex T1 fire-28 conf=0.87; UPGRADED at fire-36 per codex T1 fire-33 NEEDS-REVISION on T2 b8fa7dd1 finding "weakest-source rule not computable" conf=0.72)* — When a single normative claim cites MULTIPLE source classes, the cite MUST declare:
+   - `constituents=[<class1@cite1>, <class2@cite2>, ...]` — explicit list of each constituent primitive at file:line + SHA OR official-docs URL
+   - `effective_tier=<class>` — the EFFECTIVE class of the composed claim, computed by the reduction lattice below
+
+   **Source-class precedence/order (lower wins; weakest dominates)**:
+   1. `UNKNOWN` (no cite at all) — always disqualifying; reject claim until cited
+   2. `TIER-3-LOCAL-COMPOSITION` (any local glue / sss-novel composition over TIER-1/TIER-2 substrates)
+   3. `TIER-3-LOCAL-OPERATOR-DERIVED` (sss dogfood, codex verdicts, incidents, operator decisions)
+   4. `TIER-3-LOCAL-CONFIG` (sss live config or script wiring)
+   5. `TIER-2` (user-curated/sibling docs, NOT upstream authority)
+   6. `TIER-1-COMPOSED` (ALL constituents TIER-1 with disclosed local glue) — still TIER-3-LOCAL-COMPOSITION as effective tier
+   7. `TIER-1-DIRECT` (upstream verbatim file:line + SHA OR official-docs URL with anchor)
+
+   **Reduction rule (mechanical)**: `effective_tier = MIN_PRECEDENCE(constituents)`. Concretely: if ANY constituent contains "TIER-3-LOCAL-*" OR the composition glue itself is local-codified (e.g., sss-novel composition pattern), the effective tier is `TIER-3-LOCAL-COMPOSITION` regardless of how many TIER-1 primitives are cited. EXCEPTION: if the composed claim is ONLY about an upstream primitive's EXISTENCE (e.g., "asyncRewake field exists" cited verbatim from Anthropic docs), it remains `TIER-1-DIRECT` because there's no local composition glue.
+
+   **Anti-promotion rule**: composition CANNOT promote a TIER-2/TIER-3 component into TIER-1. The cite class of the COMPOSED claim is determined by the MIN_PRECEDENCE constituent OR by the composition-glue class, whichever is weaker.
+
+   **Exemplar (computable)**: `.claude/rules/cross-model-consensus.md §Normative Authority Map` row "T1-T7 touchpoint lifecycle":
+   - `constituents=[TIER-1-DIRECT @ Anthropic-CC-hooks-docs-L1021-1023, TIER-2 @ CCBP-cross-model-workflow.md:1-48, TIER-3-LOCAL-COMPOSITION @ sss-novel T0+T7+profile-selection]`
+   - `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE = 2 due to sss-novel glue)
+   - Despite Anthropic CC + CCBP being upstream-authority for primitives, the composition itself is sss-local and EFFECTIVE class is TIER-3-LOCAL-COMPOSITION
+
+   Apply to: any rule body section in `.claude/rules/**` that mixes upstream + sister-rule + local-operator-codification claims. Sister: `cross-model-consensus.md §Normative Authority Map` (POINTS TO this rule, does NOT carry softer duplicate).
+
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"Opus 4\\.7|Opus 4\\.6|Sonnet 4\\.6|CLAUDE_CODE_DISABLE_1M_CONTEXT|session-creation|BEFORE|frontmatter|architectural-property|Path D|Path P|Path S|extra usage\" docs\\fm17f-deep-dive-2026-05-09.md" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"Added 1M context window|CLAUDE_CODE_DISABLE_1M_CONTEXT|Sonnet 4\\.5 with 1M|subagents sometimes|model: opus|different model than the main\" Z:\\repos\\deps\\claude-code\\CHANGELOG.md" in Z:\claude-sota-installed
+ succeeded in 258ms:
+19:- Subagent frontmatter explicitly says `model: sonnet`
+24:Anthropic CC's session-creation path runs the **plan-tier entitlement check BEFORE per-subagent model-resolution overrides apply**. The sequence:
+28:   → Banner: "Opus 4.7 (1M context) with xhigh effort"
+31:3. SDK starts subagent session-creation
+34:   → Checks plan tier supports 1M for Opus 4.7
+35:   → If plan tier doesn't auto-include Opus 4.7 1M → 400 with the verbatim error
+36:5. Step 4b (NEVER REACHED): per-subagent frontmatter `model:` resolution would have downgraded to Sonnet
+41:- L1349: "Added 1M context window for Opus 4.6 by default for Max, Team, and Enterprise plans (previously required extra usage)" — explicit precedent that 1M+model is plan-tier-gated
+42:- L1396: "Fixed subagents with `model: opus`/`sonnet`/`haiku` being silently downgraded to older model versions" — confirms frontmatter `model:` resolution exists but runs AFTER session creation
+45:- L1761: "Added `CLAUDE_CODE_DISABLE_1M_CONTEXT` environment variable to disable 1M context window support" — **the documented kill-switch**
+46:- L1782: "Sonnet 4.5 with 1M context is being removed from the Max plan in favor of our frontier Sonnet 4.6 model, which now has 1M context. Please switch in /model." — Sonnet 4.6 has 1M but Opus 4.7 1M is plan-tier-gated separately
+47:- L2614: "Pro users can now purchase extra usage for access to Opus 4.5 in Claude Code" — explicit `/extra-usage` purchase mechanism for newer Opus on Pro
+49:**The architectural insight**: 1M context for Opus 4.7 is NOT auto-included in plan tier (newer model than the L1349 promotion). When parent session selects `[1m]` variant, the entitlement check rejects subagent dispatch under the same billing context. This is **by design**, not a bug.
+53:### Path P (PRIMARY — RECOMMENDED): Direct `codex exec` foreground+tee from main session
+81:**When Path P is sufficient**: every commit-class ship (T1 pre-edit / T2 pre-commit / T3 postcommit). Wave 118 proved end-to-end e2e.
+83:### Path D (SECONDARY for parallelism): `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` env + eee restart
+90:$env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'
+98:- Per-subagent frontmatter `model:` resolution proceeds normally → BRIDGE-MODE codex-rescue / gpt5-reviewer / gpt5-archaeologist subagents work via Agent() tool
+103:**When Path D is justified**: when a Wave demands fan-out parallelism (3-5 agents simultaneously) AND the ship is bounded enough that dropping parent context to ~200k won't trigger excessive `/compact` cycles.
+109:**Mechanics**: operator runs `/extra-usage` slash command → Anthropic UI flow → purchase 1M-context billing for Opus 4.7 → subagent dispatch then works.
+112:- Path P already satisfies cardinal-rule-3 cross-model gate at ZERO cost
+113:- Path D enables fan-out parallelism at ZERO marginal cost (parent context trade-off only)
+114:- `/extra-usage` is recurring billing for a capability we already have via Path P
+118:- If Path D's parent-context drop materially impedes long-arc /loop sessions (n=3+ same-arc evidence required per cycle-322)
+119:- If Path P proves insufficient for a class of work that genuinely requires Anthropic SDK subagent dispatch (e.g., Anthropic ships an SDK feature that BRIDGE-MODE fan-out exclusively unlocks)
+122:### Path S (DEPRECATED — STAND-IN-NOTICE risk): `CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6` ENV (g)
+126:**Mechanics**: setting forces ALL subagents to `claude-sonnet-4-6` regardless of frontmatter `model:` field. Bypasses Opus 4.7 entitlement check (Sonnet 4.6 has 1M per CHANGELOG L1782).
+132:- Path D achieves the same parallelism without the stand-in tax
+136:**Adopt Path P as PRIMARY** for all Wave 119+ cross-model gate satisfaction.
+138:**Adopt Path D as SECONDARY** activated only when a specific Wave declares fan-out parallelism is load-bearing (NOT a default — explicit per-Wave decision).
+142:**RETIRE Path S** notice from CLAUDE.local.md ENV (g) — replace comment with explicit deprecation note pointing at Path D.
+146:### §4.1 Path P PRIMARY (no changes required — already operational)
+148:- ✅ Wave 118 codex T1 already used Path P (foreground+tee bg-job pattern)
+153:### §4.2 Path D SECONDARY (activation procedure when needed)
+158:# $env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'   # Activate ONLY for fan-out Waves
+161:$env:CLAUDE_CODE_DISABLE_1M_CONTEXT = '1'
+166:# 4. Verify banner: should show "Opus 4.7" WITHOUT "(1M context)" suffix
+177:- Replace task #58 codification target with: "FM-17.f reclassified to architectural-property + Path D activation discipline"
+184:# Use Path D `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` instead per docs/fm17f-deep-dive-2026-05-09.md §3
+195:2. **Path P (foreground+tee codex exec) is more SOTA than Path X (extra-usage purchase)** because it doesn't depend on Anthropic SDK subagent layer for cross-model gate
+196:3. **Path D (DISABLE_1M_CONTEXT) is documented architectural escape valve** — explicit env var named for this exact scenario
+197:4. **Cardinal-rule-3 cross-model gate is structurally satisfied via Path P alone** — fan-out parallelism is a nice-to-have, not a blocker
+204:2. **Ship F2** (P1): forward-only update to `docs/install-provenance.md` reclassifying FM-17.f from "candidate" to "architectural-property" + cite this doc
+206:4. **Ship F4** (P2): when next fan-out Wave is needed, demonstrate Path D activation/deactivation per §4.2 (operationalizes the discipline)
+212:- `Z:/claude-sota/.claude/rules/cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate` — STAND-IN-NOTICE discipline that Path S would have triggered
+213:- `Z:/claude-sota/.claude/rules/cross-model-consensus.md §"On codex unavailable"` — Path P documented as Phase 1 bootstrap recovery
+214:- `Z:/claude-sota/.claude/rules/parallel-agent-wave.md §Cache-Aware Dispatch Pacing` — fan-out cap discipline (Path D users still must honor CADP)
+215:- `Z:/claude-sota-installed/CLAUDE.md §cardinal-rule-3` — Phase 1 bootstrap exception that authorizes Path P
+217:- `Z:/claude-sota-installed/.claude/state/codex_consult_w118_autoupdate_path_OUT.txt` — Wave 118 PROOF that Path P works end-to-end at 1168 LOC verdict depth
+
+ succeeded in 281ms:
+436:- Fixed subagents running a different model than the main agent incorrectly flagging file reads with a malware warning
+1349:- Added 1M context window for Opus 4.6 by default for Max, Team, and Enterprise plans (previously required extra usage)
+1396:- Fixed subagents with `model: opus`/`sonnet`/`haiku` being silently downgraded to older model versions on Bedrock, Vertex, and Microsoft Foundry
+1761:- Added `CLAUDE_CODE_DISABLE_1M_CONTEXT` environment variable to disable 1M context window support
+1782:- Sonnet 4.5 with 1M context is being removed from the Max plan in favor of our frontier Sonnet 4.6 model, which now has 1M context. Please switch in /model.
+2367:- Fixed subagents sometimes not inheriting the parent's model by default
+
+web search: 
+web search: 
+web search: 
+web search: https://code.claude.com/docs/en/sub-agents
+web search: 
+web search: https://code.claude.com/docs/en/sub-agents
+**Considering usage errors**
+
+I'm analyzing the situation with Opus 1M, which might need extra usage. The message "Opus 4.7[1m] parent session already running" suggests there’s an entitlement for the parent session. It seems like the error at the subagent could be due to "extra usage required," rather than the parent lacking access. Maybe it's related to how billing is structured? I should explore that further to clarify things.
+codex
+NEEDS-REVISION conf=0.91
+
+[VERIFIED via TIER-1 cite] approach needs adjust
+
+**AXIS-1**
+Partial approve. The env-vars + sub-agents docs are sufficient for ENV (g)/(h) mechanics: `CLAUDE_CODE_DISABLE_1M_CONTEXT` exists, and `CLAUDE_CODE_SUBAGENT_MODEL` has top model-precedence.
+
+But for FM-17.f reclassification, add the official model-config extended-context cite. Current docs state Opus 4.7, Opus 4.6, and Sonnet 4.6 support 1M; Opus 1M is included on Max/Team/Enterprise, while Sonnet 1M requires extra usage. Do not rely on “Opus 4.7 absent from CHANGELOG L1349” as proof.
+
+Yes, rule #8 constituents form applies:
+`constituents=[TIER-1-DIRECT @ env-vars, TIER-1-DIRECT @ sub-agents model order, TIER-1-DIRECT @ model-config extended-context, TIER-3-LOCAL-OPERATOR-DERIVED @ Wave118 pre-fire observation]; effective_tier=TIER-3-LOCAL-COMPOSITION`.
+
+**AXIS-2**
+Needs revision. The “step 4 parent model binds before step 3 frontmatter” claim is not supported. Official sub-agent docs explicitly order frontmatter before main conversation fallback. No cited docs section describes billing/entitlement timing at session creation.
+
+More defensible root cause: the 1M context-window setting appears to be carried into subagent creation independently of model-resolution order. With `model: sonnet`, that can become an effective Sonnet 1M request, and current docs say Sonnet 1M requires extra usage on Max/Team/Enterprise. Mark this as inference from the 0-token pre-fire observation, not TIER-1-verified architecture.
+
+**AXIS-3**
+Approve. Guarded comment + per-Wave activation is correct. Always-on `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` would remove 1M variants and drop the orchestrator from 1M to standard 200K behavior, which is the wrong default for long-arc `/loop` work. Path P remains primary; Path D is a standby for explicit fan-out waves.
+
+**Prescribed Edits**
+1. In `CLAUDE.local.md` ENV (h), keep the guarded commented var, but remove “Opus 4.7 NOT in list” and “frontmatter resolves after entitlement check.”
+2. In `docs/install-provenance.md` / FM-17.f text, reframe as “observed extended-context subagent pre-fire + documented generic 1M disable switch,” not “Anthropic shipped this exact workaround.”
+3. Add the model-config extended-context cite.
+4. Keep ENV (g) deprecated toward Path D; Path S has STAND-IN-NOTICE risk and is not the preferred bypass.
+
+Sources:  
+https://code.claude.com/docs/en/env-vars  
+https://code.claude.com/docs/en/sub-agents  
+https://code.claude.com/docs/en/model-config
+tokens used
+89,052
+NEEDS-REVISION conf=0.91
+
+[VERIFIED via TIER-1 cite] approach needs adjust
+
+**AXIS-1**
+Partial approve. The env-vars + sub-agents docs are sufficient for ENV (g)/(h) mechanics: `CLAUDE_CODE_DISABLE_1M_CONTEXT` exists, and `CLAUDE_CODE_SUBAGENT_MODEL` has top model-precedence.
+
+But for FM-17.f reclassification, add the official model-config extended-context cite. Current docs state Opus 4.7, Opus 4.6, and Sonnet 4.6 support 1M; Opus 1M is included on Max/Team/Enterprise, while Sonnet 1M requires extra usage. Do not rely on “Opus 4.7 absent from CHANGELOG L1349” as proof.
+
+Yes, rule #8 constituents form applies:
+`constituents=[TIER-1-DIRECT @ env-vars, TIER-1-DIRECT @ sub-agents model order, TIER-1-DIRECT @ model-config extended-context, TIER-3-LOCAL-OPERATOR-DERIVED @ Wave118 pre-fire observation]; effective_tier=TIER-3-LOCAL-COMPOSITION`.
+
+**AXIS-2**
+Needs revision. The “step 4 parent model binds before step 3 frontmatter” claim is not supported. Official sub-agent docs explicitly order frontmatter before main conversation fallback. No cited docs section describes billing/entitlement timing at session creation.
+
+More defensible root cause: the 1M context-window setting appears to be carried into subagent creation independently of model-resolution order. With `model: sonnet`, that can become an effective Sonnet 1M request, and current docs say Sonnet 1M requires extra usage on Max/Team/Enterprise. Mark this as inference from the 0-token pre-fire observation, not TIER-1-verified architecture.
+
+**AXIS-3**
+Approve. Guarded comment + per-Wave activation is correct. Always-on `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` would remove 1M variants and drop the orchestrator from 1M to standard 200K behavior, which is the wrong default for long-arc `/loop` work. Path P remains primary; Path D is a standby for explicit fan-out waves.
+
+**Prescribed Edits**
+1. In `CLAUDE.local.md` ENV (h), keep the guarded commented var, but remove “Opus 4.7 NOT in list” and “frontmatter resolves after entitlement check.”
+2. In `docs/install-provenance.md` / FM-17.f text, reframe as “observed extended-context subagent pre-fire + documented generic 1M disable switch,” not “Anthropic shipped this exact workaround.”
+3. Add the model-config extended-context cite.
+4. Keep ENV (g) deprecated toward Path D; Path S has STAND-IN-NOTICE risk and is not the preferred bypass.
+
+Sources:  
+https://code.claude.com/docs/en/env-vars  
+https://code.claude.com/docs/en/sub-agents  
+https://code.claude.com/docs/en/model-config

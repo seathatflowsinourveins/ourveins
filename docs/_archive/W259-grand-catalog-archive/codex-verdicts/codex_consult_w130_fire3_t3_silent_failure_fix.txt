@@ -1,0 +1,119 @@
+# T3 silent-failure fix-forward — pick fix option (A widen matcher / B configure rtk / D remove rtk)
+
+## Context
+
+`Z:/claude-sota-installed/` runtime ("eee") T3 cross-model gate (codex_postcommit_review.py PostToolUse hook) is silent for last 4 commits despite hook being wired in `.claude/settings.json` PostToolUse[0]. Hook only fired for Wave 128 Ship A `2b9dc420` 2026-05-09T20:46:30Z.
+
+## Phase 1+2 systematic-debugging — root cause TRIPLE-CONVERGED
+
+### Empirical evidence (orchestrator-side reproduction)
+
+```
+$ echo '{"tool_name":"Bash","tool_input":{"command":"git -C Z:/claude-sota-installed commit -F /tmp/test -- foo.md"}}' | rtk.exe hook claude
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecisionReason":"RTK auto-rewrite","updatedInput":{"command":"rtk git -C Z:/claude-sota-installed commit -F /tmp/test -- foo.md"}}}
+```
+
+**RTK 0.39.0 prepends `rtk ` to every git command via CC-canonical `hookSpecificOutput.updatedInput.command` mechanism.** This is the LAST hook in `.claude/settings.json` PreToolUse[6][6] (matcher=Bash, no `if:` filter, runs after safety_guard / block_no_verify / gitleaks / codex_t2).
+
+### Three convergent verdicts
+
+| Source | Verdict | Conf | Mechanism |
+|---|---|---|---|
+| Sub-agent A (CC if-matcher deep dive) | NEEDS-REVISION | 0.93 | RTK auto-rewrite via `updatedInput.command` |
+| Sub-agent B (postcommit code audit) | NEEDS-REVISION | 0.92 | Tier A `if:` glob doesn't match rewritten/heredoc-prefix cmds |
+| Orchestrator empirical reproduction | CONFIRMED | 1.00 | Direct rtk subprocess output captured |
+
+### Hook chain at PreToolUse[6] (Bash matcher)
+
+```json
+{
+  "matcher": "Bash",
+  "hooks": [
+    {"command": ".../safety_guard.py", "timeout": 5},
+    {"command": ".../block_no_verify_guard.py", "timeout": 5},
+    {"command": ".../gitleaks_pre_commit_gate.py", "if": "Bash(git commit *)", "timeout": 10},
+    {"command": ".../gitleaks_pre_commit_gate.py", "if": "Bash(git -C * commit *)", "timeout": 10},
+    {"command": ".../codex_t2_pre_commit_gate.py", "if": "Bash(git commit *)", "timeout": 180},
+    {"command": ".../codex_t2_pre_commit_gate.py", "if": "Bash(git -C * commit *)", "timeout": 180},
+    {"command": "Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude", "timeout": 5}
+  ]
+}
+```
+
+### Hook chain at PostToolUse[0] (Bash matcher)
+
+```json
+{
+  "matcher": "Bash",
+  "hooks": [
+    {"command": ".../codex_postcommit_review.py", "if": "Bash(git commit *)", "timeout": 30, "async": true},
+    {"command": ".../codex_postcommit_review.py", "if": "Bash(git -C * commit *)", "timeout": 30, "async": true},
+    {"command": ".../codex_prepush_review.py", "if": "Bash(git push *)", "timeout": 30, "async": true},
+    {"command": ".../codex_prepush_review.py", "if": "Bash(git -C * push *)", "timeout": 30, "async": true},
+    {"command": ".../codex_review_trace.py", "timeout": 5, "async": true}
+  ]
+}
+```
+
+## Three fix options
+
+### OPTION A: Widen `if:` matcher to substring patterns
+
+Edit `.claude/settings.json` PostToolUse[0] entries [0]+[1]+[2]+[3]:
+```diff
+-    {"command": ".../codex_postcommit_review.py", "if": "Bash(git commit *)", ...},
+-    {"command": ".../codex_postcommit_review.py", "if": "Bash(git -C * commit *)", ...},
+-    {"command": ".../codex_prepush_review.py", "if": "Bash(git push *)", ...},
+-    {"command": ".../codex_prepush_review.py", "if": "Bash(git -C * push *)", ...},
++    {"command": ".../codex_postcommit_review.py", "if": "Bash(*git commit *)", ...},
++    {"command": ".../codex_postcommit_review.py", "if": "Bash(*git -C * commit *)", ...},
++    {"command": ".../codex_prepush_review.py", "if": "Bash(*git push *)", ...},
++    {"command": ".../codex_prepush_review.py", "if": "Bash(*git -C * push *)", ...},
+```
+
+**Pros**: catches rtk-prefix AND heredoc-prefix; preserves rtk token-saving; minimal LOC (4 edits).
+**Cons**: leading `*` may match unintended cmds containing "git commit" as substring (e.g., `echo "git commit ..."`); CC `if:` glob support for leading `*` is uncertain.
+
+### OPTION B: Configure rtk to skip git-rewrite
+
+`rtk hook claude --help` shows `--skip-env` exists but no `--skip-git`. Would need rtk upstream config support OR replacing rtk wrapper with conditional logic.
+
+**Pros**: preserves clean `if:` matcher semantics.
+**Cons**: requires understanding/extending rtk upstream config; not currently supported per `--help` output.
+
+### OPTION D: Remove rtk hook from PreToolUse[6][6]
+
+Edit `.claude/settings.json` to delete the rtk entry from PreToolUse[6].hooks array.
+
+**Pros**: cleanest fix — restores original cmd flow; rtk says "no hook installed" via its own self-diagnostic suggesting rtk's state is already broken.
+**Cons**: loses rtk's 80% token-saving on Bash output (Wave 118 Ship A2 install rationale).
+
+## Question for codex T1
+
+**Pick ONE option** that satisfies ALL of:
+1. Restores T3 cross-model gate firing (per CR-3 mandate)
+2. Minimum-LOC change
+3. Doesn't break existing rtk token-saving for non-commit Bash cmds (preferred but not required)
+4. Compatible with Anthropic CC `if:` matcher syntax (per `https://code.claude.com/docs/en/hooks` official docs)
+
+Verify Option A's `Bash(*git commit *)` syntax against Anthropic CC official docs — does CC support leading `*` in `if:` glob patterns? If yes, Option A is preferred. If no, Option D is preferred.
+
+## Output schema (JSON-strict)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.00,
+  "selected_option": "A | B | D",
+  "reasoning": "...",
+  "prescribed_edits": [
+    {"file": "...", "diff_snippet": "..."}
+  ],
+  "smoke_probe_command": "...",
+  "expected_smoke_outcome": "..."
+}
+```
+
+## Severity
+
+P1 — T3 cross-model gate is structurally important per CR-3 cardinal rule. Silent-failure means commit-time codex review is operationally bypassed for every commit since rtk install (Wave 118 Ship A2). Fix-forward urgency HIGH.

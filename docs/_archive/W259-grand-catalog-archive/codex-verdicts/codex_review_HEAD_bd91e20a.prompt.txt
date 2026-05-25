@@ -1,0 +1,239 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit bd91e20a92376f20694a1d6e8eaec630ab9db1cf
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md                         |  35 ++++
+ .../00-tracker.md                                  | 115 +++++++++++++
+ .../01-task-master-anatomy.md                      | 154 +++++++++++++++++
+ .../02-probe-dag-application.md                    | 160 +++++++++++++++++
+ .../03-codex-t1-verdict.md                         |  96 +++++++++++
+ .../99-close-synthesis.md                          | 189 +++++++++++++++++++++
+ 6 files changed, 749 insertions(+)
+
+=== git show --format=fuller ===
+commit bd91e20a92376f20694a1d6e8eaec630ab9db1cf
+Author:     42 <42@local>
+AuthorDate: Sun May 10 19:57:17 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 19:57:17 2026 -0400
+
+    docs(sota-audit): Wave 134 Fire 24-C — Task Master CITE-PATTERN-ONLY (Commons Clause + 5 file:line extracts)
+    
+    Third of 5 Tier 1 NEW PROBE-DAG-CANDIDATE audits queued at Fire 23 close.
+    Path P codex T1 (REAL GPT-5.5 foreground+tee) returned CITE-PATTERN-ONLY @
+    conf=0.92 with 5 cite-pattern extracts at EXPLICIT file:line precision.
+    P6 FAIL distinct from BMAD+CCPM (Commons Clause + commercial Hamster product
+    + cloud/telemetry/product-prompts detected by codex T1 live probe).
+    
+    ## Fire 24-C deliverables (5 files + provenance append, ~600 LOC)
+    
+    - 00-tracker.md (~95 LOC) — framing + Commons Clause P0 flag
+    - 01-task-master-anatomy.md (~165 LOC) — Node.js monorepo + LICENSE full text
+    - 02-probe-dag-application.md (~150 LOC) — Probe DAG + cohort tracking
+    - 03-codex-t1-verdict.md (~100 LOC) — verbatim REAL GPT-5.5 verdict
+    - 99-close-synthesis.md (~200 LOC) — adoption verdict + 5 extracts + HIGH-VALUE C3
+    - docs/install-provenance.md — Fire 24-C entry appended
+    
+    ## Subject
+    
+    eyaltoledano/claude-task-master HEAD c0c98d36 — "MIT with Commons Clause"
+    (NON-PERMISSIVE per CR-9 + SRA D1 use-class precision); commercial Hamster
+    product (tryhamster.com); user's Tier 2 🥈 "AI-driven task generation" pick.
+    
+    ## Four decisive Probe-DAG blockers (most of Fire 24 series)
+    
+    1. P4 DUPLICATE FAIL: 4 surfaces overlap (parallel-agent / task-tracking /
+       research expansion / AI decomposition); kiss-dry-yagni Must-Never #4
+    2. P5 PM-loop FAIL: PRD → tasks → start <id> workflow (same root as CCPM)
+    3. P6 FAIL (NEW vs Fire 24-A+B): Commons Clause + commercial Hamster product
+       + cloud/telemetry/product prompts detected by codex T1 live probe
+    4. P7a demand-absence FAIL: no PRD-driven feature backlog
+    
+    ## Codex T1 verdict (verbatim at EOF)
+    
+    ```json
+    {
+      "verdict": "CITE-PATTERN-ONLY",
+      "confidence": 0.92,
+      "license_commons_clause_decisive_blocker": "DOC-CAVEAT-ONLY",
+      "commercial_product_supply_chain_risk": "MEDIUM",
+      "row2_fabrication_test": "PASS",
+      "ai_driven_decomposition_novel": "OVERLAPS-WITH-SOTA-RESEARCHER",
+      "probe_dag_verdicts": {
+        "P1_count_over": "FAIL",
+        "P2_sdk_vs_cli": "PASS",
+        "P3_arch_api": "PASS",
+        "P4_plugin_namespace": "FAIL",
+        "P5_mode_harness": "FAIL",
+        "P6_blockers": "FAIL",
+        "P7a_demand_absence": "FAIL",
+        "P7b_demand_creates": "NOT-ELIGIBLE"
+      },
+      ...
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f24c_task_master_OUT.txt` (175,555 tokens — largest of series)
+    
+    ## 5 cite-pattern extracts (codex T1 file:line precision)
+    
+    1. W134-F24-C1: PRD-to-task prompt contract — `src/prompts/parse-prd.json:59-60`
+    2. W134-F24-C2: Generated-task runtime guards — `parse-prd-helpers.js:136-173` (DEFER)
+    3. **W134-F24-C3 (HIGH-VALUE)**: Selective MCP tool-loading —
+       `mcp-server/src/tools/index.js:20-62` + `tool-registry.js:107-132`
+       (`TASK_MASTER_TOOLS core/standard/all/custom` tiers)
+       → directly addresses Fire 23 "21-plugin token-budget" P0 caveat
+    4. W134-F24-C4: Complexity-report-driven expansion —
+       `apps/docs/capabilities/task-structure.mdx:197-248` + `expand-task.json:69-83`
+       (sota-researcher enrichment)
+    5. W134-F24-C5: Tagged storage schema —
+       `apps/docs/capabilities/task-structure.mdx:7-24` (DEFER)
+    
+    ## Cohort tracking advance (Wave 134 arc)
+    
+    - P5 PM-loop cohort: n=3 (BMAD + CCPM + Task Master) — codification candidate
+    - P4 DUPLICATE-class cohort: n=2 (CCPM + Task Master) — emerging cohort
+    - P6 commercial-license cohort: n=1 (Task Master FIRST) — single instance
+    
+    ## Orchestrator-codex probe convergence: 5/8 + 3 codex-stricter-corrections
+    
+    - Codex caught P1 novelty overstatement
+    - Codex correctly identified P2+P3 PASS
+    - Codex detected cloud/telemetry/product-prompts (orchestrator marked Commons Clause CAVEAT only)
+    
+    Cross-model T1 discipline validated AGAIN — codex's adversarial review surfaces
+    nuances orchestrator missed.
+    
+    ## Mia ladder advance
+    
+    n=1555 (Fire 24-B close) → n=1580 (Fire 24-C close, +25 across 6 deliverable files)
+    
+    ## Path P recipe ladder
+    
+    n=10/10 → n=11/11 reproducible (foreground+tee deep-review-exec @ 300s;
+    175,555 tokens; JSON verdict at EOF). Token usage trend across Fire 24:
+    94k (BMAD) → 115k (CCPM) → 175k (Task Master) — monorepo complexity drives
+    deeper codex investigation.
+    
+    ## Forward fire roadmap
+    
+    Tier 1 NEW (2 remaining of 5):
+    - W134-F24-D Agent OS v3 (buildermethods)
+    - W134-F24-E Claude Memory Bank (russbeye)
+    
+    Tier 1.5 NEW (9 cite-pattern extracts total across Fire 24-B + 24-C):
+    - 4 from CCPM + 5 from Task Master
+    - HIGH-VALUE C3 selective MCP tool-loading (addresses Fire 23 P0)
+    - Combined consolidation candidate: B1+C1 frontmatter+PRD schema
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-24-c-task-master-path-p-audit/
+    Cite: TIER-1-DIRECT `Z:/repos/deps/claude-task-master` @ HEAD c0c98d36 (Commons Clause CR-9 caveat)
+    Verify: `[VERIFIED via .claude/state/codex_consult_w134_f24c_task_master_OUT.txt — REAL GPT-5.5 CITE-PATTERN-ONLY conf=0.92]`
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index a9bda75..60a3705 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -13751,3 +13751,38 @@ Total this fire: **+19** → cumulative **n=189**
+ [VERIFIED via `.claude/state/codex_consult_w141a_synthesis_t1_review_OUT.txt` T1 NEEDS-REVISION conf=0.88 + 6 prescribed_edits applied per Pattern A]
+ 
+ closes Wave 141A Fire 1 Docker SOTA inventory DOC-ONLY ship; Wave 141A.2 + 141A.3 + 141A.4 + 141B queued per P0 mapping table for sequential T1-gated sub-fires
++
++---
++
++## 2026-05-10T20:30Z — Wave 134 Fire 24-C: Task Master (eyaltoledano/claude-task-master) cross-model audit (CITE-PATTERN-ONLY)
++
++- **Section**: Fire 23 forward roadmap Tier 1 NEW PROBE-DAG-CANDIDATE #3 of 5
++- **Pattern**: Pattern B audit (no install)
++- **Subject**: `eyaltoledano/claude-task-master` HEAD `c0c98d36` — **"MIT with Commons Clause"** (NON-PERMISSIVE; commercial Hamster product at tryhamster.com)
++- **Command**: `timeout 300 codex exec --ephemeral -p deep-review-exec --color never < .claude/state/codex_consult_w134_f24c_task_master.txt 2>&1 | tee .claude/state/codex_consult_w134_f24c_task_master_OUT.txt`
++- **Upstream HEAD SHA / version**: `c0c98d36` (Z:/repos/deps/claude-task-master); npm `task-master-ai` v0.43.1
++- **Stdout/stderr summary**: codex GPT-5.5 deep-review-exec returned JSON verdict at EOF; **175,555 tokens** (largest of Fire 24 series); Path P recipe n=10 → n=11/11 reproducible
++- **Probe DAG**: P1=FAIL (novelty overstatement; AI decomposition overlaps sota-researcher) / P2=PASS / P3=PASS / P4=**FAIL** (4 surfaces overlap: parallel-agent + task tracking + research expansion + AI decomposition; kiss-dry-yagni Must-Never #4) / P5=**FAIL** (PM-loop assumption same root as CCPM) / P6=**FAIL** ⚠️ (NEW vs Fire 24-A+B: Commons Clause + commercial Hamster product + cloud/telemetry/product prompts detected by codex T1) / P7a=**FAIL** (no PRD-driven backlog) / P7b=NOT-ELIGIBLE
++- **SRA D1 license use-class precision**: Co
+
+[prompt truncated]

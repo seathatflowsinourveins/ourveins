@@ -1,0 +1,82 @@
+T1 PRE-COMMIT CONSULT — Wave 106 Ship 2N-batch3-F — env add CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1 (CHANGELOG-derived advanced-automation-aligned env)
+
+USER MANDATE: "we need advanced automation" + "make sure all sota optimization applied without harming the sota performance" + "continue with advance gap resolution"
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Wave 100 Ship 2P 2026-05-08 commit b6dc7e5) — NO --sandbox=read-only flag; profile default danger-full-access. Per Ship 2X SRA cross-model T1 mandate (settings.json env additions = design surface).
+
+==========================================
+ORIGIN
+==========================================
+Wave 106 outer-research deep-dive (per user mandate "deep dive into the folder i mentioned") + iter2b 10-item adoption probe revealed 8/10 already adopted Wave 82a + earlier; only 2 NEW gaps surfaced via direct CHANGELOG.md scan:
+
+1. CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1 (CHANGELOG 2.1.129)
+2. skillOverrides setting (CHANGELOG 2.1.129)
+
+THIS SHIP narrows to ONLY gap #1 (clean win). Gap #2 deferred to separate study-pilot per scope-narrow discipline (sister to Ship 2N-batch3-A where codex T1 caught over-broad scope).
+
+==========================================
+TIER-1 CITE
+==========================================
+Z:/repos/deps/claude-code/CHANGELOG.md:14 (CC 2.1.129) verbatim:
+"Gateway `/v1/models` discovery for the `/model` picker is now opt-in via `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` (was automatic in 2.1.126–2.1.128)"
+
+==========================================
+WHY THIS IS LOAD-BEARING FOR EEE
+==========================================
+- eee uses gateway via `ANTHROPIC_BASE_URL=http://127.0.0.1:8317` (CLIProxyAPI v6.10.9 fleet)
+- Without this opt-in flag, CC's `/model` picker won't see gateway's `/v1/models` enumeration
+- 2.1.126-2.1.128 had this on-by-default; 2.1.129+ requires explicit opt-in
+- For eee, which routes through 10-account fleet via CLIProxyAPI, the gateway DOES expose `/v1/models` — making the model picker work correctly requires this flag
+
+==========================================
+WHY skillOverrides DEFERRED (this fire)
+==========================================
+- Only TIER-1 cite is CHANGELOG L17 (no CCBP doc; no schema file; no CC docs URL)
+- 3 values: `off` / `user-invocable-only` / `name-only`
+- `name-only` = "collapses description" — would break skill auto-fire on description-keyword match
+- 21 enabled plugins shipping many skills; aggressive global setting could harm discoverability
+- Need actual measurement of skill-description token cost BEFORE choosing value
+- DEFERRED to separate study-pilot after Ship 2P-pilot observability lands
+
+==========================================
+PROPOSED EDIT (atomic JSON)
+==========================================
+Add to `.claude/settings.json:env` after `OTEL_LOG_USER_PROMPTS`:
+
+```json
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
+    "_comment_gateway_model_discovery": "Wave 106 Ship 2N-batch3-F 2026-05-08 — opt-in gateway /v1/models discovery for /model picker per CC 2.1.129 CHANGELOG.md:14. eee uses ANTHROPIC_BASE_URL=http://127.0.0.1:8317 (CLIProxyAPI v6.10.9 10-account fleet) — gateway DOES expose /v1/models; without this flag the model picker won't see gateway's enumeration. Was automatic in 2.1.126-2.1.128; opt-in since 2.1.129. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD.",
+```
+
+==========================================
+SRA D1-D10 SCORING
+==========================================
+- D1 license-use-class: PASS (env var only; no library link)
+- D2 freshness: PASS (CHANGELOG 2.1.129 published; eee runs CC 2.1.131+ floor per minimumVersion)
+- D4 maintainer: TIER-1-OFFICIAL Anthropic
+- D6 use-class: PASS (eee uses gateway; flag DIRECTLY relevant to eee architecture)
+- D7 Anthropic-policy: STRONG-PASS (Anthropic-shipped opt-in)
+- D9 failure-mode: NEUTRAL (env var; failure mode = silent no-op if gateway doesn't expose /v1/models, which CLIProxyAPI does)
+- Convergence verdict: 9-10 + critical D1+D6 PASS = INSTALL
+
+==========================================
+CR-9 INSTALL-RISK ANALYSIS
+==========================================
+- LOW (env var addition; opt-in flag; reversible via revert)
+- No @latest install (env var, not package)
+- No sibling-bleed (zero `Z:/claude-sota/` paths)
+- 2-round fix-forward expectation: Pattern A apply if NEEDS-REVISION
+- No FM catalog entry against env-var settings adds
+
+==========================================
+QUESTIONS (JSON ONLY)
+==========================================
+1. Env var name + value `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` correct per CHANGELOG L14?
+2. Placement after OTEL_LOG_USER_PROMPTS appropriate? (alphabetical-cluster-by-domain convention used in eee settings.json)
+3. _comment_gateway_model_discovery wording accurate (was automatic in 2.1.126-2.1.128 → opt-in 2.1.129)?
+4. Is there any conflict with existing env vars (ANTHROPIC_BASE_URL / ANTHROPIC_DEFAULT_HAIKU_MODEL / etc.)?
+5. CR-9 install-risk LOW correct? (env var is opt-in; reversible)
+6. skillOverrides DEFER decision: should we ship `name-only` AS PART of this ship to maximize token-eff OR defer to study-pilot per scope-narrow discipline?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

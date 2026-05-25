@@ -1,0 +1,112 @@
+Cross-model T1 review — Wave 138 Fire 4 governance trio install ship plan
+
+CONTEXT
+=======
+Wave 138 Fire 3 (commit e7666de) shipped STAGED-PENDING-VERIFICATION for:
+- protect-mcp v0.1.0 (RUNTIME — Cedar + Ed25519 — STAGED 3/3 voices)
+- signed-audit-trails v0.1.0 (DOCS — cookbook — STAGED 3/3 voices)
+- review-agent-governance v0.1.0 (REJECTED-FOR-FIT 2/3 majority Probe 7.a DEMAND-ABSENCE)
+
+ORCHESTRATOR-SIDE STATE PROBE (Wave 138 Fire 4 pre-dispatch, 2026-05-10):
+- protect-mcp v0.6.0 EXISTS on npm registry (latest dist-tag)
+- License: MIT (npm dist-tags @ 0.6.0; published 2 weeks ago by tomjwxf <tommy@scopeblind.com>)
+- 23 versions: 0.1.0 → 0.6.0
+- Dependencies: @veritasacta/protocol ^0.1.0
+- bin: protect-mcp
+- Description: "Enterprise security gateway for MCP servers and Claude Code hooks. Cedar policies, Ed25519-signed receipts, swarm tracking, and tamper detection. Shadow or enforce mode."
+- Source: scopeblind.com
+- 5.4 MB unpacked size
+- Tom Farley TIER-4 NAMED-INDIVIDUAL re-verified (npm maintainer matches Wave 138 Fire 3 verification: IETF draft-farley-acta-signed-receipts + Microsoft AGT PR#667 MERGED + Cedar PR#64 MERGED + ScopeBlind Pty Ltd ACN:693 027 440 + Veritas Acta protocol)
+
+VOICE 2 CATCHES REVALIDATED:
+1. FSL-1.1-MIT npm v0.1.0 vs README claim MIT → REFUTED for v0.6.0 (npm metadata says MIT for latest)
+2. README "10K+ monthly downloads" actual 940/month → CANNOT probe via npm view (need npm-stat or registry stat endpoint)
+3. Hooks pin v0.5.5 stale vs latest v0.6.0 → CONFIRMED (latest is 0.6.0)
+
+VOICE 3 ARCHITECT (Wave 138 Fire 3 design at tmp/wave138-fire3-architect-cryptographic-governance-design-2026-05-10.md, 297 LOC):
+3 critical install blockers identified:
+B1. CR-9 npx-per-tool-call latency unmeasured (every PreToolUse fires `npx protect-mcp evaluate` if invoked via npx)
+B2. CR-3 Cedar `.*` matcher could break codex T1/T2/T3 hooks (gates at codex_t1_consult_gate.py + codex_t2_pre_commit_gate.py + codex_postcommit_review.py)
+B3. Receipt-path collision with .claude/state/ if not pinned to state-outside-repo
+
+INSTALL PLAN (proposed for cross-model T1 review):
+Phase 1 (marketplace add):
+  /plugin marketplace add wshobson/agents
+Phase 2 (plugin install):
+  /plugin install protect-mcp@claude-code-workflows  # v0.6.0 latest
+  /plugin install signed-audit-trails@claude-code-workflows  # v0.6.0 latest
+Phase 3 (Cedar policy authoring):
+  Author ./protect.cedar with: DEFAULT-ALLOW + 12-pattern hard deny mirroring safety_guard.py + codex exec permit + 26 MCP tool permit
+  Initial deployment: SHADOW MODE (audit-only, no enforce) per safe-rollout discipline
+Phase 4 (Ed25519 keypair):
+  Method options: (1) protect-mcp internal `protect-mcp init`, (2) openssl genpkey -algorithm ED25519, (3) node libsodium
+  Storage: state-outside-repo at Z:/claude-sota-installed-state/.protect-mcp/keys/
+Phase 5 (receipt-storage):
+  Path: Z:/claude-sota-installed-state/.protect-mcp/receipts/<YYYY-MM>/<sha8>.json
+Phase 6 (hook wire):
+  PreToolUse + PostToolUse with `.*` matcher
+  Care: must NOT break existing codex T1/T2/T3 hooks
+  Order: layered with safety_guard.py (Layer 1 sequential)
+Phase 7 (smoke probe):
+  Send simple tool call (Read README.md)
+  Verify receipt generated at expected path
+  Verify Cedar policy enforced (allow path)
+  Verify NO break to existing T1/T2/T3 cycle
+
+AUDIT AXES (7):
+AXIS-1: gate (a) v0.6.0 availability — orchestrator probe VERIFIED. Disposition: PASS / FAIL
+AXIS-2: gate (b) v0.6.0 license = MIT — orchestrator probe VERIFIED. Disposition: PASS / FAIL
+AXIS-3: gate (c) Cedar policy schema design.
+  - Risk: `.*` matcher could break T1/T2/T3 hooks
+  - Mitigation: explicit codex exec permit + path-pattern allowlist for hook scripts
+  - Question: should Cedar policy initially deploy in SHADOW MODE (audit-only) per safe-rollout?
+  - Disposition: APPROVE-DESIGN / NEEDS-REVISION-CEDAR-POLICY / BLOCK
+AXIS-4: gate (d) receipt-storage path collision audit.
+  - Proposed: Z:/claude-sota-installed-state/.protect-mcp/receipts/<YYYY-MM>/<sha8>.json
+  - Verify NO collision with .claude/state/ (default state) or .codex/ (CODEX_HOME state outside repo)
+  - Disposition: APPROVE-PATH / NEEDS-COLLISION-FIX
+AXIS-5: gate (e) Ed25519 keypair generation.
+  - Method: protect-mcp init vs openssl vs libsodium
+  - Storage location: state-outside-repo
+  - Key rotation procedure
+  - Disposition: RECOMMEND-METHOD / OPEN-FOR-DESIGN
+AXIS-6: gate (f) Phase 7 benchmark feasibility.
+  - `npx protect-mcp evaluate` setup requirements
+  - Latency targets at 100/1000/10000 tool-call volume
+  - Acceptance threshold: industry SLO for MCP-class tools
+  - Disposition: BENCHMARK-FEASIBLE / NEEDS-FIXTURES / NOT-FEASIBLE
+AXIS-7: cross-model T1 review of overall plan.
+  - Silent-fallback risks?
+  - FM-09 codex-rescue blind-spot still applicable?
+  - CR-9 sibling-bleed defense satisfied?
+  - CR-3 Phase 1 bootstrap exception (this review IS the cross-model gate satisfaction)
+  - SHADOW MODE rollout discipline?
+  - Disposition: APPROVE-INSTALL-PLAN / NEEDS-REVISION / REJECT
+
+OUTPUT SCHEMA (JSON-strict at end-of-output):
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.0,
+  "axis_findings": {
+    "AXIS-1": { "disposition": "PASS", "evidence": "..." },
+    "AXIS-2": { "disposition": "PASS", "evidence": "..." },
+    "AXIS-3": { "disposition": "...", "evidence": "..." },
+    "AXIS-4": { "disposition": "...", "evidence": "..." },
+    "AXIS-5": { "disposition": "...", "evidence": "..." },
+    "AXIS-6": { "disposition": "...", "evidence": "..." },
+    "AXIS-7": { "disposition": "...", "evidence": "..." }
+  },
+  "prescribed_edits": [
+    { "file": "...", "change": "...", "rationale": "..." }
+  ],
+  "fm17_signature": "Path P-DEFAULT-profile-success",
+  "cross_model_gate_status": "FULL | PARTIAL | FAILED",
+  "sra_t1_satisfied": "full | partial | no"
+}
+
+DISCIPLINE:
+- Per Wave 44 invariant: per-call codex 90s/120s/180s budget (DEFAULT profile per Pattern D candidate KEY UNLOCK 4th-time)
+- Cite TIER-1 SOTA at file:line + HEAD SHA where possible (Cedar AWS docs, Ed25519 RFC 8032, sigstore/SLSA framework, Anthropic CC plugin install docs)
+- HONEST-NON-FINDING is high-value if any axis cannot be verified
+- Mia pre-apply: do NOT trust agent self-claims; verify against runtime state
+- READ EOF first when interpreting verdict per feedback_codex_t1_verdict_reading_discipline.md

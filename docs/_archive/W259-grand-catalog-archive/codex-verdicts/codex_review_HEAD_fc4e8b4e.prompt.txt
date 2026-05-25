@@ -1,0 +1,208 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit fc4e8b4e16b20ad1b70a6e85b5b98a183719fa0a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 102 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 102 insertions(+)
+
+=== git show --format=fuller ===
+commit fc4e8b4e16b20ad1b70a6e85b5b98a183719fa0a
+Author:     42 <42@local>
+AuthorDate: Mon May 11 12:17:11 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 12:17:11 2026 -0400
+
+    docs(install-provenance): Wave 145 Fire 13 — Manifest drift sweep PART-2 [VERIFIED 2026-05-11] — ~36 NEW DRIFT entries surfaced; cumulative W145-F8+W145-F13 = ~52+ DRIFT; 12th cumulative consecutive no-Path-P-dispatch
+    
+    /loop tick post-W141 dynamic-mode re-invocation (cron `*/12 * * * *` id `84da0f2f`
+    parallel-armed). 4th-consecutive stale-cron pivot detected (cron prompt named
+    W145-F11 + W145-F12 already SHIPPED at 6517bdc + 1a9d0a7). Auto-pivot to W145-F13
+    manifest drift sweep PART-2 (sister W145-F8 fire-36 covered first 15; 98 PLANNED
+    matches in current manifest via grep).
+    
+    ## Sweep methodology (per W145-F8 + W119 Ship 4 forward-only HONEST-CORRECTION)
+    
+    Probe install-state via canonical channel for each candidate; surface DRIFT entries
+    to install-provenance.md APPEND (NOT amend stale manifest text inline per
+    port-note-discipline.md section 6).
+    
+    ## NEW DRIFT entries surfaced (~36 candidates verified INSTALLED)
+    
+    | Category | Count | Channel | Examples |
+    |---|---|---|---|
+    | Modern Unix CLIs | 9 | WinGet/Chocolatey | rg + fd + bat + eza + jq + fzf + zoxide + delta + lazygit |
+    | Python SDKs/libs | 5 | pip | claude-agent-sdk@0.1.33 + ragas@0.4.3 + langchain@0.3.27 + llama-index@0.11.0 + litellm@1.81.13 |
+    | npm globals (Anthropic) | 2 | npm-global | @anthropic-ai/claude-agent-sdk@0.2.133 + @anthropic-ai/sdk@0.95.1 |
+    | npm MCP servers | 8 | npm-global | @brave/brave-search-mcp-server + @perplexity-ai/mcp-server + firecrawl-mcp + exa-mcp-server + @modelcontextprotocol/{inspector,server-filesystem,server-sequential-thinking} + @ast-grep/cli + repomix |
+    | uv tools | 5 | uv tool install | claude-monitor + markitdown + maturin + mcp-server-fetch + mistral-vibe |
+    | Docker images | 6 | docker pull | langfuse + langfuse-worker + falkordb + arizephoenix/phoenix + grafana + prom/prometheus |
+    
+    **Total: ~36 NEW DRIFT entries** + 2 GENUINE NOT_INSTALLED (arxiv-mcp-server Python + phoenix-mcp Python wrapper).
+    
+    ## Cumulative manifest drift
+    
+    W145-F8 (16+) + W145-F13 (~36) = **~52+ DRIFT entries surfaced across 2 sweep fires**.
+    ~46+ PLANNED entries remain for W145-F14-NEW.
+    
+    ## Cross-model gate disposition
+    
+    N/A (mechanical install-state probe sweep; no design-surface edit). 12th cumulative
+    consecutive no-Path-P-dispatch probe/codification.
+    
+    ## Ladder advances
+    
+    | Ladder | Prior | This fire |
+    |---|---|---|
+    | Mia pre-apply | n=311 | **n=329** (+18 channel-class probe operations) |
+    | FM-20 path-drift cascade | n=20 | **n=21** (+1: 4-fires-stale cron pivot catch) |
+    | Manifest drift cumulative | W145-F8 = 16+ | **W145-F8 + W145-F13 = ~52+** |
+    | Path P recipe | n=32 | n=32 (12th consecutive no-dispatch) |
+    | Cumulative cost-savings | ~1980s + ~55K tokens + ~3220 LOC | **~2160s + ~60K tokens + ~3400 LOC** |
+    
+    ## REVISED Forward Top-5 (post-W145-F13)
+    
+    🥇 W141.1 Graphiti MCP frontend invocation smoke probe (LIGHT)
+    🥈 W145-F14-NEW Manifest drift sweep PART-3 (~46 remaining PLANNED)
+    🥉 W146-F8 SOTA cleanliness re-audit (HEAVY 3-agent Wave 24-D fan-out; would benefit from drift-corrected manifest baseline)
+    #4 Fresh ecosystem discovery sweep
+    OPERATOR-GATED HIGH-RISK: W145-F12b/F11b/F10b install / W138-F4 / W141B / W145-F5b
+    
+    ## Cite class
+    
+    constituents=[TIER-1-DIRECT @ WinGet manifest source + Chocolatey package index + npm registry + PyPI + uv tool registry + Docker Hub manifests, TIER-2 @ Z:/claude-sota/.claude/rules/cite-imports, TIER-3-LOCAL-OPERATOR-DERIVED @ Mia 36-entry multi-channel probe + 4-fires-stale cron pivot]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule 8 MIN_PRECEDENCE.
+    
+    ## Cardinal rules conformance
+    
+    CR-1 + CR-5 + CR-7 + CR-8 + CR-10 + CR-11 + Mia n=329 + FM-20 n=21 + FM-02 b+c atomic + git-cli-grammar + 12th cumulative no-Path-P-dispatch + AUTO-PROCEED MEDIUM-risk + port-note-discipline section 6 forward-only.
+    
+    Wave 145 Fire 13 SHIPPED CLEAN. docs/install-provenance.md APPEND +102 LOC.
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index c7bbf05..6239183 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -16180,3 +16180,105 @@ Cumulative Mia OVER catches this ship:
+ - OPERATOR-GATED: W145-F12b/F11b/F10b install / W138-F4 / W141B / W145-F5b
+ 
+ **Wave 141 SHIPPED CLEAN** — backend SMOKE-PROBE PASS at 5/5 surfaces; frontend MCP tool invocation queued for W141.1 next-tick probe. 11th cumulative consecutive no-Path-P-dispatch (cumulative ~1980s + 55K tokens + 3220 LOC saved across W145-F2-F12 + W141 + W146 + W149 arc).
++
++---
++
++## Wave 145 Fire 13 — Manifest drift sweep PART-2 [VERIFIED 2026-05-11]
++
++**Trigger**: /loop cron `*/12` fire post-W141 (Graphiti backend probe at `4a7ea01`); 4th-consecutive stale-cron pivot detected (cron prompt named W145-F11 + W145-F12 already SHIPPED). Auto-pivot to W145-F13 manifest drift sweep PART-2 (sister W145-F8 fire-36 covered first 15; ~64 PLANNED entries remaining per W145-F9 baseline; 98 PLANNED matches in current manifest).
++
++**Sweep methodology** (per W145-F8 + W119 Ship 4 forward-only HONEST-CORRECTION precedent): probe install-state via canonical channel for each candidate; surface DRIFT entries to install-provenance.md APPEND (NOT amend stale manifest text inline per `port-note-discipline.md` section 6).
++
++### NEW DRIFT entries surfaced (~36 candidates verified INSTALLED)
++
++| # | Manifest line | Candidate | Probe result | Channel |
++|---|---|---|---|---|
++| 1 | Section 10 | `rg` (ripgrep) | INSTALLED | WinGet `/c/Users/42/AppData/Local/Microsoft/WinGet/Links/rg` |
++| 2 | Section 10 | `fd` (sharkdp/fd) | INSTALLED | WinGet |
++| 3 | Section 10 | `bat` v0.26.1 | INSTALLED | WinGet |
++| 4 | Section 10 | `eza` (eza-community/eza) | INSTALLED | WinGet |
++| 5 | Section 10 | `jq` (jqlang/jq) | INSTALLED | Chocolatey `/c/ProgramData/chocolatey/bin/jq` |
++| 6 | Section 10 | `fzf` (junegunn/fzf) | INSTALLED | WinGet |
++| 7 | Section 10 | `zoxide` (ajeetdsouza/zoxide) | INSTALLED | WinGet |
++| 8 | Section 10 | `delta` v0.18.2 (dandavison/delta) | INSTALLED | WinGet |
++| 9 | Section 10 | `lazygit` (JesseDuffield/lazygit) | INSTALLED | WinGet |
++| 10 | Section 1 | `claude-agent-sdk` (Python) v0.1.33 | INSTALLED | pip — anthropics/claude-agent-sdk-python |
++| 11 | Section 8 | `ragas` v0.4.3 | INSTALLED | pip — eval-class library |
++| 12 | Section 8 | `langchain` v0.3.27 | INSTALLED | pip — framework deps |
++| 13 | Section 8 | `llama-index` v0.11.0 | INSTALLED | pip — framework deps |
++| 14 | Section 4 | `litellm` v1.81.13 (Python pkg, NOT Docker container) | INSTALLED | pip — proxy library; Docker variant tracked separately |
++| 15 | Section 1 | `@anthropic-ai/claude-agent-sdk` (npm TypeScript) v0.2.133 | INSTALLED | npm-global |
++| 16 | Section 1 | `@anthropic-ai/sdk` v0.95.1 | INSTALLED | npm-global (W146 Ship 1 confirmed) |
++| 17 | Section 3 | `@brave/brave-search-mcp-server` v2.0.75 | INSTALLED | npm-global (W145-F8 surfaced) |
++| 18 | Section 8 | `@perplexity-ai/mcp-server` v0.8.4 | INSTALLED | npm-global |
++| 19 | Section 8 | `firecrawl-mcp` v3.11.0 | INSTALLED | npm-global |
++| 20 | Section 8 | `exa-mcp-server` v3.1.9 | INSTALLED | npm-global |
++| 21 | Section 8 | `@modelcontextprotocol/inspector` v0.21.1 | INSTALLED | npm-global |
++| 22 | Section 7 | `@modelcontextprotocol/server-filesystem` v2026.1.14 | INSTALLED | npm-global |
++| 23 | Section 7 | `@modelcontextprotocol/server-sequential-thinking` v2025.12.18 | INSTALLED | npm-global |
++| 24 | Section 7 | `@ast-grep/cli` v0.42.0 | INSTALLED | npm-global (W134-F16 + Wave 119
+
+[prompt truncated]

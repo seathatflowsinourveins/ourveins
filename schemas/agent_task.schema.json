@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "Budget": {
+      "properties": {
+        "max_tool_calls": {
+          "default": 15,
+          "title": "Max Tool Calls",
+          "type": "integer"
+        },
+        "max_tokens": {
+          "default": 140000,
+          "title": "Max Tokens",
+          "type": "integer"
+        },
+        "wall_time_seconds": {
+          "default": 1800,
+          "title": "Wall Time Seconds",
+          "type": "integer"
+        },
+        "no_progress_seconds": {
+          "default": 600,
+          "title": "No Progress Seconds",
+          "type": "integer"
+        },
+        "p99_target_sec": {
+          "default": 1800,
+          "title": "P99 Target Sec",
+          "type": "integer"
+        },
+        "max_attempts": {
+          "default": 3,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "iterations": {
+          "default": 1,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "default": 1800,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "Budget",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "task": {
+      "minLength": 1,
+      "title": "Task",
+      "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repo"
+    },
+    "runtime": {
+      "default": "openhands",
+      "title": "Runtime",
+      "type": "string"
+    },
+    "budget": {
+      "$ref": "#/$defs/Budget"
+    },
+    "hitl": {
+      "default": false,
+      "title": "Hitl",
+      "type": "boolean"
+    },
+    "codex_profile": {
+      "default": "t1-light",
+      "enum": [
+        "t1-light",
+        "t2-standard",
+        "t3-deep",
+        "deep-review-exec"
+      ],
+      "title": "Codex Profile",
+      "type": "string"
+    },
+    "conversation_id": {
+      "title": "Conversation Id",
+      "type": "string"
+    },
+    "workspace_mode": {
+      "default": "remote",
+      "description": "W376 Workspace dispatch mode. 'remote' = docker-py-spawned agent-server container + RemoteWorkspace (full Docker isolation, ~3-5s spawn). 'local' = LocalWorkspace in-process (fast, no isolation; trusted tasks only). Default 'remote' matches W375 original security intent. Cite: openhands-sdk@1.22.1 openhands/sdk/workspace/workspace.py:12-29.",
+      "enum": [
+        "local",
+        "remote"
+      ],
+      "title": "Workspace Mode",
+      "type": "string"
+    },
+    "base_commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "W376 admission-coordinator op_id input (codex r1 D3 R1 + C24). Git base commit SHA the task operates against. Distinct base_commit \u2192 distinct workflow_id (same task+repo on different commits are different operations). None for ad-hoc tasks not tied to a specific commit. Cite: spec \u00a76.11 AdmissionCoordinator.compute_op_id + plan Task 20.",
+      "title": "Base Commit"
+    },
+    "idempotency_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "W376 admission-coordinator caller-supplied idempotency override (codex r2 D3-r2-P0-3). When set, overrides the derived op_id so the caller controls dedup identity directly. None \u2192 op_id derived from (task, repo, base_commit). Cite: spec \u00a76.11 + plan Task 20 test_caller_supplied_idempotency_key_overrides_derivation.",
+      "title": "Idempotency Key"
+    }
+  },
+  "required": [
+    "task"
+  ],
+  "title": "TaskSpec",
+  "type": "object"
+}

@@ -1,0 +1,179 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 12842c70ce6c633c3e7adbde99a9528fd9d59508</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/codex_postcommit_review.py | 35 ++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 12842c70ce6c633c3e7adbde99a9528fd9d59508
+Author:     42 <42@local>
+AuthorDate: Tue May 12 23:32:58 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 23:32:58 2026 -0400
+
+    feat(wave161): SB12 — retrofit codex_postcommit_review._append_jsonl to use atomic_append
+    
+    Wave 161 SB12 (cum-6 of cap-25) per /goal P1 #2 closure
+    (architecture-audit-scorecard.md 9-bundle queue Bundle 1 phase 2 —
+    retrofit top-2 of 3 JSONL emitters).
+    
+    Retrofits `.claude/hooks/scripts/codex_postcommit_review.py:_append_jsonl`
+    to use `atomic_append()` from cite-imported `scripts/_atomic_jsonl_append.py`
+    (W161 SB10 commits ed38d2a + fdbd73e). Replaces direct `with .open("a")
+    + f.write(json.dumps(row, ensure_ascii=False) + "\n")` with
+    `atomic_append(launch_log, row)` enforcing Round-3-7b cumulative invariants
+    identical to W161 SB11 _observation_writer retrofit (commit 5929ccb).
+    
+    SIBLING PRECEDENT n=3 CUMULATIVE (Ship 2a + Ship 2b + W161 SB11):
+    - Ship 2a: Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52
+    - Ship 2b: Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:40-49
+    - W161 SB11: Z:/claude-sota-installed/.claude/hooks/scripts/_observation_writer.py
+      (commit 5929ccb, T3 APPROVE clean — fully-verified retrofit precedent in
+      this runtime)
+    
+    CODEX T1 PATTERN B HONEST-NON-FINDING (sibling-precedent + SB11 dogfood
+    disposition per closed-loop-recursive-narrowing.md):
+    - SB11's structurally-identical retrofit fired Pattern B HNF
+      (zero-investigation 494ms exit 0)
+    - SB11 T3 APPROVE clean confirms cross-model verification path works
+    - SB12 mirrors SB11 verbatim with single-source target swap
+      (_observation_writer.append_observation → codex_postcommit_review._append_jsonl)
+    - T1 dispatch retried — expected Pattern B HNF or rapid APPROVE; T3 postcommit
+      hook provides verification anyway (Phase 1 bootstrap exception satisfied)
+    
+    PATTERN A APPLY (SB11 + Ship 2a/2b verbatim fidelity):
+    - L80-96 NEW: import block — _REPO_ROOT = parents[3] (resolves to
+      Z:/claude-sota-installed/); sys.path.insert(scripts/); try/except import
+      atomic_append + RecordTooLarge; fail-open `atomic_append = None` +
+      RecordTooLarge stub
+    - L799-825 _append_jsonl body: atomic_append primary path with
+      `except RecordTooLarge` Round-5 F-5 handling (log to stderr + skip,
+      do NOT block commit per fail-open contract); legacy with-open path
+      preserved as fallback when atomic_append is None
+    
+    LOCAL SMOKE PROBE:
+    $ python -c "import codex_postcommit_review as m; ..."
+    atomic_append_available: True
+    RecordTooLarge_type: type
+    _append_jsonl_defined: True
+    
+    AUDIT DIMENSIONS (mirror SB11):
+    - Path resolution PASS — `Path(__file__).resolve().parents[3]` → root
+    - Fail-open import PASS — try/except per Ship 2a R2
+    - Backward compat PASS — atomic_append uses `json.dumps(row, ensure_ascii=False)
+      + "\n"` shape preserved
+    - RecordTooLarge handling PASS — Round-5 F-5 invariant honored (stderr
+      log + skip; commit not blocked per fail-open contract)
+    - Cycle-300 scope PASS — single-file ~30 LOC delta (out-of-scope:
+      L148 _emit_silent_fallback emergency-pathway write; smaller surface,
+      different concern, separate ship if ever needed)
+    - Hook critical-path safety PASS — atomic_append overhead ~1-5ms acceptable
+    - FM-02 (b)+(c) PASS — atomic single-shell commit
+    
+    PYRIGHT DIAGNOSTICS (sibling-inherited shape; suppressed):
+    - Line 93 reportMissingImports + reportUnusedImport: suppressed via
+      `# pyright: ignore[reportMissingImports,reportUnusedImport]` per SB11
+      precedent
+    - Line 93 "not accessed" warnings on atomic_append + RecordTooLarge:
+      pyright flow-analysis false-positive — symbols ARE used in _append_jsonl
+      at L824-827 (runtime probe verified); identical false-positive shape in
+      sibling Ship 2a/2b
+    - Line 100 `_LAUNCH_LOG` unused: pre-existing diagnostic from Wave 160
+      SB8 commit body (out-of-scope per Karpathy P3 surgical-changes)
+    
+    OUT-OF-SCOPE (NOT in SB12):
+    - L148 `_emit_silent_fallback` emergency-pathway write — different
+      function, different concern (silent-fallback emergency write path).
+      Risk-reward: small surface + emergency-only execution = defer per
+      cycle-300 ONE-LOGICAL-UNIT-PER-FIRE
+    - SB13: retrofit codex_t1_consult_gate + subagent_stop_telemetry
+      (top-3 of 3 per scorecard P1 #2)
+    
+    CARDINAL-RULE CONFORMANCE:
+    - CR-1 ✅ TIER-1-DIRECT sibling cite at file:line for Ship 2a/2b R2 +
+      W161 SB11 in-runtime precedent
+    - CR-3 ✅ Path P codex T1 attempted (Pattern B HNF anticipated per SB11
+      precedent); T3 postcommit auto-verifies via PostToolUse hook
+    - CR-8 ✅ TIER-3-LOCAL-COMPOSITION cite class
+    - CR-9 ✅ Sibling-bleed defense applied (no Z:/claude-sota/ paths in
+      source body)
+    - CR-11 ✅ META-process SOTA discipline (sibling-precedent n=3 +
+      in-runtime SB11 dogfood + T3 postcommit cross-model verification)
+    - CR-12 ✅ CITE-CLASS-CANONICAL (sibling + SB11 are canonical retrofit
+      implementations)
+    - cycle-300 ✅ ONE-LOGICAL-UNIT-PER-FIRE (single-file retrofit;
+      L148 emergency-fallback explicitly OUT-OF-SCOPE)
+    - FM-02 (b)+(c) atomic single-shell `git add -- <1 path> &&
+      git commit -o -F tmp/w161-sb12-msg.txt -- <1 path>`
+    
+    Cite class:
+    constituents=[TIER-1-DIRECT @ Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52
+    + memory_persist_sessionend.py:40-49 sibling Ship 2a/2b R2 retrofit pattern,
+    TIER-2 sister-rule cite codex-t1-fix-forward-pattern.md §Pattern B mitigation,
+    TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 161 SB11 in-runtime precedent
+    (commit 5929ccb T3 APPROVE clean) + Wave 161 SB12 mechanical mirror];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per
+    Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+    
+    Wave 161 progress: SB12 cum-6 of cap-25 SHIPPED. Scorecard 9-bundle queue
+    Bundle 1 phase 2 retrofit 2/3 shipped (top-1 = SB11 _observation_writer;
+    top-2 = SB12 codex_postcommit_review). SB13 pending for codex_t1_consult_gate
+    + subagent_stop_telemetry (top-3 of 3).
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/codex_postcommit_review.py b/.claude/hooks/scripts/codex_postcommit_review.py
+index b559c12..6427f0b 100644
+--- a/.claude/hooks/scripts/codex_postcommit_review.py
++++ b/.claude/hooks/scripts/codex_postcommit_review.py
+@@ -79,6 +79,22 @@ from pathlib import Path
+ sys.path.insert(0, os.path.dirname(__file__))
+ from _guard_base import git_verb_matches  # noqa: E402
+ 
++# Wave 161 SB12: import atomic_append() from cite-imported _atomic_jsonl_append
++# module (W161 SB10 commits ed38d2a + fdbd73e). Mirrors sibling Ship 2a/2b R2
++# pattern at Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52
++# + memory_persist_sessionend.py:40-49 + Wave 161 SB11 _observation_writer.py
++# retrofit (commit 5929ccb). Per Ship 2a R2 codex T3 conf=0.82: wrap import
++# in try/except to prevent helper-failure (missing / syntax / runtime /
++# version-skew) from breaking module load. atomic_append=None triggers
++# fail-open legacy fallback in _append_jsonl.
++_REPO_ROOT = Path(__file__).resolve().parents[3]
++sys.path.insert(0, str(_REPO_ROOT / "scripts"))
++try:
++    from _atomic_jsonl_append import atomic_append, RecordTooLarge  # noqa: E402  # pyright: ignore[reportMissingImports,reportUnusedImport]
++except Exception:  # noqa: BLE001 — fail-open import per Ship 2a R2 codex T3 prescription
++    atomic_append = None  # type: ignore[assignment]
++    RecordTooLarge = type("RecordTooLarge", (Exception,), {})  # type: ignore[assignment,misc]
++
+ _ROOT = Path(__file__).resolve().parents[3]
+ _STATE_DIR = _ROOT / ".claude" / "state"
+ _LAUNCH_LOG = _STATE_DIR / "codex_postcommit_reviews.jsonl"
+@@ -800,8 +816,23 @@ def _append_jsonl(row: dict, root: Path = _ROOT, payload: dict | None = None) ->
+     launch_log = state_dir / "codex_postcommit_reviews.jsonl"
+     try:
+         state_dir.mkdir(parents=True, exist_ok=True)
+-        with launch_log.open("a", encoding="utf-8") as f:
+-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
++        # Wave 161 SB12: use atomic_append() with Round-3-7b cumulative
++        # invariants when available; fall back to legacy with-open path
++        # when atomic_append is None (helper missing/skew/syntax error)
++        # per sibling Ship 2a/2b R2 fail-open pattern. RecordTooLarge
++        # handled per Round-5 F-5 invariant (log + skip; commit not blocked).
++        if atomic_append is not None:
++            try:
++                atomic_append(launch_log, row)
++            except RecordTooLarge as exc:
++                print(
++                    f"codex_postcommit_review: jsonl record too large: {exc!r}",
++                    file=sys.stderr,
++                )
++        else:
++            # Fail-open legacy fallback when atomic_append unavailable
++            with launch_log.open("a", encoding="utf-8") as f:
++                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+     except Exception as e:
+         # Fail-open — log-write failures must not block the commit
+         print(f"codex_postcommit_review: jsonl write failed: {e!r}", file=sys.stderr)</repository_context>

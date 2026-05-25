@@ -1,0 +1,254 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b8af5ca46f41751841f4565f2212859b7283c307
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/plugins/installed_plugins.json  | 78 ++++++++++++++++-----------------
+ .claude/plugins/known_marketplaces.json |  4 +-
+ .claude/settings.json                   |  5 ---
+ 3 files changed, 41 insertions(+), 46 deletions(-)
+
+=== git show --format=fuller ===
+commit b8af5ca46f41751841f4565f2212859b7283c307
+Author:     42 <42@local>
+AuthorDate: Wed May 13 21:36:46 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Wed May 13 21:36:46 2026 -0400
+
+    session checkpoint: 2026-05-13 21:36
+
+=== diff ===
+diff --git a/.claude/plugins/installed_plugins.json b/.claude/plugins/installed_plugins.json
+index 09d70ce..b685379 100644
+--- a/.claude/plugins/installed_plugins.json
++++ b/.claude/plugins/installed_plugins.json
+@@ -73,10 +73,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\agent-sdk-dev\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\agent-sdk-dev\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-08T03:32:41.475Z",
+-        "lastUpdated": "2026-05-14T01:27:03.729Z",
++        "lastUpdated": "2026-05-14T01:35:32.952Z",
+         "gitCommitSha": "70d57685d411484ba5efe802abf841d2286d7bbf"
+       }
+     ],
+@@ -95,10 +95,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\frontend-design\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\frontend-design\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-08T03:34:56.190Z",
+-        "lastUpdated": "2026-05-14T01:27:03.711Z",
++        "lastUpdated": "2026-05-14T01:35:32.939Z",
+         "gitCommitSha": "70d57685d411484ba5efe802abf841d2286d7bbf"
+       }
+     ],
+@@ -128,10 +128,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\pr-review-toolkit\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\pr-review-toolkit\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T00:08:40.009Z",
+-        "lastUpdated": "2026-05-14T01:27:03.752Z",
++        "lastUpdated": "2026-05-14T01:35:32.944Z",
+         "gitCommitSha": "4e5dc95322f06042a309e7847d2fac71dc0ec259"
+       }
+     ],
+@@ -139,10 +139,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\skill-creator\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\skill-creator\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T00:08:40.009Z",
+-        "lastUpdated": "2026-05-14T01:27:03.800Z",
++        "lastUpdated": "2026-05-14T01:35:32.943Z",
+         "gitCommitSha": "4e5dc95322f06042a309e7847d2fac71dc0ec259"
+       }
+     ],
+@@ -161,10 +161,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\plugin-dev\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\plugin-dev\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T01:32:03.078Z",
+-        "lastUpdated": "2026-05-14T01:27:03.880Z",
++        "lastUpdated": "2026-05-14T01:35:32.953Z",
+         "gitCommitSha": "ee65220155568b4317416819677f2ce829c2385a"
+       }
+     ],
+@@ -172,10 +172,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\code-review\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\code-review\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T02:42:25.509Z",
+-        "lastUpdated": "2026-05-14T01:27:03.718Z",
++        "lastUpdated": "2026-05-14T01:35:32.958Z",
+         "gitCommitSha": "3007c178ed1eba1ab5decbf8449f147204fae3c2"
+       }
+     ],
+@@ -183,10 +183,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\feature-dev\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\feature-dev\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T02:42:25.509Z",
+-        "lastUpdated": "2026-05-14T01:27:03.733Z",
++        "lastUpdated": "2026-05-14T01:35:32.941Z",
+         "gitCommitSha": "3007c178ed1eba1ab5decbf8449f147204fae3c2"
+       }
+     ],
+@@ -205,10 +205,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\commit-commands\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\commit-commands\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T02:42:25.509Z",
+-        "lastUpdated": "2026-05-14T01:27:03.731Z",
++        "lastUpdated": "2026-05-14T01:35:32.947Z",
+         "gitCommitSha": "3007c178ed1eba1ab5decbf8449f147204fae3c2"
+       }
+     ],
+@@ -216,10 +216,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\session-report\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\session-report\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T02:42:25.509Z",
+-        "lastUpdated": "2026-05-14T01:27:03.714Z",
++        "lastUpdated": "2026-05-14T01:35:32.949Z",
+         "gitCommitSha": "3007c178ed1eba1ab5decbf8449f147204fae3c2"
+       }
+     ],
+@@ -227,10 +227,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\playground\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\playground\\516df169393d",
++        "version": "516df169393d",
+         "installedAt": "2026-05-09T02:42:25.509Z",
+-        "lastUpdated": "2026-05-14T01:27:03.749Z",
++        "lastUpdated": "2026-05-14T01:35:32.955Z",
+         "gitCommitSha": "3007c178ed1eba1ab5decbf8449f147204fae3c2"
+       }
+     ],
+@@ -238,10 +238,10 @@
+       {
+         "scope": "project",
+         "projectPath": "Z:\\claude-sota-installed",
+-        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\mcp-server-dev\\066d3f6e4ff1",
+-        "version": "066d3f6e4ff1",
++        "installPath": "Z:\\claude-sota-installed\\.claude\\plugins\\cache\\claude-plugins-official\\mcp-server-dev\\516df169393d",
++        "version": "516df1
+
+[prompt truncated]

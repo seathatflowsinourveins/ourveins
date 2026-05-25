@@ -1,0 +1,228 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b49639dbe40e9fc2509fc4b9f2293a70914fa5c6
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../00-dep-lock-codification.md                    | 170 +++++++++++++++++++++
+ 1 file changed, 170 insertions(+)
+
+=== git show --format=fuller ===
+commit b49639dbe40e9fc2509fc4b9f2293a70914fa5c6
+Author:     42 <42@local>
+AuthorDate: Mon May 11 01:50:57 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 01:50:57 2026 -0400
+
+    docs(research-architecture): Wave 145 Fire 9 — dep_lock per-loop snapshot hook codification (W145-F10) — closes W145-F5 GAP #1; schema + hook design DOC-ONLY; install deferred to W145-F10b operator-gated; 8th consecutive no-Path-P-dispatch cumulative ~1440s/40K tokens/2700 LOC savings
+    
+    /loop tick 8 dynamic-mode re-invocation (cron `*/12 * * * *` id `84da0f2f`
+    parallel-armed). Auto-pick Forward Top-5 🥇 W145-F10-NEW dep_lock per-loop snapshot
+    hook codification per W145-F8 close-synthesis.
+    
+    ## Mia probe — GENUINE GAP confirmed (n=256 → n=260, +4)
+    
+    - NO `dep_*`/`lock_*`/`snapshot` hook scripts in `.claude/hooks/scripts/`
+    - NO `claude_code.dep_*` Phoenix span schema
+    - NO `package.json`/`*.lock`/`requirements*.txt`/lockfiles at eee repo root
+    - cwc commit-on-stop captures `git diff --shortstat` but NOT dep-lock state
+    
+    ## Codified `claude_code.dep_snapshot` span schema (10 ecosystem dimensions)
+    
+    Python uv-managed + Python venv + Node npm-global + Cargo + WinGet + Chocolatey +
+    .local/bin + Docker containers + plugin marketplaces + CC plugins enabled.
+    
+    Each dimension emits: deps_count + deps_sha256 (sorted-output-hashed for
+    determinism).
+    
+    ## 4 hook wire options + recommendation
+    
+    - A: PreToolUse session-start (pristine state)
+    - B: PostToolUse Stop (final state + commits)
+    - **C: BOTH boundaries** (recommended — supports replay-by-diffing-snapshots)
+    - D: sampled every N tool calls (throttle)
+    
+    ## 5 CR-9 install-risk considerations enumerated
+    
+    1. probe latency 10-30s per full 10-ecosystem sweep
+    2. PII filter for proprietary internal deps
+    3. hash determinism (sorted-output before hashing)
+    4. OTLP graceful-degrade if Phoenix down
+    5. idempotency (sort + hash + dedupe)
+    
+    ## Install DEFERRED to W145-F10b operator-gated
+    
+    HIGH-RISK install ship per CR-9 install-risk + CR-7 Phase 1 operator-approval gate.
+    Hook script + `.claude/settings.json` wire registration await explicit operator
+    approval.
+    
+    ## Cross-link to W145-F12 replay-session.py CLI codification (deferred)
+    
+    When W145-F12 replay-session.py CLI ships, replay workflow:
+    1. Query `claude_code.dep_snapshot` spans by session.id
+    2. Diff session-start vs session-end snapshots per ecosystem
+    3. Emit dep-change diff (added/removed/version-bumps)
+    4. Cross-reference with commit-on-stop git diff for correlated source changes
+    
+    Closes W145-F5 GAP #1 (dep_lock per-loop) for replay-by-reconstruction workflow.
+    
+    ## Ladder advances
+    
+    | Ladder | Prior | This fire |
+    |---|---|---|
+    | Mia pre-apply | n=256 | n=260 (+4 gap-confirmation probes) |
+    | FM-20 cascade | n=15 | n=15 (codification not catch) |
+    | Path P + FD#2 | unchanged | no dispatch (8 consecutive fires) |
+    | Cumulative Mia+FM-20 savings | ~1260s+35K+2550 LOC | ~1440s+40K+2700 LOC across 8 fires |
+    
+    ## REVISED Forward Top-5 (post-Wave-145.9)
+    
+    🥇 W145-F11-NEW test_command capture hook codification
+    🥈 W145-F12-NEW replay-session.py CLI consolidation codification
+    🥉 W145-F13-NEW Manifest drift sweep PART-2 (~64 remaining PLANNED entries)
+    OPERATOR-GATED: W145-F10b dep_snapshot install + W145-F6 garak install + W145-F5b cwc wire
+    
+    ## STEP 12 TRIGGER WATCH
+    
+    Post-W145-F11/F12/F13 (3 more doc-only fires), Forward Top-5 EMPTY except
+    OPERATOR-GATED — fresh-ecosystem-discovery-sweep trigger ready.
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-1-DIRECT settings.json:34-42 OTel wire + cwc cite + W145-F5 GAP #1 cross-link)
+    N/A CR-3 cross-model (codification + design)
+    ✅ CR-9 install-risk DEFERRED W145-F10b (5 considerations enumerated)
+    ✅ CR-10 research-first (Research=Mia gap-confirm; Codification=schema + design)
+    ✅ CR-11 META-process (closes W145-F5 GAP #1)
+    N/A CR-12 5-class (META-codification)
+    ✅ Mia pre-apply n=260
+    N/A FM-20 cascade (codification not catch)
+    ✅ FM-02 sub-class (b)+(c) atomic
+    ✅ synthesis-layer-verify (genuine GAP — concrete schema + design)
+    ✅ Forward Discipline #2 (NO codex dispatch 8 consecutive)
+    ✅ kiss-dry-yagni Must-Never #4 (no premature implementation; deferred)
+    ✅ port-note-discipline §6 forward-only
+    ✅ CR-7 Phase 1 operator-approval gate (install deferred)
+    ✅ AUTO-PROCEED DEFAULTS MEDIUM-risk doc-only
+    ✅ git-cli-grammar
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-37-w145-dep-lock-codification/00-dep-lock-codification.md
+    Cite: TIER-3-LOCAL-COMPOSITION via Mia n=260 + 10-ecosystem schema + 4 hook wire options + 5 CR-9 considerations + cross-link W145-F5+W145-F12 (cite-class per citation-discipline.md rule #8 MIN_PRECEDENCE)
+    Verify: [VERIFIED via Mia n=260 confirmed genuine GAP (no dep_*/lock_*/snapshot hooks + no claude_code.dep_* span + no eee repo lockfiles + cwc commit-on-stop captures git diff only); codified claude_code.dep_snapshot Phoenix span schema with 10 ecosystem dimensions (Python uv + Python venv + Node npm-global + Cargo + WinGet + Chocolatey + .local/bin + Docker + plugin marketplaces + CC plugins); 4 hook wire options enumerated (Option C BOTH-boundaries recommended); 5 CR-9 install-risk considerations documented; install ship DEFERRED to W145-F10b operator-gated per CR-7 Phase 1 + CR-9; cross-link W145-F12 replay-session.py CLI for replay-by-diffing-snapshots workflow; 8th consecutive no-Path-P-dispatch fire cumulative ~1440s+40K tokens+2700 LOC saved across Wave 145 arc]
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-37-w145-dep-lock-codification/00-dep-lock-codification.md b/docs/sota-architecture-audit/fire-37-w145-dep-lock-codification/00-dep-lock-codification.md
+new file mode 100644
+index 0000000..32109bf
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-37-w145-dep-lock-codification/00-dep-lock-codification.md
+@@ -0,0 +1,170 @@
++# Wave 145 Fire 9 — dep_lock per-loop snapshot hook codification (W145-F10)
++
++> **Verdict**: `DOC-ONLY-CODIFICATION` — design + schema for future hook that emits dep_lock snapshot per autonomous-loop session boundary. Closes W145-F5 Agent provenance/replay schema GAP #1 (dep_lock not captured per-loop). NO install — actual hook script ship deferred to W145-F10b operator-gated install fire.
++> **Closed-loop disposition**: Outcome A ACCEPT-WITH-DOC — codification + wire-activation deferred per CR-7 Phase 1 + CR-9 install-risk
++
++## Fire 37 (W145-F10) /loop tick 8 (dynamic + cron `*/12` parallel-armed)
++
++User re-invoked `/loop` dynamic-mode; existing cron `84da0f2f` parallel-armed. Auto-pick = Forward Top-5 🥇 W145-F10-NEW dep_lock per-loop snapshot hook codification per W145-F8 close-synthesis (commit `f885514`).
++
++## Mia probe — confirms GENUINE GAP (n=256 → n=260, +4)
++
++| Probe | Result |
++|---|---|
++| Existing dep-snapshot hook | ❌ NO `dep_*` / `lock_*` / `snapshot` scripts in `.claude/hooks/scripts/` (only `block_no_verify_guard.py` matched) |
++| Phoenix span schema | ❌ NO `claude_code.dep_*` / `dep_snapshot` / `lock_snapshot` in `.claude/settings.json` or `docs/install-provenance.md` |
++| Lock files at repo root | ❌ NO `package.json` / `*.lock` / `requirements*.txt` / `poetry.lock` / `Cargo.lock` / `uv.lock` at eee repo root (eee is markdown-and-git-portable; deps live in system PATH + venvs) |
++| cwc commit-on-stop dep capture | ❌ `commit-on-stop-throttled.sh` captures `git diff --shortstat HEAD` (file changes) but NOT dep-lock state |
++
++**Confirmed**: dep_lock per-loop snapshot is GENUINE GAP — not covered by any existing capture surface.
++
++## Codified design (DOC-ONLY)
++
++### Schema: `claude_code.dep_snapshot` Phoenix span
++
++```yaml
++spa
+
+[prompt truncated]

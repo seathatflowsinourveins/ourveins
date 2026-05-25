@@ -1,0 +1,160 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 6936a1419af64376a442b412aee0180dbaf7501f
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/audit-refresh-W160-F1-2026-05-12.md | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit 6936a1419af64376a442b412aee0180dbaf7501f
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:45:37 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:45:37 2026 -0400
+
+    docs(audit): Pattern A fix-forward T3 c0c0d8b7 — STAND-IN-DRAFT (was AUTHORITATIVE)
+    
+    T3 PostToolUse verdict on commit c0c0d8b7: NEEDS-ATTENTION conf=0.86 medium
+    [VERIFIED via .claude/state/codex_review_HEAD_c0c0d8b7.txt]
+    
+    Finding F-001 (conf=0.86, medium): "Authoritative audit shipping with only
+    partial gate satisfaction" — the audit doc marks itself AUTHORITATIVE but the
+    header also discloses Phase 1 explore-agent dispatch failed twice, cross-model
+    gate satisfaction is PARTIAL, and the audit pivoted to orchestrator-direct
+    probes. Risk: downstream Fires 2-10 could treat the audit and its gap ordering
+    as canonical before independent review evidence exists.
+    
+    ## Pattern A apply (single atomic fix-forward per codex-t1-fix-forward-pattern.md)
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A`:
+    NEEDS-ATTENTION conf 0.85-0.93 + ≤10 prescribed_edits → apply ALL in single
+    atomic commit. Conf 0.86 is in sweet spot; 1 finding ≤ 10.
+    
+    Verbatim recommendation applied (codex T3 verbatim):
+    "downgrade the status to a non-authoritative draft/stand-in artifact that
+    explicitly cannot drive follow-on fires"
+    
+    Prescribed edits (3 applied in single atomic commit):
+    1. `> **Status**: AUTHORITATIVE` → `> **Status**: **STAND-IN-DRAFT** ... **NOT AUTHORITATIVE** for downstream Fires 2-10 ship decisions` [DONE]
+    2. AUTHORITATIVE label deferred to Fire 11 convergence ship; cite T3 verdict path inline [DONE]
+    3. Add explicit downstream-consumer contract: "Fires 2-10 MAY use this document for gap-identification + direction-of-travel signal ONLY. They MUST NOT treat this audit's gap ordering or % figure as canonical until Fire 11 cross-model gate landing produces a non-STAND-IN successor artifact." [DONE]
+    
+    STAND-IN-NOTICE block preserved unchanged (was already in place per per cross-model-consensus.md §Env-funneled disclosure mandate).
+    
+    ## Cross-model gate disposition (CR-3 Phase 1 bootstrap exception)
+    
+    This Pattern A fix-forward commit re-fires T3 PostToolUse hook automatically.
+    If T3 returns APPROVE: Fire 1 closed-loop convergence per Outcome A monotone-decline.
+    If T3 returns NEEDS-ATTENTION again: re-fire Pattern A iter-2 per closed-loop-recursive-narrowing.md.
+    
+    ## Cardinal-rule conformance
+    
+    - CR-1: TIER-3-LOCAL-COMPOSITION cite-class preserved with verbatim T3 verdict cite — PASS
+    - CR-3: Phase 1 bootstrap exception applied; Pattern A apply with T3 auto-re-fire — PASS
+    - CR-7: REPORT mandate — finding cited verbatim + recommendation verbatim — PASS
+    - CR-8: ADAPTED-FROM-SOTA — Pattern A discipline per codex-t1-fix-forward-pattern.md — PASS
+    - CR-11: META-process — Outcome A monotone-decline trajectory tracked — PASS
+    
+    ## Verification
+    
+    - `grep -n "STAND-IN-DRAFT" docs/audit-refresh-W160-F1-2026-05-12.md` returns L3 [VERIFIED 2026-05-12]
+    - `grep -n "AUTHORITATIVE" docs/audit-refresh-W160-F1-2026-05-12.md` returns 0 matches for status declaration; remaining mentions only in "AUTHORITATIVE label deferred" + body text [VERIFIED]
+    - Cite path `.claude/state/codex_review_HEAD_c0c0d8b7.txt` exists at HEAD (T3 verdict file persisted) [VERIFIED]
+
+=== diff ===
+diff --git a/docs/audit-refresh-W160-F1-2026-05-12.md b/docs/audit-refresh-W160-F1-2026-05-12.md
+index 6b22608..4eef93a 100644
+--- a/docs/audit-refresh-W160-F1-2026-05-12.md
++++ b/docs/audit-refresh-W160-F1-2026-05-12.md
+@@ -1,6 +1,8 @@
+ # SOTA-cleanliness audit refresh — Wave 160 Fire 1 (2026-05-12)
+ 
+-> **Status**: AUTHORITATIVE — Fire 1 deliverable of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md` (approved 2026-05-12 post-codification-fire close).
++> **Status**: **STAND-IN-DRAFT** — Fire 1 deliverable of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md` (approved 2026-05-12 post-codification-fire close). **NOT AUTHORITATIVE** for downstream Fires 2-10 ship decisions. AUTHORITATIVE label deferred to Fire 11 convergence ship after cross-model gate completes per `codex-t1-fix-forward-pattern.md` Pattern A fix-forward on T3 `c0c0d8b7` NEEDS-ATTENTION conf=0.86 medium F-001 finding (verbatim recommendation: "downgrade the status to a non-authoritative draft/stand-in artifact that explicitly cannot drive follow-on fires").
++>
++> **Downstream-consumer contract**: Fires 2-10 MAY use this document for **gap-identification + direction-of-travel signal ONLY**. They MUST NOT treat this audit's gap ordering or % figure as canonical until Fire 11 cross-model gate landing produces a non-STAND-IN successor artifact. Fire 12 audit % re-computation supersedes this document's % figure.
+ >
+ > **Cite class** (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
+ > `constituents=[TIER-1-DIRECT @ docs/sota-installed-manifest.md L33-46 (W146-F3 weight table — file-resident SOTA discipline), TIER-1-DIRECT @ Z:/claude-sota/.claude/rules/audit-action-loop.md (Wire/Surface/Close/Re-fire pattern), TIER-3-LOCAL-OPERATOR-DERIVED @ orchestrator-direct probe 2026-05-12]; effective_tier=TIER-3-LOCAL-COMPOSITION` per MIN_PRECEDENCE.
+</repository_context>

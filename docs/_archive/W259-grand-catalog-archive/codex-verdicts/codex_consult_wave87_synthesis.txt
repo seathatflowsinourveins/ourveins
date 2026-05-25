@@ -1,0 +1,89 @@
+You are GPT-5.5 reviewing the Wave 87 SYNTHESIS — Aperant SOTA deep-dive + final fleet status + cpa-usage-keeper rate-limit-polling gap finding. Pre-Pattern-A-apply gate per cardinal-rule-3 + standing directive.
+
+CONTEXT
+- 2 BRIDGE-MODE subagent dispatches FAILED PRE-FIRE with "Extra usage required for 1M context" (FM-17.b variant, 0 tokens / 0 tools / <400ms)
+- Pivoted to orchestrator-direct work via Bash + Read + Write
+- All claims verified via direct file probes (Mia 7/7 PASS Wave 86 + new probes Wave 87)
+
+WAVE 87 ORCHESTRATOR-DIRECT FINDINGS
+
+1. Aperant v2.7.6 (HEAD cba7a0270ec794a14ac71615bc6c48085807ede6) features documented:
+   - Multi-Account Swapping with auto-token-refresh + rate-limit-recovery
+   - Multi-profile account management (OAuth + API providers)
+   - Queue System v2 with intelligent rate-limit recovery
+   - Subscription type preservation during token refresh
+   - OAuth token revocation loop prevention
+
+2. Aperant CODEX_RATE_LIMITS_RESEARCH.md (16,709 bytes) documented:
+   - Codex Usage API: GET https://chatgpt.com/backend-api/wham/usage
+   - Anthropic Usage API: GET https://api.anthropic.com/api/oauth/usage
+   - Response schema with primary_window (5h) + secondary_window (7d) + plan_type + reset_at
+   - Passive headers: x-codex-primary-used-percent / x-codex-primary-reset-at etc.
+   - OAuth flows for both providers with client IDs
+
+3. CPA SQLite live snapshot (Z:/claude-sota-installed/.local/cpa-usage-keeper/cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db, 147 KB):
+   - 10 OAuth identities registered
+   - 3 active today (aesthetic9c claude 8 calls 100% cache; 739955940fc claude 6 calls 4-FAILED-of-6; codex zfan7 6 calls 100% OK)
+   - 7 idle today (avantmanifest, dreamweaver, mr.euphoria=capacity_score=0 EXHAUSTED, nalawowac, claude-zfan7, antigravity, gemini)
+   - Schema HAS rate-limit fields (primary_window_used_percent, primary_window_reset_at, secondary_window_*, plan_type, limit_reached) but ALL NULL (0/10 populated)
+
+4. THE GAP: cpa-usage-keeper PASSIVELY counts proxy traffic, does NOT actively POLL upstream usage APIs that Aperant documented. Aperant pattern is the SOTA for proactive rotation BEFORE 429.
+
+PROPOSED SHIP 1W (NEW)
+
+Aperant-derived rate-limit poller for cpa-usage-keeper:
+- Python script `tools/aperant_rate_limit_poller.py`
+- Polls Anthropic /api/oauth/usage for 7 Claude OAuth tokens
+- Polls ChatGPT /backend-api/wham/usage for 1 codex Pro OAuth token
+- Parses primary_window + secondary_window + plan_type
+- UPDATEs usage_identities table directly OR via Redis-RESP queue
+- 60s poll interval (Aperant runs 30s; conservative for 10-account fleet)
+- Reversible via stop-script
+
+PROPOSED SHIP 1X (depends on 1W)
+
+CLIProxyAPI cycle-aware-fill-first selector enhancement:
+- Use rate-limit data populated by Ship 1W
+- Skip accounts where primary_window_used_percent > threshold (default 80%)
+- Modifies CLIProxyAPI selector OR adds eee-local plugin
+
+CONVERGENCE-GATE NOTE
+
+Aperant SOTA is single-org (AndyMik90); Axis-1 ≥3-distinct-orgs NOT FIRM yet. CodexBar (steipete/CodexBar) is a 2nd org documented Codex usage polling. OpenAI's own codex-rs source code (github.com/openai/codex codex-backend-openapi-models) is the 3rd org. Combined: 3 distinct orgs document the same usage-API endpoints + schema -> Axis-1 PASS.
+
+STUDY-PILOT-PATTERN-EXTRACT acceptable per cite-class-policy.
+
+PROPOSED SYNTHESIS
+
+**Wave 87 commit-bound (DOCUMENTATION-ONLY)**:
+- tmp/wave87-fleet-final-2026-05-08.md (272 LOC final fleet + Aperant deep-dive + ships 1W/1X design)
+- docs/install-provenance.md +Wave 87 entry summarizing this synthesis
+
+**No code-class or settings-class commit at this fire.** Ship 1W implementation is design-novel and queued for next-iter (requires concrete Python script + SQLite UPDATE permissions audit + 60s cron wire).
+
+REVIEW AXES
+
+AXIS 1 — Synthesis correctness
+- Are Aperant findings cited at file:line + HEAD SHA per CR-1?
+- Is the cpa-usage-keeper schema-vs-data gap correctly characterized (schema has columns / data NULL)?
+- Is convergence-gate Axis-1 properly assessed for Aperant pattern (3 orgs found across Aperant + CodexBar + openai/codex)?
+
+AXIS 2 — Ship 1W scope
+- Is the proposed poller design technically sound (read OAuth tokens, hit upstream APIs, UPDATE SQLite)?
+- Is the cardinal-rule-9 install-risk classification (MEDIUM) accurate?
+- Is Axis-1 ≥3-org convergence properly achieved BEFORE recommending implementation?
+
+AXIS 3 — Cardinal-rule alignment
+- Cardinal-rule-3 cross-model gate: this synthesis fires GPT-5.5 e2e (acceptable Phase 1 bootstrap exception)
+- Cardinal-rule-9 install-risk: documentation-only commit is reversible; design-novel Ship 1W queued separately
+- Cardinal-rule-11 META-process SOTA: Pattern A apply + Mia pre-apply + provenance log + (skipped: codex T1 hook gate auto since SYSTEM-meta-review-fallback covers per codex-t1-system-meta-review-fallback.md)
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-3,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-WAVE87-DOC-ONLY" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

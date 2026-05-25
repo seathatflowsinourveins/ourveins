@@ -1,0 +1,110 @@
+# Codex T1 Path P — CLIProxyAPI v7.0.2 graceful-exit diagnosis (eee Wave 149 Fire 1)
+
+## CONTEXT
+
+eee runtime needs operational CLIProxyAPI for 7-account OAuth fleet rotation. Binary v7.0.2 (commit 1fca942b, built 2026-05-10T12:57Z) installed via cardinal-rule-6 official channel (gh release download + SHA-256 verified b4e483c779...95da matches checksums.txt).
+
+When launched via NSSM service OR direct Start-Process with config flag, the binary:
+1. Logs `CLIProxyAPI Version: 7.0.2, Commit: 1fca942b, BuiltAt: 2026-05-10T12:57:00Z` (fmt.Printf at main.go:57)
+2. Logs `API server started successfully on: 127.0.0.1:8317`
+3. Logs `server clients and configuration updated: 10 clients (10 auth entries + 0 Gemini API keys + 0 Claude API keys + 0 Codex keys + 0 Vertex-compat + 0 OpenAI-compat)`
+4. **EXITS with return code 0 within ~150ms** (no stderr, no panic, no further stdout)
+
+NSSM correctly throttles after 5 restart cycles → SERVICE_PAUSED.
+
+## What worked previously (2026-05-08 with v6.10.9)
+
+`Z:/claude-sota-installed/.cli-proxy-api/logs/main.log` line 1-5 (logrus-formatted, started 2026-05-08 01:51:42):
+- `[main.go:429] CLIProxyAPI Version: 6.10.9, Commit: 785b00c3, BuiltAt: 2026-05-07T01:37:01Z`
+- `[antigravity_version.go:54] periodic antigravity version refresh started (interval=3h0m0s)`
+- `[server.go:504] management routes registered after secret key configuration`
+- `[model_updater.go:133] startup model refresh completed from https://raw.githubusercontent.com/router-for-me/models/refs/heads/main/models.json, no changes detected`
+- `[model_updater.go:91] periodic model refresh started (interval=3h0m0s)`
+
+Ran for ~24h, then suddenly failed 2026-05-09 ~02:44, never recovered through v6→v7 upgrade.
+
+## Current state evidence
+
+- v7.0.2 stdout shows ONLY 3 lines (no logrus prefix `[time] [info ] [main.go:line]` like v6 main.log) — suggests logrus output isn't reaching main.log
+- v7.0.2 stderr ALWAYS empty (0 bytes across 6+ probes)
+- `main.log` (9729 lines) has NO entries past 2026-05-09; recent probes (2026-05-11 09:18 / 09:20 / 09:26 / 09:39 / 10:57) appended NOTHING
+- 10 OAuth files present at `Z:/claude-sota-installed/.cli-proxy-api/` — most last_refresh 2026-05-08 or 2026-05-09 (32-72h+ stale)
+- Wave 147 diagnostic tests ruled out: empty auth-dir (still exits 160ms), debug:true config, alt-port, sibling CCC config copy, MANAGEMENT_PASSWORD env, usage-statistics:false
+
+## v7.0.2 source code analysis
+
+`Z:/repos/deps/CLIProxyAPI/cmd/server/main.go:572-578`:
+```go
+} else {
+    // Start the main proxy service
+    managementasset.StartAutoUpdater(context.Background(), configFilePath)
+    misc.StartAntigravityVersionUpdater(context.Background())
+    if !localModel {
+        registry.StartModelsUpdater(context.Background())
+    }
+    cmd.StartService(cfg, configFilePath, password)  // <-- This SHOULD block forever
+}
+```
+
+`cmd.StartService` returning is the only way main() exits cleanly. Need root cause analysis.
+
+## v6 → v7 changelog candidates (could explain regression)
+
+1. `fix(executor): ignore null OpenAI stream usage chunks` (validation tightening)
+2. `feat(server): add support for loading configuration from a remote home control plane` (`-home` flag — new code path)
+3. `feat(config): add per-auth disable_cooling override support` (Auth.Metadata struct change)
+4. `fix: apply default auth-dir when config value is empty` (#3272; auth-dir resolution change)
+5. `chore: upgrade CLIProxyAPI dependency to v7 across the project` (v6→v7 module path)
+
+## CRITICAL AUDIT DIMENSIONS (your task)
+
+1. **AXIS-1 cmd.StartService exit flow**: Read `Z:/repos/deps/CLIProxyAPI/internal/cmd/*.go` to find `StartService` function. Identify ALL early-return paths after `API server started successfully` message is logged. Is there a graceful-shutdown-when-no-usable-auth path? Is there a Windows-specific console-control-event handler that could fire when stdout is redirected?
+
+2. **AXIS-2 token validation flow**: After `server clients and configuration updated: 10 clients` is logged, does the binary trigger an immediate token-refresh sweep? If ALL refreshes fail (e.g., 32-72h+ stale Claude OAuth tokens cannot be refreshed via Anthropic OAuth refresh endpoint), does this mark all 10 accounts as cooling/disabled and trigger graceful shutdown?
+
+3. **AXIS-3 file-system / network preconditions**: Does StartService require:
+   - Write access to a specific path (auth-dir + logs + .cli-proxy-api subdirs)?
+   - Network reachability to `raw.githubusercontent.com/router-for-me/models/` for model registry (v6 main.log showed this as the 4th log line)?
+   - Specific environment variable that might be missing on Windows native (vs Docker/Linux dev)?
+
+4. **AXIS-4 fix-forward decision**: Given the 5 hypothesis candidates (a-e below), which is MOST LIKELY root cause? What's the SOTA-recommended fix-forward sequence?
+   - (a) OAuth tokens expired beyond refresh-window → re-auth all 7 via `cli-proxy-api.exe -claude-login` interactive
+   - (b) v7.0.2 regression introduced in PR #3239 (commit 1fca942b merge) → downgrade to v6.10.9 OR v6.10.7
+   - (c) Windows-specific issue (NSSM context, console redirection, ACL) → use foreground+tee or alternative supervisor (Servy/Shawl)
+   - (d) Network/environment regression on Windows 11 26H2 → check firewall/Defender/proxy
+   - (e) File a NEW upstream issue at `github.com/router-for-me/CLIProxyAPI` with this reproducer
+
+5. **AXIS-5 alternative SOTA proxy**: If v7.0.2 is structurally broken on Windows, is there a SOTA-recommended alternative? The upstream README mentions `ProxyPilot` (Windows fork) and `9Router` (Next.js port). Are these mature enough for adoption per `Z:/claude-sota/.claude/rules/convergence-gate.md` Axis 1+2+3?
+
+## CONSTRAINTS
+
+- This is a **cross-model verification gate** per cardinal-rule-3 (CLAUDE.md L41-58). Verdict MUST adhere to JSON-strict EOF schema.
+- Path P foreground+tee dispatch (orchestrator-side, NOT subagent — avoids FM-17.f 1M-context blocker).
+- Read source at `Z:/repos/deps/CLIProxyAPI/cmd/server/main.go` + `Z:/repos/deps/CLIProxyAPI/internal/cmd/*.go` + `Z:/repos/deps/CLIProxyAPI/internal/server/*.go` + `Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/*.go`.
+- Cite TIER-1 (upstream file:line + HEAD SHA) for every claim.
+
+## OUTPUT SCHEMA (JSON-strict at EOF, terminal verdict block)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "root_cause_most_likely": "<one-line summary>",
+  "rationale_per_axis": {
+    "axis1_startservice_exit_flow": "...",
+    "axis2_token_validation_flow": "...",
+    "axis3_filesystem_network_preconditions": "...",
+    "axis4_fix_forward_decision": "...",
+    "axis5_alternative_sota_proxy": "..."
+  },
+  "prescribed_fix_steps": [
+    "step 1: <exact command + expected outcome>",
+    "step 2: <exact command + expected outcome>"
+  ],
+  "operator_gate_requirements": ["<actions that require user/operator interaction>"],
+  "anti_patterns_to_avoid": ["..."],
+  "convergence_axes_passed": 0
+}
+```
+
+Be ADVERSARIAL. Read the source code, do not paraphrase the README. Cite exact file:line. Reject hand-wave hypotheses.

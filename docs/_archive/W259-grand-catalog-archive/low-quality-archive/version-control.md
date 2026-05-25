@@ -1,0 +1,25 @@
+<a name="version-control"></a>Version Control
+
+Interact with Git repositories and version control platforms. Enables repository management, code analysis, pull request handling, issue tracking, and other version control operations through standardized APIs.
+
+- [adhikasp/mcp-git-ingest](https://github.com/adhikasp/mcp-git-ingest) 🐍 🏠 - Read and analyze GitHub repositories with your LLM
+- [costajohnt/oss-autopilot](https://github.com/costajohnt/oss-autopilot) [![costajohnt/oss-autopilot MCP server](https://glama.ai/mcp/servers/costajohnt/oss-autopilot/badges/score.svg)](https://glama.ai/mcp/servers/costajohnt/oss-autopilot) 📇 ☁️ 🏠 🍎 🪟 🐧 - Open source contribution manager with PR tracking across repos, issue discovery, CI failure diagnosis, and maintainer response drafting. Available as CLI, MCP server, and Claude Code plugin.
+- [ddukbg/github-enterprise-mcp](https://github.com/ddukbg/github-enterprise-mcp) 📇 ☁️ 🏠 - MCP server for GitHub Enterprise API integration
+- [gitea/gitea-mcp](https://gitea.com/gitea/gitea-mcp) 🎖️ 🏎️ ☁️ 🏠 🍎 🪟 🐧 - Interactive with Gitea instances with MCP.
+- [github/github-mcp-server](https://github.com/github/github-mcp-server) 📇 ☁️ - Official GitHub server for integration with repository management, PRs, issues, and more.
+- [gitopia/gitopia-mcp-server](https://github.com/gitopia/gitopia-mcp-server) [![Gitopia MCP Server](https://glama.ai/mcp/servers/gitopia/gitopia-mcp-server/badges/score.svg)](https://glama.ai/mcp/servers/gitopia/gitopia-mcp-server) 🏎️ 🏠 🍎 🪟 🐧 - Decentralized Git with on-chain governance, bounties, and DAOs. Tools for repos, issues, PRs, labels, releases, bounties, and DAO proposals. Auto-wallet on first use, trust tiers, and approval mode for human-in-the-loop. Go binary or Docker.
+- [jmrplens/gitlab-mcp-server](https://github.com/jmrplens/gitlab-mcp-server) [![jmrplens/gitlab-mcp-server MCP server](https://glama.ai/mcp/servers/jmrplens/gitlab-mcp-server/badges/score.svg)](https://glama.ai/mcp/servers/jmrplens/gitlab-mcp-server) 🏎️ ☁️ 🏠 🍎 🪟 🐧 - Complete GitLab REST API v4 coverage with 1006 MCP tools across 162 domains, 42 meta-tools, 24 resources, and 38 prompts. Cross-platform Go binary with stdio and HTTP transports, OAuth support, auto-update, read-only and safe modes.
+- [JaviMaligno/mcp-server-bitbucket](https://github.com/JaviMaligno/mcp-server-bitbucket) 🐍 ☁️ - Bitbucket MCP server with 58 tools for repository management, PRs, pipelines, branches, commits, deployments, webhooks, tags, branch restrictions, and source browsing.
+- [kaiyuanxiaobing/atomgit-mcp-server](https://github.com/kaiyuanxiaobing/atomgit-mcp-server) 📇 ☁️ - Official AtomGit server for integration with repository management, PRs, issues, branches, labels, and more.
+- [kopfrechner/gitlab-mr-mcp](https://github.com/kopfrechner/gitlab-mr-mcp) 📇 ☁️ - Interact seamlessly with issues and merge requests of your GitLab projects.
+- [modelcontextprotocol/server-git](https://github.com/modelcontextprotocol/servers-archived/tree/main/src/git) 🐍 🏠 - Direct Git repository operations including reading, searching, and analyzing local repositories
+- [modelcontextprotocol/server-gitlab](https://github.com/modelcontextprotocol/servers-archived/tree/main/src/gitlab) 📇 ☁️ 🏠 - GitLab platform integration for project management and CI/CD operations
+- [mshegolev/gitlab-ci-mcp](https://github.com/mshegolev/gitlab-ci-mcp) [![mshegolev/gitlab-ci-mcp MCP server](https://glama.ai/mcp/servers/mshegolev/gitlab-ci-mcp/badges/score.svg)](https://glama.ai/mcp/servers/mshegolev/gitlab-ci-mcp) 🐍 ☁️ 🏠 - GitLab CI/CD — pipelines, jobs, schedules, MRs, files. Works with any GitLab (SaaS or self-hosted); published on PyPI and in the MCP Registry.
+- [QuentinCody/github-graphql-mcp-server](https://github.com/QuentinCody/github-graphql-mcp-server) 🐍 ☁️ - Unofficial GitHub MCP server that provides access to GitHub's GraphQL API, enabling more powerful and flexible queries for repository data, issues, pull requests, and other GitHub resources.
+- [raohwork/forgejo-mcp](https://github.com/raohwork/forgejo-mcp) 🏎️ ☁️ - An MCP server for managing your repositories on Forgejo/Gitea server.
+- [TamiShaks-2/git-context-mcp](https://github.com/TamiShaks-2/git-context-mcp) 🐍 🏠 - Local MCP server that provides structured Git repository analysis (project status, recent activity, code map, and risk hotspots) for AI coding agents.
+- [theonedev/tod](https://github.com/theonedev/tod/blob/main/mcp.md) 🏎️ 🏠 - A MCP server for OneDev for CI/CD pipeline editing, issue workflow automation, and pull request review
+- [Tiberriver256/mcp-server-azure-devops](https://github.com/Tiberriver256/mcp-server-azure-devops) 📇 ☁️ - Azure DevOps integration for repository management, work items, and pipelines.
+- [zach-snell/bbkt](https://github.com/zach-snell/bbkt) [![bbkt MCP server](https://glama.ai/mcp/servers/zach-snell/bbkt/badges/score.svg)](https://glama.ai/mcp/servers/zach-snell/bbkt) 🏎️ ☁️ 🍎 🪟 🐧 - Bitbucket Cloud CLI and MCP server. Manages workspaces, repos, PRs, pipelines, issues, and source code. Token introspection hides tools the API key can't use.
+
+### 🏢 

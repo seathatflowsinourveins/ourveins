@@ -1,0 +1,136 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 2b984971a1fa3de3a6d330ad4074285e8b6f9e6a</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+accounts/README.md                     |  4 ++--
+ accounts/docs/reset-goals.md           | 29 ++++++++++++++++++-----------
+ accounts/scripts/weekly_reset_guard.py | 17 ++++++++++++-----
+ 3 files changed, 32 insertions(+), 18 deletions(-)
+
+=== git show --format=fuller ===
+commit 2b984971a1fa3de3a6d330ad4074285e8b6f9e6a
+Author:     42 <42@local>
+AuthorDate: Thu May 14 01:48:03 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 14 01:48:03 2026 -0400
+
+    session checkpoint: 2026-05-14 01:48
+
+=== diff ===
+diff --git a/accounts/README.md b/accounts/README.md
+index b0494f5..54c6602 100644
+--- a/accounts/README.md
++++ b/accounts/README.md
+@@ -29,8 +29,8 @@ accounts/
+ | Cache hit rate | `python accounts/scripts/cache_rate.py` | CPA `/v0/management/api-key-usage` + `/usage-queue` |
+ | Routing strategy / status | `pwsh accounts/scripts/fleet_status.ps1` | CPA `/routing/strategy` + `/auth-files` |
+ | Weekly-reset utilization goal (status display) | `python accounts/scripts/weekly_reset_guard.py --status` | state-outside-repo JSONL tail |
+-| Routing-rebalance hint (which account to prefer) | `python accounts/scripts/weekly_reset_guard.py --hint` | Ranks 8 by remaining 7d budget × reset distance |
+-| Pre-reset burst-utilization warning | `python accounts/scripts/weekly_reset_guard.py --burst-check` | Alerts when resets_at <24h AND utilization <60% |
++| Routing-rebalance hint (which account to prefer) | `python accounts/scripts/weekly_reset_guard.py --hint` | Ranks by remaining 7d budget (Anthropic OAuth schema field — pure SOTA, no composite); `hrs_to_7d_reset` shown for operator judgment |
++| Pre-reset burst-utilization warning | `python accounts/scripts/weekly_reset_guard.py --burst-check` | Alerts when resets_at <`BURST_RESET_WINDOW_H` (default 24h, env-overridable) AND utilization <`BURST_UTIL_THRESHOLD` (default 60%, env-overridable) |
+ | Local Claude Code token usage | `npx @ccusage/ccusage daily \| weekly \| session \| blocks` | `@ccusage/mcp@18.0.11` wired in .mcp.json |
+ | Management Center SPA | http://127.0.0.1:18317/management.html | CPA `internal/config/config.go:23` |
+ 
+diff --git a/accounts/docs/reset-goals.md b/accounts/docs/reset-goals.md
+index 307951a..25df54a 100644
+--- a/accounts/docs/reset-goals.md
++++ b/accounts/docs/reset-goals.md
+@@ -21,25 +21,26 @@ acct  email                              5h_util  7d_util  5h_resets_at
+ 
+ ## Goal 2 — Routing-rebalance hint
+ 
+-**Purpose**: rank 8 accounts by remaining 7d budget × inverse reset distance → recommend priority order for CPA round-robin routing strategy.
++**Purpose**: rank accounts by remaining 7d budget — the **Anthropic `/api/oauth/usage` schema field directly**, NOT a derived composite — to recommend priority order for CPA round-robin routing strategy.
+ 
+ **Invocation**: `python accounts/scripts/weekly_reset_guard.py --hint`
+ 
+-**Algorithm**:
+-- `remaining_7d = (100 - seven_day.utilization) / 100`
+-- `hours_until_reset = max(1, (seven_day.resets_at - now) / 1h)`
+-- `priority_score = remaining_7d × (1 / log(hours_until_reset + 1))` (higher = prefer)
+-- Sort descending; emit top-N recommendation
++**Ranking key (pure SOTA — no self-invented formula per CR-8 strict reading)**:
++- `remaining_7d = (100 - seven_day.utilization) / 100` (Anthropic OAuth schema field)
++- Sort descending by `remaining_7d`
++- `hours_to_7d_reset` shown as **display column for operator judgment** — NOT folded into the sort key
++
++**Why no composite score**: W190-fixforward removed the prior `remaining_7d × (1/log(hours_until_reset + 1))` composite scoring per CR-8 ("No novel content of any class") + user directive "rather than self invent". CR-10 research confirmed CLIProxyAPI's `priority` field is a static operator-set integer per `auth_files.go:336-453,1124 @ HEAD 785b00c3` — no upstream SOTA repo provides utilization-aware composite scoring. Operator judgment (looking at `hrs_to_7d_reset` column) replaces baked-in time-discount weighting.
+ 
+ **Operator action**: PATCH `/v0/management/auth-files/fields` with `priority` field per CPA `internal/api/server.go:649 @ HEAD 785b00c3`. Manual decision — script outputs hint only, does NOT auto-PATCH.
+ 
+ **Output shape**:
+ 
+ ```
+-=== Routing-rebalance hint (8 accounts ranked by score) ===
+-rank  email                              score   remaining_7d  hours_to_7d_reset  current_priority
+-1     claude-XXX                         0.87    62%           58h                P10
+-2     claude-YYY                         0.71    55%           42h                P20
++=== Routing-rebalance hint (8 accounts ranked by remaining 7d budget) ===
++rank  email                              rem_7d   hrs_to_7d_reset
++1     claude-XXX                         62%      58.0h
++2     claude-YYY                         55%      42.0h
+ ...
+ ```
+ 
+@@ -49,7 +50,13 @@ rank  email                              score   remaining_7d  hours_to_7d_reset
+ 
+ **Invocation**: `python accounts/scripts/weekly_reset_guard.py --burst-check`
+ 
+-**Trigger condition**: `(seven_day.resets_at - now) < 24h` AND `seven_day.utilization < 60%`
++**Trigger condition**: `(seven_day.resets_at - now) < BURST_RESET_WINDOW_H` AND `seven_day.utilization < BURST_UTIL_THRESHOLD`
++
++**Thresholds (env-overridable per W175 P6 cited SOTA-sanctioned pattern)**:
++- `BURST_RESET_WINDOW_H` — default 24 (hours)
++- `BURST_UTIL_THRESHOLD` — default 60 (utilization %)
++
++**Cite-class for thresholds**: env-override MECHANISM is TIER-1-DIRECT cited (`.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:27-29` — "official sanctioned mechanism"). Default values are TIER-3-LOCAL-OPERATOR-DERIVED tuning knobs marked NOVEL-DOCUMENTED-EXCEPTION per CR-8 conformance column — every threshold-based alert needs a bootstrap default; operator tunes via env without code edit.
+ 
+ **Output shape**:
+ 
+diff --git a/accounts/scripts/weekly_reset_guard.py b/accounts/scripts/weekly_reset_guard.py
+index 218f304..df52885 100644
+--- a/accounts/scripts/weekly_reset_guard.py
++++ b/accounts/scripts/weekly_reset_guard.py
+@@ -209,7 +209,12 @@ def cmd_hint(records: dict[str, dict[str, Any]], now: datetime) -> int:
+ 
+ 
+ def cmd_burst_check(records: dict[str, dict[str, Any]], now: datetime) -> int:
+-    """Goal 3 — alert when resets_at <24h AND utilization <60% (use-it-or-lose-it)."""
++    """Goal 3 — alert when resets_at within BURST_RESET_WINDOW_H AND utilization below BURST_UTIL_THRESHOLD.
++
++    Thresholds are env-overridable per W175 P6 cited pattern (env-var-overridable-thresholds is
++    the SOTA-sanctioned mechanism); default values 24h / 60% are TIER-3-LOCAL-OPERATOR-DERIVED
++    tuning knobs marked NOVEL-DOCUMENTED-EXCEPTION per CR-8 conformance column.
++    """
+     if not records:
+         print("(no records)")
+         return 2
+@@ -229,21 +234,23 @@ def cmd_burst_check(records: dict[str, dict[str, Any]], now: datetime) -> int:
+         hours = _hours_until(resets_at, now)
+         if hours is None:
+             continue
+-        if hours < 24:
+-            if util_pct < 60:
++        if hours < BURST_RESET_WINDOW_H:
++            if util_pct < BURST_UTIL_THRESHOLD:
+                 alerts.append((acct, util_pct, hours))
+             else:
+                 infos.append((acct, util_pct, hours))
+         else:
+             ok_count += 1
+-    print(f"=== Pre-reset burst-utilization warnings (24h window) ===\n")
++    print(f"=== Pre-reset burst-utilization warnings "
++          f"(window={BURST_RESET_WINDOW_H:.0f}h, threshold={BURST_UTIL_THRESHOLD:.0f}%; "
++          f"env-override via BURST_RESET_WINDOW_H + BURST_UTIL_THRESHOLD) ===\n")
+     for acct, util_pct, hours in alerts:
+         unused = 100 - util_pct
+         print(f"[ALERT] {acct}: {unused}% budget unused, 7d resets in {hours:.1f}h (use-it-or-lose-it)")
+     for acct, util_pct, hours in infos:
+         print(f"[INFO]  {acct}: {util_pct}% utilized, 7d resets in {hours:.1f}h (no action)")
+     if ok_count:
+-        print(f"[OK]    {ok_count} other account(s): outside 24h reset window")
++        print(f"[OK]    {ok_count} other account(s): outside {BURST_RESET_WINDOW_H:.0f}h reset window")
+     return 1 if alerts else 0</repository_context>

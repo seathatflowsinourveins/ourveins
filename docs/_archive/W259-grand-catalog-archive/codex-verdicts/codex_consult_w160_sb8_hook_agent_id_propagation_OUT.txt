@@ -1,0 +1,170 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1f29-fbce-7a13-a419-77fe56466147
+--------
+user
+## SB8 hook agent_id propagation — Path P codex T1 consult
+
+Audit the proposed design + edit pattern for Wave 160 SB8 ship: propagate `agent_id` + `agent_type` from hook stdin payload into every JSONL emit row across 16 non-compliant hook scripts. Target: 15.8% → ≥90% compliance per /goal predicate.
+
+### Context (read-only — DO NOT explore filesystem beyond this prompt)
+
+**SDK contract** (TIER-1-DIRECT): `Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:246-262 @ HEAD b512f256` — `_SubagentContextMixin` TypedDict with `agent_id: str` + `agent_type: str` on PreToolUseHookInput / PostToolUseHookInput / PostToolUseFailureHookInput / PermissionRequestHookInput. Verbatim comment at :252-254: "When multiple sub-agents run in parallel their tool-lifecycle hooks interleave over the same control channel — this is the only reliable way to attribute each one to the correct sub-agent."
+
+**Local discipline** (TIER-2-SISTER-RULE): `Z:/claude-sota/.claude/rules/audit-action-loop.md §Hook telemetry contract` mandates JSONL-emitting hooks persist `agent_id` + `agent_type` top-level when present in hook input. Per F-002 fix-forward: read fields at TOP LEVEL of stdin payload (`payload.get("agent_id")`), NOT nested `tool_use_context.agent_id`.
+
+### Baseline (probed via grep + Read)
+
+19 hook scripts use `json.dumps` for JSONL emission:
+- **3 COMPLIANT**: `subagent_stop_telemetry.py` (L110-111 reference pattern: `"agent_id": inp.get("agent_id"), "agent_type": inp.get("agent_type"),`), `auto_proceed_gate.py`, `codex_t1_consult_gate.py`
+- **16 NON-COMPLIANT**: `_codex_preflight.py` (helper), `_observation_writer.py` (helper), `agent_plan_readonly_bash_guard.py`, `agent_spawn_gate.py`, `codex_failure_audit.py`, `codex_gate.py`, `codex_mcp_healthcheck.py`, `codex_postcommit_review.py`, `codex_prepush_review.py`, `codex_review_queue.py`, `codex_review_thread_bridge.py`, `codex_stuck_detector.py`, `codex_t2_pre_commit_gate.py`, `gitleaks_pre_commit_gate.py`, `secret_scan_guard.py`, `utils.py` (helper)
+
+Of these, 3 (`_codex_preflight.py`, `_observation_writer.py`, `utils.py`) appear to be shared helpers; ≥13 are direct JSONL-emitting hooks.
+
+### Proposed design
+
+**Shared helper** added to `_observation_writer.py` after L72 (`now_iso`):
+
+```python
+def merge_agent_context(record: dict, payload: dict | None) -> dict:
+    """Merge agent_id + agent_type from stdin payload into a JSONL record.
+
+    Per Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:246-262
+    @ HEAD b512f256 _SubagentContextMixin: tool-lifecycle hook inputs carry
+    agent_id (str) + agent_type (str) at top level. Persisting them in JSONL
+    audit rows enables parallel-sub-agent attribution per audit-action-loop.md
+    §Hook telemetry contract.
+
+    Returns a shallow copy of record with agent_id/agent_type added when
+    payload provides them. If payload is None or missing the fields, the
+    record passes through unchanged (main-session writes have no agent_id).
+
+    Idempotent: callers that already populate agent_id/agent_type are not
+    overwritten when payload also has them — the existing record value wins.
+    """
+    if not isinstance(payload, dict):
+        return record
+    merged = dict(record)
+    if "agent_id" not in merged:
+        ai = payload.get("agent_id")
+        if ai is not None:
+            merged["agent_id"] = ai
+    if "agent_type" not in merged:
+        at = payload.get("agent_type")
+        if at is not None:
+            merged["agent_type"] = at
+    return merged
+```
+
+**append_observation extension** at L179: add optional `payload` parameter:
+
+```python
+def append_observation(obs: dict, ctx: str, payload: dict | None = None) -> bool:
+    # ... existing docstring ...
+    try:
+        OBSERVATIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
+        row = _externalize_stop_reason_if_needed(obs, ctx)
+        row = merge_agent_context(row, payload)  # NEW
+        with OBSERVATIONS_JSONL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        return True
+    except OSError as exc:
+        log_swallow(exc, f"{ctx}.observations_append")
+        return False
+```
+
+**Per-script edit pattern** for 13 non-compliant DIRECT JSONL emitters: at each `json.dumps(row)` site, ensure `row` was built via `merge_agent_context(row, payload)` where `payload` is the parsed stdin JSON dict (already available in each hook).
+
+### Audit dimensions (focus codex review here ONLY)
+
+1. **Helper soundness**: is `merge_agent_context` idempotent + safe under None/dict/missing-key inputs? Any edge case where existing record value should be OVERWRITTEN instead of preserved?
+
+2. **Backward compatibility**: does adding optional `payload` to `append_observation` break existing callers? Verify default `None` preserves byte-for-byte schema for callers not passing the new param.
+
+3. **Per-script applicability**: of the 13 direct emitters listed, are any UNABLE to access the stdin payload at their emit site? (e.g., emit fires after payload reference is dropped from scope, OR script uses non-stdin invocation path). Name them if so.
+
+4. **SDK contract correctness**: does extracting `payload.get("agent_id")` at top level conform to the SDK schema, or does codex see a path issue (e.g., should it be `payload.get("session_id")` instead, or nested under `tool_use_context`)? Per audit-action-loop F-002, top-level is correct — confirm.
+
+5. **Forward-only mandate**: per port-note-discipline.md §6 "Do not rewrite historical commit bodies/snapshots": this ship rolls forward. Historical JSONL rows lacking agent_id are NOT backfilled. Confirm this is the right call.
+
+6. **cycle-300 ONE-LOGICAL-UNIT-PER-FIRE**: is this 14-file edit one logical unit (helper + per-script application) or should helper land separately first?
+
+7. **FM-02 (b)+(c) destructive race defense**: commit via `git add -- <paths> && git commit -o -F <msg> -- <paths>` single-shell narrow form. Confirm pattern.
+
+### Verdict shape (JSON-strict at EOF — NO prose preamble)
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "prescribed_edits": [
+    {"file": "<path>", "edit": "<verbatim text or diff hunk>", "reason": "<one line>"}
+  ],
+  "audit_dimensions": {
+    "helper_soundness": "PASS|NEEDS-REVISION",
+    "backward_compat": "PASS|NEEDS-REVISION",
+    "per_script_applicability": "PASS|NEEDS-REVISION (list)",
+    "sdk_contract_correctness": "PASS|NEEDS-REVISION",
+    "forward_only_mandate": "PASS|NEEDS-REVISION",
+    "atomicity": "PASS|NEEDS-REVISION",
+    "fm02_defense": "PASS|NEEDS-REVISION"
+  },
+  "cite_anchor_risk": "LOW|MED|HIGH"
+}
+```
+
+Budget: 60-120s target wall-clock per codex-t1-pattern-b-forward-discipline.md Forward Discipline #2 (codification fire). DO NOT explore historical fire deliverables or full hook source beyond the snippets above. Verdict at EOF.
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.9,
+  "prescribed_edits": [
+    {
+      "file": ".claude/hooks/_observation_writer.py",
+      "edit": "def merge_agent_context(record: dict, payload: dict | None) -> dict:\n    if not isinstance(payload, dict):\n        return record\n    merged = dict(record)\n    ai = payload.get(\"agent_id\")\n    if ai is not None and merged.get(\"agent_id\") is None:\n        merged[\"agent_id\"] = ai\n    at = payload.get(\"agent_type\")\n    if at is not None and merged.get(\"agent_type\") is None:\n        merged[\"agent_type\"] = at\n    return merged\n",
+      "reason": "Treat existing None as absent so a placeholder value cannot suppress valid top-level SDK agent context."
+    }
+  ],
+  "audit_dimensions": {
+    "helper_soundness": "NEEDS-REVISION",
+    "backward_compat": "PASS",
+    "per_script_applicability": "PASS",
+    "sdk_contract_correctness": "PASS",
+    "forward_only_mandate": "PASS",
+    "atomicity": "PASS",
+    "fm02_defense": "PASS"
+  },
+  "cite_anchor_risk": "LOW"
+}
+tokens used
+12,820
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.9,
+  "prescribed_edits": [
+    {
+      "file": ".claude/hooks/_observation_writer.py",
+      "edit": "def merge_agent_context(record: dict, payload: dict | None) -> dict:\n    if not isinstance(payload, dict):\n        return record\n    merged = dict(record)\n    ai = payload.get(\"agent_id\")\n    if ai is not None and merged.get(\"agent_id\") is None:\n        merged[\"agent_id\"] = ai\n    at = payload.get(\"agent_type\")\n    if at is not None and merged.get(\"agent_type\") is None:\n        merged[\"agent_type\"] = at\n    return merged\n",
+      "reason": "Treat existing None as absent so a placeholder value cannot suppress valid top-level SDK agent context."
+    }
+  ],
+  "audit_dimensions": {
+    "helper_soundness": "NEEDS-REVISION",
+    "backward_compat": "PASS",
+    "per_script_applicability": "PASS",
+    "sdk_contract_correctness": "PASS",
+    "forward_only_mandate": "PASS",
+    "atomicity": "PASS",
+    "fm02_defense": "PASS"
+  },
+  "cite_anchor_risk": "LOW"
+}

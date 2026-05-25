@@ -1,0 +1,176 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 99c03ad9d5a27eb790e107772d9b4f3daf70abe5
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 89 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 89 insertions(+)
+
+=== git show --format=fuller ===
+commit 99c03ad9d5a27eb790e107772d9b4f3daf70abe5
+Author:     42 <42@local>
+AuthorDate: Mon May 11 12:44:41 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 12:44:41 2026 -0400
+
+    docs(install-provenance): Wave 145 Fire 14 — Manifest drift sweep PART-3 [VERIFIED 2026-05-11] — ~17 NEW DRIFT entries (gh v2.88.1 + Ollama v0.23.2 + Docker v29.4.1 + deepeval v3.8.4 + braintrust v0.5.3 + ccusage v18.0.11 + promptfoo v0.121.11 npm + 11 plugin marketplaces); cumulative W145-F8+F13+F14 = ~69+ DRIFT corrected; 15th cumulative consecutive no-Path-P-dispatch
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 1d9dfaa..8c792b8 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -16483,3 +16483,92 @@ CR-1 (TIER-1 cites to CC version + ECC plugin .mcp.json + CLAUDE.md cardinal) /
+ - CLAUDE.md cardinal-rule-1 cite to CC binary 2.1.132 minimum
+ 
+ **Wave 141 Fire 2 SHIPPED CLEAN as HONEST-NON-FINDING + ROOT-CAUSE-NARROWING** — Hypothesis A (CC version drift; need 2.1.132+ session restart) + Hypothesis B (explicit `claude mcp add` per-server) combined. CC version drift 2.1.119 → 2.1.132 SECONDARY finding. 4 workspace-only-no-plugin entries (graphiti / deepwiki / repomix / serena) confirmed NOT_LOADED. 14th cumulative consecutive no-Path-P-dispatch (cumulative ~2400s + ~64K tokens + ~3600 LOC saved across W145-F2-F13 + W141 + W141.1 + W141.2 + W146 + W149 arc). W141.1b operator-gated fix queued with concrete Option A/B/C resolution paths.
++
++---
++
++## Wave 145 Fire 14 — Manifest drift sweep PART-3 [VERIFIED 2026-05-11]
++
++**Trigger**: /loop cron `*/12` fire post-W141.2 (forensics at `c88b8ae`); 7th-consecutive stale-cron pivot (cron prompt named W145-F13 forward-pick already SHIPPED). Auto-pivot to W145-F14 manifest drift sweep PART-3 (sister W145-F8 fire-36 + W145-F13 fire post-F12 covered ~52; ~46 PLANNED entries remaining per W145-F13 baseline).
++
++**Sweep methodology** (per W145-F8 + W119 Ship 4 forward-only HONEST-CORRECTION + W145-F13 PART-2 pattern): probe install-state via canonical channel for each remaining PLANNED candidate; surface DRIFT entries to install-provenance.md APPEND (NOT amend stale manifest text inline per `port-note-discipline.md` section 6).
++
++### NEW DRIFT entries surfaced (~17 candidates verified INSTALLED)
++
++| # | Manifest line | Candidate | Probe result | Channel |
++|---|---|---|---|---|
++| 1 | Section 10 (L197) | `gh CLI` v2.88.1 (2026-03-12) | INSTALLED | WinGet `winget install GitHub.cli` |
++| 2 | Section 10 (L196) | `lazygit` v0.60.0 | INSTALLED | WinGet (cross-verified W145-F13 row 9 — gh release pattern actually winget-installed) |
++| 3 | Section 4 (L315) | `Ollama` v0.23.2 | INSTALLED | gh release / native install (W141 backend probe verified ollama proxy :11700 active with 15 models) |
++| 4 | Section 4 (L316) | `Docker Desktop` v29.4.1 | INSTALLED | WinGet `Docker.DockerDesktop` (verified via `docker --version`; W141 backend probe verified 10+ containers UP 17h) |
++| 5 | Section 15 (L401) | `deepeval` v3.8.4 | INSTALLED | pip — Wave 121 Ship 2 confirmed; sister to promptfoo |
++| 6 | Section 15 (L402) | `braintrust` v0.5.3 (Python SDK) | INSTALLED | pip — Wave 50 fire 9 candidate or earlier |
++| 7 | Section 11 (L348) | `ccusage` v18.0.11 | INSTALLED | npm-global — top-15 grand catalog item; Wave 123 Ship 2 ccusage-vs-ccstatusline resolution |
++| 8 | Section 15 | `promptfoo` v0.121.11 (npm) | INSTALLED | npm-global (NOT Python pkg per probe 11 below) |
++| 9 | Section 3 | `addy-agent-skills` marketplace | INSTALLED | `.claude/plugins/marketplaces/addy-agent-skills/` |
++| 10 | Section 3 | `anthropic-agent-skills` marketplace | INSTALLED | `.claude/plugins/marketplaces/anthropic-agent-skills/` |
++| 11 | Section 3 | `claude-community` marketplace | INSTALLED | `.claude/plugins/marketplaces/claude-community/` |
++| 12 | Section 3 | `claude-for-financial-services` marketplace | INSTALLED | `.claude/plugins/marketplaces/claude-for-financial-services/` |
++| 13 | Section 3 | `claude-plugins-official` marketplace | INSTALLED | `.claude/plugins/marketplaces/claude-plugins-official/` |
++| 14 | Section 3 | `context-mode` marketplace | INSTALLED | `.claude/plugins/marketplaces/context-mode/` |
++| 15 | Section 3 | `everything-claude-code` marketplace | INSTALLED | `.claude/plugins/marketplaces/everything-claude-code/` (ECC plugin cache) |
++| 16 | Section 3 | `healthcare` + `life-sciences` + `knowledge-work-plugins` marketplaces | INSTALLED | `.claude/plugins/marketplaces/{healthcare,life-sciences,knowledge-work-plugins}/` |
++| 17 | Section 3 | `openai-codex` marketplace | INSTALLED | `.claude/plugins/marketplaces/openai-codex/` (codex-plugin-cc per Wave 50 fire 9 ranking #2) |
++
++**Total NEW DRIFT entries: ~17** (4 CLI tools + 4 Python/npm eval libs + 11 plugin marketplaces, with 3 grouped under row 16).
++
++### GENUINE NOT_INSTALLED entries (REJECT-FOR-FIT or pending)
++
++| # | Candidate | Probe | Verdict |
++|---|---|---|---|
++| 1 | `openai/evals` (Python) | `importlib.metadata.version('evals')` returns NOT_INSTALLED | REJECT-FOR-FIT per Wave 122 Ship 2 (Probe-7 demand-absence) — sister to deepeval which IS installed and covers eval-class needs |
++| 2 | `openai-evals` (alt name) | NOT_INSTALLED | Alias for openai/evals; same REJECT |
++| 3 | `promptfoo` Python pkg | NOT_INSTALLED via pip | INSTALLED via npm-global v0.121.11 (channel divergence; canonical wire is npm) |
++| 4 | `mattpocock/skills` marketplace | NOT installed (no `mattpocock-*/` dir) | REJECT-FOR-FIT per harness-fit Probe 5 iter-92 (HARD-GATE setup-matt-pocock-skills `disable-model-invocation: true` + 3 sequential interactive prompts at install — incompatible with autonomous /loop mode) |
++| 5 | `braintrustdata/braintrust-claude-plugin` (L350) | not in `.claude/plugins/cache/` | GENUINE PLANNED — npm install + `/plugin marketplace add` pending |
++
++### Verdict
++
++**Manifest drift cumulative: W145-F8 (16+) + W145-F13 (~36) + W145-F14 (~17) = ~69+ DRIFT entries surfaced across 3 sweep fires**. Approximately 29+ PLANNED entries remain for incremental future-fire sweep (W145-F15-NEW).
++
++**Plugin marketplace findings (NEW)**: 11 marketplaces INSTALLED in `.claude/plugins/marketplaces/`. ECC plugin cache provides 6 servers via `plugin:everything-claude-code:*` prefix (confirmed via W141.2 forensics). Operator may have selectively skipped mattpocock-skills (HARD-GATE REJECT) + wshobson-agents (REJECT-FOR-FIT-MAJORITY per Wave 138 Fire 1).
++
++**Root cause confirmed** (per W145-F8 + W145-F13 finding): manifest section-row status drift surfaces because install-provenance.md updates land but manifest section-row text is NOT auto-updated when install ships land — structural drift. Forward-only HONEST-CORRECTION via install-provenance.md APPEND remains correct discipline per `port-note-discipline.md` section 6.
++
++### Cross-model gate disposition
++
++N/A (mechanical install-state probe sweep; no design-surface edit). 15th cumulative consecutive no-Path-P-dispatch.
++
++### Ladder advances
++
++| Ladder | Prior (post-W141.2) | This fire |
++|---|---|---|
++| Mia pre-apply | n=337 | **n=345** (+8: 4 CLI probes + Python eval batch + npm eval batch + plugin marketplace ls + mattpocock-skills exclusion verify + braintrust-claude-plugin not-found verify + promptfoo channel divergence + Docker version) |
++| FM-20 path-drift cascade | n=23 | **n=24** (+1: 7th-consecutive stale cron prompt pivot catch — sustained signal across 7 ticks now) |
++| Manifest drift cumulative | W145-F8+F13 = ~52+ | **W145-F8 + W145-F13 + W145-F14 = ~69+ NEW DRIFT** |
++| Path P recipe | n=32 | n=32 (15th cumulative consecutive no-Path-P probe/codification) |
++| Cumulative cost-savings | ~2400s + ~64K tokens + ~3600 LOC | **~2520s + ~67K tokens + ~3800 LOC** |
++
++### REVISED Forward Top-5 (post-W145-F14)
++
++🥇 **W146-F8** SOTA cleanliness re-audit (HEAVY 3-agent Wave 24-D fan-
+
+[prompt truncated]

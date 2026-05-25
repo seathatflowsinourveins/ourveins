@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://claude-sota-installed.local/.claude/schemas/compact_hint.v1.json",
+  "title": "Compact Hint Sidecar v1",
+  "description": "Pre-compact context-handoff sidecar written by orchestrator/UserPromptSubmit hook; consumed by PreCompact emitter + SessionStart matcher=compact reader. Routes via Anthropic CC stdout-to-Additional-Instructions semantic per https://code.claude.com/docs/en/hooks PreCompact contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "ts", "current_goal", "files_touched", "design_cites", "commands_run", "test_state", "next_action"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version; bump on incompatible change"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of hint emission; freshness gate <=300s at PreCompact/SessionStart consume time"
+    },
+    "current_goal": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "One-paragraph statement of current active goal/wave/fire; pre-rot summary"
+    },
+    "files_touched": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "description": "Repo-relative paths modified this fire; bounded <=20 per Karpathy section 5 progressive disclosure"
+    },
+    "design_cites": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 300
+      },
+      "description": "Cite anchors at file:line + HEAD SHA per cardinal-rule-1; <=10 to bound preload context"
+    },
+    "commands_run": {
+      "type": "array",
+      "maxItems": 15,
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "description": "Significant Bash/MCP/Edit invocations this fire; reproduce trail"
+    },
+    "test_state": {
+      "type": "string",
+      "enum": ["UNKNOWN", "PASS", "FAIL", "PENDING", "N/A"],
+      "description": "Last-known test/smoke-probe outcome state"
+    },
+    "next_action": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Recommended next-step for post-compact continuation; carries forward intent"
+    }
+  }
+}

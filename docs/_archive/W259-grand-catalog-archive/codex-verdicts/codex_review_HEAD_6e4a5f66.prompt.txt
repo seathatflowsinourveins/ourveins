@@ -1,0 +1,152 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 6e4a5f66d28943a9d4a1ee215939f07d52a2add1</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.../scripts/userpromptsubmit_compact_threshold.py  | 64 ++++++++++++++--------
+ 1 file changed, 40 insertions(+), 24 deletions(-)
+
+=== git show --format=fuller ===
+commit 6e4a5f66d28943a9d4a1ee215939f07d52a2add1
+Author:     42 <42@local>
+AuthorDate: Wed May 13 15:05:56 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Wed May 13 15:05:56 2026 -0400
+
+    fix(hooks): session-keyed lookup in userpromptsubmit_compact_threshold (W174 P0b)
+    
+    P0b follow-up to commit 02f72fd. Prior Strategy 3 iterated `data.values()`
+    and returned the first non-zero `total_input_tokens` — for a multi-session
+    sidecar that picks the alphabetically-first key under sort_keys=True.
+    
+    Telemetry confirmed cross-session leak: sessions 70bd13e6, b2a9dc5b, and
+    cd57ff20 all reported at 658,019 — that's session 1aeadaf1's real number.
+    
+    Root cause: canonical sidecar shape is session-keyed, NOT flat. The 02f72fd
+    docstring's "flat shape (canonical)" premise was incorrect.
+    
+    - Writer:  .claude/hooks/scripts/context_window_statusline.sh:54-65
+               does `data[session_id] = row` (session-keyed insert).
+    - Reader A: .claude/hooks/scripts/context_window_guard.py:40-49
+               does `data.get(session_id)` (correct).
+    - Reader B: .claude/hooks/scripts/precompact_guard.py:33-46
+               does `data.get(session_id)` (correct).
+    - Reader C: this hook — was the only one wrong, now matches A+B.
+    
+    Smoke (live sidecar, 3/3 PASS):
+    - b2a9dc5b (this session): 446067 tokens   -> returns OWN row
+    - 1aeadaf1 (other session): 658019 tokens  -> returns OWN row
+    - missing session ffffffff-...: None       -> fail-open per cardinal-rule 7
+    
+    SOTA refs (TIER-1-DIRECT, in hook docstring):
+    - UserPromptSubmit payload session_id field:
+      https://code.claude.com/docs/en/hooks:743-757 [VERIFIED 2026-05-13]
+    - Sibling lookup pattern (in-repo authoritative):
+      .claude/hooks/scripts/context_window_guard.py:40-49 @ HEAD 02f72fd9
+    - Sidecar writer (session-keyed shape source-of-truth):
+      .claude/hooks/scripts/context_window_statusline.sh:54-65 @ HEAD 02f72fd9
+    
+    Cross-model gate: T3 codex_postcommit_review.py auto-fires per
+    cross-model-consensus.md §The contract.
+    
+    Sister-hook audit (31/34 SOTA-cited / 91.2%): 3 NO-CITE candidates
+    (safety_guard.py / fm17_class_lint.py / agent_plan_readonly_bash_guard.py)
+    queued for follow-up.
+    
+    FM-02.b defense applied: `git commit --only -- <file>` form to avoid
+    staging-index race with parallel session.
+    FM-20 row 7 reinforcement: bug was stale-belief-propagation about sidecar
+    shape (P0a author assumed flat; sibling readers proved session-keyed).
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/userpromptsubmit_compact_threshold.py b/.claude/hooks/scripts/userpromptsubmit_compact_threshold.py
+index 4013193..6e44e54 100644
+--- a/.claude/hooks/scripts/userpromptsubmit_compact_threshold.py
++++ b/.claude/hooks/scripts/userpromptsubmit_compact_threshold.py
+@@ -64,47 +64,63 @@ def _read_stdin_payload() -> dict[str, Any]:
+ def _estimate_tokens_used(payload: dict[str, Any]) -> int | None:
+     """Best-effort context-window estimate.
+ 
+-    W174 P0a FIX: prior transcript_path size_bytes//4 proxy was over-counting ~17x
+-    because the transcript JSONL accumulates the FULL history (all system reminders,
+-    all tool outputs, all agent transcripts) while CC's actual input_tokens reflects
+-    only the CURRENT context window (post-autocompact). Real number lives in the
+-    canonical sidecar's total_input_tokens field, populated by the statusline
+-    harness pipeline (see .claude/hooks/scripts/context_window_statusline.sh:41 +
+-    .claude/hooks/scripts/context_window_guard.py:60-61).
++    W174 P0b FIX (follow-up to commit 02f72fd): session-keyed lookup.
++
++    Prior Strategy 3 iterated `data.values()` and returned the first non-zero
++    `total_input_tokens` found — which for a multi-session sidecar leaked a
++    SIBLING session's reading into this session's gate. Telemetry confirmed
++    three distinct sessions (70bd13e6, b2a9dc5b, cd57ff20) all reported at
++    658,019 — the alphabetically-first key (1aeadaf1)'s real number.
++
++    Canonical sidecar shape is session-keyed, NOT flat. Both writers and the
++    sibling reader agree on this:
++      - Writer: .claude/hooks/scripts/context_window_statusline.sh:54-65
++        does `data[session_id] = row` (session-keyed insert).
++      - Sibling reader: .claude/hooks/scripts/context_window_guard.py:48
++        does `data.get(session_id)` (session-keyed lookup).
++    The "flat shape" comment in commit 02f72fd reflected an incorrect premise
++    about the sidecar layout.
+ 
+     Revised strategy:
+-    1. Payload-provided usage if CC ever exposes it (ideal future)
+-    2. Canonical sidecar total_input_tokens (flat-shape; written by statusline pipeline)
+-    3. Nested-session legacy shape fallback (if any sidecar writer used session-keyed)
+-    4. None -> severity UNKNOWN -> no emit, no block (fail-open per cardinal-rule 7)
++    1. Payload-provided usage if CC ever exposes it (ideal future).
++    2. Session-keyed sidecar lookup: data[session_id].total_input_tokens
++       (matches sibling context_window_guard.py:48 selection logic).
++    3. None -> severity UNKNOWN -> no emit, no block (fail-open per cardinal-rule 7).
++
++    SOTA references:
++    - UserPromptSubmit payload includes session_id field:
++      https://code.claude.com/docs/en/hooks:743-757 [VERIFIED 2026-05-13]
++    - Sibling lookup pattern (in-repo authoritative):
++      .claude/hooks/scripts/context_window_guard.py:40-49 @ HEAD 02f72fd9
++    - Sidecar writer (session-keyed shape source-of-truth):
++      .claude/hooks/scripts/context_window_statusline.sh:54-65 @ HEAD 02f72fd9
+     """
+-    # Strategy 1: payload-provided
++    # Strategy 1: payload-provided usage (ideal-future contract)
+     usage = payload.get("usage") or payload.get("context_usage") or {}
+     if isinstance(usage, dict):
+         tokens = usage.get("input_tokens") or usage.get("total_tokens")
+         if isinstance(tokens, (int, float)) and tokens > 0:
+             return int(tokens)
+ 
+-    # Strategy 2+3: canonical sidecar total_input_tokens (flat or nested fallback)
++    # Strategy 2: session-keyed sidecar lookup. No cross-session leak possible —
++    # we only ever read the row for THIS session_id.
++    session_id = payload.get("session_id")
++    if not isinstance(session_id, str) or not session_id:
++        return None
+     try:
+         if SIDECAR_PATH.exists():
+             with SIDECAR_PATH.open(encoding="utf-8") as fh:
+                 data = json.load(fh)
+             if isinstance(data, dict):
+-                # Flat shape (canonical): {"total_input_tokens": N, ...}
+-                tokens = data.get("total_input_tokens")
+-                if isinstance(tokens, (int, float)) and tokens > 0:
+-                    return int(tokens)
+-                # Nested-session legacy: {"<session_id>": {"total_input_tokens": N, ...}}
+-                for v in data.values():
+-                    if isinstance(v, dict):
+-                        t = v.get("total_input_tokens")
+-                        if isinstance(t, (int, float)) and t > 0:
+-                            return int(t)
++                row = data.get(session_id)
++                if isinstance(row, dict):
++                    tokens = row.get("total_input_tokens")
++                    if isinstance(tokens, (int, float)) and tokens > 0:
++                        return int(tokens)
+     except (OSError, json.JSONDecodeError):
+         pass
+ 
+-    # Strategy 4: fail-open per cardinal-rule 7 silent-fallback prohibition
++    # Strategy 3: fail-open per cardinal-rule 7 silent-fallback prohibition
+     return None</repository_context>

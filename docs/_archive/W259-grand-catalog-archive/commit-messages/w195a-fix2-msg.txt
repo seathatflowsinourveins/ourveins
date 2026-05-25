@@ -1,0 +1,22 @@
+fix(hooks): W195a-fix2 cascade - disable review-agent-governance broken protect-mcp wire
+
+Cascade of W195a (commit 88c55c0). protect-mcp error STILL fired post-W195a; exhaustive find+grep revealed review-agent-governance plugin (operator-installed at session start) chains to same broken `npx protect-mcp@0.5.5 evaluate/sign` invocation via its own hooks.json. Same upstream CLI signature mismatch (v0.1.0 plugin hooks.json vs v0.5.5 npm CLI subcommand set).
+
+SOTA-equivalence verdict per CR-12 6-class disposition + SRA D1-D10:
+- Class: GENUINELY-NEW (Anthropic has no equivalent Cedar policy + Ed25519 receipts plugin)
+- Substrate sound (AWS Cedar + Ed25519 RFC 8032)
+- BUT impl NOT SOTA-grade today: TIER-4-NAMED-INDIVIDUAL maintainer (Tom Farley single-org), convergence-gate Axis-1/2/3 FAIL, broken-on-arrival v0.5.5 hooks.json
+- Disposition: KEEP both plugins installed (skills/agents/commands functional); DISABLE only broken hooks.json
+- Re-enable path: rename .disabled then run `npx protect-mcp@0.5.5 init-hooks --dir .claude` to regenerate matching v0.5.5 hooks.json per CCBP CR-6 official-native-channel
+
+Fix:
+- mv cache/.../review-agent-governance/0.1.0/hooks/hooks.json hooks.json.disabled-v0.5.5-protect-mcp-cli-mismatch
+- mv marketplaces/.../review-agent-governance/hooks/hooks.json hooks.json.disabled-v0.5.5-protect-mcp-cli-mismatch
+
+Verification: find hooks.json not-disabled xargs grep protect-mcp = ZERO matches. Smoke probe clean.
+
+Total disabled across W195a + W195a-fix2: 4 hooks.json files (2 protect-mcp + 2 review-agent-governance), all in gitignored .claude/plugins/ dirs.
+
+Cite: TIER-1-DIRECT Anthropic CC hooks docs + TIER-1-DIRECT live npx protect-mcp@0.5.5 --help probe. effective_tier=TIER-3-LOCAL-COMPOSITION.
+
+Reversibility HIGH.

@@ -1,0 +1,44 @@
+CODEX T1 PRE-EDIT CONSULT — W195 P0 COMPACT-AUTOMATION WIRE (rule-layer recalibration)
+
+ROLE: deep-review adversarial T1 consult on a proposed rule-layer edit. Verdict shape: APPROVE | NEEDS-REVISION (with numbered prescribed_edits) | REJECT. Budget your reasoning ~120s.
+
+=== CONTEXT ===
+Runtime: Z:/claude-sota-installed/ — Claude Code "install-only" SOTA runtime. Cardinal rules: CR-1 (cite SOTA primary source at file:line + HEAD SHA), CR-3 (cross-model codex gate), CR-8 (full-SOTA-content; no novel content), CR-10 (research-first).
+
+ROOT-CAUSE FINDING (grounded, not under review): operator complains "compact hooks pose a hard limit" preventing self-/compact + /goal automation. The actual blocking behavior is RULE-LAYER, not mechanical:
+- `.claude/hooks/scripts/userpromptsubmit_compact_threshold.py` WARN/HIGH/CRIT levels are ALL advisory (additionalContext + systemMessage, NO decision:block). Hook is NOT the block.
+- `.claude/rules/auto-compact-discipline.md` Rank #3 "Pre-emptive /compact <hint>" + checklist steps 5/6 train a STOP-and-handoff: step 6 says "At ~300k context: STOP planning new work; ship current Bundle + commit + /clear". This STOP-and-handoff is the operator-perceived "hard limit". THE FIX IS THE RULE.
+
+PROPOSED EDIT (single Pattern A atomic commit): recalibrate Rank #3 of `auto-compact-discipline.md` from "wrap at clean boundary = STOP" to a SOTA save→compact→restore LOOP that is ADVISORY, never blocking. At threshold the runtime:
+(a) persists state to memory stack (mcp-memory + graphiti) + a bridge artifact at `.claude/state/compact_bridge_<session>.json`,
+(b) self-invokes `/compact` with a focused hint,
+(c) restores from the bridge + memory on resume via `/context-restore`.
+The recalibration is rule-text only. NO new decision:block anywhere. The 3 supporting hooks (posttooluse_context_monitor.js / precompact_hint_emitter.py / sessionstart_compact_hint_reader.py) ALL already exist and are advisory-only — no hook edit needed.
+
+=== SOTA SOURCES (all read at file:line + HEAD SHA) ===
+1. GSD context-monitor — `Z:/repos/deps/get-shit-done/docs/context-monitor.md @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5` + `hooks/gsd-context-monitor.js:158-187`. Pattern: statusline writes bridge file `/tmp/claude-ctx-{session_id}.json` → PostToolUse monitor reads → injects `additionalContext` warning. Verbatim source comment L158-159: "Build advisory warning message (never use imperative commands that override user preferences — see #884)". WARNING ≤35% remaining / CRITICAL ≤25% remaining. Hook L189-191 "Silent fail — never block tool execution".
+2. ECC pre-compact — `Z:/repos/deps/everything-claude-code/scripts/hooks/pre-compact.js:24-31,41-47 @ HEAD 841beea45cb25ba51f29fa45b7e272938d19b80a`. PreCompact state-save: appends timestamp to `compaction-log.txt` + notes compaction in active session file. `process.exit(0)` — never blocks.
+3. wshobson context-management v1.2.0 — `Z:/repos/deps/wshobson-agents/plugins/context-management/commands/context-save.md` + `context-restore.md @ HEAD ece811f23310a37ceb43496dbac0e244fe6845b6`. MIT, Seth Hobson. `/context-save` (capture project state, JSON/markdown/vector storage) + `/context-restore` (full/incremental/diff rehydration, token_budget default 8192) = the automated persist-restore loop. ALREADY INSTALLED at `.claude/plugins/cache/claude-code-workflows/context-management/1.2.0/.in_use`.
+4. CCBP claude-settings — `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:826,967 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd`. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` (1-100, default ~95) + `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (token-base; PCT applied as % of this). Env-driven thresholds.
+
+=== EXISTING RULE STATE (auto-compact-discipline.md) ===
+Rank #3 (L61-70): "Pre-emptive /compact <hint>" — When: context ~300k. How: invoke /compact with focused hint. Cites coordination.md §12 + Karpathy §5.
+Checklist (L125-137) step 5: "At ~250k context: invoke /compact <hint> pre-emptively"; step 6: "At ~300k context: STOP planning new work; ship current Bundle + commit + /clear between Bundle cycles".
+Anti-patterns L140: "Let autocompact fire blind" refuted.
+
+=== PROPOSED RECALIBRATION (what I will write) ===
+Rewrite Rank #3 heading to "Rank #3 — SOTA save→compact→restore loop (ADVISORY automation, never blocking)". New body:
+- State the loop: at threshold (WARN ~600k / HIGH ~650k / CRIT ~700k per env (j), advisory) the runtime executes the 3-step loop (a) persist (b) self-/compact-with-hint (c) restore — NOT stop-and-handoff.
+- Cite-adapt: GSD bridge-file `additionalContext` advisory pattern (file:line + SHA); ECC PreCompact state-save (file:line + SHA); wshobson `/context-save` + `/context-restore` as the persist-restore commands (file:line + SHA); CCBP env thresholds (file:line + SHA).
+- Bridge artifact: `.claude/state/compact_bridge_<session>.json` — written by self before /compact, read on resume. Schema: {session_id, ts, active_goal, queue, ship_state, last_commit, restore_hint}.
+- Explicitly: ADVISORY ONLY. The 3 supporting hooks emit additionalContext/systemMessage — NEVER decision:block. The runtime self-invokes /compact (does not WAIT for blind autocompact, does NOT stop-and-handoff).
+- Recalibrate checklist step 6: replace "STOP planning new work ... /clear between Bundle cycles" with "execute the save→compact→restore loop and CONTINUE — /clear only on genuinely-new task per Rank #4".
+- Recalibrate Anti-patterns: add "Stop-and-handoff at threshold instead of save→compact→restore loop — refuted by GSD advisory pattern + wshobson context-save/restore automated loop. The threshold is an automation trigger, not a hard limit."
+- Update §Update triggers + cite anchors to add the 3 new sources (GSD / ECC / wshobson).
+
+=== QUESTIONS FOR YOU (T1 audit axes) ===
+AXIS 1 — CORRECTNESS: Does the save→compact→restore loop correctly remove the operator-perceived hard limit WITHOUT introducing a real block? Is "self-invoke /compact" actually advisory (the model chooses to call /compact) vs accidentally implying a mechanical gate?
+AXIS 2 — CITE DISCIPLINE (CR-1/CR-8): Are the 4 SOTA cites at sufficient file:line + HEAD SHA depth? Is the recalibration "cite-adapted" (no novel content) or does it invent un-cited mechanism? The bridge artifact path/schema — is that adapting GSD's bridge-file pattern or novel?
+AXIS 3 — SCOPE / ANTI-REGRESSION: Does recalibrating Rank #3 + checklist step 6 + anti-patterns risk contradicting Rank #3.5 (the 4-layer PreCompact hook stack, which MUST stay advisory-exit-0)? Does it contradict Rank #4 rewind-first or Rank #6/#7? Is the single-commit Pattern A scope correct, or should the bridge-artifact schema be a separate ship?
+
+OUTPUT: verdict + numbered prescribed_edits (if NEEDS-REVISION). Be adversarial. No compliments — just the problems.

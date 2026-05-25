@@ -1,0 +1,49 @@
+You are GPT-5.5 doing concrete implementation design for Aperant-derived rate-limit poller (Ship 1W). Real GPT-5.5 BRIDGE-MODE via codex CLI direct foreground execution.
+
+CONTEXT
+- Wave 87 surfaced cpa-usage-keeper has rate-limit schema but 0/10 populated
+- Aperant v2.7.6 documents the upstream usage APIs:
+  - Codex: GET https://chatgpt.com/backend-api/wham/usage with Authorization Bearer + ChatGPT-Account-Id headers
+  - Anthropic: GET https://api.anthropic.com/api/oauth/usage with Authorization Bearer + anthropic-beta header
+- 10 OAuth files at Z:/claude-sota-installed/.cli-proxy-api/: 7 claude-*.json + codex-zfan7@sva.edu-pro.json + antigravity-739955940fc + gemini-739955940fc
+- cpa-usage-keeper SQLite at Z:/claude-sota-installed/.local/cpa-usage-keeper/cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db
+- Schema: usage_identities table has primary_window_used_percent / primary_window_limit_seconds / primary_window_reset_at / secondary_window_* / plan_type / limit_reached columns (all NULL today)
+- Today: 4-failed-of-6 calls on 739955940fc Claude account (66% failure rate from passive 429 detection); proactive polling would have rotated BEFORE 429
+
+TASK: Produce a complete production-ready Python implementation of `tools/aperant_rate_limit_poller.py`. Must include:
+
+1. **Architecture**: 60s cron-style poll loop (asyncio.sleep). Read OAuth tokens from .cli-proxy-api/{claude-*,codex-*}.json. Refresh expired tokens via OAuth refresh endpoint. Poll usage API for each account. Parse response. UPDATE usage_identities SQLite.
+2. **OAuth token refresh**:
+   - Anthropic: POST https://console.anthropic.com/v1/oauth/token with client_id 9d1c250a-e61b-44d9-88ed-5944d1962f5e, grant_type=refresh_token
+   - OpenAI Codex: POST https://auth.openai.com/oauth/token with client_id app_EMoamEEZ73f0CkXaXp7hrann, grant_type=refresh_token
+3. **Rate-limit polling**:
+   - For each Claude account: GET https://api.anthropic.com/api/oauth/usage
+   - For codex Pro: GET https://chatgpt.com/backend-api/wham/usage
+4. **Response parse**: extract primary_window {used_percent, limit_window_seconds, reset_at} + secondary_window similar + plan_type + limit_reached
+5. **SQLite UPDATE**: UPDATE usage_identities SET primary_window_used_percent = ?, primary_window_reset_at = ?, secondary_window_used_percent = ?, plan_type = ?, limit_reached = ? WHERE name = ? AND provider = ?
+6. **Failure handling**:
+   - 401 → token refresh + retry once
+   - 403 → mark account needs_reauth (could also bump capacity_score=0)
+   - 5xx → exponential backoff
+   - Timeout → log + continue next iteration
+7. **Logging**: append JSONL to Z:/claude-sota-installed/.claude/state/aperant_poller.jsonl with {ts, account, provider, status, primary_used_percent, secondary_used_percent, error}
+8. **Smoke probe**: --dry-run flag prints what would be UPDATEd without writing
+9. **Service control**: --start (run loop) / --once (single poll) / --stop (graceful shutdown via PID file)
+10. **Configuration**: read from Z:/claude-sota-installed/.cli-proxy-api/config.yaml + env-var overrides (APERANT_POLL_INTERVAL_SECONDS, APERANT_POLLER_DRY_RUN)
+
+Reference cite-anchors (TIER-1):
+- Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ cba7a027 — full schema + endpoints
+- Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts @ cba7a027 (for reference impl; do NOT vendor; cite-class only)
+- Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/token-refresh.ts @ cba7a027
+
+DELIVERABLES (write to Z:/claude-sota-installed/tmp/wave88-aperant-poller-impl-OUT.md, 600 LOC max):
+- Section 1: Architecture diagram (text)
+- Section 2: Complete tools/aperant_rate_limit_poller.py source (production-ready Python; ~250-400 LOC)
+- Section 3: Smoke probe + rollback procedure
+- Section 4: Mia probe checklist before deploy
+- Section 5: Wire-up to CPA RESP queue OR direct SQLite (which approach is safer per Wave 86 sibling-bleed defense?)
+- Section 6: VERDICT one-line
+
+OUTPUT_BUDGET: 600 LOC max
+DISCIPLINE per CR-1: cite at file:line + HEAD SHA; redact OAuth tokens >20 chars in any sample output as [REDACTED-N-CHARS]
+END output with literal "VERDICT:" line on its own

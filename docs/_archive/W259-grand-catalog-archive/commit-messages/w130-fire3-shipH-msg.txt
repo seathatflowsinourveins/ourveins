@@ -1,0 +1,90 @@
+fix(t3-silent-failure): widen PostToolUse `if:` matchers to leading-wildcard substring patterns (codex T1 APPROVE conf=0.94)
+
+Wave 130 Fire 3 Ship H — Pattern A apply per codex T1 NEEDS-REVISION→APPROVE arc. Resolves T3 cross-model gate silent-failure that has been operationally bypassing codex_postcommit_review.py for EVERY commit since Wave 118 Ship A2 RTK install (commit `741d695`).
+
+==== Phase 1+2 systematic-debugging: TRIPLE-CONVERGED ROOT CAUSE ====
+
+Phase 1 Iron Law (NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST) per superpowers:systematic-debugging skill. 3-agent advanced-team fan-out (per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` Wave 24-D OWNED at n=3 user-trigger):
+
+- **Agent A** (`a2b9f12e`, 228s, conf=0.93): CC `if:` matcher semantics + RTK auto-rewrite empirical reproduction.
+  Direct test: `echo '{"tool_name":"Bash","tool_input":{"command":"git -C Z:/claude-sota-installed commit -F /tmp/test -- foo.md"}}' | rtk.exe hook claude` returns `{"hookSpecificOutput":{"updatedInput":{"command":"rtk git -C ... commit -F ..."}}}` per CC-canonical hookSpecificOutput.updatedInput.command mechanism.
+
+- **Agent B** (`acd5f0af`, 114s, conf=0.92): codex_postcommit_review.py code audit.
+  609 main_entered + 426 filter_rejected_not_commit + 2 launched JSONL totals; `_is_commit_cmd` delegates to `_guard_base.git_verb_matches` which splits cmd on `&&|||;` (NOT `\n`); compound-chain commits with Bash line-continuation `\<newline>` survive splitter as literal `\` non-whitespace breaking segment-2 `git ` prefix detection.
+
+- **Agent C** (`ad287996`, 276s, conf=0.85 revised): Differential 2b9dc42→HEAD.
+  EMPTY settings.json diff (zero config change between last-firing commit + silent commits). Manual invoke at 22:38 PROVES hook works structurally (3rd `launched` row + codex_review_HEAD_5f9c60f8.txt 380 bytes for 5f9c60f). Smoking gun: Ship A-FIX `6eb1a52` JSONL row at 20:47:50 shows `main_entered` + `filter_rejected_not_commit` for compound chain `rtk git -C ... add ... && \\\ngit -C ... commit -F ...`.
+
+- **Orchestrator empirical reproduction** (this fire, conf=1.00): direct rtk subprocess invocation confirmed Agent A claim verbatim.
+
+==== ROOT CAUSE ====
+
+RTK 0.39.0 PreToolUse[6][6] (matcher='Bash', no `if:` filter, runs LAST) prepends `rtk ` to every git command via Anthropic CC `hookSpecificOutput.updatedInput.command` rewrite primitive. PostToolUse[0] `if: Bash(git commit *)` and `if: Bash(git -C * commit *)` evaluate against the REWRITTEN cmd (now starting with `rtk git ...`, not `git ...`) — original strict-prefix matchers do NOT match → codex_postcommit_review.py NEVER DISPATCHED → T3 verdict file + JSONL launched row never written.
+
+Wave 128 Ship A `2b9dc420` 20:46:30Z fired ONLY because the manual smoke-probe bypassed CC's normal Bash dispatch path (direct invocation, NOT through PreToolUse rewrite chain). Ship A-FIX `6eb1a52` commit body's "T3 STRUCTURALLY ACTIVE again" claim was OVER per `Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories` — smoke-probe missed actual rtk-rewrite failure mode. Wave 128 Agent H's compound-chain hypothesis (refuted at the time) was actually CORRECT but misclassified.
+
+==== Pattern A pre-apply fix-forward (codex T1 APPROVE conf=0.94) ====
+
+codex T1 deep-review consult at `.claude/state/codex_consult_w130_fire3_t3_silent_failure_fix.txt` returned APPROVE conf=0.94 for Option A (widen `if:` patterns to leading-wildcard substring). Verdict file at `.claude/state/codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt`.
+
+Codex web-verified Anthropic CC official docs (TIER-1-DIRECT) that hook-level `if:` uses permission rule syntax which DOES support leading `*` wildcards. Canonical examples in CC docs: `Bash(* --version)`, `Bash(* --help *)`, `Bash(* install)`. Therefore widened patterns are syntactically valid AND match BOTH the original `git ...` cmd shape AND the rtk-rewritten `rtk git ...` cmd shape.
+
+==== 4 surgical Edits applied (Pattern A discipline) ====
+
+`.claude/settings.json` PostToolUse[0] entries [0]+[1]+[2]+[3]:
+
+```diff
+- "if": "Bash(git commit *)"          (line 213, codex_postcommit_review.py)
++ "if": "Bash(*git commit *)"
+- "if": "Bash(git -C * commit *)"     (line 220, codex_postcommit_review.py)
++ "if": "Bash(*git -C * commit *)"
+- "if": "Bash(git push *)"            (line 227, codex_prepush_review.py)
++ "if": "Bash(*git push *)"
+- "if": "Bash(git -C * push *)"       (line 234, codex_prepush_review.py)
++ "if": "Bash(*git -C * push *)"
+```
+
+JSON validity confirmed via `python3 -c "import json; json.load(open('.claude/settings.json'))"`.
+
+==== Pattern A discipline scope ====
+
+PreToolUse[6][2-5] gitleaks_pre_commit_gate.py + codex_t2_pre_commit_gate.py have IDENTICAL `if:` patterns (`Bash(git commit *)` + `Bash(git -C * commit *)` at lines 177/183/189/195) — same root cause AFFECTS them too (T2 cross-model gate at commit-time is also silently bypassed since rtk install). Codex T1 consult was scoped to T3 only; per `codex-t1-fix-forward-pattern.md` Pattern A "apply ALL prescribed_edits in SINGLE atomic commit; do NOT iterate iter-N→iter-N.1→iter-N.2", PreToolUse[6] extension is QUEUED as separate fire (task #94 to be created post-commit). Apply EXACTLY codex's 4 prescribed edits.
+
+==== Mia pre-apply ladder n=89 (catch this fire pre-commit) ====
+
+#89 (this fire pre-investigation): orchestrator's compact suggestion blamed RTK PreToolUse:Bash auto-rewrite at high confidence but framed as "vs matcher inspect order suspect" — actual mechanism is `updatedInput.command` rewrite (CC-canonical primitive), not "matcher inspect order". Agent A's empirical test sharpened the mechanism. Pre-apply correction via narrative-only refinement; no code edit needed.
+
+==== Smoke-test: this commit IS the test ====
+
+Per codex T1 expected_smoke_outcome: "PostToolUse codex_postcommit_review.py hook fires for the commit command after RTK rewrites it to `rtk git ...`, producing a new T3/codex postcommit trace". If T3 fires for this commit, fix is verified. If T3 silent for this commit too, deeper investigation needed (would suggest CC `if:` glob doesn't actually support leading `*` despite codex's docs verification, OR rtk has additional rewrite step).
+
+Post-commit verify: `ls .claude/state/codex_review_HEAD_<sha8>*.txt` + `tail .claude/state/codex_postcommit_reviews.jsonl`.
+
+==== CR conformance ====
+
+- **CR-1 cite-trail**: TIER-1-DIRECT to Anthropic CC official docs verified by codex T1 web-search (permission rule syntax with leading `*` wildcards) + cite anchors at agent return artifacts (Agent A/B/C verdict bodies)
+- **CR-3 cross-model gate**: Phase 1 bootstrap exception per CLAUDE.md L137 — codex T1 deep-review BG fired at .claude/state/codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt (182 lines, conf=0.94 APPROVE Option A); satisfies orchestrator-side codex exec foreground+tee dispatch path. T3 cross-model gate post-commit will validate the fix itself
+- **CR-5 install-priority**: cite-import-AMBER NOT applicable — settings.json edit is bootstrap-only file per CLAUDE.md §"Bootstrap-only files"; no install-class artifact change
+- **CR-8 full-SOTA-content**: ADAPTED-FROM-SOTA — the widened `if:` pattern syntax is direct from Anthropic CC permission rule canonical examples (`Bash(* --version)`, `Bash(* --help *)`, `Bash(* install)` per codex T1 web-verified docs)
+- **CR-9 install-risk**: LOW (additive 4 character changes, REVERT path = single-commit revert via `git revert`); JSON validity verified pre-commit; PreToolUse extension QUEUED separately per Pattern A discipline scope
+- **CR-11 META-process**: Wave 130 Fire 3 advanced agent team fan-out (3 parallel general-purpose subagents A+B+C; cross-model GPT-5.5 verification via orchestrator-side codex exec foreground+tee per FM-17.f Path P) + Mia pre-apply n=89 + Pattern A surgical 4-edit apply per codex T1 verdict + Phase 1-2 systematic-debugging Iron Law per superpowers:systematic-debugging skill
+
+==== Tier-A vs Tier-B failure modes ====
+
+This Ship H closes Tier-A (CC `if:` matcher rejection of rtk-rewritten cmds) for PostToolUse[0] codex_postcommit + codex_prepush.
+
+Tier-B (Bash line-continuation `\\\n` breaks `git_verb_matches` segment splitter at `_guard_base.py:369` regex `\s*(?:&&|\|\||;)\s*`) is QUEUED as task #95 — defense-in-depth fix for compound chains that survive Tier-A but fall through Tier-B internal `_is_commit_cmd` check.
+
+==== Forward-only per port-note-discipline §6 ====
+
+Wave 128 Ship A-FIX commit body's "T3 STRUCTURALLY ACTIVE again" framing stands as historical record (do NOT rewrite per port-note-discipline §6 anti-pattern); this commit's correction is forward-only.
+
+==== Outstanding queue ====
+
+- Task #93 (this commit): T3 silent-failure fix-forward Pattern A apply
+- Task #94 NEW: PreToolUse[6] extension — widen gitleaks + codex_t2 `if:` patterns (same root cause)
+- Task #95 NEW: Tier-B `git_verb_matches` segment splitter `\n` add (defense-in-depth)
+- Task #92 still pending: fm17 multi-file taxonomy split (LOC ceiling 230>200)
+- Task #91 still pending: sibling fm17 backport (sibling-context fire)
+
+VERDICT (this commit): T3 cross-model gate fix-forward Pattern A applied per codex T1 APPROVE conf=0.94. Smoke-test embedded — this commit's own T3 firing confirms or refutes fix.

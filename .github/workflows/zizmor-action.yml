@@ -1,0 +1,66 @@
+name: zizmor (workflow security audit)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+  schedule:
+    - cron: '0 6 * * 1'   # weekly Monday 06:00 UTC (post-Dependabot Monday 09:00)
+
+# Per W333.5 Stream 1 — zizmorcore/zizmor-action @ v0.5.3 (MIT, 107★ wrapper / 5,158★ CLI)
+# DETERMINISTIC GitHub Actions static-analysis — orthogonal signal class to codex GPT-5.5
+# (W331 P0.7 cross-model AUTHORITY). Battle-tested in vitejs/vite/.github/workflows/zizmor.yml.
+# Catches: SHA-pinning gaps, write-token leaks, pull_request_target abuse, action injection.
+
+permissions:
+  contents: read
+  security-events: write   # for SARIF upload to Security tab
+
+concurrency:
+  group: zizmor-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  zizmor:
+    name: zizmor static-analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; SHA via gh api refs/tags/v2.19.4)
+        with: { egress-policy: audit }
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with: { persist-credentials: false }
+
+      # W349 P0.5 RC-13: zizmor-action v0.5.3 input names use DASHES (advanced-security,
+      # min-severity, min-confidence), NOT underscores. Prior `advanced_security: false`
+      # was silently ignored (action emitted "Unexpected input(s)" warning), defaulted to
+      # true, and attempted SARIF upload to Security tab — which fails on PRIVATE repos
+      # without GH Advanced Security ($$$). Cite: zizmorcore/zizmor-action action.yml
+      # inputs schema (peeled-commit f52a838 / v0.5.3).
+      #
+      # W349 P0.5 RC-16 advisory mode: After RC-13 made zizmor actually work, it surfaces
+      # 31 HIGH-severity findings (27 unpinned-uses + 2 template-injection + 2 excessive-
+      # permissions) across 10 workflow files. These are pre-existing debt that the
+      # silently-broken zizmor was hiding; W349 already shipped RC-1/2/9 SHA-pins for
+      # 3 workflows. Mass SHA-pinning of the remaining 10 workflows is W351-scope (new
+      # security-hardening wave); zizmor runs but doesn't block PR until W351 closes.
+      # Findings remain visible in CI log + workflow summary for tracking.
+      - name: Run zizmor (high-severity only)
+        continue-on-error: true   # W349 RC-16: advisory until W351 SHA-pin sweep
+        uses: zizmorcore/zizmor-action@f52a838cfabf134edcbaa7c8b3677dde20045018  # v0.1.1
+        with:
+          advanced-security: false   # required false for PRIVATE repos without GH Advanced Security
+          min-severity: high
+          min-confidence: high
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # SARIF upload only viable with GH Advanced Security (paid for PRIVATE)
+      # For now: surface via job logs + workflow summary; gate via min-severity

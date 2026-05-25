@@ -1,0 +1,253 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 2028b395f0bd1dc15ffe6b05106236bfddefeb18
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-14-agent-team/00-tracker.md               | 111 +++++++++++++
+ .../01-fm17f-n4-incident-report.md                 | 125 +++++++++++++++
+ .../02-synthesis-and-mia-pre-apply.md              | 169 ++++++++++++++++++++
+ .../03-final-coverage-tracker-v8.md                | 137 ++++++++++++++++
+ .../agent-A-pageindex-line-by-line.md              | 172 +++++++++++++++++++++
+ .../fire-14-agent-team/agent-C-design.md           | 171 ++++++++++++++++++++
+ 6 files changed, 885 insertions(+)
+
+=== git show --format=fuller ===
+commit 2028b395f0bd1dc15ffe6b05106236bfddefeb18
+Author:     42 <42@local>
+AuthorDate: Sun May 10 17:17:24 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 17:17:24 2026 -0400
+
+    audit(w134-f14): advanced-agent-team dispatch — Agent A+C done, Agent B FM-17.f n=4, Pattern A fix-forward for 3 OVER catches
+    
+    Wave 134 Fire 14 dogfoods advanced-agent-team-standing-directive with 3-parallel
+    dispatch. 2 of 3 agents completed; Agent B BRIDGE-MODE FAILED FM-17.f n=4 + Path P
+    recovery ALSO Pattern B HNF zero-investigation.
+    
+    New folder: docs/sota-architecture-audit/fire-14-agent-team/
+    
+    ## Agent-team dispatch outcome
+    
+    | Agent | Type | Result | Verdict |
+    |---|---|---|---|
+    | A | sota-researcher | ✅ DONE 220s/394k tok | APPROVE-INSTALL-PILOT conf=0.88 |
+    | B | codex-rescue BRIDGE-MODE | ❌ FM-17.f n=4 222ms/0 tok | (no verdict) |
+    | B Path P recovery | codex exec foreground+tee | ❌ Pattern B HNF 122-LOC echo-only | (no verdict) |
+    | C | architect | ✅ DONE 107s/376k tok | APPROVE-DESIGN conf=0.90 |
+    
+    ## Agent A: PageIndex APPROVE-INSTALL-PILOT (0.88) + 3 Mia OVERs caught on Fire 13
+    
+    Agent A line-by-line audit of pageindex @ HEAD f50e529 VERIFIED:
+    - Vectorless claim TRUE (zero faiss/chromadb/pinecone imports across 6 .py files)
+    - Tree-reasoning real (page_index.py:104-1066 7-stage async builder)
+    - MIT license clean
+    - Dependencies pinned (no @latest risk)
+    - Autonomous /loop compat (no HARD-GATE)
+    
+    Agent A caught 3 fresh Mia OVERs on Fire 13 file 02 PageIndex anatomy:
+    - OVER #168: "ALL 5 Probe 7.b clauses PASS" — clauses 1+4 actually PARTIAL-CONDITIONAL
+    - OVER #169: "Tier-3 L4 document-RAG layer" — PageIndex is per-document NOT corpus-scale
+    - OVER #170: config.yaml:3 `retrieve_model: "gpt-5.4"` — unverified model identifier
+    
+    ## Agent C: 2 designs APPROVE-DESIGN (0.90)
+    
+    - Design 1: docs/verified-avoid.md (~165 LOC) with 3 cohorts populated
+      (4 Cohort 1 META-HARNESS + 2 Cohort 2 license/registry + 1 Cohort 3 fresh-paint)
+    - Design 2: ARIS effort-knob amendment to advanced-agent-team-standing-directive.md
+      (~32 LOC delta — effort: lite/balanced/max/beast scaling)
+    
+    Both designs ready for W134-F15+ ship gated on codex T1 recovery.
+    
+    ## FM-17.f n=4 cumulative incident
+    
+    Agent B BRIDGE-MODE codex-rescue dispatch FAILED at 222ms / 0 tokens with
+    "API Error: Extra usage is required for 1M context". Signature exactly matches
+    Wave 119 + Wave 129 + Wave 130 = n=4 cumulative.
+    
+    Path P recovery (orchestrator-direct `codex exec` foreground+tee) ALSO failed with
+    Pattern B HNF zero-investigation (122-line prompt-echo).
+    
+    Cross-model gate NOT SATISFIED for Fire 14 ships → Outcome A ACCEPT-WITH-DOC disposition
+    + queue re-review for W134-F15+.
+    
+    ## Coverage % (Fire 13 → Fire 14)
+    
+    | Metric                              | Fire 13 | Fire 14 FINAL | Δ |
+    |-------------------------------------|---------|---------------|---|
+    | Cumulative baseline                  | 654/616 | (unchanged) | — |
+    | A1 manual strict                     | 50/616 = 8.12% | **51/616 = 8.28%** | +1 (Agent A deeper audit) |
+    | A1+A2 strict combined                | 99.84% | 99.84% | unchanged |
+    | FM-17.f cumulative                   | n=3 | **n=4** | +1 |
+    | Mia ladder                           | n=1200 | **n=1218** | +18 |
+    
+    ## Cumulative arc Fire 5-14
+    
+    | Fire | Folder | Files | LOC |
+    |------|---|---|---|
+    | 5+6  | sota-architecture-audit/ + future-evolution/ | 12 | ~2300 |
+    | 7    | (Pattern B HNF disposition only) | 1 | ~95 |
+    | 8    | fire-8-comprehensive-deep-dive/ | 12 | ~1940 |
+    | 9    | fire-9-saturation-push/ | 8 | ~1150 |
+    | 10   | fire-10-graphql-resolve/ | 5+3J | ~715 |
+    | 11   | fire-11-full-graphql-resweep/ | 7+3J+1Py | ~960 |
+    | 12   | fire-12-saturation-cleanup/ | 5+1J | ~730 |
+    | 13   | fire-13-tier-anatomy/ | 7 | ~855 |
+    | 14   | fire-14-agent-team/ | 6 (4 MD + 2 agent ARTIFACTs) | ~827 |
+    | **Total arc** | 8 folders | **~63 files** | **~9572 LOC** |
+    
+    Mia ladder n=130 (pre-arc) → n=1218 (Fire 14 close) = +1088 across 9-fire arc.
+    
+    ## "100% and beyond" verdict (9-fire arc FINAL)
+    
+    - ✅ Phase 1 100%: 99.84% TRUE-repo strict A1+A2 + 99.67% attempted
+    - ✅ Phase 2 beyond: 45 NEW SOTA candidates across 5 discovery passes
+    - ✅ Phase 3 architecture beyond: 6-tier v3 + 14 NEW Tier integrations + 2 NEW designs (verified-avoid + effort-knob)
+    - ✅ Phase 4 methodology beyond: GraphQL + 4-axis fresh-paint + advanced-agent-team dogfood with FM-17.f n=4 incident codification
+    
+    ## Forward fires queued (W134-F15+ — 16 candidates)
+    
+    Gated on codex T1 recovery (5):
+    - W134-F15-verified-avoid-ship (Agent C Design 1)
+    - W134-F15-effort-knob-ship (Agent C Design 2)
+    - W134-F15-pageindex-pilot-decision (with 3 OVER corrections)
+    - W134-F15-agent-B-replay
+    - W134-F7-install pipeline
+    
+    Independent (11):
+    - W134-F15-fm17f-recovery-skill
+    - W134-F15-ollama-smoke-probe (Option (b) DOWNGRADED-MODE cert)
+    - W134-F15-stale-cleanup + baseline-cleanup + cite-imports + adrs-intro + cli-tools + mcp-prune + skill-promotion + letta-deferred + aris-cite
+    
+    ## Conformance
+    
+    - CR-1: every claim cites file:line + HEAD SHA
+    - CR-3: cross-model gate NOT SATISFIED for Fire 14 ships (explicit disclosure per Outcome A)
+    - CR-5: AUDIT-only (no installs)
+    - CR-9: install-risk N/A; Mia caught 3 OVERs pre-apply (preventing wrong ship)
+    - CR-11: META-process dogfood — advanced-agent-team-standing-directive applied to its own audit
+    - CR-12: upstream-install-priority preserved
+    
+    ## Files changed (6 new + 1 Fire 13 file 02 ANNOTATION via Fire 14 forward-only)
+    
+    docs/sota-architecture-audit/fire-14-agent-team/
+    ├── 00-tracker.md (~115 LOC)
+    ├── 01-fm17f-n4-incident-report.md (~120 LOC)
+    ├── 02-synthesis-and-mia-pre-apply.md (~165 LOC)
+    ├── 03-final-coverage-tracker-v8.md (~100 LOC)
+    ├── agent-A-pageindex-line-by-line.md (172 LOC — Agent A worktree write)
+    └── agent-C-design.md (~155 LOC — Agent C ARTIFACT persisted)
+    Total: ~827 LOC across 6 files
+    
+    ## Commits arc (final 9-fire)
+    
+    583d0bb (F5) → ac8ea8a (F6) → 88adcd6 (F7 HNF) → 55204a2 (F8) → e785fc5 (F9)
+    → f0c2ca2 (F10) → e087cbc (F11) → 38d3976 (F12) → c57d807 (F13) → THIS (F14)
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-14-agent-team/00-tracker.md b/docs/sota-architecture-audit/fire-14-agent-team/00-tracker.md
+new file mode 100644
+index 0000000..5f96312
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-14-agent-team/00-tracker.md
+@@ -0,0 +1,111 @@
++# Wave 134 Fire 14 — Advanced Agent Team (per user directive)
++
++> **Folder**: `Z:/claude-sota-installed/docs/sota-architecture-audit/fire-14-agent-team/`
++> **Created**: 2026-05-10 post-Fire-13 (commit `c57d807`)
++> **Driver**: user directive "please continue all with advance workflow, agent team if needed"
++
++## Arc state at Fire 14 open
++
++**Fire 13 close** (commit `c57d807`):
++- 654 raw / 616 TRUE-repo baseline
++- 99.84% TRUE-baseline strict A1+A2 (615/616)
++- 50 A1 manual strict anatomies (8.12%)
++- 16 forward-fire candidates queued
++- Mia ladder n=1200
++
++## Fire 14 advanced agent team dispatch
++
++Per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` invariant
++#1 (BRIDGE-MODE GPT-5.5 for ≥2 agents) + `parallel
+
+[prompt truncated]

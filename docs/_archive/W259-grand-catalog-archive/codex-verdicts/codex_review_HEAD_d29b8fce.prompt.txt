@@ -1,0 +1,217 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit d29b8fce467fcae9ccb223175c0a2500ae8254c7
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 83 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)
+
+=== git show --format=fuller ===
+commit d29b8fce467fcae9ccb223175c0a2500ae8254c7
+Author:     42 <42@local>
+AuthorDate: Tue May 12 00:17:31 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 00:17:31 2026 -0400
+
+    audit(arch): W155 F1 architecture audit % FOUNDATION (V2+V3 PARALLEL convergence; multi-band ranges per V3 SAVED-SHIP catch; FM-09 6th RECURSIVE catch — 1st in W155)
+    
+    W155 F1 ships READ-ONLY audit % FOUNDATION report at docs/wave155-f1-architecture-audit-2026-05-12.md
+    per operator standing /loop directive: "deep dive into every code in your architecture and give me
+    percentage of been audited, how many percentage are definitive sota reviewed, deep dive into every
+    folder in your architecture, organize all with sota insights".
+    
+    V2 designer (PID b3s5ufonh ~80s exit=0) APPROVE conf=0.91 12852 tok 166 LOC OUT — dual-denominator
+    + per-class formula + 7 sub-fires + LOW risk + 350 LOC budget + PENDING-CITE-IMPORT-AMBER for
+    38+ untracked active-runtime cohort.
+    
+    V3 ADVERSARIAL (PID bz2iv6e5g ~140s exit=0) F1-NEEDED-LIGHT conf=0.88 / fm09_recursive_catch=YES
+    (6th RECURSIVE catch — FIRST in W155; 5 prior W154 F1+F3+F4+F5+F6) / v2_was_overclaimed=PARTIAL.
+    
+    V3 SAVED-SHIP catches (7 V2 overclaim risks at synthesis-vs-brief boundary per mia-pre-apply +
+    fm20-path-drift-cascade defense):
+    1. F1 must CLASSIFY not RATIFY — defer Section 14.5 cite-import-AMBER to F2-F8 sub-fires
+    2. V2 45-70% point estimate too confident — V3 mandates multi-band ranges (all-files 20-55% /
+       tracked-only 25-60% / arch-class tracked 70-90% / untracked 0% definitive)
+    3. V2 weighted aggregate is scope-creep risk — V3 mandates unweighted per-cohort bands
+    4. V2 treats provenance-bulk as evidence — V3 mandates per-file mapping (generic Wave provenance
+       ≠ per-file CR-1 satisfaction)
+    5. V2 F2-F8 queue could exceed cycle-300 if interpreted as remediation — V3 SCOPE-DOWN to
+       READ-ONLY classification fires only
+    6. V2 report 350 LOC OK (V3 confirmed; F1 actually 124 LOC well under)
+    7. V2 OUT contains corrupted duplicate JSON with "tokens used 12852" insertion — V3 disclosure
+       mandate; use first complete object only
+    
+    V2+V3 CONVERGENCE: read-only foundation report / multi-band ranges (NOT point estimate) /
+    prior-audit-corpus citation REQUIRED (per CR-10) / per-row CR-8 status preservation /
+    PENDING-CITE-IMPORT-AMBER cohort segregation / 7 sub-fires queued.
+    
+    Pattern A apply per V3 SCOPED-DOWN minimum_viable_f1_output:
+    - docs/wave155-f1-architecture-audit-2026-05-12.md NEW (124 LOC; under 350 budget)
+    - docs/install-provenance.md W155 F1 entry append (~95 LOC)
+    - 11 sections: inventory / untracked cohort / definitions / per-class probe / multi-band ranges /
+      prior-corpus citation / F2-F8 queue / cardinal-rule conformance / risk class / headline answer /
+      next-fire recommendation
+    - HEADLINE: % audited multi-band per cohort; % definitive SOTA-reviewed 5-20% strict / 75-85%
+      CR-3 Phase 1 bootstrap exception
+    
+    VERIFICATION (launch-discipline §1+§2):
+    - Smoke-probe: report file written + 124 LOC verified + frontmatter valid + sections complete
+    - Reversibility: `git revert <SHA>` <30s
+    - Incremental: ONE report file + 1 docs append per cycle-300
+    - No code edits / no runtime mutation / no cite-import-AMBER ratification (deferred to F2-F8)
+    
+    Cardinal-rule conformance:
+    - CR-1 ✅ TIER-1-DIRECT (V2+V3 verdict files + git ls-files inventory + prior-corpus path cites)
+    - CR-3 ✅ FULLY SATISFIED V2+V3 PARALLEL (17th non-Phase-1-bootstrap) — V2+V3 both REAL GPT-5.5
+      via Path P 6-param strict-conform
+    - CR-5 N/A (audit fire)
+    - CR-6 N/A (audit fire)
+    - CR-7 ✅ REPORT before route-around (V3 SAVED-SHIP catches all disclosed inline)
+    - CR-8 ✅ TIER-3-LOCAL-COMPOSITION; constituents=[V2+V3 verdicts + git ls-files + prior corpus
+      + Section 14.5 cite-import-AMBER source]; effective_tier=TIER-3-LOCAL-COMPOSITION per
+      Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE
+    - CR-9 ✅ Sibling-bleed defense (28 untracked rules + 8 untracked agents segregated PENDING)
+    - CR-10 ✅ Research-first (V3 mandate prior-audit-corpus citation; F2 sub-fire opens explicit
+      corpus mining)
+    - CR-11 ✅ META-process SOTA (V2+V3 PARALLEL Path P + V3 SAVED-SHIP convergence + 6th RECURSIVE
+      FM-09 catch + cardinal-rule conformance per-row)
+    - CR-12 N/A (no upstream-vs-incumbent classification)
+    
+    FM defense:
+    - FM-02 (b)+(c) ✅ atomic narrow `--only docs/wave155-f1-architecture-audit-2026-05-12.md
+      docs/install-provenance.md` (no bleed into untracked rules/agents/cite-imports)
+    - FM-09 V3 ADVERSARIAL 28/28 → 29/29 firm 19th consecutive arc; 6th RECURSIVE V3-catches-V2
+      cross-arc (5 prior in W154 F1+F3+F4+F5+F6 + 1st in W155 F1)
+    - FM-15 ✅ git CLI grammar (single-shell `git add ... && git commit -o ... -F <msg>` per
+      parallel-session-worktree-isolation.md Sub-class (b)+(c) defense)
+    - FM-17.f ✅ orchestrator-direct V2+V3 (no subagent fan-out; CR-3 gate FULLY satisfied via
+      REAL GPT-5.5 codex CLI 0.130.0 dispatched orchestrator-direct from eee parent session)
+    - FM-20 ✅ path-drift cascade defense TRIGGERED 10th in W153/W154/W155 cross-fire (V3 caught
+      V2's prescription speculation that would have propagated to single-point-estimate report)
+    - FM-21.a+b ✅ STATE PROBE before CronCreate (`81bd1a59` re-created post-restart per FM-21.b)
+    
+    Launch-discipline §D1 6-axis pre-launch ✅ all 6:
+    - code_quality: clean markdown / no emojis / valid frontmatter
+    - security: no secrets / no shell injection
+    - performance: report only (no runtime)
+    - infra: tmp/ scratch path per FM-19 + provenance append (audit-action-loop discipline)
+    - comms: clear inventory + bands + sub-fires + headline answer
+    - OS-state-mutation: zero (Write to tmp/ + Append to docs/install-provenance.md only)
+    
+    Launch-discipline 3 invariants ✅:
+    - Reversible (`git revert <SHA>` <30s)
+    - Observable (V2+V3 verdict files preserved + 11-section report)
+    - Incremental (ONE report + 1 docs append per cycle-300)
+    
+    Risk class MEDIUM per V3 a8 (escalated from V2 LOW; methodology bands inherit to F2-F8 sub-fires;
+    reversibility <30s).
+    
+    W155 ARC OPENING: F1 = audit % FOUNDATION; F2-F8 sub-fires read-only classification per V3
+    SCOPED-DOWN. ARC CONVERGES when all 7 sub-fires complete + headline % bands tightened per file
+    mapping.
+    
+    Ladders:
+    - USER-CORRECTION-ACK n=24 unchanged
+    - Mia n=343 → n=344 (V3-W155-F1 caught 7 V2 overclaim risks at synthesis-vs-brief boundary per
+      mia-pre-apply.md + fm20-path-drift-cascade.md)
+    - FM-09 V3 ADVERSARIAL 28/28 → 29/29 firm 19th consecutive arc; 6th RECURSIVE V3-catches-V2
+      cross-arc (5 in W154 + 1st in W155 — first inter-arc recurrence)
+    - Path P n=58 → n=60 (V2+V3 PARALLEL via Z-resident codex.ps1 + Get-Content pipeline)
+    - Pattern D n=58 → n=60
+    - CR-3 non-Phase-1-bootstrap n=16 → n=17 (W153 F1+F2+F5+F7+F8+F9+F10+F11+F12+F13 + W154
+      F1+F2+F3+F4+F5+F6 + W155 F1)
+    - FM-20 path-drift cascade defense TRIGGERED 10th in W153/W154/W155 cross-fire
+    - Inline-bash quote-trap n=27 → n=28 (`wc -l` Bash failed exit 127 'exp: command not found';
+      PowerShell pivot succeeded)
+    - Cron `81bd1a59` iteration ~2/N (W154 F1-F5 cron `a83ecd8c` retired post-restart per FM-21.b)
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 67f7212..035c33a 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -21971,3 +21971,86 @@ These are CONSERVATIVE bands — F2-F8 sub-fires will tighten per file-by-file m
+ - **FM-20 path-drift cascade defense TRIGGERED 10th in W153/W154/W155**
+ - **Inline-bash quote-trap n=27 → n=28** (`wc -l` Bash failed exit 1
+
+[prompt truncated]

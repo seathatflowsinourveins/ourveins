@@ -1,0 +1,1321 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e08d7-4d29-7c62-8ee4-92fa9eeb4c65
+--------
+user
+QUICK CODEX T1 VERDICT — Wave 94 Phase 3 of Ship 1T + Ship 1W/1X cron deploy. Real GPT-5.5 BRIDGE-MODE.
+
+CHANGES (2 edits):
+
+EDIT 1 — Phase 3 of Ship 1T (cnighswonger Opus 4.7 advisory):
+  tools/eee.ps1 +12 LOC
+  Added: $env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = '1'
+  Cite: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11 @ HEAD 12cc30a1
+        ("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces 5h burn ~3.3x")
+  Cite: https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7
+        (35% tokenizer increase documented; ArkNill independent confirmation)
+  Comment in eee.ps1 documents: "may reduce quality on complex tasks
+        (operator can override per-shell with $env:VAR=$null)"
+  PowerShell parser PASS (2545 tokens unchanged)
+
+EDIT 2 — NEW tools/eee_install_cron_tasks.ps1 (~165 LOC):
+  Closes Wave 93 persistence gap: CLIProxyAPI auto-refresh-workers rewrite
+  OAuth files every 14400s (4h) overwriting Ship 1X disabled flag.
+  Solution: Windows Scheduled Tasks for Ship 1W (60s) + Ship 1X (5min).
+  4h refresh interval x 5min plan = 48 re-applies between any single auto-refresh.
+  Modes: -DryRun / -Install / -Uninstall / -Status
+  Cite: Microsoft Learn https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/register-scheduledtask
+  PowerShell parser PASS
+
+DRY-RUN VERIFIED:
+  Wave 94 Ship 1W+1X cron deployment plan:
+  Task 1: EEE-Aperant-Poller (--once every 60s)
+  Task 2: EEE-Rotation-Planner (--once --threshold-pct 80 every 5min)
+  Pre-reqs OK.
+
+LAUNCH-DISCIPLINE D1 INVARIANTS:
+  REVERSIBLE: -Uninstall removes both tasks; tasks call --once mode (single-pass + exit)
+  OBSERVABLE: tasks log to .claude/state/{aperant_poller,eee_rotation_planner}.jsonl
+              -Status command shows registered + last-run + next-run
+  INCREMENTAL: -DryRun preview; -Install registers; safe to test individually
+
+LIVE EFFECT: Once -Install run, persistence gap CLOSED operationally.
+
+QUESTION: Both edits APPROVED to commit?
+
+Output JSON only:
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"findings":[{"id":"F-N","severity":"P0|P1|P2|P3","concern":"...","prescribed_edit":"..."}],"ship_disposition":"PROCEED|FIX-FORWARD-AND-PROCEED|BLOCK","rationale":"..."}
+
+**Running git operations**
+
+I’m planning to run a few commands. First, I’ll check the status of my git repository located at Z:\claude-sota-installed. Then, I’ll look at the differences between the two PowerShell script files: tools/eee.ps1 and tools/eee_install_cron_tasks.ps1. I’m also considering using PowerShell to parse files with the System.Management.Automation.Language.Parser. Lastly, I might list files using rg to reference eee_rotation_planner. Let’s see how this goes!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git status --short' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git diff -- tools/eee.ps1 tools/eee_install_cron_tasks.ps1' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "eee_aperant_poller|eee_rotation_planner|aperant_poller|rotation" tools .claude -g "*.ps1" -g "*.py" -g "*.md"' in Z:\claude-sota-installed
+ succeeded in 285ms:
+diff --git a/tools/eee.ps1 b/tools/eee.ps1
+index a4d557b..27e66e0 100644
+--- a/tools/eee.ps1
++++ b/tools/eee.ps1
+@@ -100,6 +100,19 @@ $env:BASH_MAX_TIMEOUT_MS = '600000'
+ # Cite: claude-global-vs-project-settings.md:178 (TIER-1-DIRECT).
+ $env:CLAUDE_CODE_TASK_LIST_ID = 'claude-sota-installed'
+ 
++# Wave 94 Phase 3 of Ship 1T: Opus 4.7 adaptive-thinking burn-rate mitigation.
++# Per cnighswonger advisory: Opus 4.7 burns Q5h quota ~2.4x faster than 4.6 due
++# to: (a) new tokenizer up to 35% more tokens, (b) adaptive-thinking ~105%
++# overhead. CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces burn ~3.3x but may
++# reduce quality on complex tasks (operator can override per-shell).
++# Cite TIER-1-DIRECT: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11
++#   @ HEAD 12cc30a1 (Opus 4.7 advisory + ArkNill independent confirmation +
++#   Discussion #25/#42 controlled A/B data + Q7d analysis)
++# Cite TIER-1-DIRECT: https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7
++#   (35% tokenizer increase documented)
++# Operator override: $env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=$null before eee
++$env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = '1'
++
+ # ============================================================================
+ # (d) Git Bash / MSYS path-rewrite suppression — env-only, NOT argv
+ # Per Wave 50 Fire 42 codex T1 NEEDS-REVISION conf=0.86 verdict at
+
+ succeeded in 288ms:
+ M .claude/.claude.json
+ M .claude/hooks/scripts/agent_spawn_gate.py
+ M .claude/hooks/scripts/codex_postcommit_review.py
+ M .claude/hooks/scripts/codex_prepush_review.py
+ M .claude/hooks/scripts/codex_t1_consult_gate.py
+ M .claude/hooks/scripts/codex_t5_plan_review_gate.py
+ M .claude/plugins/installed_plugins.json
+ M .claude/plugins/known_marketplaces.json
+ M .mcp.json
+ M CLAUDE.md
+ M bin/eee.cmd
+ M docs/sota-installed-manifest.md
+ M scripts/codex-plugin-hooks-rewrite.py
+ M tools/eee.ps1
+?? .ccs/
+?? .claude.json
+?? .claude/.last-cleanup
+?? .claude/agents/
+?? .claude/context-mode/
+?? .claude/hooks/cwc/
+?? .claude/hooks/scripts/__pycache__/
+?? .claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+?? .claude/hooks/scripts/cwc/
+?? .claude/hooks/scripts/safety_guard.py
+?? .claude/mcp-needs-auth-cache.json
+?? .claude/plugins/install-counts-cache.json
+?? .claude/rules/
+?? .claude/scheduled_tasks.lock
+?? .claude/session-data/
+?? .claude/session-env/
+?? .claude/settings.json.pre-fire45-fix
+?? .claude/settings.local.json
+?? .claude/shell-snapshots/
+?? .local/
+?? .ssh/
+?? bin/eee-backup.cmd
+?? docs/eee-launch-design-cliproxyapi.md
+?? docs/operator-path-setup.md
+?? scripts/__pycache__/
+?? tools/__pycache__/
+?? tools/eee-backup.ps1
+?? tools/eee-status.ps1
+?? tools/eee.ps1.pre-fire46-fix
+?? tools/eee_install_cron_tasks.ps1
+
+ succeeded in 308ms:
+tools\aperant_rate_limit_poller.py:5:selector can do PROACTIVE rotation BEFORE 429.
+tools\aperant_rate_limit_poller.py:38:LOGGER = logging.getLogger("aperant_poller")
+tools\aperant_rate_limit_poller.py:46:DEFAULT_JSONL = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.jsonl")
+tools\aperant_rate_limit_poller.py:47:DEFAULT_PID_FILE = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.pid")
+tools\eee_account_rotation_planner.py:1:"""Ship 1X — Cycle-aware account rotation planner.
+tools\eee_account_rotation_planner.py:18:- OBSERVABLE: JSONL log per change to .claude/state/eee_rotation_planner.jsonl
+tools\eee_account_rotation_planner.py:35:LOGGER = logging.getLogger("eee_rotation")
+tools\eee_account_rotation_planner.py:42:DEFAULT_JSONL = Path("Z:/claude-sota-installed/.claude/state/eee_rotation_planner.jsonl")
+tools\eee_account_rotation_planner.py:43:DEFAULT_BACKUP_DIR = Path("Z:/claude-sota-installed-state/.cli-proxy-api-rotation-backups")
+tools\eee_account_rotation_planner.py:113:    d["disabled_reason"] = "rotation_planner: 7d_threshold" if new_disabled else "rotation_planner: 7d_recovered"
+tools\eee_account_rotation_planner.py:241:        LOGGER.info("eee_rotation_planner started; interval=%ds threshold=%d%% dry_run=%s", args.interval_seconds, args.threshold_pct, args.dry_run)
+tools\eee_install_cron_tasks.ps1:11:# - Wave 93 commit `63cc261` Ship 1X: tools/eee_account_rotation_planner.py
+tools\eee_install_cron_tasks.ps1:16:# - OBSERVABLE: tasks log to .claude/state/{aperant_poller,eee_rotation_planner}.jsonl
+tools\eee_install_cron_tasks.ps1:39:$PlannerScript = "$RepoRoot\tools\eee_account_rotation_planner.py"
+tools\eee_install_cron_tasks.ps1:57:    Write-Host "  Action:   $PythonBin --once (single rotation pass)"
+tools\eee_install_cron_tasks.ps1:97:    Register-ScheduledTask -TaskName $PlannerTaskName -Action $plannerAction -Trigger $plannerTrigger -Settings $plannerSettings -Description 'Ship 1X: Cycle-aware rotation planner (every 5min)' -Force | Out-Null
+tools\eee_install_cron_tasks.ps1:134:    Write-Host "Latest poller iteration (.claude/state/aperant_poller.jsonl):"
+tools\eee_install_cron_tasks.ps1:135:    Get-Content "$RepoRoot\.claude\state\aperant_poller.jsonl" -Tail 1 -ErrorAction SilentlyContinue
+tools\eee_install_cron_tasks.ps1:137:    Write-Host "Latest planner iteration (.claude/state/eee_rotation_planner.jsonl):"
+tools\eee_install_cron_tasks.ps1:138:    Get-Content "$RepoRoot\.claude\state\eee_rotation_planner.jsonl" -Tail 1 -ErrorAction SilentlyContinue
+.claude\rules\cross-model-consensus.md:351:- Local-judge MCP enablement transition (`.claude/settings.json:disabledMcpjsonServers` flips on/off for `local-judge`) — re-evaluate §"On codex unavailable" recovery option ranking; currently option (a) deferred-queue is default while MCP frontend is disabled. OR Local-judge SOTA model rotation (qwen3.6:judge / gemma4:vision per research-protocol.md §Tool Routing) changes the failover landscape.
+.claude\rules\launch-discipline.md:116:4. On-call rotation aware of launch
+
+**Investigating Git Issues**
+
+I’m running into an issue where `git diff` doesn’t show untracked files, which is puzzling. I need to check the new file and perhaps inspect the context of `eee.ps1`. It’s crucial for me to parse the information correctly so I can get to the bottom of what’s going on. I’m keen to sort this out and understand why certain files aren’t being included in the diff.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw tools/eee_install_cron_tasks.ps1' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw tools/eee_account_rotation_planner.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw tools/aperant_rate_limit_poller.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$ErrorActionPreference='"'Stop'; "'$files=@('"'tools/eee.ps1','tools/eee_install_cron_tasks.ps1'); foreach ("'$f in $files) { $tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$tokens, [ref]$errors) > $null; if ($errors.Count) { Write-Output "$f PARSE_ERRORS"; $errors | ForEach-Object { $_.Message } } else { Write-Output "$f OK tokens=$($tokens.Count)" } }' in Z:\claude-sota-installed
+ succeeded in 336ms:
+# Wave 94 — Ship 1W + 1X cron deployment helper for Windows Task Scheduler
+#
+# CLOSES the persistence gap surfaced Wave 93: CLIProxyAPI auto-refresh-workers
+# rewrite OAuth files every 14400s (4h) per refresh_interval_seconds in OAuth
+# JSON, OVERWRITING the `disabled` flag set by Ship 1X. This script registers
+# Windows Scheduled Tasks that run Ship 1W (60s poll) + Ship 1X (5min plan) so
+# the disabled flag is re-applied within minutes of any auto-refresh rewrite.
+#
+# Cite (TIER-1 SOTA chain):
+# - Wave 91 commit `6ebcf08` Ship 1W: tools/aperant_rate_limit_poller.py
+# - Wave 93 commit `63cc261` Ship 1X: tools/eee_account_rotation_planner.py
+# - Microsoft Learn: https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/register-scheduledtask
+#
+# LAUNCH-DISCIPLINE D1 invariants:
+# - REVERSIBLE: --uninstall removes all 2 tasks; tasks themselves call --restore-capable scripts
+# - OBSERVABLE: tasks log to .claude/state/{aperant_poller,eee_rotation_planner}.jsonl
+# - INCREMENTAL: --dry-run shows what would be created; --once-each runs single pass
+#
+# Usage:
+#   tools/eee_install_cron_tasks.ps1 -DryRun       # preview
+#   tools/eee_install_cron_tasks.ps1 -Install      # register both tasks
+#   tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks
+#   tools/eee_install_cron_tasks.ps1 -Status       # show registered tasks + last-run
+
+param(
+    [switch]$DryRun,
+    [switch]$Install,
+    [switch]$Uninstall,
+    [switch]$Status,
+    [string]$PythonBin = 'Z:/venvs/claude/Scripts/python.exe',
+    [int]$PollIntervalSec = 60,
+    [int]$PlanIntervalMin = 5
+)
+
+$ErrorActionPreference = 'Stop'
+
+$RepoRoot = 'Z:\claude-sota-installed'
+$PollerScript = "$RepoRoot\tools\aperant_rate_limit_poller.py"
+$PlannerScript = "$RepoRoot\tools\eee_account_rotation_planner.py"
+
+$PollerTaskName = 'EEE-Aperant-Poller'
+$PlannerTaskName = 'EEE-Rotation-Planner'
+
+function Show-Plan {
+    Write-Host "Wave 94 Ship 1W+1X cron deployment plan:" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Task 1: $PollerTaskName"
+    Write-Host "  Script:   $PollerScript"
+    Write-Host "  Args:     --once"
+    Write-Host "  Trigger:  every ${PollIntervalSec}s"
+    Write-Host "  Action:   $PythonBin --once (single poll + SQLite UPDATE + JSONL append)"
+    Write-Host ""
+    Write-Host "Task 2: $PlannerTaskName"
+    Write-Host "  Script:   $PlannerScript"
+    Write-Host "  Args:     --once --threshold-pct 80"
+    Write-Host "  Trigger:  every ${PlanIntervalMin}min"
+    Write-Host "  Action:   $PythonBin --once (single rotation pass)"
+    Write-Host ""
+    Write-Host "Effective persistence: 4h auto-refresh interval x 5min plan = up to 48 re-applies"
+    Write-Host "between auto-refresh cycles. 'disabled' flag stays effectively persistent."
+}
+
+function Test-Prereqs {
+    if (-not (Test-Path $PythonBin)) {
+        Write-Host "ERROR: Python not found at $PythonBin" -ForegroundColor Red
+        return $false
+    }
+    if (-not (Test-Path $PollerScript)) {
+        Write-Host "ERROR: Poller script not found at $PollerScript" -ForegroundColor Red
+        return $false
+    }
+    if (-not (Test-Path $PlannerScript)) {
+        Write-Host "ERROR: Planner script not found at $PlannerScript" -ForegroundColor Red
+        return $false
+    }
+    return $true
+}
+
+function Install-Tasks {
+    if (-not (Test-Prereqs)) { return 1 }
+
+    Write-Host "Registering scheduled tasks..." -ForegroundColor Cyan
+
+    # Task 1: Aperant Poller (60s)
+    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --once" -WorkingDirectory $RepoRoot
+    $pollerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Seconds $PollIntervalSec)
+    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+
+    Register-ScheduledTask -TaskName $PollerTaskName -Action $pollerAction -Trigger $pollerTrigger -Settings $pollerSettings -Description 'Ship 1W: Aperant rate-limit poller (every 60s)' -Force | Out-Null
+    Write-Host "  Registered: $PollerTaskName (every ${PollIntervalSec}s)" -ForegroundColor Green
+
+    # Task 2: Rotation Planner (5min)
+    $plannerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PlannerScript --once --threshold-pct 80" -WorkingDirectory $RepoRoot
+    $plannerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(30) -RepetitionInterval (New-TimeSpan -Minutes $PlanIntervalMin)
+    $plannerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+
+    Register-ScheduledTask -TaskName $PlannerTaskName -Action $plannerAction -Trigger $plannerTrigger -Settings $plannerSettings -Description 'Ship 1X: Cycle-aware rotation planner (every 5min)' -Force | Out-Null
+    Write-Host "  Registered: $PlannerTaskName (every ${PlanIntervalMin}min)" -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "Both tasks registered. They will start automatically." -ForegroundColor Cyan
+    Write-Host "Verify via: tools/eee_install_cron_tasks.ps1 -Status"
+}
+
+function Uninstall-Tasks {
+    foreach ($name in @($PollerTaskName, $PlannerTaskName)) {
+        $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+        if ($task) {
+            Unregister-ScheduledTask -TaskName $name -Confirm:$false
+            Write-Host "  Unregistered: $name" -ForegroundColor Yellow
+        } else {
+            Write-Host "  Not present: $name" -ForegroundColor Gray
+        }
+    }
+    Write-Host "Uninstall complete." -ForegroundColor Cyan
+}
+
+function Show-Status {
+    Write-Host "Scheduled task status:" -ForegroundColor Cyan
+    foreach ($name in @($PollerTaskName, $PlannerTaskName)) {
+        $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+        if ($task) {
+            $info = Get-ScheduledTaskInfo -TaskName $name
+            Write-Host "  $name :"
+            Write-Host "    State:        $($task.State)"
+            Write-Host "    LastRun:      $($info.LastRunTime)"
+            Write-Host "    LastResult:   $($info.LastTaskResult) ($([System.ComponentModel.Win32Exception]::new($info.LastTaskResult).Message))"
+            Write-Host "    NextRun:      $($info.NextRunTime)"
+        } else {
+            Write-Host "  $name : NOT REGISTERED" -ForegroundColor Yellow
+        }
+    }
+    Write-Host ""
+    Write-Host "Latest poller iteration (.claude/state/aperant_poller.jsonl):"
+    Get-Content "$RepoRoot\.claude\state\aperant_poller.jsonl" -Tail 1 -ErrorAction SilentlyContinue
+    Write-Host ""
+    Write-Host "Latest planner iteration (.claude/state/eee_rotation_planner.jsonl):"
+    Get-Content "$RepoRoot\.claude\state\eee_rotation_planner.jsonl" -Tail 1 -ErrorAction SilentlyContinue
+}
+
+# Main
+if ($DryRun) {
+    Show-Plan
+    if (Test-Prereqs) {
+        Write-Host "Pre-reqs OK. Run with -Install to register tasks." -ForegroundColor Green
+    }
+    exit 0
+}
+
+if ($Install) {
+    Install-Tasks
+    exit 0
+}
+
+if ($Uninstall) {
+    Uninstall-Tasks
+    exit 0
+}
+
+if ($Status) {
+    Show-Status
+    exit 0
+}
+
+# No mode flag - show help
+Write-Host "Usage:" -ForegroundColor Cyan
+Write-Host "  tools/eee_install_cron_tasks.ps1 -DryRun       # preview"
+Write-Host "  tools/eee_install_cron_tasks.ps1 -Install      # register Ship 1W (60s) + Ship 1X (5min) Scheduled Tasks"
+Write-Host "  tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks"
+Write-Host "  tools/eee_install_cron_tasks.ps1 -Status       # show registered tasks + last-run"
+exit 0
+
+
+ succeeded in 310ms:
+"""Ship 1W — Aperant-derived rate-limit poller for cpa-usage-keeper.
+
+Polls Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage every 60s
+(default). UPDATEs cpa-usage-keeper SQLite with rate-limit data so CLIProxyAPI
+selector can do PROACTIVE rotation BEFORE 429.
+
+Cite (TIER-1 SOTA chain):
+- Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+  (endpoint reference; Aperant's documented Codex schema MATCHES live;
+   Aperant's documented Anthropic schema OUTDATED — Wave 90 verified
+   live schema is five_hour/seven_day/extra_usage)
+- https://api.anthropic.com/api/oauth/usage (live; verified Wave 90)
+- https://chatgpt.com/backend-api/wham/usage (live; matches Aperant doc)
+
+Wave 91 Ship 1W satisfies:
+- CR-1: TIER-1 cite chain
+- CR-3: cross-model gate via codex T1 e2e BEFORE commit
+- CR-7: graduated-unleash Phase 3 ACTIVE (Wave 89 Ship 1Y unleash)
+- CR-9: install-risk MEDIUM (read-only API calls + SQLite UPDATE only;
+        reversible via stop-script + git revert)
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sqlite3
+import sys
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+LOGGER = logging.getLogger("aperant_poller")
+
+# Default paths (override via env or config flags)
+DEFAULT_OAUTH_DIR = Path("Z:/claude-sota-installed/.cli-proxy-api")
+DEFAULT_CPA_DB = Path(
+    "Z:/claude-sota-installed/.local/cpa-usage-keeper/"
+    "cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db"
+)
+DEFAULT_JSONL = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.jsonl")
+DEFAULT_PID_FILE = Path("Z:/claude-sota-installed/.claude/state/aperant_poller.pid")
+
+# OAuth refresh client IDs (TIER-1 cite Aperant CODEX_RATE_LIMITS_RESEARCH.md
+# §1.4 + §3.1)
+ANTHROPIC_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+
+ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+ANTHROPIC_TOKEN_URL = "https://console.anthropic.com/v1/oauth/token"
+CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token"
+
+ANTHROPIC_BETA_HEADER = "oauth-2025-04-20"
+
+
+@dataclass
+class PollResult:
+    account: str
+    provider: str
+    status: str  # ok / 401 / 403 / 429 / 5xx / error
+    primary_used_percent: Optional[float] = None
+    primary_reset_at: Optional[str] = None
+    primary_reset_seconds: Optional[int] = None  # F-1: reset_after_seconds
+    primary_limit_seconds: Optional[int] = None
+    secondary_used_percent: Optional[float] = None
+    secondary_reset_at: Optional[str] = None
+    secondary_reset_seconds: Optional[int] = None  # F-1: reset_after_seconds
+    secondary_limit_seconds: Optional[int] = None
+    plan_type: Optional[str] = None
+    limit_reached: Optional[bool] = None
+    extra_usage_paid_pct: Optional[float] = None
+    # F-4: credits (Codex only; cpa-usage-keeper has no credits columns —
+    # captured for JSONL telemetry; not stored in SQLite)
+    credits_balance: Optional[str] = None
+    credits_unlimited: Optional[bool] = None
+    credits_has_credits: Optional[bool] = None
+    raw: dict = field(default_factory=dict)
+    error: Optional[str] = None
+
+
+def unix_to_iso8601(unix_seconds: Optional[int | float | str]) -> Optional[str]:
+    """F-1: Normalize Codex reset_at (Unix seconds) to UTC ISO-8601 to match
+    Anthropic schema and SQLite datetime column convention."""
+    if unix_seconds is None:
+        return None
+    try:
+        ts = float(unix_seconds)
+    except (TypeError, ValueError):
+        return None
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+
+def http_get_json(url: str, headers: dict, timeout: int = 15) -> tuple[int, dict | str]:
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        resp = urllib.request.urlopen(req, timeout=timeout)
+        body = resp.read().decode("utf-8", errors="replace")
+        try:
+            return resp.status, json.loads(body)
+        except json.JSONDecodeError:
+            return resp.status, body
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            body = ""
+        return e.code, body
+    except Exception as e:
+        return 0, str(e)
+
+
+def poll_anthropic(oauth_file: Path) -> PollResult:
+    email = oauth_file.name.replace("claude-", "").replace(".json", "")
+    try:
+        d = json.loads(oauth_file.read_text())
+    except Exception as e:
+        return PollResult(
+            account=email, provider="claude", status="error", error="parse_oauth: " + str(e)[:80]
+        )
+    token = d.get("access_token")
+    if not token:
+        return PollResult(account=email, provider="claude", status="error", error="no_access_token")
+    headers = {
+        "Authorization": "Bearer " + token,
+        "anthropic-beta": ANTHROPIC_BETA_HEADER,
+        "Content-Type": "application/json",
+    }
+    code, body = http_get_json(ANTHROPIC_USAGE_URL, headers)
+    if code == 401:
+        return PollResult(account=email, provider="claude", status="401", error="needs_refresh")
+    if code == 403:
+        return PollResult(account=email, provider="claude", status="403", error="needs_reauth")
+    if code != 200 or not isinstance(body, dict):
+        return PollResult(
+            account=email, provider="claude", status=str(code or "error"),
+            error=str(body)[:120] if body else "unknown",
+        )
+    five = body.get("five_hour") or {}
+    seven = body.get("seven_day") or {}
+    extra = body.get("extra_usage") or {}
+    return PollResult(
+        account=email,
+        provider="claude",
+        status="ok",
+        primary_used_percent=five.get("utilization"),
+        primary_reset_at=five.get("resets_at"),
+        primary_limit_seconds=18000,  # 5h fixed window
+        secondary_used_percent=seven.get("utilization"),
+        secondary_reset_at=seven.get("resets_at"),
+        secondary_limit_seconds=604800,  # 7d fixed window
+        plan_type=None,  # Anthropic doesn't expose plan_type at this endpoint
+        limit_reached=(five.get("utilization") or 0) >= 100 or (seven.get("utilization") or 0) >= 100,
+        extra_usage_paid_pct=extra.get("utilization") if extra.get("is_enabled") else None,
+        raw=body,
+    )
+
+
+def poll_codex(oauth_file: Path) -> PollResult:
+    label = "zfan7@sva.edu (Codex Pro)"
+    try:
+        d = json.loads(oauth_file.read_text())
+    except Exception as e:
+        return PollResult(
+            account=label, provider="codex", status="error", error="parse_oauth: " + str(e)[:80]
+        )
+    tokens = d.get("tokens", {})
+    token = tokens.get("access_token") or d.get("access_token")
+    account_id = tokens.get("account_id") or d.get("account_id", "")
+    if not token:
+        return PollResult(account=label, provider="codex", status="error", error="no_access_token")
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if account_id:
+        headers["ChatGPT-Account-Id"] = account_id
+    code, body = http_get_json(CODEX_USAGE_URL, headers)
+    if code == 401:
+        return PollResult(account=label, provider="codex", status="401", error="needs_refresh")
+    if code == 403:
+        return PollResult(account=label, provider="codex", status="403", error="needs_reauth")
+    if code != 200 or not isinstance(body, dict):
+        return PollResult(
+            account=label, provider="codex", status=str(code or "error"),
+            error=str(body)[:120] if body else "unknown",
+        )
+    rl = body.get("rate_limit", {}) or {}
+    primary = rl.get("primary_window", {}) or {}
+    secondary = rl.get("secondary_window", {}) or {}
+    credits = body.get("credits", {}) or {}
+    # F-1: Codex reset_at is Unix seconds; normalize to ISO-8601 UTC for
+    # consistency with Anthropic schema + SQLite datetime convention
+    return PollResult(
+        account=label,
+        provider="codex",
+        status="ok",
+        primary_used_percent=primary.get("used_percent"),
+        primary_reset_at=unix_to_iso8601(primary.get("reset_at")),
+        primary_reset_seconds=primary.get("reset_after_seconds"),
+        primary_limit_seconds=primary.get("limit_window_seconds"),
+        secondary_used_percent=secondary.get("used_percent"),
+        secondary_reset_at=unix_to_iso8601(secondary.get("reset_at")),
+        secondary_reset_seconds=secondary.get("reset_after_seconds"),
+        secondary_limit_seconds=secondary.get("limit_window_seconds"),
+        plan_type=body.get("plan_type"),
+        limit_reached=rl.get("limit_reached"),
+        # F-4: credits captured for JSONL telemetry only (cpa-usage-keeper
+        # has no credits columns)
+        credits_balance=str(credits.get("balance")) if credits.get("balance") is not None else None,
+        credits_unlimited=credits.get("unlimited"),
+        credits_has_credits=credits.get("has_credits"),
+        raw=body,
+    )
+
+
+def update_cpa_sqlite(db_path: Path, results: list[PollResult], dry_run: bool = False) -> dict:
+    if not db_path.exists():
+        return {"error": "db_missing", "path": str(db_path)}
+    stats = {"updated": 0, "no_match": 0, "skipped": 0, "errors": []}
+    if dry_run:
+        for r in results:
+            if r.status == "ok":
+                stats["updated"] += 1
+            else:
+                stats["skipped"] += 1
+        stats["dry_run"] = True
+        return stats
+    conn = sqlite3.connect(str(db_path))
+    try:
+        for r in results:
+            if r.status != "ok":
+                stats["skipped"] += 1
+                continue
+            email_key = r.account.split(" (")[0]
+            try:
+                # F-3: capture cursor.rowcount to distinguish actual UPDATE
+                # from no-row-matched (e.g., name/provider mismatch)
+                cur = conn.execute(
+                    """
+                    UPDATE usage_identities SET
+                        primary_window_used_percent = ?,
+                        primary_window_limit_seconds = ?,
+                        primary_window_reset_at = ?,
+                        secondary_window_used_percent = ?,
+                        secondary_window_limit_seconds = ?,
+                        secondary_window_reset_at = ?,
+                        plan_type = ?,
+                        limit_reached = ?,
+                        stats_updated_at = ?
+                    WHERE name = ? AND provider = ?
+                    """,
+                    (
+                        int(r.primary_used_percent) if r.primary_used_percent is not None else None,
+                        r.primary_limit_seconds,
+                        r.primary_reset_at,
+                        int(r.secondary_used_percent) if r.secondary_used_percent is not None else None,
+                        r.secondary_limit_seconds,
+                        r.secondary_reset_at,
+                        r.plan_type,
+                        1 if r.limit_reached else 0 if r.limit_reached is not None else None,
+                        datetime.now(timezone.utc).isoformat(),
+                        email_key,
+                        r.provider,
+                    ),
+                )
+                if cur.rowcount >= 1:
+                    stats["updated"] += 1
+                else:
+                    stats["no_match"] += 1
+                    stats["errors"].append(
+                        {"account": r.account, "provider": r.provider, "error": "no_row_matched_name_provider"}
+                    )
+            except Exception as e:
+                stats["errors"].append({"account": r.account, "error": str(e)[:80]})
+        conn.commit()
+    finally:
+        conn.close()
+    return stats
+
+
+def append_jsonl(jsonl_path: Path, records: list[dict]) -> None:
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with jsonl_path.open("a", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec, default=str) + "\n")
+
+
+def poll_once(oauth_dir: Path, db: Path, jsonl: Path, dry_run: bool) -> dict:
+    results = []
+    for f in sorted(oauth_dir.glob("claude-*.json")):
+        results.append(poll_anthropic(f))
+    codex = oauth_dir / "codex-zfan7@sva.edu-pro.json"
+    if codex.exists():
+        results.append(poll_codex(codex))
+
+    update_stats = update_cpa_sqlite(db, results, dry_run=dry_run)
+    now = datetime.now(timezone.utc).isoformat()
+    records = []
+    for r in results:
+        records.append({
+            "ts": now,
+            "account": r.account,
+            "provider": r.provider,
+            "status": r.status,
+            "primary_used_percent": r.primary_used_percent,
+            "primary_reset_at": r.primary_reset_at,
+            "primary_reset_seconds": r.primary_reset_seconds,
+            "secondary_used_percent": r.secondary_used_percent,
+            "secondary_reset_at": r.secondary_reset_at,
+            "secondary_reset_seconds": r.secondary_reset_seconds,
+            "plan_type": r.plan_type,
+            "limit_reached": r.limit_reached,
+            "extra_usage_paid_pct": r.extra_usage_paid_pct,
+            # F-4: credits telemetry (Codex only)
+            "credits_balance": r.credits_balance,
+            "credits_unlimited": r.credits_unlimited,
+            "credits_has_credits": r.credits_has_credits,
+            "error": r.error,
+        })
+    append_jsonl(jsonl, records)
+    summary = {
+        "ts": now,
+        "polled": len(results),
+        "ok": sum(1 for r in results if r.status == "ok"),
+        "errors": [r for r in records if r["status"] != "ok"],
+        "update_stats": update_stats,
+        "dry_run": dry_run,
+    }
+    return summary
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true", help="Run a single poll and exit")
+    parser.add_argument("--start", action="store_true", help="Run cron loop")
+    parser.add_argument("--stop", action="store_true", help="Send SIGTERM to running poller via PID file")
+    parser.add_argument("--dry-run", action="store_true", help="Read but do not UPDATE SQLite")
+    parser.add_argument("--interval-seconds", type=int, default=60, help="Cron interval (default 60s)")
+    parser.add_argument("--oauth-dir", type=Path, default=DEFAULT_OAUTH_DIR)
+    parser.add_argument("--db", type=Path, default=DEFAULT_CPA_DB)
+    parser.add_argument("--jsonl", type=Path, default=DEFAULT_JSONL)
+    parser.add_argument("--pid-file", type=Path, default=DEFAULT_PID_FILE)
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+
+    # F-2: Cooperative shutdown via sentinel file (works on Windows where
+    # signal.SIGTERM doesn't run finally blocks gracefully)
+    stop_sentinel = args.pid_file.with_suffix(".stop")
+    if args.stop:
+        # Drop sentinel; running --start loop checks between iterations
+        # and exits cooperatively (runs finally cleanup including
+        # PID-file unlink and final SQLite commit)
+        try:
+            stop_sentinel.parent.mkdir(parents=True, exist_ok=True)
+            stop_sentinel.write_text(datetime.now(timezone.utc).isoformat())
+            LOGGER.info("Stop sentinel written at %s; running poller will exit at next iteration boundary", stop_sentinel)
+            return 0
+        except Exception as e:
+            LOGGER.error("failed to write stop sentinel: %s", e)
+            return 1
+
+    if args.once:
+        summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+        print(json.dumps(summary, indent=2, default=str))
+        return 0
+
+    if args.start:
+        args.pid_file.parent.mkdir(parents=True, exist_ok=True)
+        import os
+        args.pid_file.write_text(str(os.getpid()))
+        # F-2: clear any prior stop sentinel before starting
+        try:
+            stop_sentinel.unlink()
+        except FileNotFoundError:
+            pass
+        LOGGER.info(
+            "Aperant poller started; interval=%ds dry_run=%s pid=%d",
+            args.interval_seconds, args.dry_run, os.getpid(),
+        )
+        try:
+            while True:
+                # F-2: cooperative shutdown check between iterations
+                if stop_sentinel.exists():
+                    LOGGER.info("Stop sentinel detected at %s; exiting cooperatively", stop_sentinel)
+                    try:
+                        stop_sentinel.unlink()
+                    except FileNotFoundError:
+                        pass
+                    break
+                try:
+                    summary = poll_once(args.oauth_dir, args.db, args.jsonl, args.dry_run)
+                    LOGGER.info(
+                        "poll: ok=%d/%d updated=%d no_match=%d",
+                        summary["ok"], summary["polled"],
+                        summary["update_stats"].get("updated", 0),
+                        summary["update_stats"].get("no_match", 0),
+                    )
+                except Exception as e:
+                    LOGGER.error("poll iteration failed: %s", e)
+                # Sleep in 1s slices to allow stop-sentinel polling within
+                # a sleep window (granular cooperative shutdown)
+                slept = 0
+                interval = max(15, args.interval_seconds)
+                while slept < interval:
+                    if stop_sentinel.exists():
+                        break
+                    time.sleep(1)
+                    slept += 1
+        except KeyboardInterrupt:
+            LOGGER.info("Interrupted; cleaning up PID file")
+        finally:
+            try:
+                args.pid_file.unlink()
+            except FileNotFoundError:
+                pass
+        return 0
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+ succeeded in 341ms:
+"""Ship 1X — Cycle-aware account rotation planner.
+
+Consumes cpa-usage-keeper SQLite (populated by Ship 1W aperant_rate_limit_poller)
+and updates OAuth file `disabled` field per CLIProxyAPI selector contract:
+- 7d utilization >= threshold (default 80%) -> set disabled=true
+- 7d utilization < threshold AND last reset is past -> set disabled=false
+
+CITE chain (TIER-1 SOTA):
+- Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/types.go:66 @ HEAD ed1458aa
+  (Disabled bool `json:"disabled"`)
+- Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/auto_refresh_loop.go:339 @ HEAD ed1458aa
+  (auth.Disabled skip)
+- Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/conductor.go:1134,1839,2268,2733,
+  2788,2866,2961,3025,3274,3481 @ HEAD ed1458aa (12 selector skip points)
+
+LAUNCH-DISCIPLINE D1 invariants:
+- REVERSIBLE: backup OAuth file before modify; --restore restores
+- OBSERVABLE: JSONL log per change to .claude/state/eee_rotation_planner.jsonl
+- INCREMENTAL: --dry-run preview; --once single pass; --start cron loop
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import shutil
+import sqlite3
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+LOGGER = logging.getLogger("eee_rotation")
+
+DEFAULT_OAUTH_DIR = Path("Z:/claude-sota-installed/.cli-proxy-api")
+DEFAULT_CPA_DB = Path(
+    "Z:/claude-sota-installed/.local/cpa-usage-keeper/"
+    "cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db"
+)
+DEFAULT_JSONL = Path("Z:/claude-sota-installed/.claude/state/eee_rotation_planner.jsonl")
+DEFAULT_BACKUP_DIR = Path("Z:/claude-sota-installed-state/.cli-proxy-api-rotation-backups")
+DEFAULT_THRESHOLD_PCT = 80
+DEFAULT_RECOVERY_BUFFER_PCT = 5  # buffer below threshold for hysteresis
+
+
+def parse_iso8601(s: Optional[str]) -> Optional[datetime]:
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        return datetime.fromisoformat(s)
+    except (ValueError, TypeError):
+        return None
+
+
+def fetch_fleet_state(db_path: Path) -> dict:
+    if not db_path.exists():
+        return {}
+    state: dict = {}
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        for row in conn.execute(
+            "SELECT name, provider, primary_window_used_percent, "
+            "primary_window_reset_at, secondary_window_used_percent, "
+            "secondary_window_reset_at, plan_type, limit_reached, last_used_at "
+            "FROM usage_identities WHERE provider IN ('claude', 'codex')"
+        ):
+            d = dict(row)
+            state[d["name"] + "|" + d["provider"]] = d
+    finally:
+        conn.close()
+    return state
+
+
+def find_oauth_file(oauth_dir: Path, name: str, provider: str) -> Optional[Path]:
+    if provider == "claude":
+        candidate = oauth_dir / ("claude-" + name + ".json")
+        if candidate.exists():
+            return candidate
+    elif provider == "codex":
+        for f in oauth_dir.glob("codex-" + name + "*.json"):
+            return f
+    return None
+
+
+def update_oauth_disabled(oauth_file: Path, new_disabled: bool, backup_dir: Path, dry_run: bool = False) -> dict:
+    try:
+        d = json.loads(oauth_file.read_text())
+    except Exception as e:
+        return {"file": oauth_file.name, "error": "parse: " + str(e)[:80]}
+
+    current = d.get("disabled", False)
+    if current == new_disabled:
+        return {"file": oauth_file.name, "current": current, "new": new_disabled, "changed": False}
+
+    if dry_run:
+        return {"file": oauth_file.name, "current": current, "new": new_disabled, "changed": True, "dry_run": True}
+
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = backup_dir / (oauth_file.name + "." + ts + ".bak")
+        shutil.copy2(oauth_file, backup_path)
+    except Exception as e:
+        return {"file": oauth_file.name, "error": "backup: " + str(e)[:80]}
+
+    d["disabled"] = new_disabled
+    d["disabled_updated_at"] = datetime.now(timezone.utc).isoformat()
+    d["disabled_reason"] = "rotation_planner: 7d_threshold" if new_disabled else "rotation_planner: 7d_recovered"
+    try:
+        tmp = oauth_file.with_suffix(".tmp")
+        tmp.write_text(json.dumps(d, indent=2))
+        tmp.replace(oauth_file)
+    except Exception as e:
+        return {"file": oauth_file.name, "error": "write: " + str(e)[:80]}
+
+    return {"file": oauth_file.name, "current": current, "new": new_disabled, "changed": True, "backup": str(backup_path)}
+
+
+def plan_once(oauth_dir: Path, db: Path, jsonl: Path, backup_dir: Path, threshold_pct: int, recovery_buffer_pct: int, dry_run: bool) -> dict:
+    state = fetch_fleet_state(db)
+    if not state:
+        return {"error": "no_fleet_state", "db": str(db)}
+
+    now = datetime.now(timezone.utc)
+    actions = []
+
+    for key, row in state.items():
+        name = row["name"]
+        provider = row["provider"]
+        f = find_oauth_file(oauth_dir, name, provider)
+        if not f:
+            actions.append({"key": key, "error": "oauth_file_not_found"})
+            continue
+
+        secondary_pct = row.get("secondary_window_used_percent")
+        if secondary_pct is None:
+            actions.append({"key": key, "status": "no_data", "skipped": True})
+            continue
+
+        secondary_pct = float(secondary_pct)
+        secondary_reset = parse_iso8601(row.get("secondary_window_reset_at"))
+
+        if secondary_pct >= threshold_pct:
+            decision = True
+            reason = "7d_used=" + str(secondary_pct) + "%>=" + str(threshold_pct) + "%"
+        elif secondary_reset and secondary_reset <= now:
+            decision = False
+            reason = "7d_reset_past=" + secondary_reset.isoformat()
+        elif secondary_pct < (threshold_pct - recovery_buffer_pct):
+            decision = False
+            reason = "7d_used=" + str(secondary_pct) + "%<" + str(threshold_pct - recovery_buffer_pct) + "%"
+        else:
+            try:
+                cur_d = json.loads(f.read_text())
+                decision = cur_d.get("disabled", False)
+                reason = "hysteresis_band"
+            except Exception:
+                decision = False
+                reason = "hysteresis_band_default_enabled"
+
+        change = update_oauth_disabled(f, decision, backup_dir, dry_run=dry_run)
+        change["key"] = key
+        change["secondary_pct"] = secondary_pct
+        change["reason"] = reason
+        actions.append(change)
+
+    jsonl.parent.mkdir(parents=True, exist_ok=True)
+    with jsonl.open("a", encoding="utf-8") as fp:
+        rec = {"ts": now.isoformat(), "threshold_pct": threshold_pct, "actions": actions, "dry_run": dry_run}
+        fp.write(json.dumps(rec, default=str) + "\n")
+
+    return {
+        "ts": now.isoformat(),
+        "fleet_size": len(state),
+        "decisions_made": sum(1 for a in actions if a.get("changed")),
+        "no_data": sum(1 for a in actions if a.get("status") == "no_data"),
+        "errors": [a for a in actions if "error" in a],
+        "actions": actions,
+    }
+
+
+def restore_from_backups(oauth_dir: Path, backup_dir: Path, dry_run: bool = False) -> dict:
+    if not backup_dir.exists():
+        return {"error": "no_backup_dir"}
+    restored = []
+    backups_by_name: dict = {}
+    for b in backup_dir.glob("*.bak"):
+        parts = b.name.split(".")
+        if len(parts) < 3:
+            continue
+        json_idx = next((i for i, p in enumerate(parts) if p == "json"), None)
+        if json_idx is None:
+            continue
+        orig = ".".join(parts[: json_idx + 1])
+        backups_by_name.setdefault(orig, []).append(b)
+    for orig, backups in backups_by_name.items():
+        latest = sorted(backups)[-1]
+        target = oauth_dir / orig
+        if dry_run:
+            restored.append({"file": orig, "backup": str(latest), "dry_run": True})
+        else:
+            try:
+                shutil.copy2(latest, target)
+                restored.append({"file": orig, "restored_from": str(latest)})
+            except Exception as e:
+                restored.append({"file": orig, "error": str(e)[:80]})
+    return {"restored": restored, "dry_run": dry_run}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true")
+    parser.add_argument("--start", action="store_true")
+    parser.add_argument("--restore", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--threshold-pct", type=int, default=DEFAULT_THRESHOLD_PCT)
+    parser.add_argument("--recovery-buffer-pct", type=int, default=DEFAULT_RECOVERY_BUFFER_PCT)
+    parser.add_argument("--interval-seconds", type=int, default=300)
+    parser.add_argument("--oauth-dir", type=Path, default=DEFAULT_OAUTH_DIR)
+    parser.add_argument("--db", type=Path, default=DEFAULT_CPA_DB)
+    parser.add_argument("--jsonl", type=Path, default=DEFAULT_JSONL)
+    parser.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    if args.restore:
+        print(json.dumps(restore_from_backups(args.oauth_dir, args.backup_dir, dry_run=args.dry_run), indent=2, default=str))
+        return 0
+
+    if args.once:
+        print(json.dumps(plan_once(args.oauth_dir, args.db, args.jsonl, args.backup_dir, args.threshold_pct, args.recovery_buffer_pct, args.dry_run), indent=2, default=str))
+        return 0
+
+    if args.start:
+        LOGGER.info("eee_rotation_planner started; interval=%ds threshold=%d%% dry_run=%s", args.interval_seconds, args.threshold_pct, args.dry_run)
+        try:
+            while True:
+                try:
+                    s = plan_once(args.oauth_dir, args.db, args.jsonl, args.backup_dir, args.threshold_pct, args.recovery_buffer_pct, args.dry_run)
+                    LOGGER.info("plan: fleet=%d changes=%d no_data=%d errors=%d", s["fleet_size"], s["decisions_made"], s["no_data"], len(s["errors"]))
+                except Exception as e:
+                    LOGGER.error("plan failed: %s", e)
+                time.sleep(max(60, args.interval_seconds))
+        except KeyboardInterrupt:
+            LOGGER.info("Interrupted")
+        return 0
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+ succeeded in 402ms:
+tools/eee.ps1 OK tokens=2545
+tools/eee_install_cron_tasks.ps1 OK tokens=678
+
+**Considering scheduled tasks**
+
+I'm thinking about how to set up a scheduled task in PowerShell, possibly using `New-ScheduledTaskTrigger -Once -At 3am` with a 5-minute repetition interval. If not set with a duration, it might run indefinitely. There could be an issue with tasks not executing when the user isn't logged in, as the default principal might be the current user. I need to decide if I want operational persistence and check an environment variable issue.
+**Evaluating environment variable overrides**
+
+I noticed a comment about how an operator can override the environment variable per-shell with `$env:VAR=$null` before running `eee`. However, if the wrapper sets it unconditionally, then any prior attempt to set `$env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=$null` would just be overwritten to `'1'`. So, in this situation, the override doesn’t seem effective. I need to clarify this behavior to make sure overrides work as intended.
+**Considering script behavior**
+
+I’m thinking about how if the user runs the eee script, there’s really no point afterward. It seems like we could support an override with `$env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING='0'` if the code treats only '1' as the disable option. I need to confirm that, but it gets tricky because the comment says null. This feels like an important finding to clarify.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw bin/eee.cmd' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING|adaptive|eee_install_cron_tasks|ScheduledTask|EEE-Aperant-Poller|EEE-Rotation-Planner" -S .' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path tools/eee.ps1 -TotalCount 180' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'tools/eee_install_cron_tasks.ps1 -DryRun' in Z:\claude-sota-installed
+ succeeded in 303ms:
+@echo off
+REM eee.cmd - thin shim to tools/eee.ps1
+REM Reference (TIER-1 SOTA):
+REM - https://code.claude.com/docs/en/setup [VERIFIED 2026-04-28]
+REM - https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows [VERIFIED 2026-04-28]
+REM Adapted from (cite-only): Z:/claude-sota/bin/sss.cmd
+REM Wave 73 silent-launch root-cause fix 2026-05-07:
+REM   1. pwsh -File hangs >25s via cmd.exe wrapper due to interaction between -File
+REM      argv parser and eee.ps1 advanced-function CmdletBinding param. Switched to
+REM      -Command form which routes through full pwsh parser.
+REM   2. Unicode em-dash and right-arrow chars in REM lines caused cmd.exe to mis-parse
+REM      under default code page, hanging before reaching the pwsh invocation. Replaced
+REM      with ASCII-only equivalents.
+REM Reproduction: Z:/claude-sota/tmp/test-eee.bat (hang) vs eee-cmdform-test.cmd (PASS).
+pwsh -NoProfile -ExecutionPolicy Bypass -Command "& 'Z:\claude-sota-installed\tools\eee.ps1' %*"
+exit /b %ERRORLEVEL%
+
+
+ succeeded in 305ms:
+.\docs\install-provenance.md:3393:2. ECC continuous learning hooks (installed but disabled in `settings.json:11` for latency reasons; selective re-enable observe+session-start brings adaptive memory)
+.\docs\install-provenance.md:4257:- Phase 3 (deferred): mass-deploy operator-script that wires `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` per Opus 4.7 advisory (8-fix combined token-eff)
+.\docs\install-provenance.md:4269:- **TIER-1**: `Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11 @ HEAD 12cc30a1` (Opus 4.7 advisory: `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` reduces 5h burn ~3.3x)
+.\tools\eee.ps1:103:# Wave 94 Phase 3 of Ship 1T: Opus 4.7 adaptive-thinking burn-rate mitigation.
+.\tools\eee.ps1:105:# to: (a) new tokenizer up to 35% more tokens, (b) adaptive-thinking ~105%
+.\tools\eee.ps1:106:# overhead. CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces burn ~3.3x but may
+.\tools\eee.ps1:113:# Operator override: $env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=$null before eee
+.\tools\eee.ps1:114:$env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = '1'
+.\tools\eee.ps1:173:# Cite TIER-1-DIRECT: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11 @ HEAD 12cc30a1 (Opus 4.7 advisory: CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces 5h burn ~3.3x)
+.\tools\eee_install_cron_tasks.ps1:20:#   tools/eee_install_cron_tasks.ps1 -DryRun       # preview
+.\tools\eee_install_cron_tasks.ps1:21:#   tools/eee_install_cron_tasks.ps1 -Install      # register both tasks
+.\tools\eee_install_cron_tasks.ps1:22:#   tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks
+.\tools\eee_install_cron_tasks.ps1:23:#   tools/eee_install_cron_tasks.ps1 -Status       # show registered tasks + last-run
+.\tools\eee_install_cron_tasks.ps1:41:$PollerTaskName = 'EEE-Aperant-Poller'
+.\tools\eee_install_cron_tasks.ps1:42:$PlannerTaskName = 'EEE-Rotation-Planner'
+.\tools\eee_install_cron_tasks.ps1:85:    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --once" -WorkingDirectory $RepoRoot
+.\tools\eee_install_cron_tasks.ps1:86:    $pollerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Seconds $PollIntervalSec)
+.\tools\eee_install_cron_tasks.ps1:87:    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+.\tools\eee_install_cron_tasks.ps1:89:    Register-ScheduledTask -TaskName $PollerTaskName -Action $pollerAction -Trigger $pollerTrigger -Settings $pollerSettings -Description 'Ship 1W: Aperant rate-limit poller (every 60s)' -Force | Out-Null
+.\tools\eee_install_cron_tasks.ps1:93:    $plannerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PlannerScript --once --threshold-pct 80" -WorkingDirectory $RepoRoot
+.\tools\eee_install_cron_tasks.ps1:94:    $plannerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(30) -RepetitionInterval (New-TimeSpan -Minutes $PlanIntervalMin)
+.\tools\eee_install_cron_tasks.ps1:95:    $plannerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+.\tools\eee_install_cron_tasks.ps1:97:    Register-ScheduledTask -TaskName $PlannerTaskName -Action $plannerAction -Trigger $plannerTrigger -Settings $plannerSettings -Description 'Ship 1X: Cycle-aware rotation planner (every 5min)' -Force | Out-Null
+.\tools\eee_install_cron_tasks.ps1:102:    Write-Host "Verify via: tools/eee_install_cron_tasks.ps1 -Status"
+.\tools\eee_install_cron_tasks.ps1:107:        $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+.\tools\eee_install_cron_tasks.ps1:109:            Unregister-ScheduledTask -TaskName $name -Confirm:$false
+.\tools\eee_install_cron_tasks.ps1:121:        $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+.\tools\eee_install_cron_tasks.ps1:123:            $info = Get-ScheduledTaskInfo -TaskName $name
+.\tools\eee_install_cron_tasks.ps1:167:Write-Host "  tools/eee_install_cron_tasks.ps1 -DryRun       # preview"
+.\tools\eee_install_cron_tasks.ps1:168:Write-Host "  tools/eee_install_cron_tasks.ps1 -Install      # register Ship 1W (60s) + Ship 1X (5min) Scheduled Tasks"
+.\tools\eee_install_cron_tasks.ps1:169:Write-Host "  tools/eee_install_cron_tasks.ps1 -Uninstall    # remove tasks"
+.\tools\eee_install_cron_tasks.ps1:170:Write-Host "  tools/eee_install_cron_tasks.ps1 -Status       # show registered tasks + last-run"
+
+ succeeded in 351ms:
+# eee.ps1 — claude-sota-installed launcher (minimal install-only runtime entrypoint)
+#
+# Reference (TIER-1 SOTA):
+# - https://code.claude.com/docs/en/setup [VERIFIED 2026-04-28] (Windows native install supports PowerShell entrypoints)
+# - https://code.claude.com/docs/en/env-vars [VERIFIED 2026-04-28] (CLAUDE_CONFIG_DIR + CLAUDE_CODE_TMPDIR + CLAUDE_CODE_PLUGIN_CACHE_DIR + CLAUDE_CODE_DEBUG_LOGS_DIR canonical names)
+# - CCBP Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:877-921 @ HEAD 64fffd53a7c6f8e2e0b1575fdd200b65cda04737 [VERIFIED 2026-05-06] (TIER-1-DIRECT upstream env-block authority — direct cite, NOT sibling-derived per cardinal-rule-1)
+#
+# Adapted from (cite-only, NOT inherited code per cardinal-rule-5 install-priority):
+# - Z:/claude-sota/tools/sss.ps1 @ HEAD (913 LOC reference; this launcher is intentionally minimal)
+#
+# Cardinal-rule-5 compliance: launcher is bootstrap scaffolding (one of 11 permitted hand-coded files per CLAUDE.md). Per-install env additions are NOT added here — they live in the install entry's settings/env directives in docs/sota-installed-manifest.md.
+
+[CmdletBinding()]
+param(
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$Args
+)
+
+# ============================================================================
+# (a) HOME isolation — set BEFORE forwarding to claude.exe
+# Per CCBP claude-settings.md:880 @ 64fffd53 (USERPROFILE drives CC's lookup of .claude/ + auth + history)
+# ============================================================================
+$env:USERPROFILE = 'Z:\claude-sota-installed'
+$env:HOME        = 'Z:\claude-sota-installed'
+$env:HOMEDRIVE   = 'Z:'
+$env:HOMEPATH    = '\claude-sota-installed'
+
+# ============================================================================
+# (b) Anthropic-canonical runtime ENV
+# Per https://code.claude.com/docs/en/env-vars + CCBP claude-settings.md:885-921 @ 64fffd53
+# ============================================================================
+$env:CLAUDE_CONFIG_DIR             = 'Z:/claude-sota-installed/.claude'
+$env:CLAUDE_CODE_TMPDIR            = 'Z:/claude-sota-installed/tmp'
+$env:CLAUDE_CODE_PLUGIN_CACHE_DIR  = 'Z:/claude-sota-installed/.claude/plugins'
+$env:CLAUDE_CODE_DEBUG_LOGS_DIR    = 'Z:/claude-sota-installed/.claude/debug/cc-debug.log'
+$env:CLAUDE_CODE_GIT_BASH_PATH     = 'C:\Program Files\Git\bin\bash.exe'
+# CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS DEDUPED Wave 75 2026-05-08 — set in settings.json:env per CCBP claude-settings.md:6 @ HEAD 64fffd53 ("use env field in settings.json to avoid wrapper scripts"). Setting here was redundant with settings.json L6.
+
+# ============================================================================
+# (b1) Token-efficiency + UX env (Wave 50 Fire 39 — Agent MM CCBP deep-dive bundle)
+# Reference: TIER-1 CCBP `Z:/repos/deps/claude-code-best-practice-shan/reports/claude-advanced-tool-use.md:320 @ HEAD 64fffd53a7c6f8e2e0b1575fdd200b65cda04737 [VERIFIED 2026-05-06]`
+#   verbatim: "Configure the threshold with `ENABLE_TOOL_SEARCH=auto:N` where N is the context percentage (0-100)"
+#   default `auto:10` per CCBP §"Tool Search Tool" — defers MCP tool definitions when they exceed 10% of context;
+#   ~85% tool-definition tokens reduction per Anthropic benchmark (claude-advanced-tool-use.md:320 cite chain)
+$env:ENABLE_TOOL_SEARCH = 'auto:10'
+
+# Reference: TIER-1 CCBP `Z:/repos/deps/claude-code-best-practice-shan/reports/claude-spinner-verbs-and-tips.md:74 @ HEAD 64fffd53 [VERIFIED 2026-05-06]`
+#   verbatim: "Try setting environment variable COLORTERM=truecolor for richer colors"
+#   PowerShell 7.6 + Windows Terminal honor truecolor for ANSI 24-bit per Microsoft docs
+$env:COLORTERM = 'truecolor'
+
+# Reference: TIER-1 CCBP `Z:/repos/deps/claude-code-best-practice-shan/reports/claude-spinner-verbs-and-tips.md:75 @ HEAD 64fffd53 [VERIFIED 2026-05-06]`
+#   verbatim: "Set CLAUDE_CODE_USE_POWERSHELL_TOOL=1 to enable the PowerShell tool (preview)"
+#   Windows-relevant: claude-sota-installed runs on Z: with PowerShell 7.6.1; preview tool enables
+#   richer PS-native execution surface vs Bash-only (current Git Bash via CLAUDE_CODE_GIT_BASH_PATH)
+$env:CLAUDE_CODE_USE_POWERSHELL_TOOL = '1'
+
+# ============================================================================
+# (c) Q2 2026 features (per docs/codex-plugin-cc-q2-2026-update.md §1)
+# CLAUDE_CODE_FORK_SUBAGENT DEDUPED Wave 75 2026-05-08 — set in settings.json:env per CCBP claude-settings.md:6,838 @ HEAD 64fffd53. Setting here was redundant with settings.json L7.
+# ============================================================================
+
+# ============================================================================
+# (b2) Advanced unleashed-mode env block (Wave 75 2026-05-08 — fleet-ccbp-plugins-latest-2026-05-08.md verdict)
+# All TIER-1-DIRECT cites to Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md @ HEAD 64fffd53.
+# ============================================================================
+
+# 1-hour prompt cache TTL ≈ 12x reuse window vs 5-min default.
+# Cite: claude-settings.md:831 (TIER-1-DIRECT) — long-arc workflow pattern.
+$env:ENABLE_PROMPT_CACHING_1H = '1'
+$env:EEE_FLEET_MIN_READY_CLAUDE = '3'
+$env:EEE_FLEET_MAX_PARALLEL_CLAUDE_AGENTS = '5'
+$env:EEE_FLEET_RESERVE_ORCHESTRATOR = '1'
+$env:EEE_FLEET_CACHE_WARM_BARRIER = '1'
+$env:EEE_FLEET_CIRCUIT_BREAKER_SECONDS = '60'
+$env:EEE_FLEET_529_BACKOFF = '30'
+
+# MAX_THINKING_TOKENS DROPPED Wave 77 2026-05-08 per fleet-arch-vs-official-2026-05-08.md TOP-OFFENDERS #1.
+# Verified NOT in TIER-1-DIRECT https://code.claude.com/docs/en/env-vars roster (live WebFetch 2026-05-08).
+# Original cite was CCBP claude-settings.md:566 (TIER-2 user-curated, NOT Anthropic-canonical).
+# Adaptive thinking is now governed by `alwaysThinkingEnabled: true` + `effortLevel: "xhigh"` in settings.json (both TIER-1-DIRECT documented at claude-settings.md). No bounded-cap env equivalent in TIER-1.
+
+# Trigger autocompact at 85% rather than ~95% default — model still sharp at 85% per Thariq tips.
+# Cite: claude-settings.md:826 (TIER-1-DIRECT).
+$env:CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '85'
+
+# Aborts stalled streams instead of hanging end-of-turn.
+# Cite: claude-settings.md:867 (TIER-1-DIRECT).
+$env:CLAUDE_ENABLE_STREAM_WATCHDOG = '1'
+
+# Faster tool-call streaming feedback.
+# Cite: claude-settings.md:868 (TIER-1-DIRECT).
+$env:CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING = '1'
+
+# Long migrations / install commands no longer hit ~120s default timeout.
+# Cite: claude-settings.md:824 (TIER-1-DIRECT). 600000ms = 10 min.
+$env:BASH_MAX_TIMEOUT_MS = '600000'
+
+# Cross-session task continuity (Tasks v2.1.16+).
+# Cite: claude-global-vs-project-settings.md:178 (TIER-1-DIRECT).
+$env:CLAUDE_CODE_TASK_LIST_ID = 'claude-sota-installed'
+
+# Wave 94 Phase 3 of Ship 1T: Opus 4.7 adaptive-thinking burn-rate mitigation.
+# Per cnighswonger advisory: Opus 4.7 burns Q5h quota ~2.4x faster than 4.6 due
+# to: (a) new tokenizer up to 35% more tokens, (b) adaptive-thinking ~105%
+# overhead. CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces burn ~3.3x but may
+# reduce quality on complex tasks (operator can override per-shell).
+# Cite TIER-1-DIRECT: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11
+#   @ HEAD 12cc30a1 (Opus 4.7 advisory + ArkNill independent confirmation +
+#   Discussion #25/#42 controlled A/B data + Q7d analysis)
+# Cite TIER-1-DIRECT: https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7
+#   (35% tokenizer increase documented)
+# Operator override: $env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=$null before eee
+$env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = '1'
+
+# ============================================================================
+# (d) Git Bash / MSYS path-rewrite suppression — env-only, NOT argv
+# Per Wave 50 Fire 42 codex T1 NEEDS-REVISION conf=0.86 verdict at
+# Z:/claude-sota-installed/.claude/state/codex_consult_fire42_eee_silent_hang_OUT.txt:4144,4267.
+# Empirical isolation: with MSYS2_ARG_CONV_EXCL='*', Claude plugin hooks pass POSIX
+# /z/claude-sota-installed/... plugin roots through Git Bash to Windows node.exe,
+# which path.resolve interprets as drive-relative → Z:\z\claude-sota-installed\...
+# (verified via 3-way ablation probe; full trace at OUT.txt:4151-4159).
+# Keep env-conversion suppressed (env vars stay Win32 form for child processes), but
+# let MSYS convert argv (POSIX→Win32 before Windows node.exe receives it).
+# ============================================================================
+Remove-Item Env:\MSYS_NO_PATHCONV -ErrorAction SilentlyContinue
+Remove-Item Env:\MSYS2_ARG_CONV_EXCL -ErrorAction SilentlyContinue
+Remove-Item Env:\CLAUDE_PLUGIN_ROOT -ErrorAction SilentlyContinue
+Remove-Item Env:\ECC_PLUGIN_ROOT -ErrorAction SilentlyContinue
+$env:MSYS2_ENV_CONV_EXCL  = '*'
+
+# ============================================================================
+# (e) State-outside-repo redirects — credential-class artifacts
+# Per Z:/claude-sota/.claude/projects/Z--claude-sota/memory/feedback_codex_home_redirect_no_auth_2026_05_01.md
+# CODEX_HOME redirect requires auth.json migration — handled at codex install time per docs/sota-installed-manifest.md.
+# ============================================================================
+$env:CLAUDE_CODE_PROJECT_DIR = 'Z:/claude-sota-installed-state/.claude/projects'
+$env:CODEX_HOME              = 'Z:/claude-sota-installed-state/.codex'
+
+# ============================================================================
+# (e0) RTK token-killer on PATH — V65 SOTA stack: ccusage + RTK + Serena + Repomix
+# Cite: TIER-1 https://github.com/rtk-ai/rtk @ commit 2fbc7514 v0.39.0 (Apache-2.0/MIT)
+# Cite: docs/outer research/kits/v65/.../TOKEN_CONTEXT_ARCHITECTURE.md (operator-curated layered architecture)
+# Effect: when claude.exe spawns Bash, RTK can be invoked via `rtk git status` etc.
+# To enable PreToolUse auto-rewriting, operator runs ONCE: rtk init -g (with this eee env active)
+# ============================================================================
+$rtkBinDir = 'Z:\claude-sota-installed\.local\cargo\bin'
+if ((Test-Path $rtkBinDir) -and ($env:PATH -notlike "*$rtkBinDir*")) {
+    $env:PATH = "$rtkBinDir;$env:PATH"
+}
+
+# ============================================================================
+# (e1) CHAINED PROXY ROUTING — claude.exe → cnighswonger:19801 → CLIProxyAPI:8317 → Anthropic
+# Wave 92 Ship 1T 2026-05-08: cnighswonger v3.5.3 cache-fix proxy chained in front of
+# CLIProxyAPI 8-account fleet. Combined: 7 cache-fix extensions (fingerprint-strip /
+# sort-stabilization / ttl-management / identity-normalization / fresh-session-sort /
+# cache-control-normalize / cache-telemetry) + 8-account fill-first routing + 4h
+# cache-affinity TTL. Measured 99.8% first-warm-turn cache-creation reduction
+# (940K → 1.7K tokens) on CC v2.1.112 + Opus 4.7 per @deafsquad in cnighswonger
+# CHANGELOG.md @ HEAD 12cc30a1 v2.0.0+v3.3.0+v3.5.3.
+#
+# Per launch-discipline.md D1 invariants:
+# - REVERSIBLE: stop cache-fix-proxy + git revert eee.ps1 (no data changes)
+# - OBSERVABLE: cache-fix-proxy logs to .claude/state/cache-fix-proxy.log;
+#   cpa-usage-keeper SQLite tracks per-account; CLIProxyAPI main.log
+# - INCREMENTAL: phase 1 internal-operator only (this commit)
+#
+# Cite TIER-1-DIRECT: https://code.claude.com/docs/en/env-vars (ANTHROPIC_BASE_URL canonical)
+# Cite TIER-1-DIRECT: Z:/repos/deps/CLIProxyAPI/internal/api/server.go:359 @ HEAD 785b00c3 [Mia VERIFIED 2026-05-08] (POST /v1/messages handler)
+# Cite TIER-1-DIRECT: Z:/repos/deps/CLIProxyAPI/internal/api/server.go:340-341 @ HEAD 785b00c3 (/healthz liveness)
+# Cite TIER-1-DIRECT: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:13-44 @ HEAD 12cc30a1 (proxy mode + 7 extensions + chain via CACHE_FIX_PROXY_UPSTREAM)
+# Cite TIER-1-DIRECT: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11 @ HEAD 12cc30a1 (Opus 4.7 advisory: CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces 5h burn ~3.3x)
+# ============================================================================
+$EEE_PROXY_BASE     = 'http://127.0.0.1:8317'   # CLIProxyAPI 8-account fleet
+$EEE_CACHEFIX_BASE  = 'http://127.0.0.1:19801'  # cnighswonger v3.5.3 cache-fix (Windows excludes default 9801; chosen 19801 per Wave 92 verified live)
+$EEE_PROXY_KEY      = 'eee-fleet-key-orchestrator'
+
+# Default-active CHAINED routing: claude.exe → cnighswonger:19801 → CLIProxyAPI:8317 → Anthropic
+# (cnighswonger upstream env CACHE_FIX_PROXY_UPSTREAM=http://127.0.0.1:8317 set when
+
+ succeeded in 383ms:
+Wave 94 Ship 1W+1X cron deployment plan:
+
+Task 1: EEE-Aperant-Poller
+  Script:   Z:\claude-sota-installed\tools\aperant_rate_limit_poller.py
+  Args:     --once
+  Trigger:  every 60s
+  Action:   Z:/venvs/claude/Scripts/python.exe --once (single poll + SQLite UPDATE + JSONL append)
+
+Task 2: EEE-Rotation-Planner
+  Script:   Z:\claude-sota-installed\tools\eee_account_rotation_planner.py
+  Args:     --once --threshold-pct 80
+  Trigger:  every 5min
+  Action:   Z:/venvs/claude/Scripts/python.exe --once (single rotation pass)
+
+Effective persistence: 4h auto-refresh interval x 5min plan = up to 48 re-applies
+between auto-refresh cycles. 'disabled' flag stays effectively persistent.
+Pre-reqs OK. Run with -Install to register tasks.
+
+web search: 

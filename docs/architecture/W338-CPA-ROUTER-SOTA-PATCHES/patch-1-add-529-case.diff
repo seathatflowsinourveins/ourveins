@@ -1,0 +1,112 @@
+From: claude-sota-installed W338
+Subject: [PATCH 1/4] conductor: add 529 Overloaded case to MarkResult switch
+
+Anthropic returns 529 for upstream-capacity exhaustion. Without an explicit
+case, 529 falls into the default arm (line 2711) which sets only a status
+message and NO cooldown — causing the 529'd auth to be re-selected on the
+very next request, amplifying upstream load.
+
+Behavior:
+- 529 marks a SHORT escalating cool (5s, 10s, 20s, 40s ... cap 5min)
+- Auth stays in the pool for OTHER models (provider-side 529 may be model-specific)
+- OverloadLevel tracked separately from quota BackoffLevel so a 529 doesn't
+  pollute the per-account quota ladder
+
+Refs:
+- Anthropic docs: 529 = upstream capacity, base ~5s recommended
+- AWS Architecture Blog 2015 (Brooker): exponential with full-jitter
+
+---
+ sdk/cliproxy/auth/conductor.go | 27 +++++++++++++++++++++++++++
+ sdk/cliproxy/auth/types.go     |  3 +++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/sdk/cliproxy/auth/conductor.go b/sdk/cliproxy/auth/conductor.go
+--- a/sdk/cliproxy/auth/conductor.go
++++ b/sdk/cliproxy/auth/conductor.go
+@@ -73,6 +73,10 @@ const (
+ 	refreshIneffectiveBackoff = 30 * time.Second
+ 	quotaBackoffBase          = time.Second
+ 	quotaBackoffMax           = 30 * time.Minute
++	// overloadBackoffBase is the initial cooldown for HTTP 529 upstream-overload.
++	// Larger than quotaBackoffBase because 529 means provider-side capacity, not per-account quota.
++	overloadBackoffBase = 5 * time.Second
++	overloadBackoffMax  = 5 * time.Minute
+ )
+
+ var quotaCooldownDisabled atomic.Bool
+@@ -2701,6 +2705,21 @@ func markAuthQuotaExhausted(auth *Auth, retryAfter *time.Duration, disableCooling bool, now time.Time) {
+ 		}
+ 		auth.Quota.NextRecoverAt = next
+ 		auth.NextRetryAfter = next
++	case 529:
++		// Upstream overload. Apply short escalating cooldown ON THIS AUTH ONLY.
++		// The provider-wide breaker (see breaker.go) handles fleet-wide signaling.
++		auth.StatusMessage = "upstream overloaded"
++		if !disableCooling {
++			var next time.Time
++			if retryAfter != nil {
++				next = now.Add(*retryAfter)
++			} else {
++				cooldown, nextLevel := nextOverloadCooldown(auth.Quota.OverloadLevel)
++				next = now.Add(cooldown)
++				auth.Quota.OverloadLevel = nextLevel
++			}
++			auth.NextRetryAfter = next
++		}
+ 	case 408, 500, 502, 503, 504:
+ 		auth.StatusMessage = "transient upstream error"
+ 		if disableCooling {
+@@ -2735,3 +2754,21 @@ func nextQuotaCooldown(prevLevel int, disableCooling bool) (time.Duration, int) {
+ 	}
+ 	return cooldown, prevLevel + 1
+ }
++
++// nextOverloadCooldown returns the next cooldown for HTTP 529 with full-jitter.
++// Separate from quota backoff because 529 = provider capacity, not per-account quota.
++func nextOverloadCooldown(prevLevel int) (time.Duration, int) {
++	if prevLevel < 0 {
++		prevLevel = 0
++	}
++	maxCooldown := overloadBackoffBase * time.Duration(1<<prevLevel)
++	if maxCooldown >= overloadBackoffMax {
++		maxCooldown = overloadBackoffMax
++	}
++	// Full-jitter per AWS Architecture Blog 2015 (Brooker):
++	// cooldown = random(base/4, max) — guaranteed minimum prevents zero-wait
++	jittered := time.Duration(rand.Int63n(int64(maxCooldown - maxCooldown/4))) + (maxCooldown / 4)
++	if jittered >= overloadBackoffMax {
++		return overloadBackoffMax, prevLevel
++	}
++	return jittered, prevLevel + 1
++}
+
+diff --git a/sdk/cliproxy/auth/types.go b/sdk/cliproxy/auth/types.go
+--- a/sdk/cliproxy/auth/types.go
++++ b/sdk/cliproxy/auth/types.go
+@@ -125,11 +125,15 @@ type QuotaState struct {
+ 	// Exceeded indicates the credential recently hit a quota error.
+ 	Exceeded bool `json:"exceeded"`
+ 	// Reason provides an optional provider specific human readable description.
+ 	Reason string `json:"reason,omitempty"`
+ 	// NextRecoverAt is when the credential may become available again.
+ 	NextRecoverAt time.Time `json:"next_recover_at"`
+ 	// BackoffLevel stores the progressive cooldown exponent used for rate limits.
+ 	BackoffLevel int `json:"backoff_level,omitempty"`
++	// OverloadLevel stores the progressive cooldown exponent used for HTTP 529
++	// upstream-overload events. Tracked separately from BackoffLevel so quota
++	// (per-account) and overload (provider-wide capacity) ladders do not interfere.
++	OverloadLevel int `json:"overload_level,omitempty"`
+ }
+
+diff --git a/sdk/cliproxy/auth/conductor.go b/sdk/cliproxy/auth/conductor.go
+--- a/sdk/cliproxy/auth/conductor.go
++++ b/sdk/cliproxy/auth/conductor.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"context"
+ 	"errors"
++	"math/rand"
+ 	"net/http"
+ 	"sync"
+ 	"sync/atomic"

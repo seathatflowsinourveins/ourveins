@@ -1,0 +1,213 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 79d73fcb54f350bddab8f4b62d14471659aa0ef9
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/rules/evidence-policy.md | 45 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)
+
+=== git show --format=fuller ===
+commit 79d73fcb54f350bddab8f4b62d14471659aa0ef9
+Author:     42 <42@local>
+AuthorDate: Tue May 12 14:18:47 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 14:18:47 2026 -0400
+
+    feat(rules): fire 19 — track evidence-policy.md (rules-layer cascade start; HNF VALID per Wave 62 fire 9)
+    
+    Wave loop89d7bbd4 Fire 19 — track `.claude/rules/evidence-policy.md` (foundational
+    marker-tagging rule; 46 LOC; HNF VALID per Wave 62 fire 9 port-note at L2-8). First
+    fire of rules-layer cascade tracking arc (28 untracked rule files remaining per
+    Fire 11 working-tree probe; cycle-300 ONE-LOGICAL-UNIT-PER-FIRE per surface).
+    
+    ## File state
+    
+    `.claude/rules/evidence-policy.md` is **HNF VALID** per Wave 62 fire 9 dispatch
+    contract (in-file port-note L2-8 documents):
+    
+    - effective_tier: TIER-3-LOCAL-COMPOSITION per CLAUDE.md cardinal-rule-1 cite-class lattice
+    - source: `Z:/claude-sota/.claude/rules/evidence-policy.md @ HEAD 4466bab90b6636079347ef44012152da4e64a5ee` [VERIFIED 2026-05-07]
+    - HNF evidence: probed claude-plugins-official + everything-claude-code@2.0.0-rc.1 + obra/superpowers + mattpocock/skills + anthropic-cookbook for upstream parity → no install-class equivalent for sibling-novel discipline rule (Wave 9 transitive closure of Wave 8 sota-researcher subagent dependency chain)
+    - CR-9 sibling-bleed audit: path-rewrites applied per Wave 62 fire 9 dispatch contract (6 rewrite classes per codex T5 NEEDS-REVISION conf=0.91 prescription #2)
+    
+    **NO FM-20 cite-trail Pattern A needed**: `grep -c "c9f4ed404" evidence-policy.md` = 0
+    (file has TIER-1-DIRECT cite anchors at L18-20).
+    
+    **Single sibling-`Z:/claude-sota/` reference** at L4 (HTML comment block) is
+    PROVENANCE-only per CR-9 acceptable usage (NOT runtime path). Rule body cites
+    upstream `Z:/repos/deps/` + LOCAL relative paths exclusively.
+    
+    ## Cite-trail (TIER-1-DIRECT)
+    
+    - L18: `Z:/repos/deps/superpowers/skills/verification-before-completion/SKILL.md:1-20 @ HEAD f2cbfbefebbfef77321e4c9abc9e949826bea9d7` [VERIFIED 2026-04-28] (verification-before-completion pattern and "Evidence before claims")
+    - L19: `Z:/repos/deps/autoresearch/.claude/skills/autoresearch/SKILL.md:646-665 @ HEAD f226ffbf558c33dfdea86e8eb24207d7b73c8891` [VERIFIED 2026-04-28] ("The Loop" with baseline/mechanical-verify/guard pattern)
+    - L20: Local cite to `.claude/rules/research-protocol.md:41-69` [VERIFIED 2026-04-28] (VERIFY gate + Tool Routing table)
+    - L21: Parent-attribution port-provenance to `Z:/claude/rules/evidence-policy.md HEAD` (TIER-3 provenance only; parent CCC narratives are NOT claude-sota design authority per cardinal-rule disclaimer)
+    
+    ## Cardinal-rule conformance (CR-1 through CR-12)
+    
+    - CR-1 ✓ TIER-1-DIRECT cite anchors at HEAD SHA (upstream superpowers + autoresearch)
+    - CR-3 N/A (no design-surface Edit; tracking-only commit)
+    - CR-5 ✓ Cite-import-AMBER per Section 14.5; not install-class
+    - CR-7 ✓ Metadata-only tracking change per bypassPermissions Phase 1+
+    - CR-8 ✓ ADAPTED-FROM-SOTA via Wave 62 fire 9 port (CR-9 path-rewrites applied)
+    - CR-9 ✓ Sibling-bleed defense applied: single `Z:/claude-sota/` reference is PROVENANCE-only (HTML comment block); no runtime sibling paths; CR-9 sub-rules applied per Wave 62 fire 9 dispatch contract
+    - CR-12 ✓ TERTIARY path — sibling-novel marker-tagging discipline with NO upstream parity per Wave 62 fire 9 HONEST-NON-FINDING evidence (Wave 9 transitive closure of Wave 8 sota-researcher subagent dependency chain)
+    
+    ## Rules-layer cascade tracking — Fire 19 opens new arc
+    
+    Per Fire 11 working-tree probe + Fire 17 close: 28 untracked rule files in
+    `.claude/rules/`. Fire 19 starts the rules-layer cascade tracking arc.
+    
+    Pre-Fire-19 rules-layer state:
+    - Tracked rules: TBD (some are tracked from earlier ports — not enumerated here)
+    - Untracked: 28 (per Fire 11 working-tree probe enumeration)
+    - Fire 19 target: evidence-policy.md (foundational marker-tagging rule)
+    
+    Post-Fire-19 expected:
+    - Tracked: +1 (evidence-policy.md)
+    - Untracked: 27
+    
+    Forward cascade pattern (cycle-300 ONE-LOGICAL-UNIT-PER-FIRE per rule file):
+    - Fire 20+: another rule file (cycle-300 single-rule-per-fire)
+    - OR bulk audit + batch tracking commit if all 28 remaining rules pass CR-9
+      sibling-bleed defense audit cleanly
+    
+    ## Audit progress matrix (post-Fire-19)
+    
+    - AUTHORITATIVE coverage: ~18.8% UNCHANGED (cite-trail repair, not install)
+    - Agent-tracking gap closure: 10/11 = 90.9% UNCHANGED (Fire 19 is rules-layer)
+    - Rules-layer tracking gap closure: TBD pre/post — Fire 19 advances by +1
+    - FM-20 cascade (HNF-VALID class): 3/3 = 100% UNCHANGED
+    - Codex T1 verdicts converged APPROVE (HNF-VALID class): n=3 firm UNCHANGED — cycle-322 PROMOTION-ELIGIBLE
+    - DEFINITIVE SOTA reviewed (recent T3): 5/8 = 62.5%; Fire 19 T3 pending async
+    - FM-02 (c) commit-layer absorption ladder: n=3 same-arc UNCHANGED
+    - Operator-decision-pending items: 2 (architect/code-reviewer + cwc/ directory disposition)
+    
+    ## Forward direction (Fire 20+)
+    
+    | Fire | Target | Class | Risk |
+    |---|---|---|---|
+    | Fire 20+ | next rule file (e.g., research-protocol.md OR canonical.md OR kiss-dry-yagni.md OR karpathy-adapted.md) | sibling-cite-import HNF VALID per Wave 62 fire 9 port-arc | LOW (clean cite-trail per Wave 62 port-discipline) |
+    | Fire 21+ | continue rules cascade (per cycle-300 per file OR bulk audit + batch commit) | install-class | LOW-MEDIUM |
+    | Fire N+ | `CLAUDE.md:268` FM-20 Pattern A | HIGH-RISK cardinal-rule cite-class lattice exemplar | HIGH |
+    | OPERATOR-PENDING | architect.md + code-reviewer.md + cwc/ directory disposition | various | URGENT |
+    
+    ## FM-02 (b)+(c) parallel-session race defense applied
+    
+    Atomic single-shell `git add -- file && git commit -o -F msg -- file` chain per
+    Fire 14+15+16+17 lesson (single-file only; absolute paths; immediate verification
+    post-commit).
+    
+    Refs:
+    - closed-loop-recursive-narrowing.md (Outcome A monotone-decline)
+    - codex-t1-fix-forward-pattern.md (Pattern A + Pattern D Forward Discipline #2)
+    - cross-model-consensus.md (Path P + CR-3 Phase 1 bootstrap)
+    - citation-discipline.md rule #8 (effective_tier=TIER-3-LOCAL-COMPOSITION via Wave 62 fire 9 port)
+    - parallel-session-worktree-isolation.md (FM-02 sub-class (b) Recovery #3 + (c) absorption)
+    - git-cli-grammar-discipline.md (option-ordering + `--` separator)
+    - codification-threshold.md cycle-322 (PROMOTION-ELIGIBLE consolidated Pattern A recipe at n=3 firm)
+    - audit-action-loop.md (Wire/Surface/Close/Re-fire)
+    - evidence-policy.md (THIS file — Marker Decay corollary + 7-marker taxonomy)
+
+=== diff ===
+diff --git a/.claude/rules/evidence-policy.md b/.claude/rules/evidence-policy.md
+new file mode 100644
+index 0000000..aec94fa
+--- /dev/null
++++ b/.claude/rules/evidence-policy.md
+@@ -0,0 +1,45 @@
++<!--
++Wave 62 fire 9 - sibling cite-import per CR-12 TERTIARY (HONEST-NON-FINDING-gated)
++effective_tier: TIER-3-LOCAL-COMPOSITION
++source: Z:/claude-sota/.claude/rules/evidence-policy.md @ HEAD 4466bab90b6636079347ef44012152da4e64a5ee
++imported: 2026-05-07
++HNF evidence: probed claude-plugins-official + everything-claude-code@2.0.0-rc.1 + obra/superpowers + mattpocock/skills + anthropic-cookbook for upstream parity -> no install-class equivalent for sibling-novel discipline rule (Wave 9 transitive closure of Wave 8 sota-researcher subagent dependency chain)
++sibling-bleed audit (CR-9): path-rewrites applied per Wave 62 fire 9 dispatch contract (6 rewrite classes per codex T5 NEEDS-REVISION conf=0.91 prescription #2)
++-->
++
++---
++name: evidence-policy
++description: Cardinal-rule body for evidence-marker tagging — [VERIFIED] / [DOCS] / [CODE] 
+
+[prompt truncated]

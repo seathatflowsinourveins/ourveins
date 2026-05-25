@@ -1,0 +1,83 @@
+fix(launcher): Wave 108 Ship 2R-launcher-fix-2 — chain-end validate :8317 in Tier 1 (closes infinite-halt class when CPA dead but cnighswonger alive)
+
+Closes operator session 22:42 → 22:49 infinite-halt incident (eee launched but claude.exe stuck on first message).
+
+ROOT CAUSE:
+  tools/eee.ps1:447-454 Tier-1 cnighswonger probe declared `EEE_PROXY_REACHABLE=$true`
+  whenever cnighswonger /health returned "ok" — but cnighswonger /health is a SELF-health
+  endpoint (per Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:127-131 @ HEAD
+  12cc30a1) — it does NOT verify upstream CPA :8317 is alive.
+
+  When CPA :8317 was dead (eee instance never auto-started; only parent CCC's CPA on
+  ports 9326/9327 running), launcher set ANTHROPIC_BASE_URL=http://127.0.0.1:19801
+  pointing at cnighswonger which dutifully forwarded to dead :8317 → claude.exe waited
+  indefinitely for the first /v1/messages response → INFINITE HALT.
+
+  Operator manually started eee CPA via Start-Process to recover (PID 105188 LISTENING
+  :8317). Tier 2 auto-start logic (L470-495) was never reached because Tier 1 prematurely
+  declared reachable.
+
+CHANGES (1 file / +24 / -5 LOC):
+  tools/eee.ps1 L447-475 — Tier 1 probe now CHAIN-END validates:
+    1. cnighswonger /health "ok" (existing)
+    2. + CPA :8317 /healthz "ok" (NEW — chain-end validation)
+    Both must pass before declaring EEE_PROXY_REACHABLE=true.
+
+    If cnighswonger OK but :8317 dead → falls through to Tier 2 auto-start (which has
+    Start-Process → bounded readiness loop → set BASE_URL after live confirm).
+
+  Tier 2 condition L457 changed from `if (-not $EEE_CACHEFIX_REACHABLE)` to
+  `if (-not $EEE_PROXY_REACHABLE)` — the relevant blocker is end-to-end reachability,
+  not just cnighswonger reachability. cnighswonger CAN be reachable while CPA is dead
+  (the class this fix addresses).
+
+SMOKE TEST PASSED (verified pre-commit):
+  Current state (both alive) → "chain-end-validated PASS — would set EEE_PROXY_REACHABLE=true"
+  Simulated cnighswonger-OK + CPA-DOWN → "chain-INCOMPLETE detected — would fall through to
+    Tier 2 auto-start" (correct fix behavior)
+  Simulated cnighswonger-DOWN → "cnighswonger DOWN — would fall through to Tier 2"
+    (existing behavior preserved)
+
+CR-3 SATISFIED via Phase 1 bootstrap exception (per CLAUDE.md Bootstrap-only files):
+  tools/eee.ps1 IS in CLAUDE.md "Bootstrap-only files (the ONLY hand-coded artifacts
+  permitted in this runtime)" enumeration. Per cardinal-rule-3 Phase 1 bootstrap exception:
+  codex T1 e2e DEFERRED for bootstrap-class files when fix is operational bug-fix
+  (correctness fix to launcher pre-flight check; NOT REJECT/REPLACEMENT verdict per
+  Ship 2X SRA cross-model T1 mandate). T2 commit-time hook (codex_t2_pre_commit_gate.py
+  at PreToolUse Bash(git commit *)) IS the cross-model verification net for this commit
+  per cross-model-consensus.md §The contract.
+
+  Same disposition pattern as Ship 2N-batch3-A commit f30ba94 + Ship 2R-launcher-fix
+  commit 8034a0e (operator-blocker bootstrap-fix → Phase 1 exception → T2 gate).
+
+  T1 codex-t1-gate WARN fired during this Edit (no-path-match; pairs_examined: 1) —
+  acknowledged + proceeding under documented Phase 1 bootstrap exception per cite chain
+  above. Operator-blocker priority + "don't delay anymore" mandate justified fast-path.
+
+CR COMPLIANCE:
+  CR-1 (cite SOTA primary): TIER-1 cnighswonger /health upstream-validation semantic at
+                            Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:127-131
+                            @ HEAD 12cc30a1 (does NOT document upstream-validation by design)
+  CR-3 (cross-model T1):    DEFERRED per Phase 1 bootstrap exception; T2 commit-gate is net
+  CR-5 (install-priority):  N/A (bootstrap launcher edit; reversible)
+  CR-7 (graduated unleash): Phase 3 destination preserved (no behavior change for healthy chain)
+  CR-9 (install-risk):      LOW (bootstrap file edit; reversible via revert; chain-end probe
+                            is strictly additive — no chain that previously passed will fail)
+  CR-10 (research-first):   Mia probe of CPA process state + port :8317 binding preceded fix
+  CR-11 (META-process):     Smoke-test of fixed logic on current + simulated states verified
+                            pre-commit (3-case matrix: both alive / cnighswonger-OK+CPA-down /
+                            both down)
+
+OPERATOR INSTRUCTION (post-fix):
+  Existing eee CPA at PID 105188 :8317 is alive — current session can continue without
+  restart. Next eee launch (or restart) will use the fixed Tier 1 chain-end validation
+  to detect chain-incomplete state and auto-start CPA via Tier 2 path correctly.
+
+QUEUE (post Wave 108):
+  Ship 2N-batch3-B: wire graphiti MCP (BLOCKED on OPENAI_API_KEY)
+  Ship 2N-batch3-G: skillOverrides study-pilot (DEFER pending measurement)
+  Ship 2P-pilot: observability bench-pilot 3-way (operator decision: langfuse/phoenix/openlit)
+  Ship 2A-pilot: rtk vs snip Bash-output-filter (operator decision: WSL trade-off)
+  Ship 2Y-stage2: cite-anchor migration (multi-fire cohort plan)
+
+Wave 108 — Ship 2R-launcher-fix-2 (33rd commit in this session arc).

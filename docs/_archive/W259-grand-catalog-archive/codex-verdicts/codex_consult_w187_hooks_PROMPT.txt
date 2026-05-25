@@ -1,0 +1,75 @@
+# Codex T1 — W187 SOTA-full-audit + compact-remind fix Pattern A pre-commit verification
+
+You are GPT-5.5 doing cross-model adversarial review of in-progress W187 ship at Z:/claude-sota-installed/. Per `cross-model-consensus.md §The contract` T1 pre-commit gate. Per advanced-agent-team-standing-directive.md (Claude orchestrates / Codex reviews). Per codex-t1-fix-forward-pattern.md §Pattern A (NEEDS-REVISION conf 0.88-0.93 → apply ALL prescribed_edits in single atomic commit).
+
+## Context
+
+claude-sota-installed is install-only canonical baseline runtime. User reported "compact firing at 35-40% on 1M Opus 4.7" — premature hard-block. Investigation found 3 stale calibration sources:
+
+1. `.claude/hooks/scripts/userpromptsubmit_compact_threshold.py` script defaults: WARN=250k / HIGH=300k / CRIT=350k (200k-era values)
+2. `.claude/settings.json` env block L25-27: CONTEXT_WINDOW_COMPACT_*_TOKENS = 350000/500000/600000 (intermediate stale)
+3. `CLAUDE.local.md` ENV(j) target: 600000/700000/780000 (W184-orchestrator codification for 1M Opus 4.7)
+
+W187 Pattern A apply (NOT YET COMMITTED — pre-commit verification):
+
+### Edit 1: userpromptsubmit_compact_threshold.py lines 73-86
+- OLD defaults (script body): WARN=250_000 / HIGH=300_000 / CRIT=350_000
+- NEW defaults: WARN=600_000 / HIGH=700_000 / CRIT=780_000
+- Rationale: align with CLAUDE.local.md ENV(j) target; CRIT 780k below 80% autocompact (~800k) per auto-compact-discipline.md Rank #3 invariant `CRIT_tokens < autocompact_pct * context_window_size` with ≥100k buffer
+
+### Edit 2: .claude/settings.json env block lines 25-29
+- OLD: CONTEXT_WINDOW_COMPACT_WARN_TOKENS=350000 / HIGH=500000 / CRIT=600000 / WARN_PERCENT=35 / CRITICAL_PERCENT=60
+- NEW: CONTEXT_WINDOW_COMPACT_WARN_TOKENS=600000 / HIGH=700000 / CRIT=780000 / WARN_PERCENT=60 / CRITICAL_PERCENT=78
+- Rationale: settings.json env block is LOAD-TIME env source per Anthropic CC; takes precedence over CLAUDE.local.md ENV(j); had STALE intermediate values overriding correct ENV(j) target. FM-20 row 18 codification candidate (env-variable-codified-but-not-sourced sub-class).
+
+### Edit 3: .claude/settings.json SessionStart array (added matcher="compact" entry)
+- Wired `sessionstart_compact_hint_reader.py` post-compact rehydrate hook (per Karpathy §5 Wiki Compounding Surface 4-section emit: compact_hint.json + MEMORY.md head 3K + last-3 close-syntheses + git log -5 --oneline)
+- TIER-1 cite: hook docstring references Anthropic CC SessionStart contract `https://code.claude.com/docs/en/hooks` + sessionstart-preload-discipline.md (local rule, n=1 user-trigger W169 P0 codification)
+
+### Cite trail (TIER-1 anchors for the FIX)
+
+- TIER-1-NAMED-AUTHOR-QUOTE Thariq rot zone 300-400k @ `Z:/repos/deps/claude-code-best-practice-shan/tips/claude-thariq-tips-16-apr-26.md:28 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd`
+- TIER-1-DIRECT Karpathy §5 Wiki Compounding Surface @ `Z:/repos/deps/andrej-karpathy-skills/skills/karpathy-guidelines/SKILL.md:1-67 @ HEAD 2c606141936f1eeef17fa3043a72095b4765b9c2`
+- TIER-1-DIRECT Anthropic CC PreCompact + UserPromptSubmit decision:block contract `https://code.claude.com/docs/en/hooks`
+- TIER-1-DIRECT intelligent-compact plugin Apache-2.0 v1.0.0 `Z:/claude-sota-installed/.claude/plugins/cache/claude-settings/intelligent-compact/1.0.0/.claude-plugin/plugin.json`
+
+## REQUEST
+
+Provide JSON-strict verdict on 3 AXES:
+
+**AXIS 1 — Compact threshold correctness on 1M Opus 4.7:**
+Are the new defaults (WARN=600k / HIGH=700k / CRIT=780k) calibrated correctly for the 1M-token context window on Opus 4.7? Cross-check against:
+- Thariq rot zone 300-400k (named-T2 SOTA)
+- 80% autocompact ceiling (~800k effective on 1M)
+- Pre-emptive /compact discipline at auto-compact-discipline.md Rank #3 (fires BEFORE autocompact)
+
+**AXIS 2 — settings.json env vs CLAUDE.local.md ENV(j) consistency:**
+With both files now sourcing identical values 600/700/780, is the dual-declaration ACCEPTABLE per Anthropic CC settings precedence or should one be authoritative-singular? FM-20 row 18 codification candidate — is the proposed defense (single-source preferred, dual-coordinated mandatory if both exist) correct?
+
+**AXIS 3 — SessionStart-preload wire correctness:**
+The added entry to settings.json SessionStart:
+```json
+{
+  "matcher": "compact",
+  "hooks": [{"type": "command", "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/sessionstart_compact_hint_reader.py", "timeout": 5}]
+}
+```
+Is `matcher="compact"` correct per Anthropic CC SessionStart hook payload `source` field (startup / resume / compact / tick)? Is timeout=5 sufficient given the hook reads MEMORY.md + 3 close-syntheses + git log -5 (~9500 chars stdout cap)?
+
+## VERDICT FORMAT (JSON-strict, EOF position)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.0,
+  "axis_1_compact_thresholds": {"status": "PASS | NEEDS-REVISION", "rationale": "..."},
+  "axis_2_dual_declaration": {"status": "PASS | NEEDS-REVISION", "rationale": "..."},
+  "axis_3_sessionstart_wire": {"status": "PASS | NEEDS-REVISION", "rationale": "..."},
+  "prescribed_edits": [
+    {"file": "...", "line": "...", "change": "...", "rationale": "..."}
+  ],
+  "severity": "P0 | P1 | P2 | P3 | none"
+}
+```
+
+Mine partial-trace for inline findings if you can't reach JSON-EOF in time budget. Per FM-17.d defense: 90s default, 120s cap, 180s only with explicit reason.

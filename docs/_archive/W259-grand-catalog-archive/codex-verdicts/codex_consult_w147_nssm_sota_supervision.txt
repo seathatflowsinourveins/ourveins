@@ -1,0 +1,81 @@
+# Codex T1 Path P — NSSM SOTA Verification for Windows Process Supervision (eee Wave 147)
+
+## CONTEXT
+
+claude-sota-installed (eee) runtime on Windows 11 needs Windows-service-style supervision for two long-running Go/Node daemons:
+- `cli-proxy-api.exe` v6.10.9 (Go binary; OAuth proxy serving 7 Claude OAuth accounts on port 8317; round-robin + 4h session-affinity; built 2026-05-07; upstream HEAD `1fca942b` 2026-05-10; latest tagged release v7.0.2 2026-05-10T13:02)
+- `cache-fix-proxy` (npm package `claude-code-cache-fix@3.5.4`; Node.js daemon on port 19801 chaining upstream to cli-proxy-api)
+
+Both have been dying without supervision (last alive 2026-05-09 02:44; ~56h dark window with no auto-restart). Need SOTA Windows-service supervision pattern.
+
+Sibling claude-sota runtime already uses **NSSM** (Non-Sucking Service Manager) v2.24-101-g897c7ad installed via winget for an analogous `CCC-Proxy` service. NSSM is the de-facto Windows-service-wrapper used historically by major Go-binary daemons (Tailscale, WireGuard, Jenkins-class apps). NSSM 2.24 is the latest STABLE release; prereleases (2.25/2.26) have lingered for years without final tag.
+
+## AUDIT DIMENSIONS — verify NSSM is SOTA (or identify better alternative) for 2025-2026 Windows
+
+1. **Maturity + adoption** — last release date, GitHub stars/forks, production users in 2025-2026, license terms
+2. **Auto-restart semantics** — restart-on-crash, exponential backoff, graceful-shutdown signal handling for Go binaries (Ctrl+C / Ctrl+Break / window-close), restart-throttling
+3. **Log capture** — stdout/stderr redirection, rotation, integration with Windows Event Log, log size caps
+4. **Resource management** — CPU/memory limits, process-tree cleanup on stop, child-process supervision (does it kill children if main exits?)
+5. **Service lifecycle** — install/start/stop/remove primitives, dependency declaration, startup-type config, run-as-user vs LocalSystem
+6. **Alternatives comparison** —
+   - **WinSW** (kohsuke/winsw, BSD-3, Jenkins-affiliated, XML config, .NET-based)
+   - **PM2** (cross-platform, Apache-2.0, Node-native, ecosystem.config.js)
+   - **Servy** (newer Go-native service wrapper)
+   - **sc.exe** native Windows Service Control (no auto-restart-on-crash; only on service crash via SCM recovery actions)
+   - **Task Scheduler "On Failure: Restart"** (XML-defined; doesn't supervise live; restart-on-trigger only)
+   - **shawl** (Rust-based service wrapper)
+   - **swaynchat/dlpsv** less common
+7. **Risk surface** — known CVEs, security model (NT AUTHORITY\\SYSTEM vs user-context), audit trail, supply-chain risk
+8. **Maintenance velocity** — last commit, open issues, responsiveness to Win11/24H2/25H2 changes, abandonware indicators
+
+## CONSTRAINTS
+
+- Go binary cli-proxy-api has NO native `kardianos/service` flag (verified via `--help` 2026-05-11); supervision must be external
+- Operator runs Windows 11 Pro 26H2, PowerShell 7.6 elevated, winget available
+- eee runtime is install-priority cardinal-rule-5 + cardinal-rule-6: official-native-channel only, no hand-coded wrappers
+- Must coexist with sibling claude-sota's `CCC-Proxy` NSSM service (sibling uses different config + may use different port if eee takes 8317)
+- Auto-restart MUST fire within 10s of crash to prevent 56h dark windows like 2026-05-09
+- Cardinal-rule-9 install-risk discipline: version-pin all `@latest`, expect 2-round fix-forward per hook install
+
+## CRITICAL UNKNOWN — secondary investigation
+
+The eee cli-proxy-api.exe binary (v6.10.9) is observed to log "API server started successfully on: 127.0.0.1:8317" then EXIT silently within seconds. No stderr output. No crash dump in Event Viewer (TBD). Sibling's NSSM-supervised binary exhibits same pattern. Hypothesis candidates:
+- (a) Binary requires service-mode invocation context; standalone-exec exits gracefully
+- (b) Background-job parent termination signals child via console-control event (CTRL_BREAK_EVENT) on PowerShell session exit
+- (c) Config-validation post-Listen failure triggers graceful shutdown
+- (d) OAuth token freshness check fails post-Listen → graceful exit
+- (e) Some Windows policy (firewall / Defender) terminating after bind
+
+Include in verdict: should supervision strategy account for binary-exit-after-Listen pattern? Does NSSM handle this transparently (auto-restart kicks in) or does it need special config?
+
+## OUTPUT SCHEMA (JSON-strict at EOF, terminal verdict block)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "sota_winner": "<tool name>",
+  "rationale_per_dimension": {
+    "maturity": "...",
+    "auto_restart": "...",
+    "log_capture": "...",
+    "resource_mgmt": "...",
+    "service_lifecycle": "...",
+    "alternatives_compared": "...",
+    "risk": "...",
+    "maintenance": "..."
+  },
+  "alternative_consideration": [
+    {"name": "<tool>", "verdict": "consider | reject", "why": "..."}
+  ],
+  "prescribed_install_steps": [
+    "step 1: <exact command>",
+    "step 2: <exact command>"
+  ],
+  "binary_exit_pattern_handling": "<NSSM auto-restart handles | needs AppExit Default Restart explicit | needs AppRestartDelay 0 | needs sniff before install>",
+  "anti_patterns_to_avoid": ["..."],
+  "convergence_axes_passed": 0
+}
+```
+
+Be ADVERSARIAL. Don't rubber-stamp NSSM because sibling uses it. SOTA in 2025-2026 may differ from 2015-era Windows-service-wrapper choices. Cite TIER-1 sources (upstream repo file:line + HEAD SHA, official docs URLs, named-T2 practitioner endorsements with dated artifact).

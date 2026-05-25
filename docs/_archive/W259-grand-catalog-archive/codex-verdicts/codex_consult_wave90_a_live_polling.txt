@@ -1,0 +1,55 @@
+You are GPT-5.5 doing LIVE account-fleet polling. Real GPT-5.5 BRIDGE-MODE via codex CLI direct foreground execution. Wave 89 Ship 1Y unleashed sandbox: PowerShell / network / sqlite3 / git all WORK NOW (verified APPROVE conf=0.99).
+
+CONTEXT
+- 10 OAuth files at Z:/claude-sota-installed/.cli-proxy-api/:
+  - 7 Claude: claude-{aesthetic9c, 739955940fc, avantmanifest, dreamweaverhoudini, mr.euphoriaincarnate, nalawowac, zfan7@sva.edu}@gmail.com.json
+  - 1 Codex Pro: codex-zfan7@sva.edu-pro.json
+  - 1 Antigravity: antigravity-739955940fc@gmail.com.json
+  - 1 Gemini: gemini-739955940fc@gmail.com-gen-lang-client-0557279342.json
+- Aperant CODEX_RATE_LIMITS_RESEARCH.md (Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027) documents endpoints:
+  - Anthropic: GET https://api.anthropic.com/api/oauth/usage with Authorization: Bearer <token> + anthropic-beta header
+  - Codex: GET https://chatgpt.com/backend-api/wham/usage with Authorization: Bearer <token> + ChatGPT-Account-Id header
+- Today: 921M tokens / $790.16 / 94.4% cache aggregate; 4-failed-of-6 calls on 739955940fc Claude; 2x 429 on avantmanifest at 03:51 UTC
+
+TASK: Produce LIVE FLEET STATUS via active polling. For each of 10 OAuth files:
+
+STEP 1: Read each OAuth file (Read tool); parse access_token + refresh_token + account_id (if present).
+
+STEP 2: For each Claude account, ATTEMPT GET https://api.anthropic.com/api/oauth/usage
+  Headers:
+    Authorization: Bearer <access_token>
+    anthropic-beta: oauth-2025-04-20
+    Content-Type: application/json
+  Use curl via PowerShell: pwsh -Command "Invoke-WebRequest -Uri ... -Headers @{...} -Method Get | Select-Object -ExpandProperty Content"
+  OR python: python3 -c "import urllib.request; req = urllib.request.Request('https://...'); req.add_header('Authorization','Bearer ...'); print(urllib.request.urlopen(req).read().decode())"
+  REDACT all token values >20 chars as [REDACTED-N-CHARS] in any output.
+  If 401, ATTEMPT token refresh per Aperant doc:
+    POST https://console.anthropic.com/v1/oauth/token
+    Body: {client_id: "9d1c250a-e61b-44d9-88ed-5944d1962f5e", grant_type: "refresh_token", refresh_token: "..."}
+
+STEP 3: For codex-zfan7 account, ATTEMPT GET https://chatgpt.com/backend-api/wham/usage
+  Headers:
+    Authorization: Bearer <access_token>
+    ChatGPT-Account-Id: <account_id from auth.json>
+    Content-Type: application/json
+  Parse response: plan_type, rate_limit.{allowed, limit_reached, primary_window, secondary_window}, credits
+
+STEP 4: For each successful call, EXTRACT:
+  - primary_window: {used_percent, limit_window_seconds, reset_after_seconds, reset_at (unix timestamp + ISO 8601)}
+  - secondary_window: {same fields; weekly}
+  - plan_type
+  - limit_reached
+  - credits (if available)
+
+STEP 5: Cross-check with cpa-usage-keeper SQLite at Z:/claude-sota-installed/.local/cpa-usage-keeper/cpa-usage-keeper_v1.5.2_windows_amd64/data/app.db usage_identities table — what's already populated vs newly fetched.
+
+DELIVERABLES (write to Z:/claude-sota-installed/tmp/wave90-live-fleet-polling-OUT.md, 800 LOC max):
+- Section 1: Per-account LIVE rate-limit table (10 rows × 12 cols: account / type / plan_type / primary_used_percent / primary_reset_at / secondary_used_percent / secondary_reset_at / limit_reached / capacity_score from JSON / passive cpa data / poll status / next-action recommendation)
+- Section 2: Reset-time schedule (sortable by next-reset; identifies rotation-window opportunities)
+- Section 3: Failure modes encountered (401 token expired, 403 needs reauth, 429 already limited, network errors)
+- Section 4: Token refresh outcomes (which OAuth files were refreshed; expired_at updates)
+- Section 5: VERDICT one-line — fleet health summary + best-account-to-route-to-now recommendation
+
+OUTPUT_BUDGET: 800 LOC max
+DISCIPLINE per CR-1: cite Aperant CODEX_RATE_LIMITS_RESEARCH.md @ cba7a027 verbatim for endpoint syntax; redact all OAuth tokens >20 chars; if endpoint returns unexpected schema, document literally
+END output with "VERDICT:" line on its own

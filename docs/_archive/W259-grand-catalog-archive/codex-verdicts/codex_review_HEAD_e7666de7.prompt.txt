@@ -1,0 +1,205 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit e7666de74422cd4c188191fc45e06a28b78b3582
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 94 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 94 insertions(+)
+
+=== git show --format=fuller ===
+commit e7666de74422cd4c188191fc45e06a28b78b3582
+Author:     42 <42@local>
+AuthorDate: Sun May 10 16:21:26 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 16:21:26 2026 -0400
+
+    docs(wave-138-fire-3): governance trio (protect-mcp + signed-audit-trails + review-agent-governance) STAGED-PENDING-VERIFICATION + REJECT-FOR-FIT close-synthesis + KEY UNLOCK 4th-time DEFAULT codex profile + 1 fresh orchestrator-side Mia OVER #168 + 3 Voice 2 agent-side catches preserved for Wave 138 Fire 4
+    
+    3-voice advanced agent team (cross-model gate STRUCTURALLY SATISFIED via Voice 1 Path P REAL GPT-5.5):
+    
+    - Voice 1 Path P codex bg foreground+tee (DEFAULT profile, KEY UNLOCK 4th-time confirmation):
+      REAL GPT-5.5 APPROVE conf=0.84 + 9 Mia warnings + SRA T1 partial + fm17_signature:
+      Path P-DEFAULT-profile-success. prescribed_edits empty (recommendation is STAGED, not install).
+      Verdict at .claude/state/codex_consult_w138f3_governance_trio_OUT.txt (6342 LOC, 958.6K).
+    
+    - Voice 2 sota-researcher CC subagent (governance trio Probe DAG + 5-clause + SRA + Cedar/Ed25519 SOTA + Tom Farley provenance):
+      STAGED-PENDING-VERIFICATION (3/3 plugins) — SRA 8/10 each + Cedar+Ed25519+sigstore/SLSA SOTA
+      convergence FIRM via 4 distinct orgs (AWS+Microsoft+CNCF+IETF) + Tom Farley TIER-4
+      NAMED-INDIVIDUAL substantive footprint (IETF I-D + Microsoft AGT PR#667 MERGED + Cedar PR#64
+      MERGED + ScopeBlind Pty Ltd ACN:693 027 440); 3 Mia OVERs caught agent-side (FSL-1.1-MIT
+      vs MIT / 940 vs 10K+ npm / v0.5.5 stale vs v0.6.0); CR-9 sibling REVERT check PASS.
+      ARTIFACT-INLINE persisted via Voice 2 Write tool at
+      tmp/wave138-fire3-sotaresearcher-governance-trio-2026-05-10.md (305 LOC).
+      agentId af96060763bcb2368. 423s / 27 tools.
+    
+    - Voice 3 architect CC subagent (cryptographic-governance integration design + Pattern A target):
+      DESIGN: Option C STAGED-PENDING-VERIFICATION RECOMMENDED — 3-option trade-off + integration
+      design + Pattern A target classification + KISS check + Phase 7 verdict; 3 critical install
+      blockers (CR-9 npx-per-tool-call latency unmeasured + CR-3 Cedar deny on .* matcher could
+      break codex T1/T2/T3 hooks + receipt-path collision with .claude/state/).
+      ARTIFACT-INLINE persisted at
+      tmp/wave138-fire3-architect-cryptographic-governance-design-2026-05-10.md (297 LOC).
+      agentId ab548e5c52668a4f2. 195s / 26 tools.
+    
+    KEY UNLOCK CONFIRMED 4th-time: DEFAULT codex profile recovery for FM-17.i Pattern B HNF
+    n=4 same-arc evidence ladder (Wave 137 Fire 2 + Wave 138 Fire 1 + Wave 138 Fire 2 + Wave 138 Fire 3).
+    Per Voice 1 Q6 verdict (Wave 138 Fire 2): NOT FM-17.i sub-class advancement; **Pattern D
+    candidate in codex-t1-fix-forward-pattern.md** ladder advanced to n=4 (Wave 139 candidate
+    codification per ONE-LOGICAL-UNIT-PER-FIRE).
+    
+    3-voice synthesis verdict:
+    - protect-mcp v0.1.0 (RUNTIME): STAGED-PENDING-VERIFICATION (3/3 convergent)
+    - signed-audit-trails v0.1.0 (DOCS): STAGED-PENDING-VERIFICATION (3/3 conservative — pair with protect-mcp)
+    - review-agent-governance v0.1.0 (RUNTIME): REJECT-FOR-FIT (2/3 majority + codified Probe 7.b lattice)
+    
+    1 fresh orchestrator-side Mia OVER caught n=167 → n=168:
+    - #168 (orchestrator-side Wave 138 Fire 3): Voice 2's "STUDY-PILOT-ASPIRATIONAL" sub-class
+      IS NOT in codified Probe 7.b lattice at agent-harness-fit-verification.md:128-134.
+      Codified 5-clause check requires NAMED operational use case (clause 1); Voice 2's verdict
+      EXPLICITLY says clause 1 is "ASPIRATIONAL" not NAMED. Per Probe 7.a/.b discriminator at
+      :142-146: Probe 7.b ONLY available for primitives with named (NOT aspirational) use case.
+      Voice 2 over-claims Probe 7.b eligibility. CORRECTED: REJECT-FOR-FIT per Voice 1+3
+      majority + codified Probe 7.b lattice. Voice 2's ASPIRATIONAL sub-class is Wave 139+
+      codification candidate (defer per ONE-LOGICAL-UNIT-PER-FIRE).
+    
+    3 Voice 2 agent-side catches preserved for Wave 138 Fire 4 install ship (NOT counted in
+    orchestrator ladder per agent-side vs orchestrator-side discipline):
+    - protect-mcp v0.1.0 npm package license = FSL-1.1-MIT (Functional Source License 1.1 → MIT
+      after 2 years) NOT pure MIT as README claims — SRA D1 use-class precision check required
+      at install time
+    - README "10K+ monthly downloads" actual = 940/month (10x OVER per
+      https://api.npmjs.org/downloads/point/last-month/protect-mcp) — don't propagate verbatim
+    - hooks pin protect-mcp@0.5.5 stale vs latest v0.6.0 — D6 today-release-auto-upgrade risk;
+      CR-9 version-pin mandate REQUIRES install ship to update pin
+    
+    NO Pattern A apply (Voice 1 prescribed_edits: []):
+    - protect-mcp + signed-audit-trails: STAGED-PENDING-VERIFICATION → no install actions this fire
+    - review-agent-governance: REJECT-FOR-FIT → no install actions ever (until eee adds PR-review surface)
+    
+    Edits this fire (3 files; verification + close-synthesis only; NO rule edits NO install actions):
+    
+    EDIT to docs/install-provenance.md (append at EOF, +94 lines, 12887→12981):
+      Wave 138 Fire 3 close-synthesis with: trigger / atomic chain / 3-voice disposition /
+      synthesis verdict / KEY UNLOCK 4th-time / Mia ladder n=167→n=168 / Voice 2 catches /
+      Wave 138 Fire 4 candidate (queued) / cite trail / CR conformance / FM tracker /
+      architecture SOTA-cleanliness.
+    
+    NEW .claude/projects/Z--claude-sota-installed/memory/reference_w138_fire3_close_synthesis_2026_05_10.md:
+      Layer-3 wiki entry per Karpathy §5 Wiki Compounding Surface (atomic chain extension /
+      trigger / headline findings / per-voice disposition / Mia catch round / sister memories /
+      forward queue).
+    
+    EDIT to .claude/projects/Z--claude-sota-installed/memory/MEMORY.md (L5 prepend Wave 138 Fire 3 entry):
+      Index entry pointing to new memory file.
+    
+    Cedar+Ed25519+sigstore/SLSA SOTA convergence FIRM (Voice 2 verified):
+    - Cedar (AWS Apache-2.0): cedar-policy/cedar 1466 stars created 2023-04-25 [VERIFIED 2026-05-10]
+    - Ed25519: RFC 8032 IETF [VERIFIED]
+    - sigstore/cosign (CNCF Apache-2.0): 5900 stars [VERIFIED 2026-05-10]
+    - in-toto/attestation (CNCF): 335 stars [VERIFIED 2026-05-10]
+    - Microsoft AGT (MIT): 1462 stars created 2026-03-02 [VERIFIED 2026-05-10]
+    - 4 distinct orgs satisfy convergence-gate Axis 1 ≥3-distinct-orgs requirement firmly
+    
+    Tom Farley TIER-4 NAMED-INDIVIDUAL provenance verified (Voice 2):
+    - IETF Internet-Draft draft-farley-acta-signed-receipts (formal standards process)
+    - Microsoft AGT PR#667 MERGED 2026-04-03 by tomjwxf (Cedar+Ed25519 integration)
+    - Cedar PR#64 MERGED 2026-04-15 by tomjwxf (WASM bindings — scope mismatch with README)
+    - ScopeBlind Pty Ltd ACN:693 027 440 Australia (commercial entity)
+    - Veritas Acta protocol author (https://veritasacta.com)
+    
+    Wave 138 Fire 4 candidate (queued; task #136):
+    - Pre-install gates: (a) update hooks pin v0.5.5 → v0.6.0 / (b) verify v0.6.0 license = MIT /
+      (c) author baseline ./protect.cedar policy / (d) decide receipt-storage path: state-outside-repo
+      at Z:/claude-sota-installed-state/.protect-mcp/receipts/<YYYY-MM>/<sha8>.json /
+      (e) Ed25519 keypair generation decision / (f) Phase 7 benchmark / (g) cross-model T1 review
+    - Install command: /plugin marketplace add wshobson/agents && /plugin install protect-mcp@claude-code-workflows
+      && /plugin install signed-audit-trails@claude-code-workflows
+    - Smoke probe per Voice 3 manifest §17 design
+    
+    Wave 139 candidate NEW (queued; task #137):
+    - Pattern D codification in codex-t1-fix-forward-pattern.md (DEFAULT codex profile recovery
+      for FM-17.i Pattern B HNF, n=4 same-arc evidence ladder)
+    
+    User-reinforced install discipline acknowl
+
+[prompt truncated]

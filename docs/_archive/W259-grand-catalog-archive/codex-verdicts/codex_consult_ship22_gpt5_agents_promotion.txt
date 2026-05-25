@@ -1,0 +1,75 @@
+Wave 156 Ship 22 — gpt5 agents 14-field → 16-field CCBP promotion (2 agents: gpt5-archaeologist 11 fields + gpt5-reviewer 12 fields).
+
+CONTEXT: Wave 156 plan §PATH H Ship 22 — closes the 2 remaining agents below 14-field CCBP threshold. Both are BRIDGE-MODE GPT-5.5 agents (model: claude-sonnet-4-6 + permissionMode: bypassPermissions; invoke codex CLI subprocess for REAL GPT-5.5 cross-model gate). Hooks block already wired with `agent_plan_readonly_bash_guard.py --policy codex-readonly` (allows codex CLI invocation under read-only-ish posture).
+
+CURRENT STATE (verified via Mia pre-apply yaml.safe_load probe):
+
+gpt5-archaeologist.md (11 fields):
+  Has: name, description, tools, model:claude-sonnet-4-6, color:orange, maxTurns:8, permissionMode:bypassPermissions, effort:high, isolation:worktree, hooks, initialPrompt
+  Missing: disallowedTools, memory, background, skills, mcpServers
+
+gpt5-reviewer.md (12 fields):
+  Has: name, description, tools, model:claude-sonnet-4-6, color:cyan, maxTurns:60, permissionMode:bypassPermissions, effort:high, isolation:worktree, memory:user, hooks, initialPrompt
+  Missing: disallowedTools, background, skills, mcpServers
+
+PROPOSED ADDITIONS (insertion between existing `isolation: worktree` and the hooks-comment block):
+
+gpt5-archaeologist (add 5 fields → 16 total):
+  disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+  memory: project  # archaeology findings persist project-scoped
+  background: false  # interactive archaeology
+  skills:
+    - superpowers:verification-before-completion
+    - addy-agent-skills:debugging-and-error-recovery
+  mcpServers:
+    - repomix  # cross-file pack-and-grep for code archaeology
+
+gpt5-reviewer (add 4 fields → 16 total; preserves memory:user):
+  disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+  background: false
+  skills:
+    - superpowers:verification-before-completion
+    - superpowers:requesting-code-review
+    - addy-agent-skills:code-review-and-quality
+  mcpServers:
+    - repomix
+    - github  # GPT-5.5 reviewer needs cross-repo CVE lookup; write tools blocked via disallowedTools (per Ship 1.1 lesson but with disallowedTools list extension)
+
+OPEN QUESTION (for codex review): should gpt5-reviewer include github MCP? Ship 1.1 evaluator.md removed github MCP entirely. gpt5-reviewer is more powerful (REAL GPT-5.5 BRIDGE-MODE) and may legitimately need cross-repo lookup. Disallowed-tools listing of 12 github write-class tools is feasible. ALTERNATIVE: omit github (conservative, per Ship 1.1 precedent). T1 axis 2 reviews this.
+
+PRESERVATION (do NOT touch):
+- All existing frontmatter fields (name/description/tools/model/color/maxTurns/permissionMode/effort/isolation)
+- The hooks comment block (L48-54 explaining parent-precedence rule)
+- The hooks.PreToolUse:Bash block (already wired with codex-readonly policy)
+- The initialPrompt content
+- Body content (Purpose / SOTA basis / etc.)
+
+REVIEW AXES (3, scoped):
+
+AXIS 1 — Field-additions correctness:
+Are the 4-5 new field values appropriate per CCBP claude-subagents.md:17-36 spec for BRIDGE-MODE GPT-5.5 agents? Should `disallowedTools` for BRIDGE-MODE agents differ from Ship 1.1 evaluator pattern (which uses permissionMode:plan)? Is the codex-readonly Bash policy + disallowedTools combination the right read-only-ish enforcement for BRIDGE-MODE under bypassPermissions parent?
+
+AXIS 2 — Skill + MCP preload validity:
+Are the proposed skill preloads SKILL.md-backed?
+- gpt5-archaeologist: superpowers:verification-before-completion (already verified Ship 1.1/2) + addy-agent-skills:debugging-and-error-recovery (verified Ship 2)
+- gpt5-reviewer: superpowers:verification-before-completion + superpowers:requesting-code-review + addy-agent-skills:code-review-and-quality (all verified Ship 1.1)
+- All 4 skills exist per prior Mia probes
+Is github MCP appropriate for gpt5-reviewer (with disallowedTools blocking the 12 write tools), or should we follow Ship 1.1 conservative removal precedent and exclude github?
+
+AXIS 3 — Cardinal-rule conformance:
+- CR-1 cite: existing cite anchors preserved (TIER-1 Tornhill book + code-maat repo + TIER-2 cross-model-consensus.md)
+- CR-3 cross-model: gpt5-* agents ARE the BRIDGE-MODE cross-model gate primitives; promotion strengthens their CCBP conformance
+- CR-9 install-risk: 2-round fix-forward budget expected; codex T1 prescribes any field corrections
+- CR-12 upstream-install: these are eee-local agents (no upstream marketplace equivalent for BRIDGE-MODE wrapper); cite-class TIER-3-LOCAL-COMPOSITION
+
+VERDICT SCHEMA (JSON-strict at EOF):
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": <float 0.0-1.0>,
+  "axis_1_field_additions_correctness": "<short assessment>",
+  "axis_2_preload_validity": "<short assessment>",
+  "axis_3_cardinal_rule_conformance": "<short assessment>",
+  "prescribed_edits": [<list of specific edits if NEEDS-REVISION>],
+  "ship_disposition": "PROCEED_TO_COMMIT" | "PATTERN_A_APPLY" | "REVERT_AND_REMOVE",
+  "github_mcp_decision": "INCLUDE_WITH_DISALLOWEDTOOLS" | "EXCLUDE_PER_SHIP1_1_PRECEDENT"
+}

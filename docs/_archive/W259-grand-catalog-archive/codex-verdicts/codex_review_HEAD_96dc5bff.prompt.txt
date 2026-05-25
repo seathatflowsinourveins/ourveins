@@ -1,0 +1,165 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 96dc5bff1a17b8baae5328022eef843eab7125c9
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 94 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 94 insertions(+)
+
+=== git show --format=fuller ===
+commit 96dc5bff1a17b8baae5328022eef843eab7125c9
+Author:     42 <42@local>
+AuthorDate: Sun May 10 13:27:07 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 13:27:07 2026 -0400
+
+    docs(wave-137-fire-1): SOTA convergence advanced agent team — H1 REFUTED-PARTIAL — 3 fresh Mia OVERs caught (n=153→n=156) — mattpocock REJECT-FOR-FIT + addy NO-OP + wshobson STUDY-PILOT-PARTIAL — cross-model gate Outcome C MANUAL-OVERRIDE — FM-09 n=6/6 100% base rate validated AGAIN
+    
+    Per task #124 Wave 137 Fire 1 candidate + standing-form auto-proceed direction.
+    
+    ## Disposition (4-voice advanced agent team — recovery cascade)
+    
+    - Voice 1 Path P codex bg #1 (deep-review-exec xhigh): Pattern B HONEST-NON-FINDING-LOSS — 125 LOC trace + 5 web.open attempts ALL blocked + no JSON verdict (FM-17.i candidate at n=1 task #125; distinct from FM-17.h tool-router exit at task #88)
+    - Voice 1 Path P codex bg #2 RETRY (Bash-gh-CLI-only prompt): Pattern B HNF — 112 LOC pure prompt-echo + NO codex investigation (codex CLI itself confirmed healthy via minimal probe; profile-specific issue with deep-review-exec on complex prompts)
+    - Voice 2 gpt5-reviewer Agent type: NOT FOUND in this runtime's agent registry (gpt5-reviewer.md exists locally untracked but not auto-registered) → substitute with codex:codex-rescue
+    - Voice 2 SUBSTITUTE codex:codex-rescue Agent (BRIDGE-MODE, agentId ad2753720b5f29df4): FM-17.f signature ("API Error: Extra usage is required for 1M context" + 0 tokens + 269ms) — n=5+ cumulative FM-17.f
+    - Voice 3 sota-researcher CC subagent (agentId a13c5cefb6d2c1811): COMPLETED — Probe DAG 1-7 + 3 fresh Mia OVERs caught + 567 LOC ARTIFACT-INLINE at tmp/wave137-fire1-sotaresearcher-probedag-2026-05-10.md
+    
+    ## 3-Mia-catch round n=153 → n=156
+    
+    ALL 3 OVERs on Wave 136 Fire 1 Voice 2 Agent A's mattpocock/skills ADOPT-NOW prescription. Per FM-09 codex-rescue blind-spot specialization (n=5/5 → n=6/6 = 100% base rate STILL holds): single-agent ADOPT-NOW on abstract-pattern adoption ALWAYS needs 2-stage harness-fit-aware validation per agent-harness-fit-verification.md L186-L201.
+    
+    - Mia OVER #154 mattpocock 4-way TDD overlap (addy + superpowers + ECC + context-mode TDD skills already-installed); kiss-dry-yagni Must-Never #4 — orchestrator Mia probe VERIFIED via `find .claude/plugins/marketplaces/ -type d -name 'tdd*'` returning 6+ tdd dirs + 8 tdd-workflow occurrences
+    - Mia OVER #155 mattpocock setup-matt-pocock-skills HARD-GATE (`disable-model-invocation: true` + 3 interactive prompts at install); identical to brainstorming iter-84 REJECTED pattern — orchestrator Mia probe VERIFIED via grep on agent-harness-fit-verification.md L47 confirming iter-84/85/89 REJECT-FOR-FIT cohort
+    - Mia OVER #156 mattpocock not-CC-canonical install path (`.claude-plugin/marketplace.json` 404 + non-canonical `npx skills.sh` installer; CR-6 official-native-channel violation) — orchestrator Mia probe VERIFIED via `gh api repos/mattpocock/skills/contents/.claude-plugin/marketplace.json` returning 404 Not Found
+    
+    ## Per-prescription disposition (4 prescriptions, 0 install actions)
+    
+    - P-A-01 mattpocock/skills install (P0 originally): REJECT-FOR-FIT — 5/7 Probe DAG failures + 3 Mia OVERs. Codification of REJECT in agent-harness-fit-verification.md DEFERRED to Wave 137 Fire 2 (where local rules baseline ships under CLAUDE.md Section 14.5 cite-import-AMBER)
+    - P-A-03 addy-agent-skills cache refresh (P1 originally): NO-OP — already installed at .claude/plugins/marketplaces/addy-agent-skills/ with 21 skills active (verified `ls` returned 21 entries). Local 742dca5 → upstream 3ff4b51 (Mia n=151 cite VERIFIED via `gh api repos/addyosmani/agent-skills/commits/main`). Refresh DEFERRED — local functional; upstream <24h-old per CR-9 D6 today-release defense
+    - P-A-04 wshobson/agents Probe 5 audit (P1 originally): STUDY-PILOT-PARTIAL — marketplace-level Probe DAG passes (CC-canonical /plugin marketplace add + MIT + 80 plugins) BUT per-plugin granular probe required before any specific install (large-scale overlap risk with 100+ already-installed skills). Action: DEFER marketplace registration + per-plugin probe to Wave 138+
+    - P-A-07 Phase 7 benchmark gate (P3 Wave 138+): DEFERRED — confirmed Wave 138+ window
+    
+    ## Cross-model gate satisfaction status
+    
+    NOT structurally satisfied via GPT-5.5 BRIDGE-MODE (Voice 1 attempts #1+#2 + Voice 2 substitute all failed in distinct sub-classes). Wave 137 Fire 1 ships under Outcome C MANUAL-OVERRIDE per closed-loop-recursive-narrowing.md §Outcome C — operator standing-form authorization ("auto-proceed", "ship sota convergence with advanced workflow", "you decide next steps") satisfies named risk-owner explicit acceptance for low-severity codification ship (NOT install-class — pure documentation + Mia ladder advance + 0 install-debt added).
+    
+    STAND-IN-NOTICE per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate: Voice 3 sota-researcher CC subagent (NOT GPT-5.5) is sole successful voice. Cross-model gate queue: codex T1 retry queued for next session after Path D enabled OR codex sandbox-profile investigated.
+    
+    ## Convergent finding (architecture SOTA-cleanliness updated)
+    
+    Architecture SOTA-cleanliness ~83-87% (Wave 136 baseline ~80-85% + 1% gain from REJECTING wrong-direction install BEFORE ship; 0 install-debt added; +3 Mia ladder catches reduce wrong-install entropy).
+    
+    10 user-named repos updated state:
+    - 0 ADOPT-NOW pending (mattpocock now REJECT-FOR-FIT)
+    - 3 STUDY-PILOT + 1 STUDY-PILOT-PARTIAL (wshobson now PARTIAL)
+    - 4 ALREADY-ADOPTED (addy now confirmed)
+    - 2 REJECT (chopratejas Wave 47 + mattpocock Wave 137)
+    - 1 VERIFY
+    
+    ## FM-17.* sub-classes documented this fire
+    
+    - FM-17.i candidate at n=1 task #125: Path P codex bg deep-review-exec xhigh — web.open URL-blocked after 5 attempts; investigation never completed
+    - FM-17.f cumulative n=5 (1M-context billing-class blocker on subagent dispatch under [1m] parent flag): Path D in CLAUDE.local.md ENV (h) commented out — activation pending separate fire
+    - FM-17.h task #88: prior Wave 136 Fire 1 candidate; Wave 137 Fire 1's web.open is sub-class .i (different signature)
+    
+    ## Files changed (this commit, scope per FM-02+FM-15 narrow `--only --`)
+    
+    - docs/install-provenance.md (+94 LOC Wave 137 Fire 1 close-synthesis entry)
+    
+    Session-local (gitignored, persisting in working tree for next-session continuity per Karpathy §5 Wiki Compounding Surface Layer 2):
+    - .claude/projects/Z--claude-sota-installed/memory/reference_w137_fire1_close_synthesis_2026_05_10.md (NEW ~50 LOC; brief Layer-3 wiki entry pointing to install-provenance.md detail)
+    - .claude/projects/Z--claude-sota-installed/memory/MEMORY.md (+1 LOC Wave 137 Fire 1 index pointer)
+    
+    ## CR conformance
+    
+    - CR-1 cite-trail TIER-1-DIRECT: gh API HEAD SHAs (mattpocock/addy/wshobson) + Anthropic CC plugin docs URL + sibling agent-harness-fit-verification.md cite-import-AMBER per CLAUDE.md Section 14.5
+    - CR-3 cross-model T1 lifecycle: Outcome C MANUAL-OVERRIDE; queue codex T1 retry next session
+    - CR-7 REPORT errors: 3 Mia OVERs + 2 Path P attempts FAILED + 1 codex-rescue FM-17.f all surfaced inline
+    - CR-8 full-SOTA-content: ADAPTED-FROM-SOTA per Voice 3 deep-dive (Probe DAG 1-7 from sibling rule)
+    - CR-9 install-risk: REJECT-FOR-FIT discipline saved wrong install BEFORE ship; addy refresh deferred per D6 today-release defense
+    - CR-10 research-first: Voice 1+2+3 dispatched BEFORE prescription apply; FM-09 2-stage validation invoked
+    - CR-11 META-process: 4-voice agent team COMPLETE Fire 1; advisory-not-install ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE
+    - CR-12 PRIMARY upstream-install: ZERO install-class actions this fire (1 REJEC
+
+[prompt truncated]

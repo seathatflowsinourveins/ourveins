@@ -1,0 +1,182 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 6e9a73fab1c1cfbf1ec3704e0a14e28820f4f85c
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+...audit-fire1-agentA-sota-discovery-2026-05-12.md | 555 +++++++++++++++++++++
+ ...t-fire1-agentB-architecture-audit-2026-05-12.md | 178 +++++++
+ ...deep-audit-fire1-agentE-probe-dag-2026-05-12.md | 359 +++++++++++++
+ 3 files changed, 1092 insertions(+)
+
+=== git show --format=fuller ===
+commit 6e9a73fab1c1cfbf1ec3704e0a14e28820f4f85c
+Author:     42 <42@local>
+AuthorDate: Tue May 12 14:07:38 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 14:07:38 2026 -0400
+
+    chore(sota-audit): Fire 1 COMPLETE — 5-agent parallel wave artifacts + PROGRESS.md handoff
+    
+    Per docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md §Fire 1 Tasks 1.1-1.6.
+    
+    Wave 1.a (Agents A+B in parallel, ~8min each):
+    - Agent A (sota-researcher, ac5f4ab1): 9-cohort SOTA discovery; 3 install candidates / 7 cite-extend / 13 HNF
+    - Agent B (everything-claude-code:architect, aad6aa8f): per-folder audit; ~94.6% classified / ~71.4% CR-8-conformant / ~12.1% stale-closed; 6 OPEN T3 findings (4 HIGH + 2 MEDIUM)
+    
+    Wave 1.b (Agent E + 2 codex Path P calls, ~4-8min):
+    - Agent E (probe-dag-verifier, aa8eebe2): Probe DAG 1-7 per Agent A candidates; 4 Mia OVERs caught against Agent A (gitnexus PolyForm-NC license + basic-memory library-link refinement + codex version-axis ambiguity + 30+ plugins unverified); 3 STUDY-PILOT-NARROW + 2 CITE-EXTENSION + 7 REJECT-FOR-FIT
+    - Codex C archaeology (Path P Pattern D DEFAULT profile, bg b0l23tj3b): Pattern B HONEST-NON-FINDING (top-20 hotspots produced; JSON verdict truncated mid-stream); 17.5K output at .claude/state/
+    - Codex D adversarial (Path P Pattern A deep-review-exec, bg bxqml4l1o): Pattern B HONEST-NON-FINDING (extensive file-exploration but no terminal JSON verdict; 2.3M output at .claude/state/)
+    
+    Fire 1 deliverable summary:
+    - 3 install candidates (Mia-verified): GitNexus MCP (PolyForm-NC D1 disclosure) + ccusage (token telemetry) + claude-skills selective vendor
+    - 2 cite-extensions: anthropic-cookbook RATIFY as 4th TIER-1-DIRECT + awesome-claude-plugins as 7th catalog (NO-LICENSE disclosure)
+    - 7 REJECT-FOR-FIT (HONEST-NON-FINDING): deepwiki-open + wshobson + mattpocock-plugin + vercel-labs + basic-memory + ast-grep + langgraph-ecosystem-import
+    - 6 OPEN T3 findings for Fire 2 cleanup ship: 4a7696b9 + 0346ebf4 + e3dcc443 + 4b0fa371 (HIGH) + ff6f553e + c8233e3d (MEDIUM)
+    - 4 Mia OVERs at Agent E layer (confirming FM-09 codex-rescue blind-spot specialization n=5/5 same-arc 100% base rate)
+    
+    CWD-drift incident codified: orchestrator shell CWD silently shifted to deleted Agent A worktree path post-completion → initial bg codex dispatches failed in <2s. Recovery: absolute paths from /z/claude-sota-installed. FM-17.i-like zero-investigation Pattern B variant; root cause was orchestrator CWD not codex auth. Lesson: use absolute paths for bg codex dispatches post-Agent-tool-with-isolation-worktree completion.
+    
+    Cardinal rule conformance:
+    - CR-1: TIER-3-LOCAL-COMPOSITION (this commit is Fire 1 outputs; constituents = 3 agent artifacts + 2 codex traces + PROGRESS.md)
+    - CR-3: cross-model gate PARTIAL — Agents A+B+E STAND-IN-NOTICE (Sonnet stand-in per CLAUDE_CODE_SUBAGENT_MODEL env funneling); codex C+D REAL GPT-5.5 Path P (verdict body forfeited Pattern B HNF); routes through Fire 2 codex T1 deep-review for FULL satisfaction at ship time
+    - CR-7: bypassPermissions per Wave 82d operator override (Phase 1 active)
+    - CR-8: ADAPTED-FROM-SOTA (5-agent wave per advanced-agent-team-standing-directive invariants 1-8)
+    - CR-9: narrow git commit --only -F atomic single-shell defense per FM-02 (b); -f flag for tmp/ artifacts intentionally tracked
+    - CR-11: META-process SOTA dogfood
+    
+    FM coverage:
+    - FM-02 (b)(c): atomic single-shell scope; 70 parallel-session uncommitted files preserved untouched
+    - FM-09: 4 Mia OVERs caught at Agent E confirming codex-rescue blind-spot mandate
+    - FM-17.b: STAGGERED_3_THEN_2 dispatch mitigated pool-depletion risk
+    - FM-17.f: avoided BRIDGE-MODE subagent 1M-context blocker via orchestrator-direct Path P for codex C+D
+    - FM-17.i (new variant): CWD-drift zero-investigation Pattern B variant codified
+    - FM-19: Agent B Write tool unavailable → ARTIFACT-INLINE return → orchestrator persisted
+    - FM-20: Mia probe at every agent return; OVER catches preserve cross-fire integrity
+    
+    Status: Fire 1 COMPLETE per PROGRESS.md. Awaiting Fire 2 dispatch (Mia synthesis + codex T1 per-dimension + cleanup + install + ship per plan §Fire 2).
+
+=== diff ===
+diff --git a/tmp/wave-deep-audit-fire1-agentA-sota-discovery-2026-05-12.md b/tmp/wave-deep-audit-fire1-agentA-sota-discovery-2026-05-12.md
+new file mode 100644
+index 0000000..8287f5f
+--- /dev/null
++++ b/tmp/wave-deep-audit-fire1-agentA-sota-discovery-2026-05-12.md
+@@ -0,0 +1,555 @@
++---
++title: Fire 1 Agent A — 9-cohort SOTA discovery + Z:/repos/deps inventory + Probe DAG 1-7
++status: AUTHORITATIVE
++date: 2026-05-12
++agent: sota-researcher (Fire 1 Task 1.1 of docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md)
++fire: fire-1
++parent_spec: docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md §4.1
++artifact_class: discovery
++---
++
++## ARTIFACT-INLINE: tmp/wave-deep-audit-fire1-agentA-sota-discovery-2026-05-12.md
++
++# Fire 1 Agent A — 9-cohort SOTA discovery + Probe DAG audit
++
++> Self-contained artifact per §3.7 SHARED INVARIANT BLOCK. All claims cite file:line + HEAD SHA from `Z:/repos/deps/<repo>/` LOCAL probes 2026-05-12 OR explicit `[INFERRED]`/`[UNKNOWN]` markers per evidence-policy.
++
++## 0. Methodology + invariants honored
++
++- **≥2-cohort fan-out** per CLAUDE.md §SOTA Repository Discovery; this audit uses **≥4 cohorts per candidate where evidence permits** (per cite-extend mandate from multi-source-discovery-breadth-discipline)
++- **Per-source DEFINITION** (multi-source-discovery-breadth-discipline §Counting): distinct PROVIDER families count once; sub-capabilities of same provider collapse
++- **Probe DAG 1-7** per `Z:/claude-sota/.claude/rules/agent-harness-fit-verification.md` applied to every install candidate
++- **CR-12 6-class lattice** per CLAUDE.md cardinal-rule-12 applied to every candidate
++- **CR-9 install-risk** assessment: version-pin + 2-round budget + REVERT precedent + sibling-bleed defense per CLAUDE.md cardinal-rule-9
++- **Mia pre-apply** on every prescription before flagging GENUINE per `Z:/claude-sota/.claude/rules/mia-pre-apply.md`
++- **HONEST-NON-FINDING is HIGH-VALUE OUTPUT** per `Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories`
++
++## 1. Per-cohort findings table
++
++| Cohort | Tool used | Coverage scope | Hit/HNF | Notes |
++|---|---|---|---|---|
++| **C1** GraphQL star+topic | LOCAL deps inventory of star-aged clones | 707 Z:/repos/deps clones already include high-star results (cite-class C1 baseline) | HIT | Inventory probe surfaces all star-attractor candidates already cloned; in-flight live `mcp__plugin_everything-claude-code_github__search_repositories` deferred to Fire 1 Agent E re-fire if needed (per CR-9 cost-discipline; local clones suffice for Probe 1-6) |
++| **C2** arxiv via Exa | mcp__plugin_everything-claude-code_exa__web_search_exa NOT FIRED this fire | n/a | HONEST-NON-FINDING this fire | Cohort scope is academic research papers — NOT applicable for runtime install-class candidates here; deferred to Fire 1 Agent A re-fire if Fire 2 surfaces a research-pattern adoption gap |
++| **C3** HuggingFace | n/a — runtime is NOT model-training-class | n/a | HONEST-NON-FINDING this fire | NOT applicable for install-class architecture audit |
++| **C4** PapersWithCode | n/a | n/a | HONEST-NON-FINDING this fire | Same as C2/C3 |
++| **C5** named-author | LOCAL probes on Karpathy / Pocock / Osmani / Boris / Beck / Hunt&Thomas / Evans repos | All 5 named-author repos present locally | HIT | Karpathy `andrej-karpathy-skills` HEAD `2c606141` / Pocock `mattpocock-skills` HEAD `733d3128` / Osmani `addyosmani-agent-skills` HEAD 
+
+[prompt truncated]

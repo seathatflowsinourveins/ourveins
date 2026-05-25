@@ -1,0 +1,210 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 4b0fa37162d1d6f29212e8004a9f7e6babe4c483
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../2026-05-12-sota-architecture-deep-audit.md     | 953 +++++++++++++++++++++
+ 1 file changed, 953 insertions(+)
+
+=== git show --format=fuller ===
+commit 4b0fa37162d1d6f29212e8004a9f7e6babe4c483
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:28:13 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:28:13 2026 -0400
+
+    plan(writing-plans): SOTA architecture deep-audit + optimization implementation plan
+    
+    Path: docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md
+    Spec: docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md (commit ff6f553)
+    
+    Implementation plan output (superpowers:writing-plans). Maps spec to executable
+    tasks per fire with bite-sized 2-5 min steps + actual Bash commands + actual
+    Agent tool prompts + atomic commit forms per FM-02 (b) defense.
+    
+    3 fires + Fire 2.5 OPTIONAL adapter ship:
+    - Fire 1: 5-agent parallel wave dispatch (Tasks 1.0-1.6); fresh CC session
+    - Fire 2: Mia synthesis + codex T1 per-dimension + cleanup + install + manifest
+      + atomic commits (Tasks 2.0-2.6); fresh CC session
+    - Fire 3: validate + smoke probe + T3 review + HNF documentation (Tasks 3.0-3.4);
+      fresh CC session
+    - Fire 2.5 (OPTIONAL): adapter ship for sota_audit_stop_continue.py + sota_audit_
+      progress_hook.py per CR-5/CR-12 if Fire 2 surfaces them
+    
+    Self-review (per writing-plans skill):
+    - Spec coverage: ALL 14 spec sections mapped to specific tasks (§1 success
+      criteria → 3.1.3 + 3.4.3; §2 architecture → Fires 1+2+3; §3 automation → §3.7
+      invariant + PROGRESS.md tasks + Fire 2.5; §4.1-4.5 agent briefs → Tasks 1.1-
+      1.5 verbatim; §5.1-5.6 Fire 2 → Tasks 2.1-2.6; §6.1-6.4 Fire 3 → Tasks 3.1-
+      3.4; §7-13 cross-cuts referenced inline)
+    - Placeholder scan: zero TBD/TODO; every Bash command + Agent prompt concrete
+    - Type consistency: artifact paths (tmp/wave-deep-audit-fire<N>-agent<X>-*),
+      consult paths (.claude/state/codex_consult_w-deep-audit-fire<N>-*), commit
+      subjects consistent throughout
+    
+    Cardinal rule conformance:
+    - CR-1: TIER-3-LOCAL-COMPOSITION (this plan adapts spec which adapts upstream
+      SOTA primitives across 27+ TIER-1-DIRECT cites)
+    - CR-3: cross-model gate satisfied via spec's codex T1 verdict (commit ff6f553)
+      + Fire 2.2 codex T1 per-dimension review embedded in plan
+    - CR-5: install-priority preserved; adapter scripts gated through Fire 2.5
+    - CR-8: ADAPTED-FROM-SOTA per writing-plans skill output shape
+    - CR-9: install-risk discipline embedded in Tasks 2.4.2 (REVERT precedent
+      check) + 2.4.4 (smoke probe)
+    - CR-10: research-first via Agent A sota-researcher in Task 1.1 + Fire 2.5
+      pre-install probe
+    - CR-11: META-process SOTA (this fire dogfoods the recursive discipline)
+    - CR-12: upstream-install-priority per Task 2.4.3 official-native-channel; CR-12
+      6-class lattice per Task 2.4.1
+    
+    FM coverage embedded throughout:
+    - FM-02 (a/b/c): each fire fresh CC session + atomic single-shell git commit
+      chains
+    - FM-09: Agent E probe-dag-verifier as 2nd-stage validation contract
+    - FM-17.a-f: per-call codex 90-180s budget + Path P foreground+tee + ARTIFACT-
+      INLINE shared invariant + PROGRESS.md handoff
+    - FM-19: ARTIFACT-INLINE persistence in every agent brief
+    - FM-20: Mia probe at every synthesis-vs-brief hop (Task 2.1.2)
+    - FM-21: STATE PROBE clause-level at fire-start (Task 2.0.1 + 3.1.1)
+    
+    Execution handoff per writing-plans skill terminal state:
+    - Option 1 (Subagent-Driven, RECOMMENDED): fresh CC subagent per task; mandatory
+      for this arc per FM-02 (c) destructive race recurrence n=3+
+    - Option 2 (Inline Execution): batch with checkpoints; NOT recommended for this
+      arc due to cross-session race exposure
+    
+    Provenance: superpowers:brainstorming → spec-write → spec-self-review → user-
+    review (APPROVE) → codex T1 (NEEDS-REVISION conf=0.91 + 10 prescribed_edits
+    applied per Pattern A) → atomic commit ff6f553 → superpowers:writing-plans
+    (this file) → execution handoff (next).
+
+=== diff ===
+diff --git a/docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md b/docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md
+new file mode 100644
+index 0000000..44b496f
+--- /dev/null
++++ b/docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md
+@@ -0,0 +1,953 @@
++# SOTA Architecture Deep Audit + Optimization — Implementation Plan
++
++> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
++
++**Goal:** Execute the 3-fire plan from `docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md` to audit + optimize the claude-sota-installed runtime against SOTA references with GPT-5.5 cross-model gate verification at every ship.
++
++**Architecture:** 3 fires (Discovery+Audit / Convergence+Ship / Validate+Re-fire), each in a fresh CC session per FM-02 destructive race defense. Fire 1 dispatches 5 agents in parallel (sota-researcher + architect + gpt5-archaeologist BRIDGE-MODE + gpt5-reviewer BRIDGE-MODE + probe-dag-verifier). Fire 2 synthesizes via Mia probe + codex T1 deep-review per dimension + Pattern A apply + atomic commit. Fire 3 validates via re-run % metrics + smoke probes + T3 postcommit review.
++
++**Tech Stack:** Anthropic CC (Opus 4.7) + codex CLI 0.130.0 (DEFAULT + deep-review-exec profiles) + Path P foreground+tee dispatch + 11 plugin marketplaces + 27+ TIER-1-DIRECT cite anchors + 18 TIER-2 sister-rule cite-imports + cwc-long-running-agents PROGRESS.md handoff + audit-action-loop Wire/Surface/Close/Re-fire.
++
++---
++
++## File Structure
++
++**Created during execution** (per fire):
++
++| File | Fire | Responsibility |
++|---|---|---|
++| `docs/sota-deep-audit-progress-2026-05-12.md` | Fire 1, 2, 3 | Append-only PROGRESS.md handoff per cwc-long-running-agents primitive; cross-fire fresh-context evaluator |
++| `tmp/wave-deep-audit-fire1-agentA-sota-discovery-2026-05-12.md` | Fire 1 | Agent A 9-cohort SOTA discovery + Probe DAG 1-7 verdicts (≤1000 LOC) |
++| `tmp/wave-deep-audit-fire1-agentB-architecture-audit-2026-05-12.md` | Fire 1 | Agent B per-folder + per-dim audit + % metrics (≤1500 LOC) |
++| `tmp/wave-deep-audit-fire1-agentC-archaeology-2026-05-12.md` | Fire 1 | Agent C BRIDGE-MODE hotspot + bus-factor + bug-magnet (≤800 LOC) |
++| `tmp/wave-deep-audit-fire1-agentD-adversarial-2026-05-12.md` | Fire 1 | Agent D BRIDGE-MODE adversarial CR-1+5+7+8+9 attack (≤800 LOC) |
++| `tmp/wave-deep-audit-fire1-agentE-probe-dag-2026-05-12.md` | Fire 1 | Agent E Probe DAG 1-7 (7 probes) per candidate + Mia pre-apply (≤1000 LOC) |
++| `.claude/state/codex_consult_w-deep-audit-fire2-dim-<N>-<dim>.txt` + `_OUT.txt` | Fire 2 | Per-dimension codex T1 consult prompt + verdict (12 dimensions) |
++| `tmp/wave-deep-audit-fire2-mia-synthesis-2026-05-12.md` | Fire 2 | Orchestrator Mia synthesis (decompose + probe + classify per FM-20) |
++| `tmp/wave-deep-audit-fire2-ship-prescriptions-2026-05-12.md` | Fire 2 | Verified-GENUINE prescriptions queued for Pattern A apply |
++| `docs/sota-installed-manifest.md` | Fire 2 | Updated with new install rows (per-row schema enforced) |
++| `docs/install-provenance.md` | Fire 2 | Append entries per audit + install events |
++| `tmp/wave-deep-audit-fire3-validate-2026-05-12.md` | Fire 3 | Re-run metrics + smoke probe outcomes + T3 review |
++
++**Modified during execution**:
++- `CLAUDE.md`, `CLAUDE.local.md`, `.claude/settings.json` — only via Pattern A apply with codex T1 verdict; bootstrap-only files per CR-5
++- `.mcp.json` — new MCP server registrations per CR-12 PRIMARY install
++- `.claude/plugins/installed_plugins.json` — auto-managed by `/plugin install` (not hand-edited)
++
++---
++
++## Fire 0 — Plan + Spec Bootstrap (THIS SESSION — ALREADY DONE)
++
++- [x] **Step 0.1: Spec written** — `docs/superpowers/specs/2026-05
+
+[prompt truncated]

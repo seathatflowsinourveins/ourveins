@@ -1,0 +1,241 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 77b73e305f5dc820f36854f7c315999b445ffd0c
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 2 +-
+ .mcp.json             | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 77b73e305f5dc820f36854f7c315999b445ffd0c
+Author:     42 <42@local>
+AuthorDate: Sun May 10 09:51:51 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 09:51:51 2026 -0400
+
+    fix(launch): wave 134 fire 1 ship 1 — restore .mcp.json + silence hookify import-spam
+    
+    Two operational bugs surfaced on live eee launch (terminal log this session):
+    
+    ## Bug 1: .mcp.json parse failure → ZERO MCPs loading
+    
+    `.mcp.json` line 88 col 6095 contained unescaped `"Triple-voice CONVERGENT"`
+    quotes inside the `_comment_gitnexus` string value. Wave 133 Fire 2 fix-forward
+    authored prose-style emphasis with `"..."` instead of `'...'` or `\"...\"`,
+    breaking the JSON parser at first unescaped `"`. Both eee launchers warned with
+    `fall back to zero-MCP-count` — gitnexus / memory / graphiti / phoenix /
+    context7 / repomix / serena / playwright / deepwiki / github ALL invisible to
+    claude.exe.
+    
+    Fix: 1-char swap `"Triple-voice CONVERGENT"` → `'Triple-voice CONVERGENT'`.
+    
+    Verification:
+    ```
+    $ python -c "import json; d=json.load(open('.mcp.json')); print(len(d['mcpServers']))"
+    14    # 10 actual + 4 _comment fields, all parseable
+    ```
+    
+    ## Bug 2: hookify hook spam → noise on every PreToolUse/PostToolUse
+    
+    Just-installed `hookify@claude-plugins-official` plugin (Wave 133 Fire 2 era)
+    was spamming `Hookify import error: No module named 'core'` on every
+    PreToolUse:Read / PostToolUse:Read / PreToolUse:Bash / PostToolUse:Bash
+    because `pretooluse.py` line 13-15 reads `CLAUDE_PLUGIN_ROOT` env var to
+    add to sys.path BEFORE `from core.config_loader import load_rules` — but
+    the env var isn't propagating to the Python subprocess on this
+    Claude Code 2.1.138 / Windows runtime.
+    
+    Cache files exist correctly:
+    - `.claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc/core/__init__.py`
+    - `.claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc/core/config_loader.py`
+    - `.claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc/core/rule_engine.py`
+    
+    But import fails because `sys.path.insert(0, PLUGIN_ROOT)` is no-op when
+    `PLUGIN_ROOT` is None/empty. The hook then graceful-degrades via try/except
+    exit-0 + system-message error — hence the spam.
+    
+    Fix: disable hookify plugin in `enabledPlugins` (`true` → `false`). Plugin
+    cache stays present (hard-gate stays green), hooks don't fire = no spam.
+    Reversible via flip back to `true` once upstream fixes self-location OR CC
+    runtime sets CLAUDE_PLUGIN_ROOT correctly.
+    
+    Note: this fix only takes effect on NEXT eee launch — current session has
+    hookify hooks already loaded; the spam will continue until restart.
+    
+    Forward-ref upstream issue:
+    - File at `https://github.com/anthropics/claude-plugins-official/issues` —
+      request `pretooluse.py` self-locate via `__file__`-derived path as fallback
+      when `CLAUDE_PLUGIN_ROOT` env not set. 5-line patch:
+      ```python
+      if not PLUGIN_ROOT:
+          PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+      ```
+    - Apply same fix to all 4 hooks: pretooluse.py / posttooluse.py / stop.py /
+      userpromptsubmit.py.
+    
+    ## Files changed: 2 (-2 +2 LOC net 0)
+    
+    - `.mcp.json` — unescaped-quote pair → single-quote pair (1-char swap inside
+      _comment_gitnexus string value)
+    - `.claude/settings.json` — `enabledPlugins.hookify@claude-plugins-official`
+      `true` → `false`
+    
+    ## Operating mode
+    
+    Mechanical-mirror exception 5/5 satisfied for SYNTAX-FIX class:
+    1. ≤24 LOC delta ✓ (2 chars total)
+    2. Pure pointer-extension? Marginal — fix-class, not extension. But strong-prior
+       correctness via parser verification = mechanical equivalent.
+    3. NO new authority/cite/status class ✓
+    4. Mirror chain context — sister to Wave 130 Fire 3 settings.json hook config edits
+    5. Target-surface compatibility ✓ (Python json.load confirms both files parse)
+    
+    Cardinal-rule-3 Phase 1 bootstrap exception applies — JSON parser is the
+    mechanical cross-model verification for syntax fix; codex T1 fan-out would
+    add zero marginal value for unambiguous bug fix.
+    
+    ## CR conformance
+    
+    - CR-1: TIER-1-DIRECT to live runtime evidence (terminal log + Python json.load output)
+    - CR-3: Phase 1 bootstrap exception — JSON parser + Python import system are the
+      mechanical cross-model gate for syntax-class fixes
+    - CR-5: NO install action (config-toggle + 1-char string fix)
+    - CR-7: REPORT errors before routing around them — both bugs surfaced + diagnosed
+      + fixed in single ship rather than working around
+    - CR-8: ADAPTED-FROM-SOTA — JSON syntax fix per RFC 8259 + plugin-disable per
+      Anthropic CC enabledPlugins schema
+    - CR-9 install-risk: ZERO-RISK — both fixes reversible via git revert; plugin
+      cache untouched (hard-gate stays green)
+    - CR-10: research-first — diagnosed exact char position via Python parser before
+      applying fix
+    - CR-11: corrected operating mode — mechanical-mirror exception for syntax-fix
+      class; no codex T1 fan-out warranted
+    
+    ## Mia OVER ladder Wave 97-134
+    
+    UNCHANGED at n=129 (no apply-boundary OVER this fire — both fixes
+    strong-prior correctness verified mechanically pre-commit).
+    
+    ## Cumulative
+    
+    Session arc: 17+ ship-class deliverables. Wave 134 opens fresh; Fire 1 Ship 1
+    closes the dual-bug class blocking eee launch readability.
+    
+    ## Operator-action summary
+    
+    - ✅ MCP layer restored (10 servers visible to claude.exe on next launch)
+    - ✅ Hookify spam stops on next eee launch (current session continues spamming
+      until restart)
+    - 📋 Forward-ref: file upstream hookify issue OR patch script self-location
+      (queued as separate ship)
+    - 📋 Forward-ref: Wave 132 Fire 3 RC-UPGRADE narrative still embedded as
+      multi-line string in _comment_gitnexus — consider migrating long narratives
+      to docs/install-provenance.md instead of .mcp.json comments to prevent
+      future quote-escaping bugs (also queued)
+
+=== diff ===
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 8e57acc..4e208e8 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -511,7 +511,7 @@
+     "qdrant-skills@claude-plugins-official": true,
+     "cwc-makers@claude-plugins-official": true,
+     "code-modernization@claude-plugins-official": true,
+-    "hookify@claude-plugins-official": true
++    "hookify@claude-plugins-official": false
+   },
+   "extraKnownMarketplaces": {
+     "claude-plugins-official": {
+diff --git a/.mcp.json b/.mcp.json
+index 9876f11..6b55eb4 100644
+--- a/.mcp.json
++++ b/.mcp.json
+@@ -85,7 +85,7 @@
+       "command": "npx",
+       "args": ["-y", "@arizeai/phoenix-mcp", "--baseUrl", "http://127.0.0.1:16006"]
+     },
+-    "_comment_gitnexus": "Wave 132 Fire 3 RC-UPGRADE 2026-05-10 (supersedes Wave 132 Fire 2 RETAIN-AT-1.6.3) — UPGRADED gitnexus@1.6.3 → @1.6.4-rc.112 per HNF-4 fix-forward 5-commit multi-layered fix (commits 6f42253 analyze invariant + b792787 hook canonical-root + 3732fa1 storage canonical-name + 3f0c74f @ladybugdb/core 0.15.2→0.16.0 native segfault + c08564ab @ladybugdb/core 0.16.0→0.16.1 wasm Windows paths) [Wave 133 Fire 2 fix-forward per Agent C OVER #129 catch on attribution-conflation: 3f0c74f bumps to 0.16.0 NOT 0.16.1; final 0.16.1 lands via separate c08564ab]. Empirical Wave 132 Fire 3 evidence: 1.6.3 BROKEN on Windows (silent meta.json + ~/.gitnexus/registry.json write failure post-DB-write; exit 0 masks); 1.6.4-rc.112 FULLY WORKS (24 nodes/25 edges indexed; meta.json 732B + registry.json 441B both written; status ✅ up-to-date). Multi-voice verdict per cardinal-rule-3 Phase 1 bootstrap exception (2-voice CONVERGENT structured + 1 mined-trace SUPPORTING per Wave 133 Fire 2 
+
+[prompt truncated]

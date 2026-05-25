@@ -1,0 +1,224 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 88adcd67cafb505fc9e4cef85cd086f4f38be190
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 95 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 95 insertions(+)
+
+=== git show --format=fuller ===
+commit 88adcd67cafb505fc9e4cef85cd086f4f38be190
+Author:     42 <42@local>
+AuthorDate: Sun May 10 16:13:47 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 16:13:47 2026 -0400
+
+    audit(w134-f7): Pattern B HONEST-NON-FINDING on F7 install plan T1 — DEFERRED-PENDING-FIX
+    
+    Wave 134 Fire 7 fired codex T1 deep-review on the F7 install plan per CR-3 +
+    CR-9 cross-model gate prerequisite for install action. Codex CLI v0.130.0
+    exited 0 in ~5s with 196-line OUT file containing ZERO verdict — entirely
+    prompt-echo (HEAD shows session metadata, lines 12-196 echo my own consult).
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B`:
+    Pattern B HONEST-NON-FINDING (zero-investigation variant). Sister to Wave 137
+    Voice 2 + Wave 138 Voice 1 ECHO-ONLY pattern. Likely FM-17.b mid-exec class
+    OR FM-17.f 1M-context-entitlement blocker.
+    
+    ## Cross-model gate state
+    
+    NOT SATISFIED for F7 install plan. Per CR-9 install-risk discipline +
+    CR-3 Phase 1 bootstrap exception: install action is GATED on cross-model
+    verdict. NO INSTALLS THIS FIRE.
+    
+    ## Disposition
+    
+    Per `closed-loop-recursive-narrowing.md §Outcome A` ACCEPT-WITH-DOC:
+    single-round Pattern B HNF, not round-5+ blocker. Document HNF, defer install
+    action to retry-with-mitigation.
+    
+    ## Files changed
+    
+    - docs/install-provenance.md (+~110 lines append, Pattern B HNF entry)
+    
+    ## Forward fires queued
+    
+    - W134-F7-retry: same consult with `--json` + turn-completed event count per
+      gstack mitigation pattern; OR test `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` env
+      per CLAUDE.local.md ENV (h) to disambiguate FM-17.b vs FM-17.f.
+    - W134-F7-alt-path: smallest-reversible fallback (planning-with-files only,
+      highest SRA 10/10, single git clone, fully reversible).
+    - W134-F8 onwards: gated on F7 resolution.
+    
+    ## Conformance
+    
+    - CR-1: cite trail TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+    - CR-3: cross-model gate NOT SATISFIED → install correctly deferred
+    - CR-5: no hand-coded shortcut around failed gate
+    - CR-9: pre-cite-import REVERT check N/A (upstream installs); version-pin
+      pending verdict
+    - CR-11: META-process correctly routed ask-without-act → codex T1 → Pattern B
+      HNF disposition (not silent-fallback)
+    - CR-12: upstream-install-priority preserved (Path A, no fallback to AMBER)
+    
+    ## Mia ladder
+    
+    n=920 → n=921 (+1 Pattern B HNF classification + EOF-first verdict-read
+    discipline verification per feedback_codex_t1_verdict_reading_discipline.md)
+    
+    ## Cite trail
+    
+    - Consult: .claude/state/codex_consult_w134_f7_install_plan.txt
+    - Codex OUT: .claude/state/codex_consult_w134_f7_install_plan_OUT.txt
+    - Pattern B: Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md
+    - FM-17.b: Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md
+    - FM-17.f: Z:/claude-sota-installed/docs/fm17f-deep-dive-2026-05-09.md
+    - Outcome A: Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md
+    - Sister precedents: MEMORY.md index entries for Wave 137 Fire 2 + Wave 138 Fire 1
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index bf30398..3dd8284 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -12789,4 +12789,99 @@ Confirmed presence in cardinal-rule cites OR marketplace install: owners include
+ - CR-11 META-process: this fire dogfoods cardinal-rule-11 — every batch probe + every row append + every coverage % update follows SOTA cite discipline + Pattern A apply discipline
+ - Mia ladder advance: n=130 (pre-fire) → n=853 (599 probe-verifications + 124 already-counted = capped at 853 for coverage purposes)
+ 
++## 2026-05-10 — Wave 134 Fire 7 install plan T1 — Pattern B HONEST-NON-FINDING (DEFERRED-PENDING-FIX)
++
++- **Section**: Section 14 + 14.5 (cite-import-AMBER install candidates queued from Fire 6 definitive-architecture)
++- **Pattern**: N/A — T1 cross-model consult, NOT install action (gate-satisfying step BEFORE any install)
++- **Command**:
++  ```
++  codex exec --ephemeral -p deep-review --skip-git-repo-check --color never
++    < .claude/state/codex_consult_w134_f7_install_plan.txt
++    > .claude/state/codex_consult_w134_f7_install_plan_OUT.txt 2>&1
++  ```
++  Background task `brv11ejq9` exit 0 in ~5s. Foreground+tee pattern per CR-3 Phase 1
++  bootstrap exception + `cross-model-consensus.md §Env-funneled subagent stand-in
++  disclosure mandate`.
++- **Consult prompt** (`Z:/claude-sota-installed/.claude/state/codex_consult_w134_f7_install_plan.txt`):
++  - 3 install candidates: spec-kit (Tier-1 method) + ccpm (Tier-2 PM) + planning-with-files
++    (Tier-2 PM minimalist) — all sourced from Fire 6 audit at commit `ac8ea8a`
++  - 3 options: A=atomic batch / B=sequential / C=document-only
++  - 3 audit dimensions: AXIS-1 cardinal-rule conformance / AXIS-2 integration risk /
++    AXIS-3 ordering atomic vs sequential
++  - 5 open questions on CR-9 applicability + ccpm 53d-push-gap + dual-PM redundancy +
++    skills/ integration mechanics + atomic-vs-sequential recommendation
++  - JSON-strict output schema requested
++- **Stdout/stderr summary**: 196-line OUT file. HEAD shows session metadata
++  (`session id: 019e1381-1427-76c3-8810-00e2a223d179`, `model: gpt-5.5`,
++  `sandbox: read-only`, `reasoning effort: xhigh`). Lines 12-196 are PROMPT ECHO
++  (entirely my own consult text re-printed). ZERO verdict / tool calls / model
++  reasoning emitted. Sister to Wave 137 Voice 2 + Wave 138 Voice 1 ECHO-ONLY pattern
++  per `fm17-subagent-fleet-depletion.md §FM-17.b` zero-investigation variant OR
++  `§FM-17.f` 1M-context-entitlement billing-class blocker.
++- **Smoke probe**: `wc -l <OUT>` → 196 lines; `grep -nE 'VERDICT:|APPROVE|NEEDS-REVISION|REJECT|confidence' <OUT>` → 0 hits in verdict-shape (only the prompt-echo matches of the JSON schema template). EOF-first per `feedback_codex_t1_verdict_reading_discipline.md` confirms ECHO-ONLY.
++- **Axis verdict**:
++  - axis-1 cardinal-rule conformance: **NEEDS-ATTENTION** — cannot verify without codex verdict
++  - axis-2 integration risk: **NEEDS-ATTENTION** — same
++  - axis-3 ordering: **NEEDS-ATTENTION** — same
++  - All axes blocked at codex level; orchestrator-side analysis insufficient per CR-3
++- **Probe DAG**:
++  - P1 LICENSE — N/A (no install action attempted)
++  - P2-P7 — N/A (gated behind T1 verdict that did not land)
++- **Pattern classification**: **Pattern B HONEST-NON-FINDING (zero-investigation variant)**
++  per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B`.
++  Same surface as Wave 137 Fire 2 Voice 2 codex-rescue + Wave 138 Fire 1 Voice 1 Path P
++  ECHO-ONLY pattern. Likely root: FM-17.b mid-exec class (codex CLI exits 0 without
++  invoking model) OR FM-17.f 1M-context-entitlement billing-class blocker (parent eee
++  session may have `[1m]` flag triggering pre-fire 0-token failure). Cannot diagnose
++  precise sub-class without `--json` stream + `turn.completed` event count per gstack
++  mitigation pattern at `codex-t1-fix-forward-pattern.md §Pattern-B mitigation patterns`.
++- **Disposition**: **DEFERRED-PENDING-FIX** per `closed-loop-recursive-narrowing.md §Outcome A`
++  ACCEPT-WITH-DOC path. Single-round Pattern B HNF — not round-5+ blocker — so terminal
++  disposition is "document HNF + defer install action to re-fire with mitigation".
++- **Manifest row updated**: no (no install state changed; only audit-trail appended)
++- **CR-3 cross-model gate**: **NOT SATISFIED** for F7 install plan. Per CR-9 install-risk
++  discipline + CR-3 Phase 1 bootstrap exception requirements: install action is GATED
++  on cross-model verdict. No install proceeds this fire.
++- **Forward fires queued**:
++  1. **W134-F7-retry** (when codex behavior recovers): same consult, fire wit
+
+[prompt truncated]

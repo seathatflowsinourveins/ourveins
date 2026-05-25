@@ -1,0 +1,79 @@
+You are GPT-5.5 reviewing the SYNTHESIS VERDICT of Wave 83 3-agent SOTA team. Pre-Pattern-A-apply gate per cardinal-rule-3 + standing directive "always using gpt5.5 fully e2e before commit".
+
+CONTEXT
+- Wave 83 dispatched 11:30 to deep-dive: routing strategy (Agent A), token-efficiency gaps (Agent B), account rotation strategies (Agent C)
+- All 3 agents returned. Mia pre-apply probes confirmed all load-bearing claims.
+- ADVERSARIAL DIVERGENCE between A and C — exactly the value of multi-agent fan-out
+
+3-AGENT NET VERDICTS
+
+Agent A (sota-researcher Sonnet stand-in, 28 tools 409s):
+- artifact: tmp/wave83-routing-priority-deepdive-agentA-2026-05-08.md
+- VERDICT: KEEP fill-first + session-affinity 1h UNCHANGED
+- Mia 5/5 PASS: selector.go:32-34 author comment "burns one account" verbatim ✓; selector.go:204-235 PRIORITY GATE getAvailableAuths ✓; selector.go:325-334 FillFirstSelector.Pick 9-line ✓; PatchAuthFileFields handler at internal/api/handlers/management/auth_files.go:1124-1125 (priority field listed) ✓; current config strategy="fill-first" ✓
+- Key claim: "CLIProxyAPI's fill-first + session-affinity is PURPOSE-BUILT for eee workload class — bursting through subscription rolling-window quotas while preserving cache locality. NONE of LiteLLM/Portkey/Helicone implement OAuth-quota-burning pattern."
+- 18/19 concentration = INTENDED cache-cost-min behavior per selector.go:32-34 author intent
+- STAND-IN-NOTICE present (cross-model gate at agent layer not satisfied)
+
+Agent B (codex-rescue BRIDGE-MODE real GPT-5.5, 20 tools 481s):
+- artifact: tmp/wave83-token-efficiency-gaps-agentB-2026-05-08.md
+- VERDICT: HONEST-NON-FINDING + 1 actionable (Anthropic Batch API)
+- §3 ABSENT highest-leverage: Anthropic Message Batches API (50% cost reduction non-realtime); SubagentStop transcript-mining hook (settings.json:218 empty)
+- §5 PRESCRIPTION: TIER-B STUDY-PILOT Anthropic Batch API (no migration needed); TIER-C REJECT full LiteLLM/Portkey migration
+
+Agent C (codex-rescue BRIDGE-MODE real GPT-5.5, 7 tools 423s; codex CLI thread):
+- artifact: tmp/wave83-account-rotation-deepdive-agentC-2026-05-08.md
+- VERDICT: SWITCH from fill-first to usage-based-routing-v2 (LiteLLM pattern) + add fleet circuit breaker
+- §5: 18/19 concentration is WRONG behavior for 3-6 agent parallel fan-out
+- KEY CONFLICT WITH A: Agent A says concentration is INTENDED cache-cost-min; Agent C says concentration is starvation-exposure
+
+ADVERSARIAL TENSION
+- Agent A architectural-fit-first: CLIProxyAPI fill-first is purpose-built for OAuT-subscription burning; LiteLLM has no OAuth-subscription model
+- Agent C workload-pattern-first: eee runs 3-6 parallel agents per CADP rule 2 → concentration risk dominates cache-cost benefit
+
+ORCHESTRATOR-SIDE MIA PROBES on Agent C:
+- C-claim-1 LiteLLM repo at Z:/repos/deps/litellm exists ✓ (ARCHITECTURE.md/CLAUDE.md present)
+- C-claim-2 CLIProxyAPI has NO native usage-based-routing strategy ✓ verified (config.example.yaml documents only round-robin + fill-first)
+- C-claim-3 Circuit breaker patterns exist in LiteLLM RedisCircuitBreaker @ litellm/caching/redis_cache.py:97-144 + Helicone blog ✓
+- IMPORTANT: switching to usage-based-routing-v2 requires LITELLM ADOPTION — major architectural migration. LiteLLM doesn't support OAuth-subscription model eee uses (per Agent A architectural-fit analysis)
+
+PROPOSED SYNTHESIS
+
+Routing strategy decision:
+- Agent A architectural-fit analysis is CORRECT: CLIProxyAPI fill-first is purpose-built for OAuth-subscription burning
+- Agent C workload-pattern concern is REAL: 18/19 concentration is starvation risk for parallel fan-out
+- BUT Agent C's prescription (switch to LiteLLM) loses OAuth-subscription model — architectural mismatch
+- RESOLUTION: KEEP CLIProxyAPI fill-first; MONITOR 18/19 concentration via cpa-usage-keeper SQLite telemetry; if pathological (e.g., tier-A hits rolling-cap >2×/day), DESIGN-NOVEL solution (CLIProxyAPI source patch OR eee-side usage-aware dispatcher) — NOT LiteLLM migration
+
+Ship candidates:
+- Ship 1F (Anthropic Batch API integration for non-realtime waves): TIER-B STUDY-PILOT — clear actionable, native Anthropic, 50% cost reduction. DEFER pending workload-mix decision (which agent dispatches are non-realtime?)
+- Ship 1G (SubagentStop transcript-mining hook for `agent_transcript_path` JSONL): Wave 79 P3 unmet axis closure candidate; settings.json:218 SubagentStop empty = real gap. DEFER for design.
+- Ship 1H (Fleet circuit-breaker eee-side wrapper): only if 18/19 starvation observed pathological. DEFER until cpa-usage-keeper telemetry surfaces signal.
+- LiteLLM full migration: REJECT (architectural mismatch with OAuth-subscription model)
+
+NO IMMEDIATE COMMIT this iteration. Wave 83 = HONEST-NON-FINDING for routing change + 3 future ship candidates DEFERRED + Wave 80/82 framing reinforced (fill-first is correct, intended cache-cost-min behavior under 94.3% cache-read regime).
+
+REVIEW AXES
+
+AXIS 1 — Synthesis correctness
+- Adversarial A vs C resolved correctly? (Architectural fit dominates workload pattern when migration cost is high)
+- Mia probe coverage 12/12 (5+5+2 — Agent C had only 3 claims to probe)?
+- Wave 80 P3 framing 4th-iteration corrections honest?
+
+AXIS 2 — No-commit decision
+- Is "no commit + 3 deferred candidates" correct disposition for Wave 83?
+- Should Ship 1F (Batch API) fire NOW since it's non-architectural + actionable?
+- Should Ship 1G (SubagentStop hook) be elevated since Wave 79 P3 unmet?
+
+AXIS 3 — Operator-facing honesty
+- Does the synthesis honestly answer "is now eee fully sota?" — given Wave 79+81+82 ships + Wave 80/82/83 framing corrections + Wave 83 HONEST-NON-FINDING on routing change?
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-3,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-NO-COMMIT" | "PROCEED-WITH-SHIP-1F-BATCH-API" | "PROCEED-WITH-SHIP-1G-TRANSCRIPT-HOOK" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

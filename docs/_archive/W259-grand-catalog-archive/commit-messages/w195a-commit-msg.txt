@@ -1,0 +1,26 @@
+fix(hooks): disable protect-mcp@0.1.0 broken hooks.json — W195a CLI signature mismatch
+
+UPSTREAM BUG in wshobson/agents/protect-mcp@0.1.0 plugin. Plugin's hooks/hooks.json invokes:
+  npx protect-mcp@0.5.5 evaluate ...
+  npx protect-mcp@0.5.5 sign ...
+
+Neither `evaluate` nor `sign` are valid subcommands in protect-mcp@0.5.5 CLI [VERIFIED 2026-05-14 via live `npx protect-mcp@0.5.5 --help` probe]. CLI v0.5.5 subcommand set: serve / init-hooks / quickstart / connect / init / demo / doctor / trace / status / digest / receipts / bundle / simulate / report. Unrecognized subcommand → falls back to default wrap-pattern `protect-mcp [options] <-> <command>` → throws `Missing "<->" separator before the command to wrap` on every PreToolUse + PostToolUse hook fire.
+
+User-visible: 4x non-blocking `[PROTECT_MCP] Error: Missing "<->" separator before the command to wrap.` errors during W194/W195 work.
+
+Compounding: settings.json:577 `protect-mcp@claude-code-workflows: false` does NOT prevent the plugin hooks.json from auto-loading. CC hook discovery scans cache + marketplace dirs regardless of `enabledPlugins` flag.
+
+Fix: rename both hooks.json files (suffix carries root-cause for audit):
+  .claude/plugins/cache/claude-code-workflows/protect-mcp/0.1.0/hooks/hooks.json
+  .claude/plugins/marketplaces/claude-code-workflows/plugins/protect-mcp/hooks/hooks.json
+  -> hooks.json.disabled-v0.5.5-cli-mismatch
+
+Verification: post-rename smoke probe Bash returned clean — no [PROTECT_MCP] error.
+
+Reversibility HIGH: rename back if user wants protect-mcp active, then `npx protect-mcp@0.5.5 init-hooks --dir .claude` regenerates matching v0.5.5 hooks.json per CCBP CR-6 official-native-channel.
+
+Files changed (tracked): docs/install-provenance.md only. Both renamed hooks.json live in gitignored .claude/plugins/ dirs.
+
+Cite: TIER-1-DIRECT Anthropic CC hooks docs + TIER-1-DIRECT live `npx --help` probe. effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8.
+
+Forward note: 6 other disabled plugins (clickhouse/outputai/qdrant-skills/cwc-makers/hookify/claude-mem) also have cached hooks.json — not firing visible errors so deferred to W196+ orphan-hook-hygiene audit.

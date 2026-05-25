@@ -1,0 +1,254 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit bca2d672813307c549dc46b70010da55245b9710
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+evals/deepeval/README.md     | 32 ++++++++++++++++++++------------
+ evals/deepeval/test_smoke.py | 18 +++++++++++++-----
+ 2 files changed, 33 insertions(+), 17 deletions(-)
+
+=== git show --format=fuller ===
+commit bca2d672813307c549dc46b70010da55245b9710
+Author:     42 <42@local>
+AuthorDate: Sun May 10 18:58:08 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 18:58:08 2026 -0400
+
+    fix(w134-f22-a): DeepEval LIVE-default INVERTED — token-safety fix per Fire 19 P1-2
+    
+    ⭐ Fire 22 Tier 1 Ship A: TOKEN-SAFETY fix shipped (30min, P1-2 from Fire 19
+    SOTA-WITH-GAPS audit). First Pattern A apply post-Fire-21 Ultimate Architecture Ecosystem
+    roadmap.
+    
+    ## Bug + fix
+    
+    ### Pre-fix (Wave 121 Ship 2 + Wave 119 Ship 5 scaffold)
+    
+    `evals/deepeval/test_smoke.py:32-35` had INVERTED cost-guard semantics:
+    
+    ```python
+    @pytest.mark.skipif(
+        os.environ.get("DEEPEVAL_SKIP_LIVE", "0") == "1",
+        reason="set DEEPEVAL_SKIP_LIVE=0 to run live LLM-as-judge eval against CPA",
+    )
+    ```
+    
+    Default `DEEPEVAL_SKIP_LIVE=0` (or unset) → `"0" == "1"` is False → DO NOT SKIP → LIVE RUNS.
+    Result: `pytest evals/deepeval/` BURNS Anthropic tokens via CPA `eee-fleet-key-eval` by
+    default. README at line 21 falsely claimed "skip live by default" but line 34 confirmed
+    LIVE was actually the default (internal inconsistency).
+    
+    Fire 19 GPT-5.5 cross-model audit (conf=0.88) identified this as P1-2 TOKEN-BURN RISK.
+    
+    ### Post-fix (W134-F22-A)
+    
+    ```python
+    @pytest.mark.skipif(
+        os.environ.get("DEEPEVAL_ENABLE_LIVE", "0") != "1",
+        reason="set DEEPEVAL_ENABLE_LIVE=1 to run live LLM-as-judge eval against CPA (spends Anthropic tokens via eee-fleet-key-eval). Token-safe default: SKIPPED.",
+    )
+    ```
+    
+    Default `DEEPEVAL_ENABLE_LIVE=0` (or unset) → `"0" != "1"` is True → SKIP → token-safe.
+    Opt-in `DEEPEVAL_ENABLE_LIVE=1` → `"1" != "1"` is False → DO NOT SKIP → live runs.
+    
+    ## Smoke probe verification
+    
+    ```
+    # Default (no env var):
+    $ python -m pytest evals/deepeval/test_smoke.py::test_answer_relevancy_round_trip -v -rs
+    SKIPPED [1] evals/deepeval/test_smoke.py:40: set DEEPEVAL_ENABLE_LIVE=1 to run...
+    ========= 1 skipped in 0.04s =========
+    
+    # Opt-in:
+    $ DEEPEVAL_ENABLE_LIVE=1 python -m pytest ...::test_answer_relevancy_round_trip --collect-only -v
+    <Function test_answer_relevancy_round_trip>
+    ========= 1 test collected in 0.03s =========
+    ```
+    
+    Both branches VERIFIED ✅.
+    
+    ## Files changed (2)
+    
+    - `evals/deepeval/test_smoke.py` — inverted skipif logic (lines 13-23 docstring + lines 40-42 decorator)
+    - `evals/deepeval/README.md` — updated Operator quickstart (lines 17-28) + Cost discipline
+      section (lines 30-43) with W134-F22-A history note
+    
+    ## Impact
+    
+    - **Token-safety**: accidental `pytest evals/` no longer burns Anthropic tokens
+    - **Operator discipline**: live eval requires explicit `DEEPEVAL_ENABLE_LIVE=1` opt-in per
+      session/run; README quickstart shows recommended unset pattern after run
+    - **README consistency**: internal contradiction (line 21 vs line 34 pre-fix) RESOLVED
+    
+    ## Wave 134 Fire 22 Tier 1 progress
+    
+    | # | Ship | Status | Effort |
+    |---|---|---|---|
+    | **A** | **DeepEval LIVE-default fix** | ✅ **THIS COMMIT** | 30min |
+    | B | evolve_pass_rate_gate.py install | PENDING | 120min |
+    | C | Codex verdict normalizer | PENDING | 60min |
+    
+    ## Cite trail
+    
+    - Fire 19 GPT-5.5 verdict identifying P1-2: `docs/sota-architecture-audit/fire-19-dim6-eval-gpt55/01-dim6-eval-gpt55-verdict.md`
+    - Fire 21 Ultimate Architecture roadmap Tier 1 priority: `docs/sota-architecture-audit/fire-21-ultimate-architecture-ecosystem/02-current-vs-ultimate-gap-matrix.md`
+    - DeepEval upstream: `https://github.com/confident-ai/deepeval` @ v4.0.0
+    - Cardinal-rule conformance: CR-9 install-risk (LOW; single-file edit; reversible)
+    - Cycle-300: ONE LOGICAL UNIT per fire (this commit = single Pattern A apply)
+    
+    ## Conformance
+    
+    - CR-1: cite trail to Fire 19 GPT-5.5 audit + Fire 21 roadmap
+    - CR-3: no codex T1 fire required for single-file token-safety fix (mechanical-mirror exception per
+      `codex-t1-fix-forward-pattern.md` — settled-upstream evidence from Fire 19 cross-model verdict)
+    - CR-5: AUDIT-only — no new install
+    - CR-8: ADAPTED-FROM-SOTA — Anthropic prompt-cache + cost discipline patterns
+    - CR-9: LOW risk (single-file edit + smoke probe verified both branches)
+    - CR-11: META-process — Fire 22 ships Fire 21 roadmap Tier 1 priority
+    
+    ## Mia ladder advance
+    
+    n=1442 → n=1448 (+6: pre/post diff captured / 2-file edit / smoke probe both branches verified / 4 cite-trail items / Wave 134 Fire 22 Tier 1 ship A close / token-burn risk closed)
+
+=== diff ===
+diff --git a/evals/deepeval/README.md b/evals/deepeval/README.md
+index 7ad7a43..8c99137 100644
+--- a/evals/deepeval/README.md
++++ b/evals/deepeval/README.md
+@@ -15,24 +15,32 @@ Wave 121 Ship 2 scaffold. Closes Wave 121 Ship 1 verdict ADOPT-NOW for DeepEval
+ ## Operator quickstart
+ 
+ ```powershell
+-# Cheap import-only smoke (zero LLM tokens)
+-Z:/venvs/claude/Scripts/python.exe -m pytest evals/deepeval/test_smoke.py::test_deepeval_import_smoke -v
+-
+-# Skip live LLM-as-judge eval by default (set env to opt out of live calls)
+-$env:DEEPEVAL_SKIP_LIVE = "1"
++# Token-safe default (zero LLM tokens — live test SKIPPED automatically per W134-F22-A fix):
+ Z:/venvs/claude/Scripts/python.exe -m pytest evals/deepeval/ -v
++# Runs only test_deepeval_import_smoke (cheap import check); live test is skipped.
+ 
+-# Full live eval (spends Anthropic tokens via CPA eee-fleet-key-eval stratified key)
+-$env:DEEPEVAL_SKIP_LIVE = "0"
++# Run cheap import-only smoke explicitly:
++Z:/venvs/claude/Scripts/python.exe -m pytest evals/deepeval/test_smoke.py::test_deepeval_import_smoke -v
++
++# OPT-IN to full live LLM-as-judge eval (spends Anthropic tokens via CPA eee-fleet-key-eval):
++$env:DEEPEVAL_ENABLE_LIVE = "1"
+ Z:/venvs/claude/Scripts/python.exe -m pytest evals/deepeval/ -v
++Remove-Item Env:DEEPEVAL_ENABLE_LIVE  # always unset after to avoid future-run token-burn
+ ```
+ 
+-## Cost discipline
++## Cost discipline (W134-F22-A token-safety fix; per kiss-dry-yagni Must-Never #4 + cardinal-rule-9)
++
++- DeepEval invokes an LLM-as-judge for metric scoring — every live test run spends real
++  Anthropic tokens via CPA `eee-fleet-key-eval` stratified API key
++- **Default behavior (token-safe)**: `pytest evals/deepeval/` SKIPS the live LLM-as-judge
++  test unless `DEEPEVAL_ENABLE_LIVE=1` is set explicitly. Accidental `pytest evals/` runs
++  do NOT burn tokens.
++- **Live eval opt-in**: explicit `$env:DEEPEVAL_ENABLE_LIVE = "1"` required per session/run
+ 
+-Per `kiss-dry-yagni.md` Must-Never #4 + cardinal-rule-9:
+-- DeepEval invokes an LLM-as-judge for metric scoring — every test run with `DEEPEVAL_SKIP_LIVE != "1"` spends real Anthropic tokens via CPA `eee-fleet-key-eval` stratified API key
+-- Default scaffold ships with the live test gated to `DEEPEVAL_SKIP_LIVE != "1"` so accidental `pytest evals/` doesn't burn tokens
+-- For genuine eval runs: opt in explicitly with `DEEPEVAL_SKIP_LIVE=0`
++**Pre-fix history**: prior scaffold (Wave 121 Ship 2 + Wave 119 Ship 5) used
++`DEEPEVAL_SKIP_LIVE` opt-out env var with LIVE-by-default behavior. Fire 19 GPT-5.5
++cross-model audit (conf=0.88) identified the inverted cost-guard as a TOKEN-BURN risk
++(P1-2). W134-F22-A inverts to `DEEPEVAL_ENABLE_LIVE` opt-in semantics.
+ 
+ ## Sister surfaces
+ 
+diff --git a/evals/deepeval/test_smoke.py b/evals/deepeval/test_smoke.py
+index 26e046d..18e44db 100644
+--- a/evals/deepeval/test_smoke.py
++++ b/evals/deepeval/test_smoke.py
+@@ -11,9 +11,17 @@ Operator quickstart:
+     Z:/venvs/claude/Scripts/python.exe -m pytest evals/deepeval/ -v
+ 
+ Cost discipline (per kiss-dry-yagni Must-Never #4 + cardinal-rule-9):
+-    DeepEval invokes an LLM-as-judge for metric scoring — ev
+
+[prompt truncated]

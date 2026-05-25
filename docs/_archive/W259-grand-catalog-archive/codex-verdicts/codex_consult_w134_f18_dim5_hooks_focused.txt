@@ -1,0 +1,69 @@
+You are GPT-5.5 with codex CLI. Audit 3 specific architectural claims about Dim 5 (Hooks) in eee runtime against SOTA references. Read files at file:line depth.
+
+## Subject (eee runtime state)
+Path: `Z:/claude-sota-installed/.claude/settings.json` (hooks configuration)
+Path: `Z:/claude-sota-installed/.claude/hooks/scripts/` (~25 Python hook scripts ~12k LOC total)
+
+## SOTA references
+- Anthropic CC official hooks: `https://code.claude.com/docs/en/hooks`
+- Layered-gates architecture: `Z:/claude-sota/.claude/rules/layered-gates-architecture.md` (5-layer model: PreToolUse observers / PreToolUse Bash(git commit) enforcer / PostToolUse audit-trail / Stop session-end / + Layer 0 worktree)
+- T1-T7 lifecycle: `Z:/claude-sota/.claude/rules/cross-model-consensus.md §T1-T7 touchpoint lifecycle`
+- Sibling claude-sota hooks: `Z:/claude-sota/.claude/hooks/scripts/`
+
+## Claim 1 — T1-T7 cross-model lifecycle fully wired in eee
+Per `cross-model-consensus.md §T1-T7 touchpoint lifecycle`, eee runtime should have these 7 codex T-touchpoint hooks wired:
+- T1: `codex_t1_consult_gate.py` (PreToolUse Edit/Write/MultiEdit) — pre-edit consult
+- T2: `codex_t2_pre_commit_gate.py` (PreToolUse Bash with `if: Bash(git commit *)`) — working-tree review
+- T3: `codex_postcommit_review.py` (PostToolUse Bash `if: Bash(git commit *)`) — postcommit audit
+- T4: `codex_prepush_review.py` (PostToolUse Bash `if: Bash(git push *)`) — post-push cumulative
+- T5: `codex_t5_plan_review_gate.py` (manual `/plan-codex-review`) — plan-stage
+- T6: `codex_stop_review_gate.py` (Stop) — session-end deep review
+- T7: `auto_proceed_gate.py` (Stop slot[0]) — ask-without-act regex gate
+
+Probe: read `Z:/claude-sota-installed/.claude/settings.json` hooks block + confirm each hook is REGISTERED with correct event + matcher.
+
+Output: VERIFIED-FULL if all 7 wired correctly, PARTIAL if some missing/misconfigured, REFUTED if multiple broken
+Cite specific JSON line:column for each touchpoint
+
+## Claim 2 — P0 SAFETY floor (safety_guard + agent_plan_readonly_bash_guard) wired
+Per `layered-gates-architecture.md §4.1` + `kiss-dry-yagni.md` Must-Never #4, eee runtime needs:
+- `safety_guard.py` (PreToolUse Bash) — catastrophic-pattern deny-list (rm -rf /, fork bombs, mkfs.*, dd /dev/sd*, fork-bomb)
+- `agent_plan_readonly_bash_guard.py` (PreToolUse Bash + Agent) — read-only-mode Bash restriction for plan-mode subagents
+
+Probe: confirm both hooks REGISTERED as PreToolUse Bash in settings.json + script files exist + recent edits
+
+Output: VERIFIED-WIRED if both registered, PARTIAL if one missing, REFUTED if both missing
+Cite specific evidence
+
+## Claim 3 — Hook count parity with sibling claude-sota
+Per `CR-9 install-risk discipline` cite-import-AMBER from sibling: eee runtime should have similar hook scripts to sibling claude-sota.
+
+Probe: count hook scripts in `Z:/claude-sota-installed/.claude/hooks/scripts/*.py` vs `Z:/claude-sota/.claude/hooks/scripts/*.py`
+
+Output: report both counts; flag delta if >30% (suggests sibling-bleed-defense issue OR missing cite-imports)
+
+## Output schema (JSON at EOF)
+Emit verbatim at EOF:
+VERDICT_JSON_AT_EOF:
+{
+  "claim_1_t1_t7_wired": {
+    "status": "VERIFIED-FULL|PARTIAL|REFUTED",
+    "t_touchpoints_wired": <int>,
+    "missing_or_broken": ["T?", "T?"],
+    "evidence_summary": "<1-line>"
+  },
+  "claim_2_safety_floor": {
+    "status": "VERIFIED-WIRED|PARTIAL|REFUTED",
+    "safety_guard_wired": <bool>,
+    "agent_plan_readonly_wired": <bool>,
+    "evidence_file_line": "<file>:<line>"
+  },
+  "claim_3_hook_count_parity": {
+    "eee_hook_count": <int>,
+    "sibling_hook_count": <int>,
+    "delta_pct": <float>,
+    "interpretation": "<1-line>"
+  },
+  "overall_dim5_verdict": "AT-SOTA|SOTA-WITH-GAPS|NEEDS-REVISION|MAJOR-GAP",
+  "confidence": 0.0-1.0
+}

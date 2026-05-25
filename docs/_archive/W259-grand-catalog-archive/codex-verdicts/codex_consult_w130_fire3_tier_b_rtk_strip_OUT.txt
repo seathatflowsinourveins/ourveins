@@ -1,0 +1,937 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+[1mworkdir:[0m Z:\claude-sota-installed
+[1mmodel:[0m gpt-5.5
+[1mprovider:[0m openai
+[1mapproval:[0m never
+[1msandbox:[0m read-only
+[1mreasoning effort:[0m xhigh
+[1mreasoning summaries:[0m detailed
+[1msession id:[0m 019e0ef2-8b73-7052-b4a7-3e93d6158bc2
+--------
+[36muser[0m
+# Tier-B fix: strip RTK wrapper in git_verb_matches segment check
+
+## Context (Phase 1+2 already done — Phase 3 hypothesis test)
+
+Wave 130 Fire 3 Ship H (sha 2b3ff4f) widened PostToolUse[0] `if:` matchers to leading-wildcard `Bash(*git ...)` patterns. Tier-A fix WORKED — JSONL row at 22:51:27Z confirms `main_entered` for cmd `rtk git -C ... add ... && rtk git -C ... commit -o ... -F ...`.
+
+But Tier-B internal `_is_commit_cmd` at codex_postcommit_review.py L222 → `_guard_base.git_verb_matches` REJECTED the cmd → `filter_rejected_not_commit` → no codex review fired.
+
+## Root cause (Tier-B)
+
+`Z:/claude-sota-installed/.claude/hooks/scripts/_guard_base.py:336-394` — `git_verb_matches`:
+
+```python
+def git_verb_matches(cmd: str, verb: str) -> bool:
+    import shlex
+    if not cmd or not isinstance(cmd, str):
+        return False
+    for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+        seg = seg.strip()
+        if not seg.startswith("git "):    # ← REJECTS "rtk git ..." segments
+            continue
+        try:
+            parts = shlex.split(seg, posix=True)
+        except ValueError:
+            parts = seg.split()
+        if not parts or parts[0] != "git":  # ← Defense-in-depth
+            continue
+        idx = 1
+        while idx < len(parts):
+            tok = parts[idx]
+            if tok in _GIT_FLAGS_VALUE:
+                idx += 2
+                continue
+            if tok in _GIT_FLAGS_NOVALUE:
+                idx += 1
+                continue
+            if tok.startswith("--") and "=" in tok:
+                idx += 1
+                continue
+            return tok == verb  # First non-flag token == verb
+    return False
+```
+
+For cmd `rtk git -C path add -- file && rtk git -C path commit -o file -F msg`:
+- Split on `&&` → 2 segments
+- Segment 1: `rtk git -C path add -- file` → `seg.startswith("git ")` is False → SKIP
+- Segment 2: `rtk git -C path commit -o file -F msg` → `seg.startswith("git ")` is False → SKIP
+- Returns False → `_is_commit_cmd` False → `filter_rejected_not_commit`
+
+## Proposed Tier-B fix
+
+Strip leading `rtk ` (RTK 0.39.0 PreToolUse:Bash auto-rewrite per Wave 118 Ship A2 commit `741d695`) before the `seg.startswith("git ")` check:
+
+```python
+RTK_PREFIX = "rtk "  # Wave 118 Ship A2 RTK auto-rewrite via CC hookSpecificOutput.updatedInput.command
+
+for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+    seg = seg.strip()
+    # Strip RTK wrapper (CC PreToolUse:Bash hook prepends "rtk " per
+    # `.claude/settings.json` PreToolUse[6][6] rtk.exe hook claude entry)
+    if seg.startswith(RTK_PREFIX):
+        seg = seg[len(RTK_PREFIX):].lstrip()
+    if not seg.startswith("git "):
+        continue
+    # ... rest unchanged
+```
+
+Edge cases:
+- `rtk git -C path commit ...` → strip → `git -C path commit ...` → matches → ✓
+- `git commit ...` (no rtk) → no strip → matches → ✓ (preserves existing behavior)
+- `rtk someothercmd ...` → strip → `someothercmd ...` → no `git ` prefix → SKIP → ✓
+- `rtkrtk git ...` (no space after first rtk) → no strip (doesn't start with `rtk `) → no `git ` prefix → SKIP → ✓
+- `rtk-foo` (rtk-hyphen-foo) → no strip → no `git ` prefix → SKIP → ✓
+
+## Question for codex T1
+
+**Verify the proposed Tier-B fix**:
+1. Is the strip-prefix approach safe? Are there edge cases that break the fix or introduce false positives?
+2. Should the fix instead be in `parts` walking (`if parts[0] == "rtk": parts = parts[1:]`) or in segment-prefix check (current proposal)?
+3. Should we strip OTHER known wrappers (e.g., `hub`, `gh`, `lab`) defensively, or scope tight to `rtk` only?
+4. Per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #6 + cardinal-rule-1: should this fix carry a per-line cite to RTK 0.39.0 source code? RTK is at `Z:/claude-sota-installed/.local/cargo/bin/rtk.exe` (binary; source at GitHub `rtk-ai/rtk`).
+
+## Output schema (JSON-strict)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.00,
+  "reasoning": "...",
+  "prescribed_edits": [{"file": "...", "diff_snippet": "..."}],
+  "smoke_probe_command": "...",
+  "expected_smoke_outcome": "..."
+}
+```
+
+## Severity
+
+P1 — closes Wave 130 Fire 3 Ship H residual gap. Without Tier-B fix, T3 cross-model gate remains silent for ALL commits going through CC's normal Bash dispatch (which prepends rtk via PreToolUse hook). Ship H alone fixed Tier-A but is operationally insufficient.
+
+## Time budget
+
+Per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` invariant #1 + FM-17.d defense: 90s default cap (this is a TIGHT well-scoped consult — no broad investigation needed).
+
+[2m**Considering inspection methods**
+
+I see I need to use shell commands and tools like `rg` to read from the local file mentioned. They also specified a time budget of 90 seconds, so I'll need to be efficient. A narrow inspection sounds like a plan, but they didn’t ask for any code changes. Maybe I can simply provide an answer while verifying edge cases in the local code by inspecting specific lines. Let's keep this focused![0m
+[35m[3mcodex[0m[0m
+I’ll do a narrow read of the hook helper and the relevant citation rule so the verdict is grounded in the current repo state, then return only the requested JSON.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/codex_postcommit_review.py | Select-Object -Skip 210 -First 35'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/_guard_base.py | Select-Object -Skip 320 -First 90'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Path Z:\\claude-sota\\.claude\\rules\\citation-discipline.md | Select-Object -Skip 0 -First 140"[0m in Z:\claude-sota-installed
+[32m succeeded in 567ms:[0m
+---
+name: citation-discipline
+description: Every new pattern MUST cite its source at file:line depth. Header-comment format, never-cite-readme rule, star-count anti-signal, decay-aware verify-before-trust, silent-fallback-is-violation. Cardinal-rule body for canonical.md Must Always #7 + CLAUDE.md cardinal #1.
+paths: [".claude/agents/**", ".claude/skills/**", ".claude/hooks/**", ".claude/commands/**", ".claude/rules/**", "docs/**", "reports/**"]
+---
+
+<!--
+Port-note (claude-sota /loop iter-#5 fire 2026-04-27; frontmatter moved to byte 0 in Bundle 5 fire 2026-04-30 per codex T1 Q3 verdict — paths preserved, byte-0 fix only): ported verbatim from
+Z:/claude/rules/citation-discipline.md HEAD (16 LOC, content-stable).
+Adaptations: (a) added frontmatter (parent has none — header was originally
+loose comment-block); (b) parent memory cite (`feedback_reference_first_hard_rule.md`)
+kept as PARENT-ATTRIBUTION since sss memory port pending (1/248 per Agent B audit);
+(c) parent project_gitnexus_full_audit_2026_04_18.md kept as parent-attribution.
+Closes cardinal-rule body gap: canonical.md Must Always #7 ("Cite file:line for
+every claim") + CLAUDE.md cardinal #1 ("Every architectural edit cites a SOTA
+primary source") both reference the discipline informally; this file ships the
+enforceable contract. Sister to evidence-policy.md (markers) — citation discipline
+is the cite-format contract, evidence policy is the marker-tagging contract.
+-->
+
+# Citation Discipline — Cross-Cutting Doctrine
+# Reference: Z:/repos/deps/autoresearch/.claude/skills/autoresearch/SKILL.md (verified 2026-04-18 in parent; deps-shared with sss)
+# Reference: Z:/claude/.claude/projects/Z--claude/memory/feedback_reference_first_hard_rule.md (parent hard rule, 2026-04-18 — PARENT-ATTRIBUTION; sss memory port pending)
+# Retracted: ARIS + QWED-AI + lean-ctx anti-pattern refs — none of those repos exist in Z:/repos/deps/
+
+## Rule: Every new pattern MUST cite its source at file:line depth
+
+1. **Header comment**: `# Reference: Z:/repos/deps/<repo>/<file>:<line>` or `# Reference: <official-docs-URL>`
+2. **Never cite READMEs alone** — cite the actual source code implementation
+3. **Star count does NOT indicate quality** — read the source, verify the claim
+4. **Verify before trust** — the cited file must still exist AND still say what you cite (labels decay)
+5. **Silent fallback = violation** — if expected output doesn't appear (e.g., `embeddings: 0` after `--embeddings`), that's a STOP, not a footnote (parent `feedback_reference_first_hard_rule.md` — PARENT-ATTRIBUTION pending sss memory port)
+6. **TIER-1-NAMED-AUTHOR-QUOTE class for inherited patterns** — when a SOTA pattern is derived from a named author's published work (book / peer-reviewed paper / conference talk), cite verbatim-quote + author-name + publication inline. The named-author cite is TIER-1 primary-source for the PATTERN (not the implementing repo); use alongside repo file:line cites for full provenance. Exemplar: `Z:/repos/deps/mattpocock/skills/README.md` (48,857★, MIT, [VERIFIED 2026-04-30 PM via curl raw GitHub]) quotes Pragmatic Programmer (Thomas & Hunt) for "rate of feedback is your speed limit" (failure-mode #3 framing), Domain-Driven-Design (Eric Evans) for ubiquitous-language pattern (#2 framing), and Extreme Programming Explained (Kent Beck) for "invest in design every day" (#4 framing). Per `.claude/projects/Z--claude-sota/memory/reference_mattpocock_skills_pattern_extract_2026_04_30.md` for the full mining trace + adoption-candidate ranking. **TIER-1-NAMED-AUTHOR-QUOTE PROVISIONAL-EXCEPTION** *(round-3 framing per T3 round-2 conf=0.88 ESCALATING finding on commit `d4df352`; supersedes round-1 "full cardinal-rule-1 satisfaction" framing — physical-only sources do NOT fully satisfy committed-tree inspectability)*: physical-only printed-book/journal/conference-publication primary anchor (ISBN + page + verbatim-quote) is a PROVISIONAL-EXCEPTION to cardinal-rule-1 (CLAUDE.md L7), NOT full satisfaction. Cite class downgraded to TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL with REQUIRED metadata: (a) ISBN/DOI + page + verbatim-quote inline; (b) verifier-identity disclosure (who-verified-when, e.g., `[VERIFIED 2026-05-04 by orchestrator against book Tip #15 verbatim text]`); (c) explicit `non-automatable: true` marker so review hooks know to defer to human sign-off; (d) **HARD-GATE ELIGIBILITY TEST** *(Round-3 amendment a per T3 R3 NEEDS-ATTENTION conf=0.82 same-class finding on commit `1b87a6e`; supersedes round-2 "MUST prefer" soft preference framing — preference is not gateable; eligibility is)*: PROVISIONAL admission is admissible ONLY when DOI landing page + accessible PDF / publisher excerpt / archived scan (license-permitting) was SEARCHED AND UNAVAILABLE. The commit body MUST document the search (which DOI/publisher/archive was queried + return shape — e.g., "searched ACM DOI 10.1145/<doi> 2026-05-05 — paywall-only, no excerpt found; searched Internet Archive — no scan; searched publisher excerpt page — none"). Mere preference is INSUFFICIENT — if any auditable surrogate exists (DOI/PDF/excerpt/scan), use it as the normative source instead of the physical-only book cite. e.g., ACM DOI `https://dl.acm.org/doi/10.1145/<doi>` for ACM papers IS auditable when paywall-free. Secondary aggregator URLs (Wikipedia, `https://pragprog.com/tips/`, `https://martinfowler.com/bliki/<topic>.html`, `c2.com/cgi/wiki`) are VERIFICATION PROXIES only — they help re-verify the primary quote without owning the book physically, but are NOT cited as normative source. **Independent named-reviewer sign-off mandate** *(Round-3 amendment b per T3 R3 NEEDS-ATTENTION conf=0.82 same-class finding on commit `1b87a6e`; supersedes round-2 "Lower-confidence reviewer-sign-off mandate" sole-orchestrator framing — sole-orchestrator verification is no longer admissible)*: rule edits citing TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL MUST cite a SECOND verifier-identity BEYOND the orchestrator who replayed the verbatim quote against the source — commit body MUST embed BOTH verifier-identity-1 (the orchestrator, e.g., `[VERIFIED 2026-05-05 by orchestrator against book Tip #15 verbatim text]`) AND verifier-identity-2 (the independent named reviewer, e.g., `[VERIFIED 2026-05-05 by <human-name> against same book + same page + same quote]`) with explicit `[VERIFIED yyyy-mm-dd by <name> against <source>]` markers for each. The 2-verifier requirement closes the "self-attestation only" gap that round-2 left open. **`non-automatable: true` operator-discipline mandate (manual-only; no hook enforcement YET)** *(Round-4 amendment per T3 round-4 NEEDS-ATTENTION conf=0.82 SAME-CLASS finding on commit `d07ac71`; supersedes Round-3 amendment c "BLOCKING in T3/T4/T6 verdict-shape" claim that was prose-only without hook implementation — codex GPT-5.5 BRIDGE-MODE caught the policy/enforcement drift: rule text claimed automated BLOCKING but no T3/T4/T6 hook, verdict parser, schema, or test changed. Per closed-loop-recursive-narrowing.md §Outcome A monotone-decline path, downgraded prose closes the drift while the enforcement-hook ship is queued separately)*: when a TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL cite is shipped, the operator MUST: (i) embed `non-automatable: true` marker inline; (ii) embed explicit "no automated enforcement, human gate only" disclosure in commit body acknowledging that automated re-verification is impossible AND naming both verifier-identities (per amendment b); (iii) accept residual provenance gap explicitly. The discipline is OPERATOR-MANUAL — NO T3/T4/T6 hook currently parses `non-automatable: true` as BLOCKING. Promotion to mechanical BLOCKING is FORWARD-REF for a separate enforcement-hook ship: `tools/non_automatable_blocking_audit.py` parsing committed rule edits + emitting BLOCKING status in T3/T4/T6 verdict-shape + regression tests at `tests/test_non_automatable_blocking_audit.py`. Do NOT claim BLOCKING semantic in commit bodies until that ship lands. Forward-only convention codified Wave 18 PSW arc — Bundle B Round-2 commit `d6acfb1`, Bundle B Round-3 commit `217430f`, karpathy 5-author commit `0fe6282`, citation-discipline Round-2 DEMOTE commit `1b87a6e`, citation-discipline Round-3 hard-gate commit `d07ac71`, this Round-4 prose-downgrade commit closes the architectural concern per `reference_wave18_psw_arc_close_4ship_2026_05_04.md` + Outcome A monotone-decline path per `closed-loop-recursive-narrowing.md` (R1 conf=0.86 → R2 conf=0.88 ESCALATING → R3 conf=0.82 DECLINING → R4 conf=0.82 SAME-CLASS DECLINING-STABLE; severity stable medium; severity-gate satisfied via concrete-verification mechanism per amendments a+b + prose-downgrade per amendment c; arc converging within Round 5 ceiling).
+
+7. **Anthropic-bundled-skill cites: cite the current slash command, not local folder names** — *(specialization of rule #4 for bundled-skill identifier divergence)* — Bundled skill identifiers can diverge across local folders, CCBP tables, changelogs, and official docs. Example: CCBP `changelog/best-practice/concepts/changelog.md:410 @ 76599cb` records a stale-name correction from `/fewer-permission-prompts` to `/less-permission-prompts`, while CCBP `best-practice/claude-skills.md:48 @ 76599cb` still lists the folder-style `fewer-permission-prompts`, AND the current official Commands page (`code.claude.com/docs/en/commands` line 90 [VERIFIED 2026-05-01 via codex T1 web-fetch]) shows `/fewer-permission-prompts` — so the three authoritative surfaces actively disagree. **Discipline**: when sss documents an Anthropic-bundled skill invocation, cite the current command from `code.claude.com/docs/en/commands` FIRST as the tie-breaker; use `code.claude.com/docs/en/skills` only for general skill mechanics; use CCBP tables/changelogs as secondary drift evidence when they conflict. Never treat `.claude/skills/<folder>` or plugin cache paths as proof of the user-visible slash command. Apply to: `CLAUDE.md`, `.claude/agents/*.md`, `.claude/commands/**`, `.claude/skills/**/SKILL.md`, `.claude/rules/**`, `docs/sota-grand-catalog/**`, active adoption/citation docs, and commit bodies citing skill invocations. n=1 per `codification-threshold.md`: observed live conflict across official Commands docs / official Skills docs / CCBP changelog / CCBP skills table / sss docs costs ~15 min to re-derive per stale cite, this rule is <200 LOC; re-evaluate at the next Anthropic bundled-skill rename or official/CCBP conflict.
+
+8. **Composed-claims discipline + mechanical source-class reduction lattice** — *(Wave 17 fire-31 v1 codification per codex T1 fire-28 conf=0.87; UPGRADED at fire-36 per codex T1 fire-33 NEEDS-REVISION on T2 b8fa7dd1 finding "weakest-source rule not computable" conf=0.72)* — When a single normative claim cites MULTIPLE source classes, the cite MUST declare:
+   - `constituents=[<class1@cite1>, <class2@cite2>, ...]` — explicit list of each constituent primitive at file:line + SHA OR official-docs URL
+   - `effective_tier=<class>` — the EFFECTIVE class of the composed claim, computed by the reduction lattice below
+
+   **Source-class precedence/order (lower wins; weakest dominates)**:
+   1. `UNKNOWN` (no cite at all) — always disqualifying; reject claim until cited
+   2. `TIER-3-LOCAL-COMPOSITION` (any local glue / sss-novel composition over TIER-1/TIER-2 substrates)
+   3. `TIER-3-LOCAL-OPERATOR-DERIVED` (sss dogfood, codex verdicts, incidents, operator decisions)
+   4. `TIER-3-LOCAL-CONFIG` (sss live config or script wiring)
+   5. `TIER-2` (user-curated/sibling docs, NOT upstream authority)
+   6. `TIER-1-COMPOSED` (ALL constituents TIER-1 with disclosed local glue) — still TIER-3-LOCAL-COMPOSITION as effective tier
+   7. `TIER-1-DIRECT` (upstream verbatim file:line + SHA OR official-docs URL with anchor)
+
+   **Reduction rule (mechanical)**: `effective_tier = MIN_PRECEDENCE(constituents)`. Concretely: if ANY constituent contains "TIER-3-LOCAL-*" OR the composition glue itself is local-codified (e.g., sss-novel composition pattern), the effective tier is `TIER-3-LOCAL-COMPOSITION` regardless of how many TIER-1 primitives are cited. EXCEPTION: if the composed claim is ONLY about an upstream primitive's EXISTENCE (e.g., "asyncRewake field exists" cited verbatim from Anthropic docs), it remains `TIER-1-DIRECT` because there's no local composition glue.
+
+   **Anti-promotion rule**: composition CANNOT promote a TIER-2/TIER-3 component into TIER-1. The cite class of the COMPOSED claim is determined by the MIN_PRECEDENCE constituent OR by the composition-glue class, whichever is weaker.
+
+   **Exemplar (computable)**: `.claude/rules/cross-model-consensus.md §Normative Authority Map` row "T1-T7 touchpoint lifecycle":
+   - `constituents=[TIER-1-DIRECT @ Anthropic-CC-hooks-docs-L1021-1023, TIER-2 @ CCBP-cross-model-workflow.md:1-48, TIER-3-LOCAL-COMPOSITION @ sss-novel T0+T7+profile-selection]`
+   - `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE = 2 due to sss-novel glue)
+   - Despite Anthropic CC + CCBP being upstream-authority for primitives, the composition itself is sss-local and EFFECTIVE class is TIER-3-LOCAL-COMPOSITION
+
+   Apply to: any rule body section in `.claude/rules/**` that mixes upstream + sister-rule + local-operator-codification claims. Sister: `cross-model-consensus.md §Normative Authority Map` (POINTS TO this rule, does NOT carry softer duplicate).
+
+## Anti-patterns (model-name gotchas)
+- "Plus" in model name does NOT mean quality (qwen3.5-plus = thinking model)
+- `@latest` on npm may hit Windows cleanup bug → install succeeds but arborist crashes on EPERM (parent `project_gitnexus_full_audit_2026_04_18.md` — PARENT-ATTRIBUTION); prefer `npm install -g` for CLI-bundled MCP servers
+
+## Related rules
+
+- `evidence-policy.md` — marker tagging (`[VERIFIED]/[INFERRED]/[UNKNOWN]/...`); orthogonal axis to cite-format contract
+- `port-note-discipline.md` §1 — line-number drift discipline; cite `file:line` will drift by N lines if parent ships a port-note header
+- `canonical.md` Must Always #7 — cardinal hard-rule statement; this file ships the enforceable body
+- `research-protocol.md` Gate 2/3 — INVESTIGATE + VERIFY both terminate with cited evidence; this rule defines the cite format the gates require
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[32m succeeded in 600ms:[0m
+def _parse_stdin() -> dict:
+    try:
+        return json.load(sys.stdin)
+    except Exception as exc:  # noqa: BLE001 — fail-open on malformed stdin
+        # AXIS-3-002 P1 (Agent B 2026-04-27): sub-classify silent fallback
+        # + emit JSONL telemetry before fail-open default. See
+        # _emit_silent_fallback docstring above for full rationale.
+        _emit_silent_fallback("silent_fallback_malformed_stdin", repr(exc))
+        return {}
+
+
+def _is_commit_cmd(cmd: str) -> bool:
+    """Match `git commit` including `git -C <path> commit` and `git -c key=val commit`.
+
+    Delegates to shared `_guard_base.git_verb_matches`. Agent A 2026-04-27 P1
+    finding: prior `parts[i]=="git" and parts[i+1]=="commit"` rejected `-C/-c`
+    forms because `parts[1]` was the flag, not the verb. n=6 git-dash-C class.
+    """
+    return git_verb_matches(cmd, "commit")
+
+
+def _capture_diff_context(sha: str, root: Path = _ROOT) -> str:
+    """Build a bounded diff context for the review prompt.
+
+    Cycle-438 hang-fix: Qwen3.6 context-derailment zone is 15-25K effective
+    tokens per CLAUDE.md:66 (T1-confirmed on our hardware). Passing the diff
+    via stdin pre-caps input instead of asking codex to run git+read files
+    (which fans out to unbounded tool calls on monorepo commits).
+
+    Layers: stat → commit metadata → diff body (capped at 8000 chars to
+    stay well below derailment zone even with Codex system overhead).
+
+    iter-50.10.fix2 Class 4: `root` parameter threads the actual repo root
+    (resolved via _resolve_target_root) so cross-project commits review the
+    correct repo, not parent CC's working scope.
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[32m succeeded in 619ms:[0m
+# the verb (commit/push/etc.) and may take a value. _git_verb_matches() walks
+# past them to find the actual verb token. Reference:
+# https://git-scm.com/docs/git/2.43#_options
+_GIT_FLAGS_VALUE = frozenset((
+    "-C", "-c", "--git-dir", "--work-tree", "--namespace",
+    "--super-prefix", "--config-env", "--exec-path", "--list-cmds",
+    "--literal-pathspecs", "--glob-pathspecs", "--noglob-pathspecs",
+))
+_GIT_FLAGS_NOVALUE = frozenset((
+    "--no-pager", "--paginate", "--bare", "--no-replace-objects",
+    "--icase-pathspecs", "--literal-pathspecs", "--help", "--html-path",
+    "--man-path", "--info-path", "--version", "-P", "-p",
+))
+
+
+def git_verb_matches(cmd: str, verb: str) -> bool:
+    """Return True iff `cmd` invokes `git <verb>` (commit, push, merge, etc.).
+
+    Closes Agent A P1 finding 2026-04-27 5-agent SOTA wave: the prior token-
+    adjacency check `parts[i]=="git" and parts[i+1]==verb` silently FAILS on
+    `git -C <path> <verb>` form (parts[1]=="-C", not the verb), defeating the
+    settings.json `Bash(git <verb> *) || Bash(git -C * <verb> *)` n=6 widening
+    that this hook chain depends on. Cross-project work and any tooling-emitted
+    `git -C` invocation silently bypassed T2/T3/T4 gates.
+
+    Handles all 4 canonical forms:
+      1. `git commit -m "msg"`                       → True (direct)
+      2. `git -C /path commit -m "msg"`              → True (skips -C VAL)
+      3. `cd /path && git commit -m "msg"`           → True (segment after &&)
+      4. `git -c user.name=x commit -m "msg"`        → True (skips -c KEY=VAL)
+
+    Algorithm:
+      1. Split on shell ops (&&, ||, ;) to handle compound chains
+      2. For each segment beginning with `git ` (with whitespace):
+         a. Tokenize via shlex.split when possible (falls back to str.split)
+         b. Skip leading `git` token
+         c. Walk tokens: if token is in _GIT_FLAGS_VALUE, skip 1 extra (the value);
+            if in _GIT_FLAGS_NOVALUE or starts with `--<flag>=` form, skip 1
+         d. First non-flag token == `verb` → True
+      3. Otherwise → False
+
+    Reference (LOCAL LESSON — TIER-3, not SOTA authority): feedback_git_dash_c_breaks_postcommit_matcher.md (n=5 prior)
+    Reference (LOCAL WIRE — TIER-3, not SOTA authority): settings.json `if: Bash(git commit *) || Bash(git -C * commit *)`
+        widening from commit `0b55bf8` (defeated without this helper)
+    """
+    import shlex
+    if not cmd or not isinstance(cmd, str):
+        return False
+    for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+        seg = seg.strip()
+        if not seg.startswith("git "):
+            continue
+        # Robust tokenization: shlex handles quoted args ("msg with spaces").
+        # Falls back to str.split on shlex parse error (rare; malformed quotes).
+        try:
+            parts = shlex.split(seg, posix=True)
+        except ValueError:
+            parts = seg.split()
+        if not parts or parts[0] != "git":
+            continue
+        idx = 1
+        while idx < len(parts):
+            tok = parts[idx]
+            if tok in _GIT_FLAGS_VALUE:
+                # `-C VAL` / `--git-dir VAL` form: skip flag + value
+                idx += 2
+                continue
+            if tok in _GIT_FLAGS_NOVALUE:
+                # `--no-pager` form: skip flag only
+                idx += 1
+                continue
+            if tok.startswith("--") and "=" in tok:
+                # `--flag=VAL` inline form: skip flag (value is in same token)
+                idx += 1
+                continue
+            if tok == verb:
+                return True
+            # First non-flag, non-verb token: not the right command
+            break
+    return False
+
+
+def run_guard_subprocess(
+    cmd: list[str], **kwargs: Any
+) -> subprocess.CompletedProcess[Any]:
+    """subprocess.run wrapper with Windows-windowless flags.
+
+    Closes the visible-conhost-spawn pattern (cycle-895; 33 unfixed guards
+    surfaced cycle-after-909) at the helper layer. On Windows: adds
+    CREATE_NO_WINDOW (0x08000000) creation flag + STARTUPINFO with
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[2m**Inspecting test processes**
+
+I'm seeing some weird outputs and an InvalidOperation error from the shell, possibly due to PowerShell's constrained language mode. This seems irrelevant, though; I definitely need to focus on confirming the proposed fix. Should I inspect existing tests to verify everything? It might make sense to search for `git_verb_matches` with some tests using `rg`. I should think deeply about how to approach this to ensure the user gets the right answer.[0m
+[35m[3mcodex[0m[0m
+The helper is exactly in the shape described: it filters by `seg.startswith("git ")` before tokenizing, so the RTK prefix never reaches the existing flag-walk logic. I’m checking existing test coverage now to make the prescribed edit fit the local test style.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "git_verb_matches|_is_commit_cmd|rtk git|filter_rejected_not_commit" -S .'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"git_verb_matches|_is_commit_cmd\" -S Z:\\claude-sota-installed Z:\\claude-sota -g \"*.py\""[0m in Z:\claude-sota-installed
+[32m succeeded in 422ms:[0m
+.\tools\eee.ps1:145:# Effect: when claude.exe spawns Bash, RTK can be invoked via `rtk git status` etc.
+.\docs\install-provenance.md:3162:**Recommendation**: DEFER RTK install indefinitely. Use rtk commands explicitly when token-savings needed (e.g., `rtk git status` instead of `git status`). Operator can choose Path A / B if/when explicit install desired.
+.\docs\install-provenance.md:9920:  {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecisionReason":"RTK auto-rewrite","updatedInput":{"command":"rtk git status"}}}
+.\docs\install-provenance.md:9924:- **CR-3 cross-model T1 e2e**: Pattern B HONEST-NON-FINDING per `codex-t1-fix-forward-pattern.md §Pattern B`. Foreground+tee codex `deep-review-exec` xhigh / sandbox=danger-full-access / 240s budget at PID 323836. 1876-line trace at `.claude/state/codex_consult_wave118_rtk_hook_wire_OUT.txt`. Codex deep-investigated all 3 audit axes — particularly AXIS 2 (Windows path resolution) where it surfaced the duplicate-install issue mid-investigation (concurrent with my Mia OVER #48 catch). 240s budget exhaust before structured VERDICT block. Trace evidence: codex verified hook returns correct JSON (`git status → rtk git status`), confirmed canonical .local/cargo/bin/rtk.exe is on PATH, surfaced the same path issue I caught.
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[2m2026-05-09T22:54:12.209187Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[31m exited 1 in 427ms:[0m
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[2m**Analyzing command outputs**
+
+I'm trying to figure out why the second regex returned no matches, possibly due to the path. I think I might need to break down the exact line numbers and possibly include a file or diff snippet for examination.
+
+Key points to consider: is the strip-prefix approach safe? It starts with "rtk " before `git ` and I wonder if the RTK auto-rewrite only affects segments that begin with "rtk." 
+
+There's also a potential edge case if the RTK wrapper has options before subcommands. I need to understand the rtk CLI better to clarify this.
+**Evaluating RTK handling**
+
+I'm considering how the RTK wrapper works in this runtime. If someone manually runs `rtk git commit-message`, it tokenizes after stripping and recognizes `commit-message` as the first non-flag token. However, I'm worried about the prefix check; it seems to be string-based and might strip `rtk ` incorrectly from segments like `"rtk "git" commit"`.
+
+I realize that using shlex could handle quotes better, but I’m curious if parsing first would be more robust. I think it’s probably best to avoid duplicate string logic for performance, especially with multiple spaces involved.
+**Considering whitespace handling**
+
+I’m looking at how the `startswith("rtk ")` function only checks for a single whitespace character after "rtk." This means that if the command has "rtk    git...", it would still match as true because the first four characters are "rtk ", leaving "   git" afterwards, which lstrip handles well. 
+
+But what about tabs? In that case, "rtk\tgit..." wouldn't match. I think using re.split for segments along with shlex could be a better approach to handle these variations effectively.[0m
+[35m[3mcodex[0m[0m
+There does not appear to be a dedicated test file for this helper in the local tree. For the smoke probe, I’ll prescribe an inline import check that exercises direct `git`, `git -C`, RTK-wrapped commit, and non-git RTK segments after the patch.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "rtk|hook claude|updatedInput|PreToolUse" .claude/settings.json docs/install-provenance.md tools/eee.ps1 -S'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/settings.json | Select-Object -Skip 0 -First 220'[0m in Z:\claude-sota-installed
+[32m succeeded in 381ms:[0m
+tools/eee.ps1:143:# Cite: TIER-1 https://github.com/rtk-ai/rtk @ commit 2fbc7514 v0.39.0 (Apache-2.0/MIT)
+tools/eee.ps1:145:# Effect: when claude.exe spawns Bash, RTK can be invoked via `rtk git status` etc.
+tools/eee.ps1:146:# To enable PreToolUse auto-rewriting, operator runs ONCE: rtk init -g (with this eee env active)
+tools/eee.ps1:148:$rtkBinDir = 'Z:\claude-sota-installed\.local\cargo\bin'
+tools/eee.ps1:149:if ((Test-Path $rtkBinDir) -and ($env:PATH -notlike "*$rtkBinDir*")) {
+tools/eee.ps1:150:    $env:PATH = "$rtkBinDir;$env:PATH"
+tools/eee.ps1:385:    'codex_t1_consult_gate.py',  # PreToolUse:Edit T1 (Agent W H1 design queued for fire 24)
+tools/eee.ps1:398:    $EEE_ADVISORY_WARNS += "settings.json:hooks is empty {} (cardinal-rule-3 cross-model gate substrate not wired; FORWARD-REF fire 24+ ships PreToolUse:Edit/Write/MultiEdit T1 wire per Agent W H1 §3)"
+.claude/settings.json:83:    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor MECHANICALLY ENFORCED via PreToolUse:Bash hook safety_guard.py at Block[6][0] (Wave 105 Ship 2N-batch3-A 2026-05-08 — 12-destructive-pattern auto-block: rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd); agent_plan_readonly_bash_guard.py is mechanically enforced at per-subagent frontmatter scope (architect/code-reviewer/debugger/verifier --policy readonly + gpt5-archaeologist/gpt5-reviewer --policy codex-readonly), NOT globally — codex T1 NEEDS-REVISION conf=0.96 caught that global wire would block normal operator Bash including git commit; cardinal-rule deny-class still applies.",
+.claude/settings.json:89:    "PreToolUse": [
+.claude/settings.json:200:            "command": "Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude",
+.claude/settings.json:269:    "_comment_wave124_a2_codex_mcp_healthcheck": "Wave 124-A2 cite-import 2026-05-09 — codex_mcp_healthcheck.py wired as PostToolUse hook entry (matcher Edit|Write|MultiEdit; async; 12s outer timeout per file's _OUTER_HOOK_TIMEOUT_SEC=12.0 constant; inner subprocess 8s with 2s headroom per E3). Filter: triggers ONLY on edits to effective Codex config.toml (CODEX_HOME OR HOME OR USERPROFILE/.codex/config.toml OR project-root/.codex/config.toml). Scans codex mcp list --json output for literal `${...}` template preservation (E2 broadened: env dict + env_vars list + bearer_token_env_var + env_http_headers). Closes codex T1 prior verdict A1 HIGH. Cite: TIER-1 OFFICIAL codex/codex-rs/core/config.schema.json:1036-1040 @ 993e3f40 + cli/src/mcp_cmd.rs:492-505 + Anthropic CC PostToolUse hookSpecificOutput contract @ https://code.claude.com/docs/en/hooks. Sibling SHA `35fec739`. Env knobs: CODEX_MCP_HEALTHCHECK_DISABLE=1 / CODEX_MCP_HEALTHCHECK_DRY_RUN=1 / CODEX_MCP_HEALTHCHECK_TIMEOUT_SEC. Wave 124-A2-FIX 2026-05-09: Mia OVER #61 catch — original Wave 124-A2 commit `9b239b9` placed entry under invalid hook event name 'PostToolUseEditFilter' (NOT in Anthropic CC valid events: PreToolUse / PostToolUse / PostToolUseFailure / Stop / SubagentStop / SessionStart / SessionEnd / UserPromptSubmit / PreCompact / Notification per https://code.claude.com/docs/en/hooks). Fix-forward: moved entry into PostToolUse array as sibling to existing Bash matcher entry per Anthropic CC valid event class.",
+.claude/settings.json:490:  "_comment_wave105_ship_a2": "Wave 105 fire 1 SHIP-A2 2026-05-08 — 7-plugin batch enable from claude-plugins-official Anthropic OFFICIAL marketplace per Wave 105 fire 1 Agent D APPROVE-LIST + Agent C RECOMMENDED-OPTION B convergence + SRA D1-D10 score 10/10 each (TIER-1-OFFICIAL maintainer + D1 license MIT/Apache-2.0 + D6 use-class plugin eee-compatible). Trimmed from Agent D Top-9 to 7 LOW-risk plugins: (1) code-review — multi-agent code review with confidence scoring; complementary to superpowers/skills/requesting-code-review and pr-review-toolkit (different scopes); (2) feature-dev — feature dev workflow with codebase exploration + architecture agents; pairs with superpowers/writing-plans; (3) code-simplifier — refactor agent for clarity/maintainability (KISS Must-Never #4 PASS — no duplicate of codex/superpowers); (4) commit-commands — git commit/push/PR commands (KISS PASS — superpowers/finishing-a-development-branch is workflow-style; commit-commands is command-class; complementary); (5) session-report — HTML session usage report aligned with Karpathy §5 compounding-surface discipline; (6) playground — interactive HTML playgrounds for visualizations; pairs with frontend-design; (7) mcp-server-dev — MCP server design skills aligned with cardinal-rule-11 META-process (KISS PASS — NO duplicate of plugin-dev). DEFERRED from Agent D Top-9: security-guidance (DEFERRED per Wave 104 _comment_wave104_ship2n_batch2 above — Mia caught hardcoded /tmp/security-warnings-log.txt cross-platform Windows-Git-Bash incompatibility + PreToolUse:Edit per-edit token cost needs CR-9 monitoring before re-evaluation; tracked at task #46 batch3-A queue) + typescript-lsp (DEFERRED — LSP daemon adds runtime daemon risk; defer until per-project use surfaces). All 7 plugins ship agents/commands/skills (no active plugin-level hooks or MCP server config) per marketplace.json plugin contents. CR-9 install-risk LOW (no @latest; marketplace HEAD pinned via .gcs-sha first-12 chars per Wave 82d convention; no sibling-bleed; reversible). Cross-model gate: Wave 105 fire 1 codex T1 e2e Pattern B HONEST-NON-FINDING (11491-line trace inspected SHIP-A2 plugin contents — session-report HTML / security-guidance hooks.json / plugin-dev testing-strategies — but JSON verdict not emitted before 180s budget exhaust); T2 commit-time hook codex_t2_pre_commit_gate.py fires on this commit per cross-model-consensus.md §The contract. Cite: marketplace.json#code-review#feature-dev#code-simplifier#commit-commands#session-report#playground#mcp-server-dev at Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json + Wave 105 fire 1 Agent D APPROVE-LIST verdict at tmp/wave105-agentD-skill-sota-audit-2026-05-08.md DIM 1 + Agent A REVISE-LIST at tmp/wave105-agentA-sota-architecture-audit-2026-05-08.md + Agent C RECOMMENDED-OPTION B at tmp/wave105-agentC-architect-install-plan-2026-05-08.md + Wave 105 synthesis tmp/wave105-synthesis-2026-05-08.md.",
+.claude/settings.json:492:  "_comment_wave104_ship2n_batch2": "Wave 104 Ship 2N-batch2 2026-05-08 — enable plugin-dev (Anthropic OFFICIAL Tier-0 plugin development toolkit) per Wave 104 SRA-driven re-audit B.4 INSTALL-CANDIDATE (TIER-1-OFFICIAL maintainer + D1+D2+D4+D6+D7 PASS via SRA D1-D10 convergence gate at .claude/rules/sota-research-architecture.md @ 3322b58). plugin-dev contains agents/ + commands/ + skills/ subdirs (no active plugin-level hooks or MCP server config) per verified cache at .claude/plugins/cache/claude-plugins-official/plugin-dev/76b35e91d1c9/ — LICENSE (Apache-2.0 11358B) + README.md (14590B) + agents/ + commands/ + skills/. CR-9 install-risk LOW (no active hooks/MCPs to add edit-path latency, no @latest, no sibling-bleed, marketplace-clone HEAD pinned at 76b35e91d1c9 .gcs-sha first-12). Wave 104 Agent SRA listed agent-sdk-dev as B.4 candidate but it was ALREADY enabled per Ship 2N-batch1 commit 1deb221 — this ship newly enables ONLY plugin-dev. security-guidance plugin DEFERRED to Ship 2N-batch3 — Mia caught hardcoded /tmp/security-warnings-log.txt path (cross-platform Windows-Git-Bash incompatibility) + PreToolUse:Edit fires on every edit (per-edit token cost needs CR-9 monitoring). Codex T1 verdict NEEDS-REVISION conf=0.88 5-prescription Pattern A applied: agents-only mischaracterization corrected to agents/commands/skills only. Cite: Wave 104 SRA re-audit verdict tmp/wave104-sra-driven-reaudit-2026-05-08.md REVISE-RE-AUDIT conf=0.84 + .claude/state/codex_consult_wave104_ship2n_batch2_OUT.txt NEEDS-REVISION conf=0.88.",
+docs/install-provenance.md:181:- **Section 7 expansion** per Agent D: rtk-ai/grit (AST-level merge-conflict elimination) + rtk-ai/icm (dual-model memory with potential L1+L3 supersession)
+docs/install-provenance.md:485:| O (architect) | 5-task wire-up design POST fires 12-14 | 29718 | CRITICAL REFRAMING: codex@1.0.4 plugin ships ONLY SessionStart/SessionEnd/Stop hooks; NOT PreToolUse:Edit T1 gate. Section 13 codex T1-T7 row needs Path B HNF reframe |
+docs/install-provenance.md:494:**Correction**: PARTIAL. Per Mia probe of `Z:/claude-sota-installed/.claude/settings.json` 2026-05-06, the `hooks{}` block remains EMPTY at fire 15. Plugin auto-load semantic per Agent O Task 1 finding means the codex-plugin-cc bundles its own `hooks/hooks.json` once `enabledPlugins.codex@openai-codex=true` activates, but Agent O Task 1 ALSO surfaced that the bundled hooks scope is **SessionStart/SessionEnd/Stop only**, NOT PreToolUse:Edit T1 gate. Smoke-probe of mechanical T1 enforcement (typed Edit on a design-surface file triggers codex consult) NOT YET RUN in main-session orchestrator context; until that probe lands, Tier 1a row 4 (T1 PreToolUse:Edit gate) is ARCHITECTURALLY SIBLING-NOVEL not upstream-installed.
+docs/install-provenance.md:502:**Net Phase 1 → Phase 2 trigger evaluation reset**: 2/6 predicates PASS (a + b only); 4 FAIL/PARTIAL (c, d, e all PARTIAL; f FALSE). Phase 2 transition NOT admissible. CR-3 Phase 1 bootstrap exception **REMAINS FULLY ACTIVE** (fire 14 framing "RETIRES PARTIALLY" is itself an OVER claim; the exception does not retire piecewise; either codex T1/T2 mechanical enforcement is end-to-end live or the orchestrator-side stand-in remains). Forward gate: until `codex exec` foreground+tee from main-session is mechanically wired into a PreToolUse:Edit consult path, T1 mandate is operator-discipline not mechanical.
+docs/install-provenance.md:528:**Rationale per Agent O Task 1 probe of plugin cache**: `Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json` declares hooks for `SessionStart` + `SessionEnd` + `Stop` events. PreToolUse:Edit T1 gate (CC primary cross-model consult lifecycle event) is NOT in the upstream codex plugin hook surface. Sibling `Z:/claude-sota/.claude/hooks/scripts/codex_t1_consult_gate.py` is sibling-novel; codified by sss to bridge codex-CLI invocation to PreToolUse:Edit lifecycle that upstream codex plugin does not own.
+docs/install-provenance.md:530:**Implication for cardinal-rule-12 architectural goal**: Section 13 codex T1-T7 row STAYS in cite-import-AMBER status pending sibling-novel codification work. The `codex-rescue` agent + Stop-hook auto-continue + SessionStart/SessionEnd lifecycle ARE upstream-installed (Path A); but the PreToolUse:Edit T1 gate is sibling-novel (Path B HNF). Architectural impact rating in fire 14 entry "8 of 11 rows have UPSTREAM SUBSTRATE" should be **7 of 11** post-correction.
+docs/install-provenance.md:559:| (c) Tier 1a (codex T1-T7 hooks) INSTALLED + smoke-probe PASS | PARTIAL | codex plugin ships SessionStart/SessionEnd/Stop only; PreToolUse:Edit T1 gate is sibling-novel; no main-session smoke-probe yet |
+docs/install-provenance.md:578:| Sibling cite-imports REMAINING-Path-B-HNF | 3 | 4 | + codex_t1_consult_gate.py (PreToolUse:Edit T1 sibling-novel per Agent O Task 1) |
+docs/install-provenance.md:588:- **Fire 19**: Section 13 codex T1-T7 sibling-novel codification work; `codex_t1_consult_gate.py` cite-import + smoke-probe `codex exec` foreground+tee from main-session against PreToolUse:Edit consult path; flips predicate (c) PARTIAL → TRUE if PASS.
+docs/install-provenance.md:646:- **Fire 19**: Section 13 codex T1-T7 sibling-novel codification; `codex_t1_consult_gate.py` cite-import + main-session foreground+tee `codex exec` smoke probe against PreToolUse:Edit consult path; flips predicate (c) PARTIAL → TRUE if PASS.
+docs/install-provenance.md:719:- **Fire 23**: T2/T3 cross-model gate dogfoot — first substantive design-surface edit (likely Agent V Hook H1 cite-import: `codex_t1_consult_gate.py` + `codex_gate.py` companion to `Z:/claude-sota-installed/.claude/hooks/scripts/` + settings.json:hooks{} PreToolUse:Edit/Write/MultiEdit wire). T2 review BEFORE commit + T3 PostToolUse hook auto-fires.
+docs/install-provenance.md:742:- **Cardinal-rule-12 upstream-install-priority**: Agent V design Mia-probed all 3 plugin hooks.json files to confirm sibling-novel scope is correctly bounded — only T1/T2/T3/T4/SubagentStop are sibling-novel (codex provides Stop; ECC provides massive PreToolUse + Stop set; superpowers provides SessionStart). 5+1 sibling-novel hooks identified vs 0 false-sibling-novel claims.
+docs/install-provenance.md:772:| 1 | P2-1 | L57 (Section 2 codex hooks) | PLANNED → **INSTALLED-PARTIAL** with explicit upstream-scope-limitation note (SessionStart/SessionEnd/Stop ONLY; T1 PreToolUse:Edit sibling-novel) |
+docs/install-provenance.md:794:| (c) Tier 1a (codex T1-T7 hooks) INSTALLED + smoke-probe PASS | PARTIAL | Section 2 L57 row now reflects INSTALLED-PARTIAL state explicitly per fire 19 P2-1 edit; T1 PreToolUse:Edit bridge still sibling-novel pending fire 19+ codification |
+docs/install-provenance.md:814:- **Fire 22**: Section 13 codex T1-T7 sibling-novel codification — `codex_t1_consult_gate.py` cite-import (Path B HNF) + main-session foreground+tee `codex exec` smoke probe against PreToolUse:Edit consult path; flips predicate (c) PARTIAL → TRUE if PASS.
+docs/install-provenance.md:825:- **Cardinal-rule-12 upstream-install-priority operational dogfood**: Section 3 marketplace reconciliation flipped 3 PLANNED → INSTALLED + 1 PLANNED → REDUNDANT (obra/superpowers REDUNDANT vs claude-plugins-official Anthropic-OFFICIAL bundle) — exemplifies cardinal-rule-12 cascade discipline. Section 13 codex T1-T7 row Path A → Path B HNF reframe surfaces honestly: when upstream parity is partial (codex plugin ships Session/Stop only, NOT PreToolUse:Edit), classification must reflect the partial coverage rather than over-claim Path A.
+docs/install-provenance.md:1033:  - `PreToolUse` `additionalContext` support (#20692) — already used by `codex_t1_consult_gate.py`
+docs/install-provenance.md:1065:  - **a9a19fbfef222df51** Native-install gap — 6 manifest drift rows; Phase-2-blocker rows: Tier 1a T1 PreToolUse:Edit bridge sibling-novel pending; Tier 1b sota-researcher subagent NOT installed; Tier 1c safety_guard.py + agent_plan_readonly_bash_guard pending; Section 5 quality gaps (typos, osv-scanner, vale, markdownlint-cli2, semgrep, trufflehog, Serena)
+docs/install-provenance.md:1094:  - `PreToolUse:*` → `kill-switch.sh` + `steer.sh` (operator-control floor)
+docs/install-provenance.md:1095:  - `PreToolUse:Read` → `track-read.sh` (DORMANT for install-only runtime; activate when feature-tracking workflows added)
+docs/install-provenance.md:1096:  - `PreToolUse:Write|Edit` → `verify-gate.sh` (DORMANT; same rationale)
+docs/install-provenance.md:1103:- **CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE (codex T1 PreToolUse:Edit gate WARN-only since this fork made no design-surface edits; only file copies + provenance append. Bootstrap-class artifact relocation under cardinal-rule-5 §"Bootstrap-only files" exemption.)
+docs/install-provenance.md:1349:- **CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE (Wave 9 was a fork-driven port, not codex-T1-bridged at PreToolUse:Edit; acceptable per CR-3 Phase 1 bootstrap exception + post-T5 fix-forward shape)
+docs/install-provenance.md:2265:**Trigger**: operator final-deep request — rtk-ai/rtk + token efficiency + real-time usage + reset times + cache rates + GPT-5.5 e2e validation
+docs/install-provenance.md:2272:- ⏳ **RTK** (`rtk-ai/rtk` v0.39.0 Apache-2.0/MIT) — cargo build in progress (rusqlite + ureq + url stack); will install at `Z:/claude-sota-installed/.local/cargo/bin/rtk.exe` for `rtk init -g` Claude Code PreToolUse hook (compresses bash output 60-90% before LLM context)
+docs/install-provenance.md:2310:- ``Z:\claude-sota-installed\.local\cargo\bin\rtk.exe`` (build in progress)
+docs/install-provenance.md:2410:- rtk v0.39.0 BUILT (Wave 82g background cargo install); verified rtk.exe --version = "rtk 0.39.0"; 6.76MB binary at .local/cargo/bin/rtk.exe
+docs/install-provenance.md:2421:- Manifest rows appended (Wave 82j Phase 3) for: 3 marketplaces + 3 SDKs + 3 ADOPT-NOWs (markitdown/trivy/cisco-ai-mcp-scanner) + 3 token-eff (rtk/openspec/ccusage) = 12 install rows
+docs/install-provenance.md:2432:- 3 token-efficiency primitives (rtk v0.39.0 BUILT / openspec v1.3.1 / ccusage v18.0.11 zero-install)
+docs/install-provenance.md:2478:- Native binaries at .local/cargo/bin/: rtk.exe v0.39.0
+docs/install-provenance.md:2622:- **Native binaries** at `.local/cargo/bin/`: rtk.exe v0.39.0
+docs/install-provenance.md:2708:TIER-B STUDY-PILOT: `BerriAI/litellm` (46k★) / `Portkey-AI/gateway` (11.6k★) / `zilliztech/GPTCache` (8k★) / `lm-sys/RouteLLM` (4.8k★)
+docs/install-provenance.md:2732:3. §2 stable_prefix_hash → hook-script gate at PreToolUse:Agent for child-prompt frozen-prefix verification
+docs/install-provenance.md:2866:- Prompt staged at .claude/state/codex_consult_wave82y_rtk_init.txt (1412 chars; 3 questions)
+docs/install-provenance.md:2868:- Codex was actively investigating: ran `rtk init --help`, listed Z:/claude-sota-installed/ contents, started reading upstream README
+docs/install-provenance.md:2918:3. **RTK has more flags than iter3a documented**: future T1 should reference `rtk init --help` flag surface, not just upstream README §B1 summary.
+docs/install-provenance.md:3118:- `rtk init --show` confirmed clean slate (no hook, no RTK.md, no @RTK.md ref)
+docs/install-provenance.md:3119:- `rtk gain --format json` baseline = 0 commands (clean baseline pre-install)
+docs/install-provenance.md:3120:- `rtk --help` revealed comprehensive command surface (50+ proxies: ls/tree/git/gh/aws/psql/cargo/npm/curl/etc.)
+docs/install-provenance.md:3124:- `rtk init -g --hook-only --no-patch` printed manual settings.json hook entry instructions only
+docs/install-provenance.md:3125:- `rtk init -g --no-patch` printed full instructions BUT created RTK.md AND modified ~/.claude/CLAUDE.md
+docs/install-provenance.md:3126:- `rtk init --no-patch` (project-local) actually CREATED side-effects despite `--no-patch` flag
+docs/install-provenance.md:3135:- `rtk init -g --uninstall` removed operator profile artifacts ✓
+docs/install-provenance.md:3138:- `rtk init --uninstall` (no -g) reported: "Uninstall only works with --global flag. For local projects, manually remove RTK from CLAUDE.md"
+docs/install-provenance.md:3139:- Manual removal via Python regex: removed L255-L391 block (137 LOC; opening marker `<!-- rtk-instructions v2 -->` to closing `<!-- /rtk-instructions -->`)
+docs/install-provenance.md:3140:- Verify: `grep "rtk\\b" CLAUDE.md` returns 0 hits post-rollback ✓
+docs/install-provenance.md:3156:- **Path A**: `rtk init -g --auto-patch` — global mode; sibling-bleed (CR-9 violation); auto-rewrite hook on Unix shells only
+docs/install-provenance.md:3157:- **Path B**: `rtk init` (project-local) — forces full ~140 LOC CLAUDE.md injection; no auto-rewrite hook
+docs/install-provenance.md:3158:- **Path C**: NO install — agents invoke `rtk <cmd>` explicitly when wanted (zero install footprint)
+docs/install-provenance.md:3162:**Recommendation**: DEFER RTK install indefinitely. Use rtk commands explicitly when token-savings needed (e.g., `rtk git status` instead of `git status`). Operator can choose Path A / B if/when explicit install desired.
+docs/install-provenance.md:3172:- RTK: BUILT at .local/cargo/bin/rtk.exe (v0.39.0) + CLEAN-SLATE state (no init artifacts on disk anywhere)
+docs/install-provenance.md:3392:1. context-mode full Claude Code plugin/hooks (MCP-only currently; documented 98% savings claim depends on PreToolUse/PostToolUse/PreCompact/UserPromptSubmit/SessionStart wires per upstream `hooks/hooks.json:2-3,26-121`)
+docs/install-provenance.md:3536:Wave 86 dispatched 3-agent SOTA deep-dive: Agent A-redo (codex-rescue BRIDGE-MODE → real GPT-5.5; SOTA repos audit on token efficiency + arch optim + rtk-ai/rtk + account rotation), Agent B (codex-rescue BRIDGE-MODE → real GPT-5.5; CLIProxyAPI v6.10.9 8-account config deep-dive), Agent C (codex-rescue BRIDGE-MODE → real GPT-5.5; account fleet snapshot + log analysis).
+docs/install-provenance.md:3539:- Agent A-redo: codex-rescue BRIDGE-MODE → real GPT-5.5 (Top-7 SOTA repos ranked, rtk-ai/rtk harness-fit verdict)
+docs/install-provenance.md:3559:1. **rtk-ai/rtk** @ HEAD `80a6fe606f73b19e52b0b330d242e62a6c07be42` (Mia VERIFIED via `git -C Z:/repos/deps/rtk-ai__rtk rev-parse HEAD`) — shell-output compaction proxy (60-90% reduction); WSL auto-rewrite, native PowerShell explicit wrappers only; harness-fit P4 PASS WSL / PARTIAL Windows
+docs/install-provenance.md:3564:6. **Portkey Gateway** @ HEAD `351692fd9236` — second gateway reference (1600+ models, retry/fallback boundaries, virtual-key management); P4 PARTIAL as REFERENCE
+docs/install-provenance.md:3569:- 1S rtk canary on WSL (60-90% shell-output token reduction; partial Windows requires explicit wrappers)
+docs/install-provenance.md:3602:| 1S | rtk canary on WSL — partial Windows compat documented | install-class (WSL prereq) | MEDIUM |
+docs/install-provenance.md:3608:- LiteLLM/Portkey full gateway swap — high install-risk per CR-9; reference-only consumption acceptable
+docs/install-provenance.md:3616:5. rtk-ai/rtk source SHA `80a6fe606f73b19e52b0b330d242e62a6c07be42` confirmed via `git -C Z:/repos/deps/rtk-ai__rtk rev-parse HEAD`
+docs/install-provenance.md:3624:- TIER-1: `Z:/repos/deps/rtk-ai__rtk/README.md:6,38-56,103-120,316-393 @ HEAD 80a6fe606f73` (rtk shell-output compaction, Quick Start, hook rewrite, Windows limitation, failure tee)
+docs/install-provenance.md:3761:| 1S | rtk-ai/rtk canary on WSL | MEDIUM | Wave 86 |
+docs/install-provenance.md:3773:- ❌ Shell-output compaction (rtk-ai/rtk)
+docs/install-provenance.md:3997:| 1S | P2 | rtk-ai/rtk WSL canary | MEDIUM |
+docs/install-provenance.md:4007:| (LiteLLM/Portkey/Restate) | REFERENCE-ONLY | Architectural references (NOT replacement) | n/a |
+docs/install-provenance.md:4675:- `PreToolUse:Bash` hook fired with `<context_guidance>` suggesting ctx_execute for command output (98% reduction mechanism ACTIVATED)
+docs/install-provenance.md:4676:- `PreToolUse:Read` hook fired with `<context_guidance>` distinguishing Read-to-Edit (correct usage) vs Read-to-analyze (use ctx_execute_file)
+docs/install-provenance.md:4702:- **TIER-1**: `Z:/repos/deps/context-mode/hooks/hooks.json @ HEAD e40102e5` (PreToolUse + PostToolUse + PreCompact + SessionStart hooks registered)
+docs/install-provenance.md:4719:- Plugin's PreToolUse hook fires `<context_guidance>` system-reminder messages on Bash/Read tool calls (visible in conversation)
+docs/install-provenance.md:4725:- Phase 3 (deferred): wire `ctx_execute` adoption into eee operator workflow (replace direct Bash calls with `ctx_execute` shell mode for output-heavy commands per plugin's PreToolUse:Bash hook guidance)
+docs/install-provenance.md:4731:3. **Plugin hooks operational**: VERIFIED via PreToolUse hook context_guidance firing live during Wave 95 commands
+docs/install-provenance.md:5106:✅ **INCREMENTAL**: Phase 1 = binary install (this ship); Phase 2 (deferred) = wire as PreToolUse `Bash(git commit *)` hook for automatic enforcement; Phase 3 (deferred) = `.gitleaks.toml` config to suppress curl-auth-header rule false-positives in docs
+docs/install-provenance.md:5164:- Ship 1C (Phase 2): wire gitleaks as PreToolUse `Bash(git commit *)` hook for automatic CR-1 enforcement
+docs/install-provenance.md:5290:## 2026-05-08 Wave 97 — Ship 1C+1D bundle: gitleaks Phase 2 (PreToolUse hook wire + .gitleaks.toml config)
+docs/install-provenance.md:5303:| **2 (enforcement wire)** | **97-1C+1D** | **THIS** | **PreToolUse hook + .gitleaks.toml allowlist config** |
+docs/install-provenance.md:5322:| F2 | Need `hookSpecificOutput.hookEventName="PreToolUse"` shape; parse stdout EVEN ON exit 1 | `_emit_allow / _emit_deny` use canonical CC contract; stdout parsed regardless of returncode (gitleaks exits 1 on findings) |
+docs/install-provenance.md:5350:3. Existing PreToolUse:Bash hooks → 1 codex_t2 block found; sister-mirror pattern applied (NOT duplicate)
+docs/install-provenance.md:5401:- **CR-7**: Phase 1 graduated-unleash; secrets-block hook does NOT change permission scope structurally (extends existing PreToolUse:Bash gate)
+docs/install-provenance.md:5411:| Secret-scan capability | manual `gitleaks` operator-invoke | automatic PreToolUse hook on every `git commit` |
+docs/install-provenance.md:5433:| **97-1C+1D** | **THIS** | **1C+1D — gitleaks PreToolUse hook wire + .gitleaks.toml config** |
+docs/install-provenance.md:5442:- Anthropic CC PreToolUse hookSpecificOutput contract changes
+docs/install-provenance.md:5595:| 97-1C+1D | `0110a9f` | 1C+1D — gitleaks PreToolUse hook + .gitleaks.toml |
+docs/install-provenance.md:5691:| 97-1C+1D | `0110a9f` | 1C+1D — gitleaks PreToolUse hook + .gitleaks.toml |
+docs/install-provenance.md:6438:- **Ship 2D**: rtk PreToolUse Bash-rewrite hook wire (binary already at `.local/cargo/bin/rtk`; sibling Phase 1 wrapper at `Z:/claude-sota/scripts/rtk_filter.py` cite-import-AMBER candidate). 60-90% measured Bash savings.
+docs/install-provenance.md:6618:- **Ship 2D**: rtk PreToolUse Bash-rewrite hook wire
+docs/install-provenance.md:6791:- 2D rtk hook · 2E headroom · 2F max_budget_usd · 2G priority-equalize (operator) · 2I Codex Pro alarm · 2J claude-context · 2K fork-vs-fresh routing
+docs/install-provenance.md:7307:- Wired in PreToolUse Bash hook per Wave 97 Ship 1B+1C+1D
+docs/install-provenance.md:7611:| P2 | Keep security-guidance DEFERRED — `/tmp/security-warnings-log.txt`, `python3`, PreToolUse on `Edit\|Write\|MultiEdit` concerns are real | REAFFIRMED |
+docs/install-provenance.md:7618:- No active hooks/MCPs adding edit-path latency (plugin-dev does not register PreToolUse / PostToolUse / Stop hooks)
+docs/install-provenance.md:7642:3. `security-guidance` — DEFERRED to Ship 2N-batch3 per Mia OVER catch (cross-platform `/tmp/security-warnings-log.txt` Linux path + PreToolUse:Edit per-edit token cost)
+docs/install-provenance.md:7771:- security-guidance hooks.json (PreToolUse hook validation)
+docs/install-provenance.md:7781:T2 commit-time hook (`codex_t2_pre_commit_gate.py:424`) fires on `Bash(git commit *)` PreToolUse with sync STRICT FAIL_CLOSED semantics. Verdict file written to `.claude/state/codex_review_HEAD_<sha8>.txt`.
+docs/install-provenance.md:7797:- Ship 2N-batch3-A: wire safety_guard.py + agent_plan_readonly_bash_guard.py PreToolUse hooks (P0 SAFETY)
+docs/install-provenance.md:7799:- Ship 2N-batch3-C: wire missing context-mode hooks (PreToolUse + PostToolUse + PreCompact) (P0)
+docs/install-provenance.md:7817:## 2026-05-08 Wave 105 — Ship 2N-batch3-A: wire safety_guard.py PreToolUse:Bash hook (P0 SAFETY mechanical enforcement)
+docs/install-provenance.md:7821:Wave 105 Agent C (`adea003df2f012855`) feature-coverage audit P0-5 finding + Mia probe verified: settings.json L74 `_comment_allow` mentioned `safety_guard.py + agent_plan_readonly_bash_guard.py` as "safety floor preserved" but ZERO PreToolUse hook entries registered them as enforcing. Current `defaultMode: "bypassPermissions"` (per Wave 82d operator override during Anthropic-side classifier outage) lacked mechanical safety-floor enforcement.
+docs/install-provenance.md:7839:Mia probe verified codex's claim by `Grep` against `.claude/agents/`: the script IS already correctly wired in 6 subagent frontmatter PreToolUse hooks:
+docs/install-provenance.md:7852:| P2 | Do NOT add agent_plan_readonly_bash_guard.py to global PreToolUse:Bash; keep per-subagent frontmatter wiring | **APPLIED** (removed from this ship's scope) |
+docs/install-provenance.md:7897:- Touches PreToolUse hook chain — adds 1 hook at fail-fast position
+docs/install-provenance.md:7912:| CR-9 (install-risk) | ✅ | LOW-MEDIUM (PreToolUse chain change; reversible); 2-round fix-forward MET first round |
+docs/install-provenance.md:7928:# f30ba94511514acdad0100c2bf8fd152fdc5552b feat(hooks): Wave 105 Ship 2N-batch3-A — wire safety_guard.py PreToolUse:Bash hook (P0 SAFETY mechanical enforcement)
+docs/install-provenance.md:7930:python -c "import json; s=json.load(open('.claude/settings.json')); b6=s['hooks']['PreToolUse'][6]; print([h.get('command','').split('/')[-1] for h in b6['hooks']])"
+docs/install-provenance.md:7945:- **Ship 2N-batch3-C** (P0 HOOKS): wire missing context-mode hooks (PreToolUse + PostToolUse + PreCompact)
+docs/install-provenance.md:7949:- **Ship 2A-pilot**: rtk vs snip Bash-output-filter pilot (operator decision: WSL trade-off)
+docs/install-provenance.md:7972:- `security-guidance` — already DEFERRED per Wave 104 `_comment_wave104_ship2n_batch2`: hardcoded `/tmp/security-warnings-log.txt` cross-platform Windows-Git-Bash incompatibility + PreToolUse:Edit per-edit token cost. Tracked at task #46 batch3-A queue.
+docs/install-provenance.md:8216:T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net for bootstrap commits per `cross-model-consensus.md §The contract`. Same disposition pattern as:
+docs/install-provenance.md:8286:- Ship 2A-pilot: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:8359:- Ship 2A-pilot: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:8435:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision; DEFERRED — cache 99.7% saturated; WSL violates Bootstrap-only files; no current bottleneck)
+docs/install-provenance.md:8555:- Ship 2A-pilot: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:8641:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:8718:- 🚧 Ship 2A-pilot rtk vs snip: operator decision DEFERRED
+docs/install-provenance.md:8745:**CR-3 Phase 1 bootstrap exception**: codex T1 gate WARN fired 4x during Edit (`codex_consult_<topic>_OUT.txt` missing for fm17e_n4_promotion topic). Per `Z:/claude-sota-installed/.claude/rules/codex-t1-system-meta-review-fallback.md` n=7 evidence: SYSTEM-meta-review fallback applies — Wave 112 Ship A1 commit `f29c973` body classified this codification verbatim ("FM-17.e cumulative n=4 same-arc 2026-05-09 — DEFINITIVELY past cycle-322 n=3 promotion threshold. Catalog→OWNED rule promotion queued."). T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net per cardinal-rule-3 Phase 1 bootstrap exception. Same disposition pattern as Wave 109 closure + Wave 112 Ship A1 + Wave 112 Ship 2AA.
+docs/install-provenance.md:8768:- 🚧 Ship 2A-pilot rtk vs snip (operator decision)
+docs/install-provenance.md:8827:Both Ship 2BB (Scrapling REJECT) and Ship F-router-update (catalog FM-17 row) are doc-only per `Z:/claude-sota/.claude/rules/research-protocol.md` — no install-class artifact. T1 codex consult was DEFERRED for both (Ship 2BB used sota-researcher Sonnet agent dispatch; Ship F-router was direct Edit). T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net per cardinal-rule-3 Phase 1 bootstrap exception. Same disposition pattern as Wave 109 closure + Wave 112 Ship A1 + Ship 2AA + Ship F.
+docs/install-provenance.md:8862:- 🚧 Ship 2A-pilot rtk vs snip: operator decision DEFERRED
+docs/install-provenance.md:8969:- 🚧 Ship 2A-pilot rtk vs snip (operator decision)
+docs/install-provenance.md:8996:| `settings.json:117-125` PreToolUse:Agent matcher exists | ✅ confirmed (`agent_spawn_gate.py`) |
+docs/install-provenance.md:9073:- **Wave 115** candidate: Ship 2N-batch3-MEM-E PreToolUse:Agent spawn-time hook (subagent context enrichment via `additionalContext` JSON field)
+docs/install-provenance.md:9074:- **Wave 115+** candidate: Ship 2N-batch3-MEM-MISTAKE — wire `mistake_note_search` on PreToolUse:Agent (pre-task pitfall check) + `mistake_note_add` on Stop (FM-class recovery capture)
+docs/install-provenance.md:9099:- **Ship 2N-batch3-MEM-E**: PreToolUse:Agent spawn-time hook (Wave 115 candidate)
+docs/install-provenance.md:9105:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:9204:- **Ship 2N-batch3-MEM-E**: PreToolUse:Agent spawn-time hook (Wave 116+ candidate)
+docs/install-provenance.md:9209:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:9316:- 🚧 Ship 2A-pilot rtk vs snip (operator decision)
+docs/install-provenance.md:9410:- **Wave 117+ candidate**: Ship 2N-batch3-MEM-E — PreToolUse:Agent spawn-time hook (subagent context enrichment via `additionalContext` JSON field)
+docs/install-provenance.md:9415:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:9492:- 🚧 Ship 2A-pilot rtk vs snip (operator decision)
+docs/install-provenance.md:9571:- **Wave 118 candidate**: Skill `mistake-aware` description-triggered BEFORE Agent dispatch (PreToolUse:Agent context: search mistakes matching subagent prompt + inject as additionalContext)
+docs/install-provenance.md:9572:- **Wave 119+ candidate**: Ship 2N-batch3-MEM-E PreToolUse:Agent spawn-time hook (subagent context enrichment via additionalContext)
+docs/install-provenance.md:9577:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:9668:- 🚧 Ship 2A-pilot rtk vs snip (operator decision)
+docs/install-provenance.md:9747:- **Wave 118 candidate**: Skill `mistake-aware` description-triggered BEFORE Agent dispatch (PreToolUse:Agent context: search mistakes matching subagent prompt + inject as `additionalContext`)
+docs/install-provenance.md:9748:- **Wave 119+ candidate**: PreToolUse:Agent spawn-time hook for memory_search auto-RECALL on subagent context enrichment
+docs/install-provenance.md:9754:- **Ship 2A-pilot**: rtk vs snip pilot (operator decision)
+docs/install-provenance.md:9844:- 🚧 Ship 2A-pilot rtk vs snip (operator decision)
+docs/install-provenance.md:9902:## 2026-05-09T09:30Z — Wave 118 Ship A2: RTK 0.39.0 PreToolUse:Bash auto-rewrite hook
+docs/install-provenance.md:9904:- **Section**: §3 plugins / §13 hooks (NEW PRIMITIVE in PreToolUse:Bash chain)
+docs/install-provenance.md:9905:- **Pattern**: cardinal-rule-6 official native channel — pre-built Windows binary from rtk-ai/rtk official GitHub releases page
+docs/install-provenance.md:9908:  curl -L -o tmp/rtk-windows.zip https://github.com/rtk-ai/rtk/releases/latest/download/rtk-x86_64-pc-windows-msvc.zip
+docs/install-provenance.md:9909:  unzip rtk-windows.zip → rtk-extracted/rtk.exe
+docs/install-provenance.md:9910:  cp tmp/rtk-extracted/rtk.exe .local/bin/rtk.exe   # ⚠ DUPLICATE — Mia OVER #48 caught
+docs/install-provenance.md:9911:  rm -f .local/bin/rtk.exe                            # cleanup duplicate
+docs/install-provenance.md:9912:  # Canonical install at .local/cargo/bin/rtk.exe (cargo install --git, dated 2026-05-08 02:21) preserved
+docs/install-provenance.md:9913:  Edit .claude/settings.json: PreToolUse Bash 6 → 7 entries (RTK appended)
+docs/install-provenance.md:9915:- **Upstream HEAD/version**: rtk-ai/rtk @ release **0.39.0** (LATEST as of 2026-05-09; README cited v0.37.2 stale per cardinal-rule-6 freshness probe). Apache-2.0. Single Rust binary (8.7MB Windows).
+docs/install-provenance.md:9916:- **Mia OVER catch #48 (alternate-install-path probe per Wave 112 Ship Mia-fortify n=36 ladder)**: my fresh `curl + unzip` install at `.local/bin/rtk.exe` was a DUPLICATE — canonical install already existed at `.local/cargo/bin/rtk.exe` (cargo install, 2026-05-08, 7.1MB). Both v0.39.0. Removed duplicate per Wave 112 Ship A2-RECONCILE precedent (115 MB shadow installs reclaimed in similar event). Hook wired to canonical `.local/cargo/bin/rtk.exe` path.
+docs/install-provenance.md:9919:  $ echo '{"tool_name":"Bash","tool_input":{"command":"git status"}}' | Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude
+docs/install-provenance.md:9920:  {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecisionReason":"RTK auto-rewrite","updatedInput":{"command":"rtk git status"}}}
+docs/install-provenance.md:9922:  Verified rewrites: ls/grep/cat/git/find/diff/log/cargo/npm/etc. RTK 0.39.0 supports 35+ command wrappers per `rtk --help`.
+docs/install-provenance.md:9923:- **Token savings (per upstream README token-savings table @ rtk-ai/rtk @ release 0.39.0)**: 80% reduction across CLI ops (118K → 24K per 30-min Claude Code session). Specific savings: ls/tree -80%, cat/read -70%, grep/rg -80%, git status -80%, git diff -75%, git log -80%, git add/commit/push -92%, cargo/npm/go test -90%, ruff -80%, pytest -90%, docker ps -80%.
+docs/install-provenance.md:9924:- **CR-3 cross-model T1 e2e**: Pattern B HONEST-NON-FINDING per `codex-t1-fix-forward-pattern.md §Pattern B`. Foreground+tee codex `deep-review-exec` xhigh / sandbox=danger-full-access / 240s budget at PID 323836. 1876-line trace at `.claude/state/codex_consult_wave118_rtk_hook_wire_OUT.txt`. Codex deep-investigated all 3 audit axes — particularly AXIS 2 (Windows path resolution) where it surfaced the duplicate-install issue mid-investigation (concurrent with my Mia OVER #48 catch). 240s budget exhaust before structured VERDICT block. Trace evidence: codex verified hook returns correct JSON (`git status → rtk git status`), confirmed canonical .local/cargo/bin/rtk.exe is on PATH, surfaced the same path issue I caught.
+docs/install-provenance.md:9926:- **Disposition**: INSTALLED (settings.json wire git-tracked at PreToolUse:Bash[6]; binary at `.local/cargo/bin/rtk.exe` gitignored as install artifact)
+docs/install-provenance.md:9998:- PreToolUse:Bash 6 → 7 entries (RTK auto-rewrite at slot [6])
+docs/install-provenance.md:10503:## Wave 120 Ship 1 — ICM (rtk-ai/icm) Probe DAG audit → REJECT-FOR-FIT (DEMAND-ABSENCE)
+docs/install-provenance.md:10507:**Trigger**: user standing directive "rtk-ai/rtk and more sota repos related" + Wave 120 Ship 1 task #71
+docs/install-provenance.md:10512:- **Repo**: `rtk-ai/icm` (verified via `https://api.github.com/repos/rtk-ai/icm` HTTP 200)
+docs/install-provenance.md:10527:| P4 plugin-namespace | ✅ PASS | `rtk-ai/icm` not loaded in any plugin marketplace cache (5 enabled: `addy-agent-skills` / `claude-plugins-official` / `context-mode` / `everything-claude-code` / `openai-codex`) |
+docs/install-provenance.md:10568:- `https://api.github.com/repos/rtk-ai/icm` (HTTP 200 verified 2026-05-09 11:38 EDT) — TIER-1-DIRECT
+docs/install-provenance.md:10637:| token-budget-guardian: "track tokens" | ccusage 18.0.11 (daily/blocks/session-window CLI) + RTK 0.39.0 (PreToolUse:Bash hook with ~80% token-efficiency rewrite) + Serena 1.2.0 (LSP semantic graph) + Repomix 1.14.0 (codebase compression with tree-sitter) + tools/cpa-cache-rate.py (per-account session-affinity hit rate) + Phoenix OTel (port 16006) — **5+ operational tools with measurable telemetry** |
+docs/install-provenance.md:10689:1. **codex T1 BRIDGE-MODE GPT-5.5** PID 369437 / 360s budget — 5-axis adversarial deep-audit (token-budget enforcement design / account-rotation beyond CPA / arch-opt beyond v65 / features-used-vs-available / restart decisions). VERDICT: **Pattern B INCONCLUSIVE-TIMEOUT** per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern B — 1.69MB / 7956 lines investigation but ran out of budget mid-Phoenix-source-investigation; no final JSON verdict block. Trace mineable: codex confirmed portkey-gateway / langgraph / autogen / litellm / bifrost are pre-cloned at `Z:/repos/deps/`.
+docs/install-provenance.md:10699:    "Portkey AI Gateway (ADOPT-NOW: cost optimization + caching)",
+docs/install-provenance.md:10715:| **Portkey AI Gateway** | Portkey-AI/gateway @ 11.6K★ Apache-2.0 active 2026-03-25 | `Z:/repos/deps/portkey-gateway @ 351692fd` (cite-only) | **STUDY-PILOT** | Different mechanism than CPA (semantic-embedding cache vs prefix-match). CPA already at 95.6% hit rate via prefix. Demand-evidence weak — semantic cache wins on REPHRASED queries, but eee's traffic is single-account-dominant (92% on aesthetic9c) so REPHRASED-cross-account scenario is rare. Defer until traffic mix diversifies. |
+docs/install-provenance.md:10727:- **PreToolUse Bash/Edit/Write hook** that estimates token cost (file size + heuristic) BEFORE execution + checks per-arc / per-account budget threshold + emits exit-2 with deny-decision when over
+docs/install-provenance.md:10772:  - Portkey AI Gateway: `https://github.com/Portkey-AI/gateway` 11.6K★ Apache-2.0 active 2026-03-25
+docs/install-provenance.md:10787:- Wave 122+ defer: Portkey AI Gateway re-evaluate after traffic mix diversifies beyond aesthetic9c-dominance
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[32m succeeded in 549ms:[0m
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 60,
+  "env": {
+    "_comment": "CLAUDE_SOTA_INSTALLED_RUNTIME DROPPED Wave 50 Agent B P2 — was setter-no-reader hidden self-invention. Re-introduce only when a hook/script consumer lands.",
+    "_comment_disable_autoupdater_removed": "DISABLE_AUTOUPDATER=1 REMOVED Wave 62 2026-05-07 per user-trigger directive 'eee must be all sota, auto update with all offical sota native install methods'. Original Wave 53 pin (codex T1 b58s3u956 stable=119/latest=132 heuristic) was self-inventing against Anthropic's actual release cadence — CHANGELOG defines no 'stable channel'. Removal lets Anthropic in-place self-update flow per https://code.claude.com/docs/en/install. minimumVersion floor preserved as forward-only quality gate; updates above floor proceed automatically.",
+    "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "FM17_STALL_DETECTOR_DISABLE": "1",
+    "_comment_fm17d_disabled": "Wave 76 2026-05-08 — fm17d_stall_detector.py was writing 100% schema-rot observations (172 entries / 172 schema_missing across two sessions, 0 useful classifications). Hook honors FM17_STALL_DETECTOR_DISABLE=1 per its own _DISABLE_ENV constant at line 58. Re-enable after fixing the SubagentStop input-schema parsing (script expects stop_reason / tool_uses fields that CC v2.1.119 / 2.1.132 don't emit at the top level).",
+    "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force,pre:write:doc-file-warning,post:edit:design-quality-check,post:edit:console-warn,stop:format-typecheck,stop:check-console-log,pre:observe:continuous-learning,post:observe:continuous-learning,pre:edit-write:suggest-compact,post:session-activity-tracker,stop:evaluate-session,stop:cost-tracker,stop:desktop-notify",
+    "PYTHON_BIN": "Z:/venvs/claude/Scripts/python.exe",
+    "_comment_python_bin": "Wave 78 2026-05-08 — per real-GPT-5.5 codex T1 deep-review-exec verdict NEEDS-REVISION conf=0.78 finding F4 at .claude/state/codex_consult_wave77_full_audit_OUT.txt: cwc track-read.sh + verify-gate.sh call `python` (no full path). Git Bash on Windows may not resolve `python` — scripts then silent-no-op. Adding explicit PYTHON_BIN env that the .sh scripts can prefer via `${PYTHON_BIN:-python}` fallback. Cite: TIER-3-LOCAL-CODEX-T1-VERDICT (real GPT-5.5 BRIDGE-MODE; cross-model gate satisfied per cardinal-rule-3 Phase 1 bootstrap exception).",
+    "_comment_ecc_disabled_hooks": "Wave 76 baseline + Wave 77 expansion 2026-05-08. Wave 76: gateguard-fact-force (pre:bash + pre:edit-write) — costs round-trip per first-of-class action. Wave 77 (per fleet-arch-vs-official-2026-05-08.md §3 ECC-hooks triage): added 5 pure-overhead hook IDs that target JS/TS/frontend project workflows orthogonal to this Z-drive Anthropic-CC runtime — pre:write:doc-file-warning (warns on docs we intentionally create), post:edit:design-quality-check (frontend UI check, N/A), post:edit:console-warn (no JS edits), stop:format-typecheck (Biome/Prettier+tsc, no JS/TS source), stop:check-console-log (no JS). Each saves ~100-200ms node spawn per matched event. The hook's own recovery instructions document this env var. Other ECC hooks (pre-bash-dispatcher, pre-mcp-health-check, post-bash-dispatcher, governance-capture handled separately, etc.) remain ACTIVE.",
+    "ECC_GOVERNANCE_CAPTURE": "0",
+    "_comment_ecc_governance_capture": "Wave 76 2026-05-08 — ECC governance-capture hook spawns Node on every Edit/Write/MultiEdit pre + post (2 spawns × 100ms cold start = ~200ms/edit) writing to .claude/governance-capture/ which has zero downstream consumer in this runtime. Disable until a consumer wires in. Cite: ECC hooks.json plugin cache `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/hooks/hooks.json` governance-capture entries; control env per ECC plugin.json env.",
+    "ECC_HOOK_PROFILE": "standard",
+    "_comment_ecc_hook_profile": "Wave 76 2026-05-08 — explicit standard (default) profile to prevent surprise. ECC supports `off`/`standard`/`strict`; we hold at standard while we triage individual hooks via ECC_DISABLED_HOOKS rather than nuke all.",
+    "ANTHROPIC_SMALL_FAST_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "Haiku 4.5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "fast/cheap inline-judge",
+    "_comment_haiku_pin": "Wave 82a 2026-05-08 — pin small-fast-model to Haiku 4.5 per Anthropic CC CHANGELOG.md:929 ('ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL_SUPPORTS') + :3298 ('Bedrock ARN passed to ANTHROPIC_MODEL or ANTHROPIC_SMALL_FAST_MODEL'). TIER-1-DIRECT via Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD. Prevents inline-judge calls (session titles, classifier passes, away summaries, recap) from landing on Haiku 3.5 (~3× token cost). Source: wave52/iter2b #2 advanced-unadopted pattern.",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": "1",
+    "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1",
+    "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": "60000",
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "ENABLE_TOOL_SEARCH": "auto:5",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70",
+    "OTEL_LOG_TOOL_DETAILS": "1",
+    "OTEL_LOG_USER_PROMPTS": "1",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
+    "OTEL_TRACES_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://127.0.0.1:14317",
+    "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "grpc",
+    "OTEL_RESOURCE_ATTRIBUTES": "openinference.project.name=eee",
+    "_comment_otel_phoenix_wire": "Wave 109 Ship 2P-pilot-REVISED 2026-05-08 — wire eee OTel TRACES to existing Phoenix container (arizephoenix/phoenix:13.15.0 at 127.0.0.1:14317 OTLP gRPC + :16006 UI). Phoenix Apache-2.0 OpenInference auto-instrumentation; no auth needed for local. Trace-SPECIFIC OTLP envs only (Phoenix doesn't accept logs/metrics on :4317). CLAUDE_CODE_ENABLE_TELEMETRY=1 + CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1 required per CC docs (telemetry enablement gate; traces beta-gated). OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=eee for Phoenix project grouping (does NOT override CC's documented service.name=claude-code default). DECISION PIVOT: Wave 109 Agent E originally proposed openlit install; Mia probe via `docker ps` revealed eee already runs langfuse + phoenix + grafana + prometheus + 7 supporting containers — openlit install REJECTED as 4th duplicate stack (kiss-dry-yagni Must-Never #4). Phoenix-first chosen (no auth; immediate); Langfuse parallel-sink DEFERRED to followup ship pending operator LANGFUSE_PUBLIC_KEY+SECRET_KEY OR OTel Collector fan-out design. Logs/metrics deferred (Phoenix trace-only). Retirement audit of unwired containers (qdrant + grafana + prometheus) DEFERRED to separate fire per deprecation-discipline.md §The deprecation decision 5-question gate. **PII note**: OTEL_LOG_USER_PROMPTS=1 (Wave 82a) persists full prompt text in Phoenix — local-only Phoenix container at 127.0.0.1 is acceptable for solo eee runtime. CR-9 install-risk LOW (env-add only; reversible; Phoenix container ALREADY running). Codex T1 NEEDS-REVISION conf=0.93 9-prescription Pattern A applied per .claude/state/codex_consult_wave109_ship2p_pilot_phoenix_wire_OUT.txt. TIER-1-DIRECT cites: Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD L45+L157+L308+L568+L909 (CC OTel env support) + https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/ (OTel SDK trace-specific env). Activates on next eee restart.",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
+    "_comment_gateway_model_discovery": "Wave 106 Ship 2N-batch3-F 2026-05-08 — opt-in gateway /v1/models discovery for /model picker per CC 2.1.129 CHANGELOG.md:14. eee uses ANTHROPIC_BASE_URL=http://127.0.0.1:8317 (CLIProxyAPI v6.10.9 10-account fleet) — gateway DOES expose /v1/models; without this flag the model picker won't see gateway's enumeration. Was automatic in 2.1.126-2.1.128; opt-in since 2.1.129. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD. Codex T1 APPROVE conf=0.95 single-round per .claude/state/codex_consult_wave106_ship2n_batch3f_gateway_discovery_OUT.txt.",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "_comment_max_mcp_output_tokens": "Wave 97 Ship 1L 2026-05-08 — 2× CCBP default 25000 (claude-settings.md:822 @ HEAD 64fffd53). Sized for ctx_batch_execute + repomix workloads (30-60K bytes returns observed Wave 97). Risk: LOW. Cross-model gate: real GPT-5.5 codex T1 APPROVE conf=0.88 single-round at .claude/state/codex_consult_wave97_ship1l_mcp_env_OUT.txt.",
+    "BASH_MAX_OUTPUT_LENGTH": "100000",
+    "_comment_bash_max_output_length": "Wave 97 Ship 1L 2026-05-08 (50000) → Ship 1L-followup 2026-05-08 (100000) per user mandate 'full unleash with sota harness' + Phase 3 graduated-unleash. Cite: CCBP claude-settings.md:825 @ HEAD 64fffd53. 100K chars ≈ 25K tokens; well below context-rot threshold (~300-400K tokens per Karpathy 1M calibration). Covers larger codex verdict files + cwc + repomix CLI outputs. Risk: LOW. Real GPT-5.5 codex T1 R1 APPROVE conf=0.86 single-round per .claude/state/codex_consult_wave97_ship1l_followup_unleash_bumps_OUT.txt.",
+    "BASH_MAX_TIMEOUT_MS": "1800000",
+    "_comment_bash_max_timeout_ms": "Wave 97 Ship 1L 2026-05-08 (900000=15min) → Ship 1L-followup 2026-05-08 (1800000=30min) per user 'full unleash' mandate + Phase 3. Cite: CCBP claude-settings.md:824 + Anthropic CHANGELOG.md:3311 (introduced) + L2686 (auto-background). Covers codex T6 stop-gate 900s (longest sync gate per cross-model-consensus.md §Profile selection), cwc up to 600s, codex T1/T2 240-480s + edge cases (full-repo gitleaks scans, large monorepo git clone 5-15min). BASH_DEFAULT_TIMEOUT_MS auto-background trigger UNCHANGED at Anthropic default. Conflict-resolved with CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS=60000 (different scope: SessionEnd hooks ceiling vs Bash-tool-call ceiling). Risk: MED.",
+    "MCP_TOOL_TIMEOUT": "300000",
+    "_comment_mcp_tool_timeout": "Wave 97 Ship 1L 2026-05-08 (120000=2min) → Ship 1L-followup 2026-05-08 (300000=5min) per user 'full unleash' mandate + Phase 3. Cite: CCBP claude-settings.md:979 @ HEAD 64fffd53 (FM-20 cite-correction Wave 97 Fan-3 X1 — fan-2 B brief had stale L1071 which is mcpServers block) + Anthropic CHANGELOG.md:3259 (respect-bug fix). Sized for heavy ctx_batch_execute (8-10 concurrent commands could hit 2-3min p99) + repomix large-repo + gitnexus impact 10K+ symbol graph. 5min cap preserves fan-out parallelism (wedged tools eventually time out vs unbounded). Orthogonal to MCP_TIMEOUT (server-startup, L821). Risk: MED.",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+    "_comment_wave126_effort_max_user_trigger": "Wave 126 user-trigger 2026-05-09 — bumped xhigh→max per directive 'using max more proactively as we are focuing quality and advanced workflow max, rather than cost'. Overrides Wave 97 Ship 1G Mia OVER framing (Wave 97 claimed xhigh = operational-max for Opus 4.7 per adaptive-thinking architecture; user-trigger explicit override per cycle-322 jurisdiction n=1 automatic gate). Adaptive-thinking remains ON for Opus 4.7 per `https://code.claude.com/docs/en/env-vars` CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING note ('has no effect on Opus 4.7, which always uses adaptive reasoning') — `max` adds extra reasoning headroom on top of adaptive. Per local-command behavior 'max is session-only (nothing saved)' for /effort slash → env-pin tested as forward-only by user directive (if claude CLI rejects 'max' env value at startup, REVERT to xhigh per CR-9 install-risk discipline). Cite: TIER-1-DIRECT `https://code.claude.com/docs/en/env-vars` + CCBP `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:857 @ HEAD 64fffd53`. Both eee.ps1 + eee-backup.ps1 launchers read this env block; single edit covers both. Wave 97 Ship 1G _comment_wave97_ship1g_effort_pin RETIRED forward-only per port-note-discipline.md §6 anti-pattern (do NOT rewrite historical commit bodies; comment retirement is forward-only).",
+    "_comment_wave82a_advanced_unleash": "Wave 82a 2026-05-08 — advanced unleashed-mode env block per wave52/iter2b TOP 10 + adoption baseline. TIER-1-DIRECT cite chain to Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD: AGENT_TEAMS=1 (CCBP claude-cli-startup-flags.md:211 — feature gate); NO_FLICKER (CHANGELOG render perf); ENABLE_AWAY_SUMMARY (away-from-keyboard summary feature); FINE_GRAINED_TOOL_STREAMING (CHANGELOG streaming-grain feature); ATTRIBUTION_HEADER=0 (CHANGELOG suppress 'Generated with Claude Code'); USE_POWERSHELL_TOOL=1 (CHANGELOG.md:88,213,414 — Windows pwsh native tool primary shell, paired with defaultShell:powershell at L226); SESSIONEND_HOOKS_TIMEOUT_MS=60000 (CHANGELOG.md:1265 — 1.5s ceiling override; honors per-hook timeout:30s declared on 14+ SessionEnd audits); ENABLE_PROMPT_CACHING_1H=1 (1h cache extension feature); ENABLE_TOOL_SEARCH=auto:5 (deferred-tool-search auto-promote 5 tools per turn — present session-reminder evidence); CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70 (sibling-validated threshold; CR-3 cite chain through claude-sota CLAUDE.local.md ENV); OTEL_LOG_TOOL_DETAILS=1 (CHANGELOG OTel tool_result/tool_decision events); OTEL_LOG_USER_PROMPTS=1 (CHANGELOG.md:157 — 'user_system_prompt to LLM request spans'). DEFERRED: OTEL_LOG_RAW_API_BODIES (PII risk per iter2b #7; would leak full prompts to Langfuse — enable only with verified local-only Langfuse). Cardinal-rule-3 Phase 1 bootstrap exception cross-model gate satisfaction: T1 hook codex_t1_consult_gate.py at L58 fires on this Edit; T2 hook fires on commit. Cite source: wave52/iter2b advanced-unadopted patterns 1-10."
+  },
+  "permissions": {
+    "allow": [
+      "Edit(Z:/claude-sota-installed/.claude/settings.json)",
+      "Edit(Z:/claude-sota-installed/CLAUDE.md)",
+      "Edit(Z:/claude-sota-installed/docs/sota-installed-manifest.md)",
+      "Edit(Z:/claude-sota-installed/docs/install-provenance.md)",
+      "Bash(npm install -g *)",
+      "Bash(uv tool install *)",
+      "Bash(gh release download *)",
+      "Bash(git clone --depth 1 https://github.com/* *)",
+      "Bash(docker pull *)",
+      "Bash(cargo install *)",
+      "Bash(codex *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.pfx)",
+      "Read(**/*.key)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "_comment_deny_secrets_baseline": "Wave 75 2026-05-08 — kits-convergence cited (v5 SETTINGS_AND_HOOKS_REFERENCE.md:32-38, fleet-kits-convergence-2026-05-08.md §2 row 4) chained back to CCBP claude-mcp.md hard rule 'NEVER commit secrets'. Read-class deny floor; auto-mode classifier still gates everything else.",
+    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor MECHANICALLY ENFORCED via PreToolUse:Bash hook safety_guard.py at Block[6][0] (Wave 105 Ship 2N-batch3-A 2026-05-08 — 12-destructive-pattern auto-block: rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd); agent_plan_readonly_bash_guard.py is mechanically enforced at per-subagent frontmatter scope (architect/code-reviewer/debugger/verifier --policy readonly + gpt5-archaeologist/gpt5-reviewer --policy codex-readonly), NOT globally — codex T1 NEEDS-REVISION conf=0.96 caught that global wire would block normal operator Bash including git commit; cardinal-rule deny-class still applies.",
+    "_comment_deny": "Empty — auto-mode classifier handles risk-tiering; explicit deny[] only added when a SOTA primitive needs operation-level block.",
+    "_comment_phase3_transition": "Wave 61 fire-extension 2026-05-07 flipped defaultMode default→bypassPermissions; parallel-session refined to 'auto' Wave 61.5 per SOTA convergence. CCBP-CANONICAL per Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:251 @ HEAD 64fffd53 [VERIFIED 2026-05-07]: 'auto' mode 'Auto-approves tool calls with background safety checks... Classifier auto-approves read-only and file edits; sends everything else through a safety check. Falls back to prompting after 3 consecutive or 20 total blocks. In the default Shift+Tab permission-mode cycle since v2.1.111'. SOTA-superior to bypassPermissions because bypassPermissions STILL prompts for .git/.claude/.vscode/.idea/.husky paths per CCBP L250 — auto handles via classifier instead. User-trigger directive 'all setting must be fully unleashed with sota harness' + 'full premission unleashed' satisfied via auto-mode classifier (no per-action confirm for safe ops). TIER-1-DIRECT authority: https://code.claude.com/docs/en/settings + https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode. Reversal: change to 'default' (single-line edit). disableAutoMode setting could be set to 'disable' if auto mode misbehaves on this workload — currently NOT set (auto mode active)."
+  },
+  "disabledMcpjsonServers": [],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t1_consult_gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/secret_scan_guard.py",
+            "timeout": 8
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t5_plan_review_gate.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_spawn_gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/kill-switch.sh",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/steer.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/track-read.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/hooks/cwc/verify-gate.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/block_no_verify_guard.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(git commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_postcommit_review.py",
+            "if": "Bash(*git commit *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_postcommit_review.py",
+            "if": "Bash(*git -C * commit *)",
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/settings.json | Select-Object -Skip 190 -First 50'[0m in Z:\claude-sota-installed
+[32m succeeded in 549ms:[0m
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+            "if": "Bash(git -C * commit *)",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_postcommit_review.py",
+            "if": "Bash(*git commit *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_postcommit_review.py",
+            "if": "Bash(*git -C * commit *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_prepush_review.py",
+            "if": "Bash(*git push *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_prepush_review.py",
+            "if": "Bash(*git -C * push *)",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_review_trace.py\"",
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"def git_verb_matches|if not seg.startswith\\(\\\"git \\\"\\)|if not parts or parts\\[0\\] "'!= '"\\\"git\\\"|return git_verb_matches\\(cmd, \\\"commit\\\"\\)\" .claude/hooks/scripts/_guard_base.py .claude/hooks/scripts/codex_postcommit_review.py"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "rtk.exe hook claude|updatedInput|git status → rtk git status|git add/commit/push" .claude/settings.json docs/install-provenance.md tools/eee.ps1'[0m in Z:\claude-sota-installed
+[2m2026-05-09T22:54:52.647070Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: regex parse error:
+    (?:def git_verb_matches|if not seg.startswith\(\)
+    ^
+error: unclosed group
+
+[31m exited 1 in 402ms:[0m
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: regex parse error:
+    (?:def git_verb_matches|if not seg.startswith\(\)
+    ^
+error: unclosed group
+
+[32m succeeded in 397ms:[0m
+.claude/settings.json:200:            "command": "Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude",
+docs/install-provenance.md:9919:  $ echo '{"tool_name":"Bash","tool_input":{"command":"git status"}}' | Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude
+docs/install-provenance.md:9920:  {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecisionReason":"RTK auto-rewrite","updatedInput":{"command":"rtk git status"}}}
+docs/install-provenance.md:9923:- **Token savings (per upstream README token-savings table @ rtk-ai/rtk @ release 0.39.0)**: 80% reduction across CLI ops (118K → 24K per 30-min Claude Code session). Specific savings: ls/tree -80%, cat/read -70%, grep/rg -80%, git status -80%, git diff -75%, git log -80%, git add/commit/push -92%, cargo/npm/go test -90%, ruff -80%, pytest -90%, docker ps -80%.
+docs/install-provenance.md:9924:- **CR-3 cross-model T1 e2e**: Pattern B HONEST-NON-FINDING per `codex-t1-fix-forward-pattern.md §Pattern B`. Foreground+tee codex `deep-review-exec` xhigh / sandbox=danger-full-access / 240s budget at PID 323836. 1876-line trace at `.claude/state/codex_consult_wave118_rtk_hook_wire_OUT.txt`. Codex deep-investigated all 3 audit axes — particularly AXIS 2 (Windows path resolution) where it surfaced the duplicate-install issue mid-investigation (concurrent with my Mia OVER #48 catch). 240s budget exhaust before structured VERDICT block. Trace evidence: codex verified hook returns correct JSON (`git status → rtk git status`), confirmed canonical .local/cargo/bin/rtk.exe is on PATH, surfaced the same path issue I caught.
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n -F "def git_verb_matches" .claude/hooks/scripts/_guard_base.py'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n -F \"if not seg.startswith(\\\"git \\\")\" .claude/hooks/scripts/_guard_base.py"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n -F "if not parts or parts[0] != '"\\\"git\\\"\" .claude/hooks/scripts/_guard_base.py"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n -F \"return git_verb_matches(cmd, \\\"commit\\\")\" .claude/hooks/scripts/codex_postcommit_review.py"[0m in Z:\claude-sota-installed
+[32m succeeded in 395ms:[0m
+336:def git_verb_matches(cmd: str, verb: str) -> bool:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+
+[2m2026-05-09T22:54:57.212585Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: git: The system cannot find the file specified. (os error 2)
+rg: \): The system cannot find the file specified. (os error 2)
+
+[31m exited 1 in 401ms:[0m
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: git: The system cannot find the file specified. (os error 2)
+rg: \): The system cannot find the file specified. (os error 2)
+
+[2m2026-05-09T22:54:57.360207Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: git\: The system cannot find the file specified. (os error 2)
+
+[31m exited 1 in 389ms:[0m
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: git\: The system cannot find the file specified. (os error 2)
+
+[2m2026-05-09T22:54:57.366474Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: commit\): The system cannot find the path specified. (os error 3)
+
+[31m exited 1 in 395ms:[0m
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+rg: commit\): The system cannot find the path specified. (os error 3)
+
+[2m**Considering JSON and PowerShell Quotes**
+
+Citing with JSON and PowerShell is messy, and I don't think we need file links in our JSON output. The final output can just be a JSON object. I should think about including "prescribed_edits" for an APPROVE verdict, possibly adding a snippet of the current proposal. The question about whether "prescribed_edits" is an optional array based on the schema is worth considering. However, I need to be cautious about the strip prefix approach—it could lead to false positives if not handled correctly.
+**Evaluating Precommit Helpers**
+
+When considering T2 precommit, I think if the same helper is used for blocking safety, a false positive could trigger a review, but it shouldn’t be dangerous. Now, for gitleaks, there's a chance that the shared helper might be utilized by gitleaks_pre_commit_gate too, so inspecting that is important. I previously had issues with the search since `rg` failed, and I need to check if it's ignoring certain factors. I should run `rg` exactly from the root for clarity.[0m
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n -F git_verb_matches .claude/hooks/scripts'[0m in Z:\claude-sota-installed
+[32m succeeded in 404ms:[0m
+.claude/hooks/scripts\codex_postcommit_review.py:78:# to parent Z:/claude/hooks/_guard_base.py which lacks git_verb_matches.
+.claude/hooks/scripts\codex_postcommit_review.py:80:from _guard_base import git_verb_matches  # noqa: E402
+.claude/hooks/scripts\codex_postcommit_review.py:225:    Delegates to shared `_guard_base.git_verb_matches`. Agent A 2026-04-27 P1
+.claude/hooks/scripts\codex_postcommit_review.py:229:    return git_verb_matches(cmd, "commit")
+.claude/hooks/scripts\codex_prepush_review.py:112:# to parent Z:/claude/hooks/_guard_base.py which lacks git_verb_matches.
+.claude/hooks/scripts\codex_prepush_review.py:114:from _guard_base import git_verb_matches  # noqa: E402
+.claude/hooks/scripts\codex_prepush_review.py:242:    Delegates to shared `_guard_base.git_verb_matches` which excludes embedded
+.claude/hooks/scripts\codex_prepush_review.py:247:    return git_verb_matches(cmd, "push")
+.claude/hooks/scripts\codex_t2_pre_commit_gate.py:133:from _guard_base import git_verb_matches, _GIT_FLAGS_VALUE, _GIT_FLAGS_NOVALUE  # noqa: E402,PLC2701  (private-name imports intentional: same .claude/hooks/scripts/ package; FM-12 fix-forward 2026-05-03)
+.claude/hooks/scripts\codex_t2_pre_commit_gate.py:329:    Delegates to shared `_guard_base.git_verb_matches` which is flag-aware via
+.claude/hooks/scripts\codex_t2_pre_commit_gate.py:334:    return git_verb_matches(cmd, "commit")
+.claude/hooks/scripts\codex_t2_pre_commit_gate.py:387:    Algorithmic precedent: _guard_base.git_verb_matches:261-309 (shlex.split
+.claude/hooks/scripts\codex_t2_pre_commit_gate.py:410:        # _guard_base.git_verb_matches algorithm
+.claude/hooks/scripts\_guard_base.py:321:# the verb (commit/push/etc.) and may take a value. _git_verb_matches() walks
+.claude/hooks/scripts\_guard_base.py:336:def git_verb_matches(cmd: str, verb: str) -> bool:
+[31;1mInvalidOperation: [31;1mCannot set property. Property setting is supported only on core types in this language mode.[0m
+

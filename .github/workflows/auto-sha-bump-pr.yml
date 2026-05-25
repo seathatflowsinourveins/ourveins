@@ -1,0 +1,167 @@
+# .github/workflows/auto-sha-bump-pr.yml
+#
+# W436-GH-PRACTICE-INSTALL — Install #B10: peter-evans/create-pull-request
+#
+# Purpose: weekly sweep that compares each pinned-by-SHA Action in
+# `.github/workflows/*.yml` against its upstream `releases/latest` and opens
+# ONE consolidated PR with all available SHA bumps when at least one Action
+# has drifted past its current pin. Dependabot already covers this for
+# `package-ecosystem: github-actions`, but Dependabot opens ONE PR PER
+# action, which floods the review queue. This workflow consolidates them.
+#
+# Trigger: weekly Monday 07:00 UTC + manual workflow_dispatch.
+#
+# Cite anchors (cardinal-rule-6 verify-before-claim):
+#   1. peter-evans/create-pull-request (MIT, 2781 stars) @ v8.1.1
+#      https://github.com/peter-evans/create-pull-request/releases/tag/v8.1.1
+#      verified SHA via `gh api repos/peter-evans/create-pull-request/git/refs/tags/v8.1.1`
+#      => 5f6978faf089d4d20b00c7766989d076bb2fc7f1
+#   2. GitHub Inc — Dependabot github-actions ecosystem cooldown precedent:
+#      https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference#cooldown--
+#   3. OpenSSF Scorecard "Pinned-Dependencies" check rationale:
+#      https://github.com/ossf/scorecard/blob/main/docs/checks.md#pinned-dependencies
+#   4. step-security/secure-repo SHA-pinning recommendation:
+#      https://www.stepsecurity.io/blog/pinning-github-actions-for-enhanced-security-a-complete-guide
+#
+# CR-1 trust-tuple: peter-evans is GitHub-verified, MIT, 2.8k stars,
+# Dependabot-recommended in GitHub docs for create-pull-request flows.
+# CR-2 compliance: pure upstream-Action wiring.
+# CR-5 compliance: harden-runner egress-policy audit; least-privilege perms.
+#
+# NOTE: This is INTENTIONALLY scoped narrow — it does NOT auto-merge.
+# Operator review + cardinal-rule-1 trust-tuple re-verify is required
+# before the SHA-bump PR can land. The W332 Stop-hook codex-review-gate
+# will enforce that on merge.
+
+name: Auto SHA-bump consolidated PR (weekly)
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'   # Monday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write       # create branch + commit bump
+  pull-requests: write  # open PR
+
+concurrency:
+  group: auto-sha-bump-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sweep-and-pr:
+    name: Sweep + consolidated PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true   # required for peter-evans/create-pull-request to push
+
+      - name: Detect drifted SHA pins
+        id: detect
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          drift_lines=""
+          drift_count=0
+          # Pattern: extract `uses: owner/repo@<40-hex-SHA>  # v<X.Y.Z>` lines
+          while IFS= read -r line; do
+            # Parse: file:lineno:        uses: owner/repo@sha  # vX.Y.Z (...)
+            if [[ "$line" =~ uses:[[:space:]]*([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+)@([a-f0-9]{40})[[:space:]]*#[[:space:]]*(v[0-9]+(\.[0-9]+){0,2}) ]]; then
+              repo="${BASH_REMATCH[1]}"
+              current_sha="${BASH_REMATCH[2]}"
+              current_tag="${BASH_REMATCH[3]}"
+              # Get latest released tag
+              latest_tag=$(gh api "repos/$repo/releases/latest" --jq '.tag_name' 2>/dev/null || echo "")
+              if [ -z "$latest_tag" ] || [ "$latest_tag" = "null" ]; then continue; fi
+              if [ "$latest_tag" = "$current_tag" ]; then continue; fi
+              # Different tag — get its peeled SHA
+              latest_sha=$(gh api "repos/$repo/git/refs/tags/$latest_tag" --jq '.object.sha' 2>/dev/null || echo "")
+              if [ -z "$latest_sha" ] || [ "$latest_sha" = "null" ]; then continue; fi
+              # If the tag is annotated, peel it
+              obj_type=$(gh api "repos/$repo/git/refs/tags/$latest_tag" --jq '.object.type' 2>/dev/null || echo "commit")
+              if [ "$obj_type" = "tag" ]; then
+                latest_sha=$(gh api "repos/$repo/git/tags/$latest_sha" --jq '.object.sha' 2>/dev/null || echo "$latest_sha")
+              fi
+              if [ "$latest_sha" = "$current_sha" ]; then continue; fi
+              drift_count=$((drift_count + 1))
+              drift_lines="${drift_lines}- \`${repo}\`: ${current_tag} (\`${current_sha:0:10}\`) -> ${latest_tag} (\`${latest_sha:0:10}\`)\n"
+            fi
+          done < <(grep -rhn "uses: [a-zA-Z0-9_.-]\{1,\}/[a-zA-Z0-9_.-]\{1,\}@" .github/workflows/ 2>/dev/null | sort -u)
+
+          {
+            echo "drift_count=$drift_count"
+            echo "drift_lines<<DRIFT_EOF"
+            echo -e "$drift_lines"
+            echo "DRIFT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Skip if no drift
+        if: steps.detect.outputs.drift_count == '0'
+        run: |
+          echo "::notice::No SHA drift detected; skipping PR creation."
+
+      - name: Apply SHA bumps (advisory — operator commits selection manually)
+        if: steps.detect.outputs.drift_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Drift detected — see PR body for the list. This workflow currently"
+          echo "opens a notification PR but does NOT auto-apply bumps; the SHA"
+          echo "rewrite must go through CR-1 trust-tuple re-verify on each Action."
+          echo "Operator: copy the list from the PR body into a manual SHA-bump"
+          echo "branch (e.g. W<N>-CI-SHA-REFRESH)."
+
+      - name: Create consolidated PR
+        if: steps.detect.outputs.drift_count != '0'
+        # peter-evans/create-pull-request @ v8.1.1 (W436-GH-PRACTICE-INSTALL install 2026-05-24)
+        # SHA verified via `gh api repos/peter-evans/create-pull-request/git/refs/tags/v8.1.1`
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto/sha-bump-notify
+          delete-branch: true
+          title: 'chore(ci): SHA bump notification — ${{ steps.detect.outputs.drift_count }} Action(s) drifted'
+          body: |
+            **Auto-generated by `.github/workflows/auto-sha-bump-pr.yml`** (weekly Monday 07:00 UTC).
+
+            The following Actions have drifted past their current SHA pin:
+
+            ${{ steps.detect.outputs.drift_lines }}
+
+            **Operator action required:**
+            1. For each Action above, run CR-1 trust-tuple re-verify (license, maintainer,
+               release-notes review).
+            2. Author a manual SHA-rewrite commit on a `W<N>-CI-SHA-REFRESH` branch.
+            3. Do NOT auto-merge this notification PR; close it once the manual
+               rewrite has landed via its own dedicated wave.
+
+            **Why notification-only (not auto-apply)**: every Action SHA bump touches
+            CI security posture and MUST pass CR-1 trust-tuple gates (a) signed-release
+            (b) MIT/Apache/BSD/ISC/MPL (c) maintainer-org-backed (d) deps clean. The
+            W332 Stop-hook codex-review-gate enforces this on merge.
+
+            Cite-anchors: peter-evans/create-pull-request v8.1.1 (5f6978fa), OpenSSF
+            Scorecard "Pinned-Dependencies" check, Dependabot github-actions cooldown
+            precedent (5-day per CLAUDE.md).
+          commit-message: |
+            chore(ci): SHA-bump notification trigger
+
+            (Auto-generated by .github/workflows/auto-sha-bump-pr.yml; no file changes — body lists drift only.)
+
+            Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          labels: |
+            ci
+            sha-bump
+            auto
+          base: main

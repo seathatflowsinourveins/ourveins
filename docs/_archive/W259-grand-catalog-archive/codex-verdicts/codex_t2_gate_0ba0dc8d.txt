@@ -1,0 +1,9 @@
+The current change set includes generated runtime/session artifacts that should not be committed, and the new backup launcher misses path setup from the primary launcher. These issues should be addressed before the patch is considered correct.
+
+Full review comments:
+
+- [P1] Exclude generated session artifacts from the change — Z:\claude-sota-installed\.claude\session-data\2026-05-12-8499c395-session.tmp:14-17
+  If these untracked files are added with `git add .`, this commits generated session state containing local prompts/session metadata; the same change set also includes large context-mode SQLite caches, shell snapshots, `session-env`, and `__pycache__` files. These are runtime artifacts rather than source and should be removed from the change set and ignored before committing to avoid leaking local session data and bloating the repo.
+
+- [P2] Mirror the primary launcher path setup in eee-backup — Z:\claude-sota-installed\tools\eee-backup.ps1:98-103
+  When `eee-backup` is launched from a fresh shell where the repo-local Codex install is not already on `PATH`, this PATH setup stops after adding only the RTK cargo bin and omits the primary launcher's `.local\bin` prepend and `CODEX_PLUGIN_ROOT` export. That makes the backup path fail T0.5 or fall back to the `.CMD` shim for Codex hooks, so the non-proxy setup needs to stay in sync with `tools/eee.ps1`.

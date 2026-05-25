@@ -1,0 +1,107 @@
+CODEX T1 R1 REVIEW — W163 SB5 (Layered-gates §9 HARD GATE: security tests for DENY-emitting hooks)
+
+CONTEXT
+-------
+W163 SB5 ships 4 security-test files closing the §9 HARD GATE per
+`Z:/claude-sota/.claude/rules/layered-gates-architecture.md` §9 (TIER-2
+sister-rule cite-import-AMBER per CR-12 tertiary). Each test exercises a
+DENY-emitting hook with default-DENY + default-ALLOW + edge-case coverage.
+
+Operationally validated: 52 tests pass via `Z:/venvs/claude/Scripts/python.exe
+-m pytest --tb=short -q` in 7.06s.
+
+FILES UNDER REVIEW
+------------------
+1. tests/test_safety_guard_security.py (106 LOC) — destructive Bash exit-2 deny
+2. tests/test_block_no_verify_guard_security.py (95 LOC) — --no-verify exit-2 deny
+3. tests/test_agent_plan_readonly_bash_guard_security.py (140 LOC) — JSON deny
+4. tests/test_gitleaks_pre_commit_gate_security.py (140 LOC) — JSON deny + fail-open
+
+CITE CLASS PER citation-discipline.md RULE #8
+---------------------------------------------
+constituents=[
+  TIER-2 @ Z:/claude-sota/.claude/rules/layered-gates-architecture.md §9
+    (DENY-emitting hook test mandate; sister-rule cite-import-AMBER per CR-12 tertiary),
+  TIER-3-LOCAL-CONFIG @ .claude/hooks/scripts/{safety_guard,block_no_verify_guard,
+    agent_plan_readonly_bash_guard,gitleaks_pre_commit_gate}.py
+    (hook implementations under test; file:line cited inline)
+]
+effective_tier=TIER-3-LOCAL-COMPOSITION (MIN_PRECEDENCE per rule #8)
+
+DESIGN DECISIONS REQUIRING REVIEW
+---------------------------------
+D1: safety_guard.py + block_no_verify_guard.py use exit-2 deny; tests assert
+    `result.returncode == 2`. agent_plan_readonly + gitleaks use JSON
+    permissionDecision:"deny" + exit 0 per Anthropic CC PreToolUse contract;
+    tests assert via `_is_deny()` helper parsing stdout JSON. The split shape
+    is intentional — old hooks (ECC-derived) use exit-2 stderr-as-system-reminder;
+    new hooks (Wave 82+97 Anthropic-canonical) use JSON permissionDecision. §9
+    mandate accepts BOTH shapes. Is this consistent test coverage?
+
+D2: test_block_no_verify_guard_security.py constructs the bypass flag as
+    `BYPASS_FLAG = "--" + "no-verify"` at L26 to avoid tripping sibling
+    safety_guard.py's catastrophic-pattern deny-list. Empirically validated
+    during write (literal `--no-verify` in script source was blocked at
+    Bash grep). Is this construction acceptable, or should the literal
+    appear under a `# noqa: <rule>` suppression?
+
+D3: test_gitleaks_pre_commit_gate_security.py does NOT trigger the actual
+    DENY path (would require staging a real secret in the test repo +
+    gitleaks binary present). Instead, the test_deny_shape_contract_documented
+    case reads hook source and asserts the JSON deny shape literals exist
+    in source code. Is this source-grep test acceptable §9 coverage for the
+    deny-emit invariant, OR should we mock gitleaks to trigger a real deny path?
+
+D4: All 4 tests use `# pyright: ignore[reportUnusedFunction]` on the
+    autouse=True fixture function AND `__all__ = ["_FIXTURE_REF"]` export
+    marker on the module-level alias (tests 3 + 4) OR
+    `# pyright: ignore[reportUnusedVariable]` inline (tests 1 + 2). Mixed
+    suppression styles — should this be uniform? The mixed style emerged
+    from observed pyright behavior (inline-ignore worked on test 1+2 but
+    fired stale diagnostics on tests 3+4 — `__all__` export resolved
+    universally).
+
+D5: test_agent_plan_readonly_bash_guard_security.py covers --policy=readonly
+    only (3 policies total: readonly/codex-readonly/verifier). Per §9 the
+    HARD GATE mandates test coverage for DENY-emitting hooks — codex-readonly
+    + verifier policies are stricter/looser variants but the deny-emit
+    semantic is the same. Is single-policy coverage sufficient, or does §9
+    require all 3 policies tested?
+
+CARDINAL-RULE CONFORMANCE
+-------------------------
+- CR-1 cite-trail: each test file's docstring cites TIER-2 §9 + relevant
+  TIER-3 hook file:line. Cite anchors verified via file reads.
+- CR-3 cross-model: T1 fires NOW (this consult). T2 will fire on commit via
+  codex_t2_pre_commit_gate.py (mechanically enforced per .claude/settings.json).
+- CR-5 install-priority: tests are bootstrap-class infrastructure for §9
+  HARD GATE — NOT speculative new primitives. Cardinal-rule-5 exemption
+  applies (tests/ is repo-local audit surface).
+- CR-7 graduated-unleash: tests do not modify defaultMode. NO CR-7 impact.
+- CR-8 full-SOTA-content: §9 HARD GATE pattern is SOTA-cited; tests adapt
+  the canonical pytest+subprocess template from tests/test_auto_proceed_gate_security.py.
+- CR-9 install-risk: tests run via Z:/venvs/claude/Scripts/python.exe
+  (verified working). NO @latest installs. NO sibling-bleed.
+- CR-10 research-first: SB5 closure follows fresh §9 HARD GATE mandate
+  per W163 SB1 plan; NOT a hand-coded interpretation.
+- CR-11 META-process: this T1 consult dogfoods cross-model gate on test
+  infrastructure (recursive SOTA discipline).
+- CR-12 upstream-install-priority: tests are LOCAL-class (CITE-CLASS-CANONICAL
+  6th class per CR-12 disposition lattice) — no upstream equivalent exists
+  for hook-specific tests; LOCAL composition is the SOTA path.
+
+REQUESTED VERDICT SHAPE (JSON-at-EOF)
+-------------------------------------
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "prescribed_edits": [
+    {"file": "<path>", "concern": "<one-line>", "fix": "<concrete>"}
+  ],
+  "rationale": "<short>"
+}
+
+Target: ≤10 prescribed_edits for Pattern A apply per cycle-300
+ONE-LOGICAL-UNIT-PER-FIRE. APPROVE shipping if conf≥0.90 with zero
+prescribed_edits. NEEDS-REVISION at conf 0.85-0.93 → Pattern A single
+atomic fix-forward → R2 verify.

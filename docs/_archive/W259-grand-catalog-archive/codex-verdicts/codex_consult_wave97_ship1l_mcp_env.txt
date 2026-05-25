@@ -1,0 +1,62 @@
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1L (MCP env-vars belt-and-suspenders pin)
+
+CONTEXT:
+- Wave 97 Fan-3 Agent X1 (`tmp/wave97-fan3-X1-mcp-env-deep-dive-2026-05-08.md`) returned with 4/4 env vars verified-and-recommended Pattern A apply
+- Agent X1 caught FM-20 path-drift cascade in Wave 97 Fan-2 Agent B brief: MCP_TOOL_TIMEOUT cite was at L1071 (mcpServers block) but actual env var cite is L979 — corrected forward
+- All 4 env vars confirmed-absent in current `.claude/settings.json` env block via Mia probe
+
+PROPOSED CHANGE (single file: `.claude/settings.json`):
+
+Insert AFTER line 35 `OTEL_LOG_USER_PROMPTS` (BEFORE existing CLAUDE_CODE_EFFORT_LEVEL block at L36) — 4 env var pins + 4 _comment lines:
+
+```json
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "_comment_max_mcp_output_tokens": "Wave 97 Ship 1L 2026-05-08 — 2× CCBP default 25000 (claude-settings.md:822 @ HEAD 64fffd53). Sized for ctx_batch_execute + repomix workloads (30-60K bytes returns observed Wave 97). Risk: LOW. CR-3 Phase 1 bootstrap exception cross-model gate satisfaction: codex T1 hook fires on this Edit; this consult IS the gate.",
+    "BASH_MAX_OUTPUT_LENGTH": "50000",
+    "_comment_bash_max_output_length": "Wave 97 Ship 1L 2026-05-08 — explicit pin per CCBP claude-settings.md:825 @ HEAD 64fffd53. Sized for codex T2 (~3-8K) + cwc kill-switch (~10K) + 5-10× headroom. Risk: LOW.",
+    "BASH_MAX_TIMEOUT_MS": "900000",
+    "_comment_bash_max_timeout_ms": "Wave 97 Ship 1L 2026-05-08 — 900s/15min ceiling per CCBP claude-settings.md:824 + Anthropic CHANGELOG.md:3311 (introduced env var) + L2686 (auto-background semantic). Covers codex T6 stop-gate 900s (longest sync gate per cross-model-consensus.md §Profile selection), cwc up to 600s, codex T1/T2 240-480s. Conflict-resolved with CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS=60000 (different scope: SessionEnd hooks-only ceiling vs Bash-tool-call ceiling). Risk: MED.",
+    "MCP_TOOL_TIMEOUT": "120000",
+    "_comment_mcp_tool_timeout": "Wave 97 Ship 1L 2026-05-08 — 120s per-MCP-tool-call ceiling per CCBP claude-settings.md:979 @ HEAD 64fffd53 (FM-20 cite-correction caught Wave 97 Fan-3 X1 Mia probe — Wave 97 Fan-2 B brief stale L1071) + Anthropic CHANGELOG.md:3259 (respect-bug fix). Sized for ctx_batch_execute p95 (~60s) × 2 safety margin. Prevents wedged-tool starvation. Orthogonal to MCP_TIMEOUT (server-startup). Risk: MED.",
+```
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT CCBP: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:822,824,825,979 @ HEAD 64fffd53a7c6f8e2e0b1575fdd200b65cda04737` [VERIFIED 2026-05-08 by Wave 97 Fan-3 X1]
+- TIER-1-DIRECT Anthropic CHANGELOG: `Z:/repos/deps/claude-code/CHANGELOG.md:3259,3311,2686` [VERIFIED 2026-05-08 by Wave 97 Fan-3 X1]
+- TIER-2 sister-rule: `cross-model-consensus.md §Profile selection rule` (T6 stop-gate 900s sizing anchor)
+- TIER-3 evidence: `tmp/wave97-fan3-X1-mcp-env-deep-dive-2026-05-08.md` (full deep-dive; Mia 4/4 PASS; FM-20 cite-correction)
+
+MIA PROBES (4/4 PASS per Wave 97 Fan-3 X1):
+- MAX_MCP_OUTPUT_TOKENS NOT in current settings.json: VERIFIED
+- BASH_MAX_OUTPUT_LENGTH NOT in current settings.json: VERIFIED
+- BASH_MAX_TIMEOUT_MS NOT in current settings.json: VERIFIED
+- MCP_TOOL_TIMEOUT NOT in current settings.json: VERIFIED
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1-DIRECT cite chain at file:line + HEAD SHA per fan3-X1 verification
+- CR-3: this consult IS the cross-model gate (real GPT-5.5 e2e BEFORE commit)
+- CR-5: env-var-only addition; no hand-coded primitive
+- CR-6: settings.json edit is bootstrap-only file per cardinal-rule-5 §"Bootstrap-only files"
+- CR-7: Phase 1 — env var change does NOT modify permission scope
+- CR-8: ADAPTED-FROM-SOTA — values cite-anchored per fan3-X1 risk analysis
+- CR-9: install-risk LOW for MAX_MCP_OUTPUT_TOKENS + BASH_MAX_OUTPUT_LENGTH; MED for BASH_MAX_TIMEOUT_MS + MCP_TOOL_TIMEOUT (timeout-misconfig risk; values sized per fan3-X1 workload analysis)
+- CR-10: research-first via Wave 97 Fan-3 X1 deep-dive + Mia 4/4 PASS BEFORE this T1
+- CR-11: META-process SOTA — agent fan-3 dispatched + Mia + Pattern A discipline + GPT-5.5 e2e + provenance log
+
+LAUNCH-DISCIPLINE D1:
+- REVERSIBLE: remove 4 env-var lines + 4 _comment lines in settings.json
+- OBSERVABLE: next session's Bash output / MCP tool calls will respect new ceilings; verifiable via test
+- INCREMENTAL: 4-line env addition; orthogonal to existing 33 env keys
+
+QUESTION (JSON ONLY):
+Is Wave 97 Ship 1L (4 MCP env-var belt-and-suspenders pins per Wave 97 Fan-3 X1 verdict) APPROVE-COMMIT?
+
+Concerns to consider:
+1. Are the recommended values (50000 / 50000 / 900000 / 120000) the right defaults for eee runtime under current workload patterns?
+2. Should BASH_MAX_TIMEOUT_MS be even higher (e.g. 1800000 = 30min) to cover edge cases like full-repo gitleaks scans?
+3. Does MCP_TOOL_TIMEOUT=120000 risk killing legitimate context-mode `ctx_batch_execute` runs that go beyond 60s p95 (e.g. heavy cohort audits with 8-10 concurrent commands)?
+4. Any conflict with existing 33 env keys?
+5. Is the FM-20 cite-correction (L1071 → L979) properly disclosed in the comment?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

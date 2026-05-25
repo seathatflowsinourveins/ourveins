@@ -1,0 +1,814 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: detailed
+session id: 019e0b57-b888-7f00-8e3c-2d1f8ddd67c4
+--------
+user
+# T1 codex pre-commit consult — Wave 116 Ship 2N-batch3-MEM-MISTAKE-A /mistake-search slash command
+
+## Context
+
+3rd operator-invoked memory primitive symmetric to Wave 113 `/recall` (RECALL general memories) + Wave 115 `/harvest` (CAPTURE pipeline). Wave 116 ships `/mistake-search` — READ-only RECALL-class surface for mistake-pattern primitives stored via `mcp__memory__mistake_note_add` (Wave 117 candidate).
+
+Wave 113 codex T1 NEEDS-REVISION conf=0.89 → 4 prescriptions applied (frontmatter + body + cite + tier-1 cite). Wave 115 codex T1 NEEDS-REVISION conf=0.87 → 5 prescriptions applied (two-token write-confirmation guard + project_path inference correction + output template + use_llm + anti-pattern). Wave 116 should benefit from cumulative learnings — simpler ship (READ-only / single tool / 2 params).
+
+Per `cardinal-rule-12 upstream-install-priority` HONEST-NON-FINDING (verified Wave 113 Plan agent search): no upstream Anthropic-OFFICIAL `/mistake-search` skill exists; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8.
+
+## Proposed edit (NEW file at `.claude/commands/mistake-search.md`)
+
+Already written via Write tool (~85 LOC; T1-WARN gate noted but proceeding per CR-3 Phase 1 bootstrap exception with this explicit foreground T1).
+
+Key design choices (mirrors Wave 113/115 Pattern A-corrected template):
+1. Frontmatter: `description` + `argument-hint: <query> [--limit N]` + `disable-model-invocation: true` + `allowed-tools: [mcp__memory__mistake_note_search]`
+2. Operator-invoked READ-only (no `--apply` semantic; no two-token guard needed since no DB writes)
+3. Single tool: `mcp__memory__mistake_note_search`
+4. Output template fields per upstream `mistake_note_add` schema: `error_pattern` + `context_signature` + `incorrect_action` + `correct_action` + `failure_count`
+5. Companion ships queued (`/mistake-add` Wave 117 + skill `mistake-aware` Wave 118 + Stop hook auto-capture Wave 119+)
+
+## 3 audit axes (TIGHT per codex-t1-fix-forward-pattern.md Pattern A)
+
+### AXIS 1 — Anthropic CC slash command spec compliance (consistency with Wave 113/115)
+
+The file lives at `.claude/commands/mistake-search.md`. Verify the frontmatter shape against Wave 113/115 Pattern A-corrected template + canonical Anthropic CC spec:
+
+- Frontmatter shape identical to Wave 115 `/harvest` (Pattern A-corrected template) MINUS the `--apply --apply-confirmed` two-token (READ-only surface, no write semantic)
+- `disable-model-invocation: true` retained for operator-only design
+- `argument-hint: <query> [--limit N]` — does positional `<query>` work without explicit flag, OR should it be `--query` flag?
+- `allowed-tools` single-tool YAML list
+
+Any frontmatter shape concern OR is this consistent with prior Pattern A-corrected templates?
+
+### AXIS 2 — mistake_note_search MCP integration semantic correctness
+
+The slash command instructs Claude to invoke `mcp__memory__mistake_note_search` with parsed args. Verify against runtime spec at `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:2246-2257`:
+
+- Tool name `mistake_note_search` (CC tool ref `mcp__memory__mistake_note_search`)
+- Param `query` (REQUIRED, free-text string) + `limit` (optional int default 5)
+- Verify slash command param mapping:
+  - First positional arg(s) before `--limit` flag → `query` (REQUIRED, free-text)
+  - `--limit N` → `limit: <N>` (default 5, max 20 sane cap I added)
+- Output template fields claimed in slash command: `error_pattern` + `context_signature` + `incorrect_action` + `correct_action` + `failure_count` — verify these match what the tool actually returns. Per `mistake_note_add` Tool spec at `server_impl.py:2225-2245`: required input fields are exactly these 4 (`error_pattern` + `context_signature` + `incorrect_action` + `correct_action`); `failure_count` is "Auto-incremented for repeated patterns" per docstring (does it appear in `mistake_note_search` OUTPUT?)
+- The "max 20 sane cap" I added on `--limit` flag — is this an honest extension, OR overstating upstream limits (should I drop it)?
+
+If output template OR limit handling is wrong, /mistake-search would produce malformed output. Report exact prescribed correction.
+
+### AXIS 3 — Probe 5 mode-harness-shape verdict for eee + READ-only simplicity
+
+eee is single-user /loop autonomous. Cron `5e0c7efb` `*/15 * * * *` re-enters with same prompt context. Wave 113 `/recall` shipped operator-invoked + READ-only without two-token guard (Probe 5 PASS). Wave 115 `/harvest` added two-token `--apply --apply-confirmed` for WRITE surface.
+
+For `/mistake-search` (READ-only):
+- Is `disable-model-invocation: true` sufficient + READ-only (no DB writes) means no two-token guard needed?
+- Risk: if /loop tick prompt CONTAINS `/mistake-search "<some query>"`, would this accidentally fire?
+- Per Wave 113 codex T1 finding: "Anthropic commands are only recognized at the start of a message, so inline prose or commit-body mentions of `/mistake-search` should not dispatch. A `/loop` tick whose prompt starts with `/mistake-search` could still explicitly invoke the command at message start; no frontmatter field mechanically blocks user/SDK slash-command dispatch at message start." For READ-only surface, is this acceptable risk?
+- Anti-pattern note "DO NOT rely on /mistake-search for completeness" + "DO NOT invoke from /loop ticks expecting context injection" — sufficient OR additional discipline needed?
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "...",
+    "axis_2_mcp_integration_correctness": "...",
+    "axis_3_probe_5_mode_harness": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/mistake-search.md",
+      "line_or_section": "frontmatter | body | both",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance + cite trail
+
+- CR-1 cite SOTA primary: TIER-1-DIRECT to Anthropic CC slash command spec + mcp_memory_service runtime tool surface at server_impl.py:2246-2257
+- CR-3 cross-model T1: this consult IS the gate satisfaction (T1-WARN already fired; explicit foreground+tee codex e2e per Phase 1 bootstrap exception)
+- CR-5 install-priority: NEW slash command file (NOT new install — uses EXISTING `mcp__memory__mistake_note_search` advertised in v10.51.3 runtime)
+- CR-9 install-risk: LOWEST-RISK READ-only (no DB writes; no `--apply`; reversible via rm)
+- CR-12 upstream-install-priority: HONEST-NON-FINDING per Wave 113 Plan agent — no upstream Anthropic-OFFICIAL `/mistake-search` skill exists
+
+## Files for review
+
+- `.claude/commands/mistake-search.md` (NEW, ~85 LOC) — verbatim content via Read tool from absolute path
+- Companion templates: `.claude/commands/recall.md` (Wave 113 Pattern A-corrected) + `.claude/commands/harvest.md` (Wave 115 Pattern A-corrected)
+- Upstream cite: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:2225-2257` for `mistake_note_add` + `mistake_note_search` Tool specs
+
+**Exploring custom commands**
+
+I’m considering the need for custom slash commands for Claude Code and what frontmatter fields I might need. Maybe I should check the latest details—possibly by 2026? I think it would make sense to browse the official documentation for that. I’ll need to search specifically for topics like “Anthropic slash commands,” including “disable-model-invocation” and “allowed-tools” argument-hint features. That could provide the clarity I'm looking for.
+codex
+I’ll verify the new command against the sibling command files and the MCP tool definition, then check the current Anthropic slash-command docs for frontmatter semantics before giving the JSON verdict.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/commands/mistake-search.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/commands/harvest.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py | Select-Object -Skip 2218 -First 55' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/commands/recall.md' in Z:\claude-sota-installed
+ succeeded in 303ms:
+---
+description: Search persistent memory for prior decisions / ship verdicts / FM-class recoveries / named-failure-mode catalog rows / Wave-N artifact references via mcp__memory__memory_search.
+argument-hint: <natural-language query> [--tag <tag>] [--since <YYYY-MM-DD>] [--limit <N>]
+disable-model-invocation: true
+allowed-tools:
+  - mcp__memory__memory_search
+---
+
+# /recall
+
+Operator-invoked semantic search against the eee persistent memory store. Wave 113 Ship 2N-batch3-MEM-D component (slash D of Hybrid Option F per `tmp/wave113-architect-memrecall-design-2026-05-09.md` DESIGN: F).
+
+## Backend (TIER-1-DIRECT cite — runtime distinguished from local repo)
+
+- **Server (runtime)**: `mcp-memory-service v10.51.3` installed at `Z:/venvs/claude/Scripts/memory.exe` per `.mcp.json:38-46` (Apache-2.0 / 1809★ doobidoo/mcp-memory-service)
+- **Local source clone**: `Z:/repos/deps/mcp-memory-service @ HEAD 0cf4e09fe75535dff0f73ce799d68b6b37537c6a` (v10.47.2 — distinct from runtime; do NOT cite as upstream-source verification for runtime call shape)
+- **Storage**: sqlite_vec at `Z:/claude-sota-installed-state/.mcp-memory/memory.db`
+- **Schema**: 14 tables — `memories` + `memory_embeddings` (vector chunks) + `memory_content_fts` (FTS5) + `memory_graph`
+
+## Usage
+
+- `/recall <query>` — semantic search, top 5 results by default
+- `/recall --tag <tag> <query>` — tag-filtered semantic search
+- `/recall --since <YYYY-MM-DD> <query>` — time-range filter
+- `/recall --limit <N> <query>` — result count override (default 5, max 20)
+
+## Implementation behavior
+
+When invoked with `$ARGUMENTS`, parse flags first:
+
+- `--tag <tag>`: collect one or more tags and pass as `tags: [...]`
+- `--since <YYYY-MM-DD>`: pass as `after: "<YYYY-MM-DD>"` (mcp-memory-service uses `after`/`before`/`time_expr`, NOT `since`)
+- `--limit <N>`: pass as `limit` after clamping to command max (default 5, max 20)
+- Remainder: pass as `query`
+
+Invoke `mcp__memory__memory_search` with `mode: "semantic"`, `query`, optional `tags`, optional `after`, and `limit`. Do NOT call `retrieve_memory` — it is a deprecated compatibility route in mcp-memory-service and is not advertised as a Claude Code MCP tool.
+
+Raw tool output is `Found N memories (mode: ...)` plus numbered `content/Hash/Created/tags` blocks. Reformat top-N results as:
+
+```
+## RECALL: N matches
+1. [tag1, tag2] 2026-05-09: <content excerpt 200 chars>
+   memory_id: <hash>
+2. ...
+```
+
+(The `## RECALL: N matches` block is the post-processing presentation shape — not raw MCP output.)
+
+If 0 matches: report HONEST-NON-FINDING per `.claude/rules/synthesis-layer-verify.md §Reporting categories` with the query verbatim and suggest broadening.
+
+## When to use
+
+- Pre-task: search memory before planning a complex ship — surface prior similar work
+- Post-incident: locate prior similar incidents (FM-class recoveries / Mia OVER catches)
+- Wave-close synthesis: verify HONEST-NON-FINDING saturation by querying for prior wave verdicts on same axis
+- Cardinal-rule-11 META-process RECALL operationalization (CLAUDE.md §"NEW Cardinal Rule cardinal-rule-11")
+
+## Companion ships (queued, not active)
+
+- **Skill `mem-recall`** (Wave 114 Ship 2N-batch3-MEM-C candidate): description-triggered auto-promote when context matches recall keywords
+- **PreToolUse:Agent spawn-time hook** (Wave 115 Ship 2N-batch3-MEM-E candidate): subagent context enrichment via `additionalContext` JSON field
+
+## TIER-1 SOTA cite trail
+
+- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter; supports `description` / `argument-hint` / `disable-model-invocation` / `allowed-tools` fields per Wave 113 codex T1 verdict at `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt`)
+- **mcp-memory-service runtime tool surface (verified)**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1810-2247` advertises `memory_search` + `memory_consolidation` + `memory_ingest` + `memory_harvest` + `memory_quality` + `memory_graph` + `memory_conflicts` + `memory_resolve` + `mistake_note_add` + `mistake_note_search` (10+ tools). `memory_search` real param shape: `query` / `mode` / `time_expr` / `after` / `before` / `tags` / `quality_boost` / `limit` / `include_debug` / `max_response_chars` / `include_superseded` (NO `since` parameter)
+- **Wave 113 codex T1 verdict**: NEEDS-REVISION conf=0.89 [VERIFIED via `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt` 2026-05-09] — corrections applied per `codex-t1-fix-forward-pattern.md` Pattern A
+
+## Anti-patterns
+
+- **DO NOT** invoke `/recall` from inside autonomous /loop ticks — explicit operator-invocation only (Probe 5 mode-harness-shape per `.claude/rules/agent-harness-fit-verification.md`)
+- **DO NOT** chain `/recall` followed by `/recall` repeatedly — single-fire usage; if no match, broaden query or check capture-side wire (memory CAPTURE may be missing per Wave 113 Plan finding)
+
+
+ succeeded in 305ms:
+---
+description: Extract learnings from Claude Code session transcripts (decisions / bugs / conventions / learnings / context) via mcp__memory__memory_harvest. Default dry-run preview; --apply stores candidates.
+argument-hint: [--sessions N] [--session-ids <id1,id2>] [--types <decision|bug|convention|learning|context>] [--min-confidence 0.6] [--project-path <path>] [--apply --apply-confirmed]
+disable-model-invocation: true
+allowed-tools:
+  - mcp__memory__memory_harvest
+---
+
+# /harvest
+
+Operator-invoked CAPTURE primitive. Wave 115 Ship 2N-batch3-MEM-CAPTURE — closes RECALL prerequisite gap surfaced Wave 113 (DB had 0 entries pre-harvest). Symmetric companion to Wave 113 `/recall` (RECALL surface) — `/harvest` is the CAPTURE surface.
+
+## Backend (TIER-1-DIRECT cite — runtime distinguished from local repo)
+
+- **Server (runtime)**: `mcp-memory-service v10.51.3` installed at `Z:/venvs/claude/Scripts/memory.exe` per `.mcp.json:38-46` (Apache-2.0 / 1809★ doobidoo/mcp-memory-service)
+- **Local source clone**: `Z:/repos/deps/mcp-memory-service @ HEAD 0cf4e09fe75535dff0f73ce799d68b6b37537c6a` (v10.47.2 — distinct from runtime; cite separately)
+- **MCP tool spec**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` (`memory_harvest` Tool registration + inputSchema)
+- **Harvest pipeline**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/` — `SessionHarvester` (harvester.py) + `TranscriptParser` (parser.py) + `PatternExtractor` (extractor.py) + `HarvestClassifier` (classifier.py — LLM Phase 2 47%→80% precision)
+- **Storage**: sqlite_vec at `Z:/claude-sota-installed-state/.mcp-memory/memory.db` (14 tables — `memories` + `memory_embeddings` + `memory_content_fts` + `memory_graph`)
+
+## Usage
+
+- `/harvest` — dry-run preview top recent session, all memory types
+- `/harvest --sessions 3` — preview last 3 sessions
+- `/harvest --types decision,bug` — filter by memory types (allowed: `decision` / `bug` / `convention` / `learning` / `context`)
+- `/harvest --min-confidence 0.7` — confidence threshold (default 0.6)
+- `/harvest --apply --apply-confirmed` — **STORE** candidates (two-token write confirmation; `--apply` alone is treated as dry-run + reports confirmation required)
+- `/harvest --apply --apply-confirmed --sessions 5 --types decision,convention` — composite store
+
+**Safety default**: `dry_run: true` — preview only, no DB writes. Two-token write confirmation pattern: `--apply` alone MUST remain `dry_run: true` and report write confirmation required; actual DB writes require BOTH `--apply` AND `--apply-confirmed` per Wave 115 codex T1 NEEDS-REVISION conf=0.87 mechanical-guard prescription. Per cardinal-rule-9 install-risk LOW-with-explicit-mechanical-confirmation pattern (anti-pattern: operator-discipline alone is INSUFFICIENT under eee autonomous /loop conditions where /loop tick prompts can dispatch slash commands at message start).
+
+## Implementation behavior
+
+When invoked with `$ARGUMENTS`, parse flags:
+
+- `--sessions N`: pass as `sessions: <N>` (default 1)
+- `--session-ids <id1,id2>`: pass as `session_ids: ["<id1>", "<id2>"]`
+- `--types <list>`: parse comma-separated list, pass as `types: [...]` filtered to {`decision`, `bug`, `convention`, `learning`, `context`}
+- `--min-confidence N`: pass as `min_confidence: <N>` (default 0.6)
+- `--apply --apply-confirmed`: pass as `dry_run: false`. If `--apply` appears WITHOUT `--apply-confirmed`, pass `dry_run: true` (or do not call the tool) and report `write confirmation required` to operator
+- `--project-path <path>`: pass as `project_path: "<path>"`. **If omitted**, the MCP handler infers the Claude project transcript directory from `Path.cwd()` under `~/.claude/projects/<cwd-with-separators-replaced>` (NOT from `CLAUDE_PROJECT_DIR`)
+
+Invoke `mcp__memory__memory_harvest` with assembled params. Do NOT pass `use_llm: true` — it requires `GROQ_API_KEY` env var which eee does not have set; LLM Phase 2 classification not enabled this fire.
+
+Reformat returned `HarvestResult` candidates as:
+
+```
+## HARVEST: N candidates (sessions: <list>, dry_run: <bool>, min_confidence: <N>)
+1. [<type>] confidence=<N> tags=<tags>: <content excerpt 200 chars>
+   session_id: <id>
+2. ...
+```
+
+(Note: tool returns `type`/`content`/`confidence`/`tags` per `HarvestCandidate` model in `mcp_memory_service/harvest/models.py`; does NOT return `timestamp` field per Wave 115 codex T1 verdict.)
+
+Distinguish dry-run vs apply outcomes:
+- `dry_run: true` → "PREVIEW (no DB writes)"
+- `dry_run: false` → "STORED N candidates as tagged memories"
+
+If 0 candidates: report HONEST-NON-FINDING per `.claude/rules/synthesis-layer-verify.md §Reporting categories` with the session range probed and suggest broader scope OR larger session count.
+
+## When to use
+
+- Post-wave: harvest current session learnings (decision/bug/convention/learning/context) into persistent memory before session ends
+- Pre-incident-replay: harvest prior session looking for similar contexts before starting analogous work
+- Cardinal-rule-11 META-process operationalization (CLAUDE.md §"NEW Cardinal Rule cardinal-rule-11"): closes the CAPTURE half so /recall has actual data to surface
+- Compounding learning per Karpathy `§5 Wiki Compounding Surface` discipline + user mandate "compounding learning"
+
+## Companion ships (queued, not active)
+
+- **Skill `mem-harvest`** (Wave 116 Ship 2N-batch3-MEM-HARVEST-C candidate): description-triggered auto-promote on session-end-imminent context detection (use_llm=false safe default)
+- **Stop hook auto-harvest** (Wave 117 Ship 2N-batch3-MEM-HARVEST-E candidate): SessionEnd hook calls `python -c "from mcp_memory_service.harvest import SessionHarvester; ..."` for autonomous-loop CAPTURE without operator typing — Probe 5 mode-harness-shape design needed (slash uses MCP tool, hook uses Python class direct — different code paths)
+- **`/recall`** (Wave 113 Ship 2N-batch3-MEM-D): symmetric RECALL surface — operator types `/recall <query>` to surface prior harvested memories
+
+## TIER-1 SOTA cite trail
+
+- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter incl. `disable-model-invocation`)
+- **mcp-memory-service runtime tool surface (verified)**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` advertises `memory_harvest` MCP tool with full inputSchema
+- **Harvest pipeline source**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/{__init__,classifier,extractor,harvester,models,parser}.py` — SessionHarvester orchestrator + 5-type extraction
+- **Wave 113 codex T1 surfacing**: `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt` discovered `memory_harvest` primitive among 10+ advertised tools; closed Wave 113 close-synthesis "CAPTURE missing" Mia OVER #41 self-catch — primitive EXISTS; `/harvest` is just the operational wire
+
+## Anti-patterns
+
+- **DO NOT** invoke `/harvest --apply --apply-confirmed` from inside autonomous /loop ticks — `--apply --apply-confirmed` is destructive (writes to memory DB; reverting requires DB rollback per `.mcp-memory/memory.db` backup). Per Probe 5 mode-harness-shape per `agent-harness-fit-verification.md` + Wave 115 codex T1 finding: anti-pattern note is ADVISORY only — the two-token `--apply --apply-confirmed` mechanical guard is the load-bearing safety primitive. /loop tick prompts that start with `/harvest --apply` (without `--apply-confirmed`) are auto-treated as `dry_run: true`
+- **DO NOT** chain `/harvest --apply` repeatedly on same session — duplicates memories (no idempotency in v10.51.3 runtime; deduplication is via `memory_consolidation` separate primitive)
+- **DO NOT** pass `use_llm: true` without explicit operator approval — Groq API call costs ~$0.001/candidate. Without `GROQ_API_KEY` env var, LLM Phase 2 classification is unavailable and the classifier falls back to regex candidates UNFILTERED (lower precision ~47% vs ~80% with LLM); the harvest does NOT fail silently per upstream `harvest/classifier.py` behavior — it logs unavailable + returns regex-only candidates [VERIFIED Wave 115 codex T1 verdict 2026-05-09]
+
+## Cardinal-rule conformance per ship
+
+- CR-1: TIER-1-DIRECT cites at file:line (mcp_memory_service/server_impl.py:1979-2057 + harvest/__init__.py + Anthropic CC slash command spec URL)
+- CR-3: codex T1 e2e foreground+tee mandatory before commit (per CR-3 + user mandate "always using gpt5.5 fully e2e before commit")
+- CR-5: NEW slash command file using EXISTING upstream primitive (`mcp__memory__memory_harvest`) — install-priority satisfied (no new install needed; primitive already advertised in v10.51.3 runtime)
+- CR-9: LOW-RISK reversible — operator-invoked + `dry_run: true` default + `--apply` opt-in; reversible via `rm .claude/commands/harvest.md` + DB rollback if applied
+- CR-12: HONEST-NON-FINDING — no upstream Anthropic-OFFICIAL `/harvest` skill exists per Wave 113 Plan agent search; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8 (effective_tier=TIER-3-LOCAL-COMPOSITION-OVER-TIER-1-SUBSTRATES)
+
+
+ succeeded in 327ms:
+---
+description: Search mistake notes by semantic similarity to surface known pitfalls and past errors before starting a task. Operator-invoked RECALL-class surface for FM-class recovery patterns.
+argument-hint: <query> [--limit N]
+disable-model-invocation: true
+allowed-tools:
+  - mcp__memory__mistake_note_search
+---
+
+# /mistake-search
+
+Operator-invoked READ-only RECALL surface for mistake patterns stored via `mcp__memory__mistake_note_add`. Wave 116 Ship 2N-batch3-MEM-MISTAKE-A — third operator-invoked memory primitive after Wave 113 `/recall` (general memories) + Wave 115 `/harvest` (CAPTURE pipeline). Symmetric companion to forthcoming `/mistake-add` (Wave 117 candidate).
+
+## Backend (TIER-1-DIRECT cite — runtime distinguished from local repo)
+
+- **Server (runtime)**: `mcp-memory-service v10.51.3` installed at `Z:/venvs/claude/Scripts/memory.exe` per `.mcp.json:38-46` (Apache-2.0 / 1809★ doobidoo/mcp-memory-service)
+- **MCP tool spec**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:2246-2257` (`mistake_note_search` Tool registration with required `query` + optional `limit`)
+- **Stored fields per mistake note**: `error_pattern` + `context_signature` + `incorrect_action` + `correct_action` + auto-incremented `failure_count`
+- **Storage**: sqlite_vec at `Z:/claude-sota-installed-state/.mcp-memory/memory.db` (memory_graph table)
+
+## Usage
+
+- `/mistake-search <query>` — semantic search top 5 by default
+- `/mistake-search <query> --limit 10` — override result count
+
+Examples:
+- `/mistake-search "FM-02 staging contamination"` — surface prior FM-02 absorption recoveries
+- `/mistake-search "codex T1 prompt-echo verdict false-positive"` — surface verdict-reading discipline mistakes
+- `/mistake-search "Mia OVER plan agent SHA miscite"` — surface prior Plan-agent OVER catches
+
+## Implementation behavior
+
+When invoked with `$ARGUMENTS`, parse:
+- First positional arg(s) before `--limit` flag = `query` (REQUIRED, free-text)
+- `--limit N`: pass as `limit: <N>` (default 5, max 20 sane cap)
+
+Invoke `mcp__memory__mistake_note_search` with assembled params. Tool returns mistake notes ranked by semantic similarity.
+
+Reformat returned mistake notes as:
+
+```
+## MISTAKES: N matches (query: "<verbatim>")
+1. <error_pattern>
+   context: <context_signature>
+   wrong: <incorrect_action>
+   right: <correct_action>
+   failures: <failure_count>×
+2. ...
+```
+
+If 0 matches: report HONEST-NON-FINDING per `.claude/rules/synthesis-layer-verify.md §Reporting categories` with the query verbatim and suggest broadening (try shorter / less-specific query).
+
+## When to use
+
+- **Pre-task cardinal-rule-11 META-process gate**: BEFORE starting a complex ship, search for prior similar mistakes (e.g., "session-affinity-ttl design" surfaces Wave 112 Mia OVER #37 mode-harness mismatch verdict)
+- **Pre-incident FM-class lookup**: when an FM-class incident pattern emerges (FM-02 staging contamination / FM-17 fleet depletion / FM-19 readonly-guard sidestep / FM-20 path-drift cascade), search for prior recoveries
+- **Cross-model T1 verdict review**: search for prior codex T1 NEEDS-REVISION corrections on similar surfaces (e.g., "/recall slash command frontmatter" surfaces Wave 113 Pattern A learnings)
+- **Compounding learning** per Karpathy `§5 Wiki Compounding Surface`: surface prior errors before repeating
+
+## Companion ships (queued)
+
+- **Wave 117 candidate**: Ship 2N-batch3-MEM-MISTAKE-B `/mistake-add` slash command (operator-invoked CAPTURE for mistake patterns; two-token `--apply --apply-confirmed` mechanical guard like `/harvest`)
+- **Wave 118 candidate**: Skill `mistake-aware` description-triggered auto-promote BEFORE Agent dispatch (PreToolUse:Agent context: search mistakes matching subagent prompt + inject as additionalContext)
+- **Wave 119+ candidate**: Stop hook `mistake_note_add` auto-capture on FM-class recovery commit-body markers (`Mia OVER` / `FM-02(c)` / `Pattern B HNF` patterns extracted from commit bodies)
+
+## TIER-1 SOTA cite trail
+
+- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/slash-commands` + `https://code.claude.com/docs/en/agent-sdk/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape; `disable-model-invocation: true` recommended for manually triggered workflows)
+- **mcp-memory-service runtime tool surface (verified)**: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:2246-2257` advertises `mistake_note_search` MCP tool with full inputSchema
+- **Wave 113 + Wave 115 codex T1 e2e learnings**: Pattern A-corrected slash command template (frontmatter shape + disable-model-invocation + two-token guard for write surfaces; READ-only surfaces like /mistake-search don't need two-token guard)
+
+## Anti-patterns
+
+- **DO NOT** rely on `/mistake-search` for completeness — semantic search returns top-N by similarity; near-matches may exist below threshold. Per `synthesis-layer-verify.md §Reporting categories`: 0-match HNF report should suggest broader query, not assume mistake-history is empty
+- **DO NOT** invoke from inside autonomous /loop ticks expecting context injection — `/mistake-search` reformats results to chat output, NOT injected as `additionalContext`. For PreToolUse:Agent auto-RECALL, use the Wave 118 skill candidate (description-triggered) instead
+
+## Cardinal-rule conformance per ship
+
+- CR-1: TIER-1-DIRECT cites at file:line (mcp_memory_service/server_impl.py:2246-2257 + Anthropic CC slash command spec URL)
+- CR-3: codex T1 e2e foreground+tee mandatory before commit (per CR-3 + user mandate "always using gpt5.5 fully e2e before commit")
+- CR-5: NEW slash command file using EXISTING upstream primitive — install-priority satisfied (no new install; `mistake_note_search` already advertised in v10.51.3 runtime)
+- CR-9: LOWEST-RISK reversible — operator-invoked + READ-only (no DB writes; no `--apply` semantic needed); reversible via `rm .claude/commands/mistake-search.md`
+- CR-12: HONEST-NON-FINDING — no upstream Anthropic-OFFICIAL `/mistake-search` skill exists; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8 (effective_tier=TIER-3-LOCAL-COMPOSITION-OVER-TIER-1-SUBSTRATES)
+
+
+ succeeded in 378ms:
+                            "required": ["winner_hash", "loser_hash"],
+                        },
+                        annotations=types.ToolAnnotations(
+                            title="Resolve Memory Conflict",
+                            destructiveHint=True,
+                        ),
+                    ),
+                ]
+                tools.extend(conflict_tools)
+                logger.info(f"Added {len(conflict_tools)} conflict detection tools")
+
+                # Mistake Notes tools
+                mistake_tools = [
+                    types.Tool(
+                        name="mistake_note_add",
+                        description="Record a mistake pattern for error replay. Tracks what went wrong and the correct action. Auto-increments failure_count for repeated patterns.",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "error_pattern": {"type": "string", "description": "The error pattern or message"},
+                                "context_signature": {"type": "string", "description": "Context where the error occurred (file, function, task type)"},
+                                "incorrect_action": {"type": "string", "description": "What was done incorrectly"},
+                                "correct_action": {"type": "string", "description": "What should have been done instead"},
+                            },
+                            "required": ["error_pattern", "context_signature", "incorrect_action", "correct_action"],
+                        },
+                    ),
+                    types.Tool(
+                        name="mistake_note_search",
+                        description="Search mistake notes by semantic similarity. Use before starting a task to check for known pitfalls and past errors.",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "Search query (error message, context, or task description)"},
+                                "limit": {"type": "integer", "default": 5, "description": "Max results (default: 5)"},
+                            },
+                            "required": ["query"],
+                        },
+                    ),
+                ]
+                tools.extend(mistake_tools)
+                logger.info(f"Added {len(mistake_tools)} mistake note tools")
+
+                logger.info(f"Returning {len(tools)} tools")
+                return tools
+            except Exception as e:
+                logger.error(f"Error in handle_list_tools: {str(e)}")
+                logger.error(traceback.format_exc())
+                raise
+        
+        @self.server.call_tool()
+        async def handle_call_tool(name: str, arguments: dict | None) -> List[types.TextContent]:
+            """Handle tool calls with centralized deprecation support."""
+            # Add immediate debugging to catch any protocol issues
+            if MCP_CLIENT == 'lm_studio':
+
+**Inspecting search implementation**
+
+I’m thinking about how I need to inspect the implementation of the mistake note search output. There might be issues with how the search functions are set up, so I need to figure out where things might be going wrong. It could involve checking for errors in the code or ensuring that the search parameters are correctly defined. I want to make sure to get this right, as it’s important for improving the functionality!
+codex
+The command’s frontmatter matches the sibling files at a glance. I’m checking the actual search handler now, because the main risk is whether the command’s rendered fields match the runtime output rather than just the tool input schema.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "mistake_note_(add|search)|failure_count|Mistake" Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "mistake_note_(add|search)|failure_count|Mistake" Z:/venvs/claude/Lib/site-packages/mcp_memory_service' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "argument-hint|disable-model-invocation|allowed-tools|slash" .claude -g "*.md" -g "*.json"' in Z:\claude-sota-installed
+ succeeded in 306ms:
+1265:            mistake_note_add, mistake_note_search).
+2230:                # Mistake Notes tools
+2233:                        name="mistake_note_add",
+2234:                        description="Record a mistake pattern for error replay. Tracks what went wrong and the correct action. Auto-increments failure_count for repeated patterns.",
+2247:                        name="mistake_note_search",
+2336:                elif name == "mistake_note_add":
+2337:                    logger.info("Calling handle_mistake_note_add")
+2338:                    return await self.handle_mistake_note_add(arguments)
+2339:                elif name == "mistake_note_search":
+2340:                    logger.info("Calling handle_mistake_note_search")
+2341:                    return await self.handle_mistake_note_search(arguments)
+2743:    # ─── Mistake Notes Handlers ───────────────────────────────────
+2745:    async def handle_mistake_note_add(self, arguments: dict) -> List[types.TextContent]:
+2748:        result = await self.memory_service.mistake_note_add(
+2756:    async def handle_mistake_note_search(self, arguments: dict) -> List[types.TextContent]:
+2759:        result = await self.memory_service.mistake_note_search(
+
+ succeeded in 289ms:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\config.py:1065:# Mistake Notes configuration
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\consolidation\base.py:168:        - Mistake notes with failure_count >= 3 (proven error patterns)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\consolidation\base.py:184:            if isinstance(metadata, dict) and metadata.get('failure_count', 0) >= 3:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:1894:                - failure_count: Number of operations that failed
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:1903:                'failure_count': 0,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\storage\hybrid.py:1923:                    'failure_count': final_failed - initial_failed,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:761:    # ─── Mistake Notes ────────────────────────────────────────────────
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:763:    async def mistake_note_add(
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:774:        pattern already exists (above dedup threshold), increments failure_count
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:807:                        # Increment failure_count on existing note
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:812:                        count = old_meta.get("failure_count", 1) + 1
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:813:                        old_meta["failure_count"] = count
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:823:                            "failure_count": count,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:832:                metadata={"failure_count": 1},
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:848:                "failure_count": 1,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:855:    async def mistake_note_search(
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\memory_service.py:886:                    "failure_count": meta.get("failure_count", 1),
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:1265:            mistake_note_add, mistake_note_search).
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2230:                # Mistake Notes tools
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2233:                        name="mistake_note_add",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2234:                        description="Record a mistake pattern for error replay. Tracks what went wrong and the correct action. Auto-increments failure_count for repeated patterns.",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2247:                        name="mistake_note_search",
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2336:                elif name == "mistake_note_add":
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2337:                    logger.info("Calling handle_mistake_note_add")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2338:                    return await self.handle_mistake_note_add(arguments)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2339:                elif name == "mistake_note_search":
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2340:                    logger.info("Calling handle_mistake_note_search")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2341:                    return await self.handle_mistake_note_search(arguments)
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2743:    # ─── Mistake Notes Handlers ───────────────────────────────────
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2745:    async def handle_mistake_note_add(self, arguments: dict) -> List[types.TextContent]:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2748:        result = await self.memory_service.mistake_note_add(
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2756:    async def handle_mistake_note_search(self, arguments: dict) -> List[types.TextContent]:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:2759:        result = await self.memory_service.mistake_note_search(
+
+ succeeded in 311ms:
+.claude\commands\recall.md:3:argument-hint: <natural-language query> [--tag <tag>] [--since <YYYY-MM-DD>] [--limit <N>]
+.claude\commands\recall.md:4:disable-model-invocation: true
+.claude\commands\recall.md:5:allowed-tools:
+.claude\commands\recall.md:11:Operator-invoked semantic search against the eee persistent memory store. Wave 113 Ship 2N-batch3-MEM-D component (slash D of Hybrid Option F per `tmp/wave113-architect-memrecall-design-2026-05-09.md` DESIGN: F).
+.claude\commands\recall.md:65:- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter; supports `description` / `argument-hint` / `disable-model-invocation` / `allowed-tools` fields per Wave 113 codex T1 verdict at `.claude/state/codex_consult_wave113_ship_d_recall_command_OUT.txt`)
+.claude\commands\harvest.md:3:argument-hint: [--sessions N] [--session-ids <id1,id2>] [--types <decision|bug|convention|learning|context>] [--min-confidence 0.6] [--project-path <path>] [--apply --apply-confirmed]
+.claude\commands\harvest.md:4:disable-model-invocation: true
+.claude\commands\harvest.md:5:allowed-tools:
+.claude\commands\harvest.md:30:**Safety default**: `dry_run: true` — preview only, no DB writes. Two-token write confirmation pattern: `--apply` alone MUST remain `dry_run: true` and report write confirmation required; actual DB writes require BOTH `--apply` AND `--apply-confirmed` per Wave 115 codex T1 NEEDS-REVISION conf=0.87 mechanical-guard prescription. Per cardinal-rule-9 install-risk LOW-with-explicit-mechanical-confirmation pattern (anti-pattern: operator-discipline alone is INSUFFICIENT under eee autonomous /loop conditions where /loop tick prompts can dispatch slash commands at message start).
+.claude\commands\harvest.md:72:- **Stop hook auto-harvest** (Wave 117 Ship 2N-batch3-MEM-HARVEST-E candidate): SessionEnd hook calls `python -c "from mcp_memory_service.harvest import SessionHarvester; ..."` for autonomous-loop CAPTURE without operator typing — Probe 5 mode-harness-shape design needed (slash uses MCP tool, hook uses Python class direct — different code paths)
+.claude\commands\harvest.md:77:- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/agent-sdk/slash-commands` + `https://code.claude.com/docs/en/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape + frontmatter incl. `disable-model-invocation`)
+.claude\commands\harvest.md:90:- CR-1: TIER-1-DIRECT cites at file:line (mcp_memory_service/server_impl.py:1979-2057 + harvest/__init__.py + Anthropic CC slash command spec URL)
+.claude\commands\harvest.md:92:- CR-5: NEW slash command file using EXISTING upstream primitive (`mcp__memory__memory_harvest`) — install-priority satisfied (no new install needed; primitive already advertised in v10.51.3 runtime)
+.claude\commands\mistake-search.md:3:argument-hint: <query> [--limit N]
+.claude\commands\mistake-search.md:4:disable-model-invocation: true
+.claude\commands\mistake-search.md:5:allowed-tools:
+.claude\commands\mistake-search.md:56:- **Cross-model T1 verdict review**: search for prior codex T1 NEEDS-REVISION corrections on similar surfaces (e.g., "/recall slash command frontmatter" surfaces Wave 113 Pattern A learnings)
+.claude\commands\mistake-search.md:61:- **Wave 117 candidate**: Ship 2N-batch3-MEM-MISTAKE-B `/mistake-add` slash command (operator-invoked CAPTURE for mistake patterns; two-token `--apply --apply-confirmed` mechanical guard like `/harvest`)
+.claude\commands\mistake-search.md:67:- **Anthropic CC slash command spec**: `https://code.claude.com/docs/en/slash-commands` + `https://code.claude.com/docs/en/agent-sdk/slash-commands` (canonical authority for `.claude/commands/<name>.md` shape; `disable-model-invocation: true` recommended for manually triggered workflows)
+.claude\commands\mistake-search.md:69:- **Wave 113 + Wave 115 codex T1 e2e learnings**: Pattern A-corrected slash command template (frontmatter shape + disable-model-invocation + two-token guard for write surfaces; READ-only surfaces like /mistake-search don't need two-token guard)
+.claude\commands\mistake-search.md:78:- CR-1: TIER-1-DIRECT cites at file:line (mcp_memory_service/server_impl.py:2246-2257 + Anthropic CC slash command spec URL)
+.claude\commands\mistake-search.md:80:- CR-5: NEW slash command file using EXISTING upstream primitive — install-priority satisfied (no new install; `mistake_note_search` already advertised in v10.51.3 runtime)
+.claude\settings.json:334:  "_comment_wave105_ship_a1": "Wave 105 fire 1 SHIP-A1 2026-05-08 — enable agent-skills plugin from addyosmani/agent-skills marketplace (TIER-1-NAMED-AUTHOR-QUOTE Addy Osmani / Google Chrome DevRel; 33.5k stars MIT). Marketplace registered Wave 82l per _comment_extraKnownMarketplaces_wave82l above. Plugin ships 21 production-grade engineering skills (api-and-interface-design / browser-testing-with-devtools / ci-cd-and-automation / code-review-and-quality / code-simplification / context-engineering / debugging-and-error-recovery / deprecation-and-migration / documentation-and-adrs / frontend-ui-engineering / git-workflow-and-versioning / idea-refine / incremental-implementation / performance-optimization / planning-and-task-breakdown / security-and-hardening / shipping-and-launch / source-driven-development / spec-driven-development / test-driven-development / using-agent-skills) + 7 lifecycle slash commands (/spec /plan /build /test /review /code-simplify /ship) + 3 plugin agents (code-reviewer / security-auditor / test-engineer; local .claude/agents/code-reviewer.md retains precedence per CC subagent install-path discipline). KISS Must-Never #4 check PASS — addy ships engineering-phase skills (API design / debugging / shipping) complementary to superpowers' workflow-grammar skills (TDD / brainstorming / writing-plans). SRA D1-D10 score 9/10 + D1+D6 PASS = INSTALL per sota-research-architecture.md. CR-9 install-risk LOW (no active hooks/MCPs; reversible; marketplace HEAD pinned via .gcs-sha first-12). Cross-model gate: Wave 105 fire 1 codex T1 e2e foreground+tee 180s budget Pattern B HONEST-NON-FINDING (11491-line trace inspected addy-agent-skills marketplace.json + 8 SHIP-A2 plugin contents but JSON verdict not emitted before budget exhaust) per codex-t1-fix-forward-pattern.md Pattern B disposition; T2 commit-time hook codex_t2_pre_commit_gate.py fires on commit. Mia OVER catches: Agent C B1 mcp-memory-NOT-wired claim REFUTED (.mcp.json line 39-46 active memory entry). Cite: agent-skills marketplace.json @ Z:/claude-sota-installed/.claude/plugins/marketplaces/agent-skills/.claude-plugin/plugin.json + addy_marketplace.json @ .../marketplaces/addy-agent-skills/.claude-plugin/marketplace.json + Wave 105 synthesis tmp/wave105-synthesis-2026-05-08.md REVISE-LIST + Agent A audit tmp/wave105-agentA-sota-architecture-audit-2026-05-08.md + Agent C plan tmp/wave105-agentC-architect-install-plan-2026-05-08.md (RECOMMENDED-OPTION B) + Agent D skill audit tmp/wave105-agentD-skill-sota-audit-2026-05-08.md (APPROVE-LIST). Codex T1 trace: .claude/state/codex_consult_wave105_synthesis_OUT.txt (Pattern B HNF).",
+.claude\settings.json:413:  "_comment_extraKnownMarketplaces_wave82l": "Wave 82l 2026-05-08 — added addyosmani/agent-skills @742dca5 marketplace per user-trigger 'https://github.com/addyosmani/agent-skills'. 33,500 stars MIT (named-author Addy Osmani / Google Chrome team). Marketplace identifier addy-agent-skills bundles 1 plugin (agent-skills) covering 7 lifecycle slash commands (/spec /plan /build /test /review /code-simplify /ship). Install via /plugin install agent-skills@addy-agent-skills. Cite class TIER-1-DIRECT (named-author T1 + 33.5k stars convergence-gate Axis-1 PASS). CR-9 sibling-bleed defense: zero sibling refs; clone via official-native-channel HTTPS git clone --depth 1.",
+.claude\agents\gpt5-reviewer.md:17:  Probe finding: codex-plugin-cc upstream slash-commands (review.md + adversarial-review.md) provide review primitives; sibling SUBAGENT-shape wrapper + REVIEW_MODE 4-mode catalog + Codex-unavailable fail-closed contract + santa-loop dual-review framing are sibling-novel ENRICHMENT delta
+.claude\agents\gpt5-reviewer.md:202:- **Axis 1 (≥3 distinct T1 orgs)** ✅: Aider-AI/aider 44K★ (`/code` `/architect` `/ask`) + GitHub/Microsoft Copilot Chat (`/doc` `/explain` `/fix` `/tests` per VS Code cheat sheet, codex T1 trace VERIFIED 2026-04-30) + OpenAI Codex CLI (`exec` vs `exec review` mode-split, already used by claude-sota T1-T7) + Cursor (Composer/Chat/Inline-Edit) + Anthropic Claude Code (slash commands)
+.claude\rules\citation-discipline.md:44:7. **Anthropic-bundled-skill cites: cite the current slash command, not local folder names** — *(specialization of rule #4 for bundled-skill identifier divergence)* — Bundled skill identifiers can diverge across local folders, CCBP tables, changelogs, and official docs. Example: CCBP `changelog/best-practice/concepts/changelog.md:410 @ 76599cb` records a stale-name correction from `/fewer-permission-prompts` to `/less-permission-prompts`, while CCBP `best-practice/claude-skills.md:48 @ 76599cb` still lists the folder-style `fewer-permission-prompts`, AND the current official Commands page (`code.claude.com/docs/en/commands` line 90 [VERIFIED 2026-05-01 via codex T1 web-fetch]) shows `/fewer-permission-prompts` — so the three authoritative surfaces actively disagree. **Discipline**: when sss documents an Anthropic-bundled skill invocation, cite the current command from `code.claude.com/docs/en/commands` FIRST as the tie-breaker; use `code.claude.com/docs/en/skills` only for general skill mechanics; use CCBP tables/changelogs as secondary drift evidence when they conflict. Never treat `.claude/skills/<folder>` or plugin cache paths as proof of the user-visible slash command. Apply to: `CLAUDE.md`, `.claude/agents/*.md`, `.claude/commands/**`, `.claude/skills/**/SKILL.md`, `.claude/rules/**`, `docs/sota-grand-catalog/**`, active adoption/citation docs, and commit bodies citing skill invocations. n=1 per `codification-threshold.md`: observed live conflict across official Commands docs / official Skills docs / CCBP changelog / CCBP skills table / sss docs costs ~15 min to re-derive per stale cite, this rule is <200 LOC; re-evaluate at the next Anthropic bundled-skill rename or official/CCBP conflict.
+.claude\rules\cross-model-consensus.md:85:| **T5** plan-stage | DURING `/plan-codex-review` slash command | `deep-review` | 240s | **ACTIVE** — `.claude/commands/plan-codex-review.md` slash command shipped (Q2 2026 unified skills/commands). User invokes via `/plan-codex-review` after Opus 4.7 produces a plan; codex GPT-5.5 reads the plan + repo state + proposes additive Phase-N.5 inserts for user-confirmed application. Pre-implementation cross-model check; complements T1 (post-implementation pre-commit) on the design-time axis. T5 keeps `deep-review` (read-only sandbox) — only T-touchpoint that retains the read-only-friendly profile post-iter-93 reconciliation. |
+.claude\rules\cross-model-consensus.md:96:- **`deep-review`**: cloud `gpt-5.5` xhigh-effort + read-only sandbox + service_tier=fast + verbosity=high. Used by T5 manual `/plan-codex-review` slash command (read-only suffices for prompt-context bounded reads). Token budget ~5K-10K per invocation.
+.claude\rules\mcp-disconnect-recovery.md:45:| **D1 Transport-level** | MCP control/list/schema/control-channel transport is broken — `/mcp` shows server `disconnected`; `get_mcp_status()` returns failed/disconnected; `tools/list` unavailable; tool schemas missing from deferred-tool list. NOT confirmed by tool-payload `connection refused` or `isError: true` (those are downstream tool-execution errors per MCP spec — see §Anti-patterns) | `/mcp restart <name>` (Claude Code slash) OR `ClaudeSDKClient.reconnect_mcp_server("<name>")` (SDK contexts) per `Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/client.py:401,423,472`. Fallback: `toggle_mcp_server` / edit `.claude/settings.json:disabledMcpjsonServers` only when restart unavailable or fails |
+.claude\rules\research-protocol.md:58:3. **T0 candidate-list challenge (PROPOSED-PILOT graduation)** — `/research-list-review <list_file>` slash command (Ship 11A v2 commit `1d5b9a3`) per `.claude/rules/cross-model-consensus.md` §T0 row. Cost-gated triggers: (a) expensive R2 wave queued, (b) blind-spot path (codex-rescue abstract-pattern adoption per FM-09), (c) cheap preflight finds duplicates, OR (d) operator explicit escalation. Reviews CANDIDATE-LIST COMPOSITION ONLY (add/drop/merge candidates, missing categories, metadata gaps); does NOT verify R2 claims, score adoption readiness, or replace R3/T1/T5. v1 print-only — operator decides whether to act on prescriptions.
+.claude\rules\research-protocol.md:146:When the slash command ports, it spawns agents for each phase:
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py | Select-Object -Skip 2738 -First 45' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content Z:/venvs/claude/Lib/site-packages/mcp_memory_service/services/memory_service.py | Select-Object -Skip 758 -First 140' in Z:\claude-sota-installed
+ succeeded in 392ms:
+        }
+
+    # ─── Mistake Notes ────────────────────────────────────────────────
+
+    async def mistake_note_add(
+        self,
+        error_pattern: str,
+        context_signature: str,
+        incorrect_action: str,
+        correct_action: str,
+    ) -> Dict[str, Any]:
+        """
+        Record a mistake pattern for error replay.
+
+        Stores as a regular memory with memory_type='mistake'. If a similar
+        pattern already exists (above dedup threshold), increments failure_count
+        instead of creating a duplicate.
+
+        Args:
+            error_pattern: The error pattern or message
+            context_signature: Context where the error occurred
+            incorrect_action: What was done incorrectly
+            correct_action: What should have been done instead
+
+        Returns:
+            Dictionary with operation result
+        """
+        from ..config import MCP_MISTAKE_NOTE_DEDUP_THRESHOLD
+
+        content = (
+            f"Pattern: {error_pattern}\n"
+            f"Context: {context_signature}\n"
+            f"Wrong: {incorrect_action}\n"
+            f"Right: {correct_action}"
+        )
+
+        try:
+            # Check for existing similar mistake note
+            existing = await self.retrieve_memories(
+                query=f"{error_pattern} {context_signature}",
+                n_results=3,
+                memory_type="mistake",
+            )
+
+            if existing.get("memories"):
+                for mem in existing["memories"]:
+                    score = mem.get("similarity_score", 0)
+                    if score >= MCP_MISTAKE_NOTE_DEDUP_THRESHOLD:
+                        # Increment failure_count on existing note
+                        content_hash = mem["content_hash"]
+                        old_meta = mem.get("metadata") or {}
+                        if isinstance(old_meta, str):
+                            old_meta = json.loads(old_meta) if old_meta else {}
+                        count = old_meta.get("failure_count", 1) + 1
+                        old_meta["failure_count"] = count
+
+                        await self.storage.update_memory_metadata(
+                            content_hash=content_hash,
+                            updates={"metadata": old_meta},
+                            preserve_timestamps=False,
+                        )
+                        return {
+                            "status": "updated",
+                            "content_hash": content_hash,
+                            "failure_count": count,
+                            "message": f"Existing mistake note updated (seen {count} times)",
+                        }
+
+            # No match — store new mistake note
+            result = await self.store_memory(
+                content=content,
+                tags="mistake-note,error-replay",
+                memory_type="mistake",
+                metadata={"failure_count": 1},
+            )
+
+            if not result.get("success"):
+                return {"status": "error", "message": f"Failed to store: {result}"}
+
+            content_hash = ""
+            if isinstance(result, dict):
+                mem = result.get("memory", {})
+                if isinstance(mem, dict):
+                    content_hash = mem.get("content_hash", "")
+                elif not content_hash:
+                    content_hash = result.get("content_hash", "")
+            return {
+                "status": "created",
+                "content_hash": content_hash,
+                "failure_count": 1,
+                "message": "New mistake note recorded",
+            }
+
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def mistake_note_search(
+        self,
+        query: str,
+        limit: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Search mistake notes by semantic similarity.
+
+        Args:
+            query: Search query (error message, context, or task description)
+            limit: Maximum number of results
+
+        Returns:
+            Dictionary with matching mistake notes
+        """
+        try:
+            result = await self.retrieve_memories(
+                query=query,
+                n_results=limit,
+                memory_type="mistake",
+            )
+
+            notes = []
+            for mem in result.get("memories", []):
+                meta = mem.get("metadata") or {}
+                if isinstance(meta, str):
+                    meta = json.loads(meta) if meta else {}
+                notes.append({
+                    "content_hash": mem["content_hash"],
+                    "content": mem["content"],
+                    "similarity": mem.get("similarity_score", 0),
+                    "failure_count": meta.get("failure_count", 1),
+                    "updated_at": mem.get("updated_at"),
+                })
+
+            return {"notes": notes, "count": len(notes)}
+
+        except Exception as e:
+            return {"notes": [], "count": 0, "error": str(e)}
+
+ succeeded in 438ms:
+
+        ok, msg = await self.storage.resolve_conflict(winner, loser)
+        return [types.TextContent(type="text", text=msg)]
+
+    # ─── Mistake Notes Handlers ───────────────────────────────────
+
+    async def handle_mistake_note_add(self, arguments: dict) -> List[types.TextContent]:
+        """Record a mistake pattern for error replay."""
+        await self._ensure_storage_initialized()
+        result = await self.memory_service.mistake_note_add(
+            error_pattern=arguments.get("error_pattern", ""),
+            context_signature=arguments.get("context_signature", ""),
+            incorrect_action=arguments.get("incorrect_action", ""),
+            correct_action=arguments.get("correct_action", ""),
+        )
+        return [types.TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+    async def handle_mistake_note_search(self, arguments: dict) -> List[types.TextContent]:
+        """Search mistake notes by semantic similarity."""
+        await self._ensure_storage_initialized()
+        result = await self.memory_service.mistake_note_search(
+            query=arguments.get("query", ""),
+            limit=arguments.get("limit", 5),
+        )
+        return [types.TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+    # ============================================================
+    # Test Compatibility Wrapper Methods
+    # ============================================================
+    # These methods provide a simplified API for testing,
+    # wrapping the underlying MemoryService and Storage calls.
+
+    async def store_memory(
+        self,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Store a new memory (test-compatible wrapper).
+
+        Args:
+            content: The memory content to store
+            metadata: Optional metadata dict with tags, type, etc.
+
+        Returns:
+
+web search: 
+web search: site:docs.anthropic.com Claude Code slash commands argument-hint disable-model-invocation allowed-tools frontmatter custom slash commands
+**Checking for documentation updates**
+
+I'm noticing some confusion with the search results showing documentation for slash commands. It seems like I'm landing on a page at code.claude.com/docs/en/slash-commands that discusses skills, but I wonder if the documentation has been updated or altered. I think it would be a good idea to seek out the official documentation directly to clarify any discrepancies and get the most accurate information possible. Let's figure this out together!
+web search: 
+web search: https://docs.anthropic.com/en/docs/claude-code/slash-commands
+web search: 
+web search: site:code.claude.com/docs/en/agent-sdk slash commands $ARGUMENTS allowed-tools argument-hint disable-model-invocation Claude Agent SDK
+**Clarifying command usage**
+
+It looks like the older slash commands documentation mentions using `$ARGUMENTS` to capture everything. However, the command file doesn’t explicitly show `$ARGUMENTS`—only a note saying, "When invoked with `$ARGUMENTS`, parse:". It does include `$ARGUMENTS` as a literal in code spans, which suggests it serves as a placeholder. But I still believe that substitution probably happens in the raw content. Let's keep digging into this!
+**Identifying tool permissions**
+
+I’m noticing a potential issue with the `allowed-tools` in the `.claude/commands` frontmatter regarding "mcp__memory__mistake_note_search" that lacks quoting. It seems like YAML list values with underscores are fine. However, I’m realizing that the `allowed-tools` doesn't restrict tool availability; it merely grants permission to use them. I need to reassess how this might affect tool access and functionality going forward. It’s an important detail to get right!
+codex
+The handler confirms `failure_count` is in the search response, but the four mistake fields are not returned as JSON fields. They are embedded in a `content` string with `Pattern:`, `Context:`, `Wrong:`, and `Right:` labels, so the command needs one output-wording correction.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'claude --version' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git diff -- .claude/commands/mistake-search.md .claude/commands/recall.md .claude/commands/harvest.md' in Z:\claude-sota-installed
+ succeeded in 308ms:
+ succeeded in 426ms:
+2.1.119 (Claude Code)
+
+**Checking git status**
+
+I’m trying to figure out why there’s no output from `git diff`. It seems like the new file might be staged but not tracked yet. Maybe I need to run `git status` to confirm whether the file exists and its current state. That should help me understand what’s going on with the changes I’m working on. Let’s see what the status tells me!
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git status --short -- .claude/commands/mistake-search.md .claude/commands/recall.md .claude/commands/harvest.md' in Z:\claude-sota-installed
+ succeeded in 293ms:
+?? .claude/commands/mistake-search.md
+
+**Considering structure adjustments**
+
+I need to ensure that the same body replacement is included. It might be helpful to have one body replacement that covers parsing the bullet points and then outputting everything neatly. I'm thinking about possibly needing "frontmatter," but I don't want to edit anything after that point. It feels crucial to get this organized correctly for clarity and consistency. Let's ensure everything flows well together!
+**Drafting JSON structure**
+
+I need to create a JSON structure focused on "body / Backend and Implementation behavior." It seems like a good approach. I’ll make sure to finalize it, keeping it purely in JSON without any additional prose. I'll also take care to escape the quotes properly. It’s crucial to draft this carefully to ensure everything is formatted correctly and functions well when utilized. Let’s get into the details for a clean output!
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "No frontmatter blocker. Current Claude Code docs still support `.claude/commands/<name>.md` as legacy custom slash commands, with filename-derived command names, optional YAML frontmatter, and arguments passed after the command name. Positional `<query>` is valid; no `--query` flag is required. `argument-hint`, `description`, `disable-model-invocation: true`, and YAML-list `allowed-tools` are consistent with current skills/commands frontmatter docs. Caveat: current docs describe `allowed-tools` as pre-approval, not a hard deny-list; the body instruction is what keeps behavior single-tool unless broader permission settings deny other tools. Sources checked: https://code.claude.com/docs/en/agent-sdk/slash-commands and https://code.claude.com/docs/en/slash-commands.",
+    "axis_2_mcp_integration_correctness": "Input mapping is correct: runtime tool is `mistake_note_search`, CC tool ref is `mcp__memory__mistake_note_search`, required input is `query`, optional `limit` defaults to 5. `failure_count` DOES appear in search output. The four fields `error_pattern`, `context_signature`, `incorrect_action`, and `correct_action` do NOT appear as top-level search output fields; they are encoded in the returned note `content` string as `Pattern:`, `Context:`, `Wrong:`, and `Right:` by `mistake_note_add`. Actual `mistake_note_search` output is `{ notes: [{ content_hash, content, similarity, failure_count, updated_at }], count }`. The `max 20` cap is not upstream; it is acceptable only if labeled as a command-local cap.",
+    "axis_3_probe_5_mode_harness": "PASS for READ-only shape. No two-token guard is needed because the command performs only semantic search and no DB write. `disable-model-invocation: true` prevents model/autonomous skill invocation, but it does not block a user/SDK prompt whose first token is `/mistake-search`; current commands docs confirm commands are recognized at message start. That residual `/loop` risk is acceptable for READ-only output. Existing anti-pattern note is sufficient, though it should not be framed as a mechanical dispatch block."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/mistake-search.md",
+      "line_or_section": "body",
+      "change_summary": "Correct the Backend stored/output shape so it does not imply `mistake_note_search` returns the four add-schema fields directly.",
+      "verbatim_replacement_or_addition": "Replace the Backend bullet beginning `- **Stored fields per mistake note**:` with:\n\n- **Stored note shape**: `mistake_note_add` accepts `error_pattern` + `context_signature` + `incorrect_action` + `correct_action`, then stores them in memory `content` as labeled lines (`Pattern:` / `Context:` / `Wrong:` / `Right:`). `mistake_note_search` returns `notes[]` objects with `content_hash`, `content`, `similarity`, `failure_count`, and `updated_at`."
+    },
+    {
+      "file": ".claude/commands/mistake-search.md",
+      "line_or_section": "body",
+      "change_summary": "Correct command output instructions to parse/render returned `content` rather than expecting nonexistent top-level fields; clarify that limit 20 is local.",
+      "verbatim_replacement_or_addition": "Replace the `Implementation behavior` bullets and output-intro from `--limit N` through `Reformat returned mistake notes as:` with:\n\n- First positional arg(s) before `--limit` flag = `query` (REQUIRED, free-text)\n- `--limit N`: pass as `limit: <N>` after command-local clamp to 1-20 (default 5). Runtime advertises default 5 and no max; 20 is a local output-size cap, not an upstream limit.\n\nInvoke `mcp__memory__mistake_note_search` with assembled params. Tool returns JSON shaped as `{ \"notes\": [...], \"count\": N }`; each note has `content_hash`, `content`, `similarity`, `failure_count`, and `updated_at`.\n\nFor each note, parse `content` if it follows the stored mistake-note labels (`Pattern:`, `Context:`, `Wrong:`, `Right:`). If parsing fails, render the raw `content` verbatim instead of inventing fields. Reformat returned mistake notes as:"
+    }
+  ],
+  "risks_if_shipped_as_is": "Primary risk is malformed or blank presentation if Claude tries to read `error_pattern`, `context_signature`, `incorrect_action`, or `correct_action` as JSON keys from search results. Secondary risk is citation/contract drift if `max 20` is read as an upstream MCP limit instead of a command-local cap. Frontmatter and READ-only mode-harness shape are not blockers.",
+  "blockers_remaining": "One blocker before ship: fix the body/output contract for `mistake_note_search` return shape. After the prescribed body edits, no blockers remain."
+}
+tokens used
+68,586
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "No frontmatter blocker. Current Claude Code docs still support `.claude/commands/<name>.md` as legacy custom slash commands, with filename-derived command names, optional YAML frontmatter, and arguments passed after the command name. Positional `<query>` is valid; no `--query` flag is required. `argument-hint`, `description`, `disable-model-invocation: true`, and YAML-list `allowed-tools` are consistent with current skills/commands frontmatter docs. Caveat: current docs describe `allowed-tools` as pre-approval, not a hard deny-list; the body instruction is what keeps behavior single-tool unless broader permission settings deny other tools. Sources checked: https://code.claude.com/docs/en/agent-sdk/slash-commands and https://code.claude.com/docs/en/slash-commands.",
+    "axis_2_mcp_integration_correctness": "Input mapping is correct: runtime tool is `mistake_note_search`, CC tool ref is `mcp__memory__mistake_note_search`, required input is `query`, optional `limit` defaults to 5. `failure_count` DOES appear in search output. The four fields `error_pattern`, `context_signature`, `incorrect_action`, and `correct_action` do NOT appear as top-level search output fields; they are encoded in the returned note `content` string as `Pattern:`, `Context:`, `Wrong:`, and `Right:` by `mistake_note_add`. Actual `mistake_note_search` output is `{ notes: [{ content_hash, content, similarity, failure_count, updated_at }], count }`. The `max 20` cap is not upstream; it is acceptable only if labeled as a command-local cap.",
+    "axis_3_probe_5_mode_harness": "PASS for READ-only shape. No two-token guard is needed because the command performs only semantic search and no DB write. `disable-model-invocation: true` prevents model/autonomous skill invocation, but it does not block a user/SDK prompt whose first token is `/mistake-search`; current commands docs confirm commands are recognized at message start. That residual `/loop` risk is acceptable for READ-only output. Existing anti-pattern note is sufficient, though it should not be framed as a mechanical dispatch block."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/mistake-search.md",
+      "line_or_section": "body",
+      "change_summary": "Correct the Backend stored/output shape so it does not imply `mistake_note_search` returns the four add-schema fields directly.",
+      "verbatim_replacement_or_addition": "Replace the Backend bullet beginning `- **Stored fields per mistake note**:` with:\n\n- **Stored note shape**: `mistake_note_add` accepts `error_pattern` + `context_signature` + `incorrect_action` + `correct_action`, then stores them in memory `content` as labeled lines (`Pattern:` / `Context:` / `Wrong:` / `Right:`). `mistake_note_search` returns `notes[]` objects with `content_hash`, `content`, `similarity`, `failure_count`, and `updated_at`."
+    },
+    {
+      "file": ".claude/commands/mistake-search.md",
+      "line_or_section": "body",
+      "change_summary": "Correct command output instructions to parse/render returned `content` rather than expecting nonexistent top-level fields; clarify that limit 20 is local.",
+      "verbatim_replacement_or_addition": "Replace the `Implementation behavior` bullets and output-intro from `--limit N` through `Reformat returned mistake notes as:` with:\n\n- First positional arg(s) before `--limit` flag = `query` (REQUIRED, free-text)\n- `--limit N`: pass as `limit: <N>` after command-local clamp to 1-20 (default 5). Runtime advertises default 5 and no max; 20 is a local output-size cap, not an upstream limit.\n\nInvoke `mcp__memory__mistake_note_search` with assembled params. Tool returns JSON shaped as `{ \"notes\": [...], \"count\": N }`; each note has `content_hash`, `content`, `similarity`, `failure_count`, and `updated_at`.\n\nFor each note, parse `content` if it follows the stored mistake-note labels (`Pattern:`, `Context:`, `Wrong:`, `Right:`). If parsing fails, render the raw `content` verbatim instead of inventing fields. Reformat returned mistake notes as:"
+    }
+  ],
+  "risks_if_shipped_as_is": "Primary risk is malformed or blank presentation if Claude tries to read `error_pattern`, `context_signature`, `incorrect_action`, or `correct_action` as JSON keys from search results. Secondary risk is citation/contract drift if `max 20` is read as an upstream MCP limit instead of a command-local cap. Frontmatter and READ-only mode-harness shape are not blockers.",
+  "blockers_remaining": "One blocker before ship: fix the body/output contract for `mistake_note_search` return shape. After the prescribed body edits, no blockers remain."
+}

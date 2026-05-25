@@ -1,0 +1,1243 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1d57-041e-7c30-bad3-40a249f94270
+--------
+user
+CODEX T1 ARCHAEOLOGY AUDIT — claude-sota-installed runtime (Fire 1 Agent C equivalent via Path P)
+
+# Scope (Pattern D foreground+tee DEFAULT profile)
+
+Per docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md §4.3 Agent C BRIDGE-MODE archaeology brief. Path P dispatch from orchestrator (avoids FM-17.f 1M-context blocker on BRIDGE-MODE subagent dispatch).
+
+# Audit dimensions
+
+## AXIS-A1: Hotspot scoring (top-20 files)
+Per-file score = commits_last_90d × unique_authors × recent_fix_density. Query:
+- `git log --since='90 days ago' --pretty=oneline -- <file> | wc -l` for commit count
+- `git log --pretty=format:'%an' --since='90 days ago' -- <file> | sort -u | wc -l` for unique authors
+- `git log --grep='fix\|bug\|hotfix\|patch\|revert' --oneline --since='30 days ago' -- <file> | wc -l` for recent fix density
+
+Scope: .claude/**/*.{md,py,sh,json} + tools/**/*.ps1 + scripts/**/*.py + CLAUDE*.md + docs/*.md
+
+## AXIS-A2: Bus-factor analysis (top-20 by single-author%)
+Per top-20 hotspot file: % commits by single most-active author. >70% = HIGH bus-factor risk.
+
+## AXIS-A3: Bug-magnet scoring (top-20 by fix-commit ratio)
+Per top-20 hotspot file: (fix/bug/hotfix commits / total commits) over last 180 days. >40% = HIGH bug-magnet.
+
+## AXIS-A4: Pre-edit recommendations
+For each HIGH-risk hotspot (hotspot score OR bus-factor OR bug-magnet): recommend pre-edit verification protocol (test coverage / smoke probe / Mia pre-apply discipline).
+
+# Cross-model gate satisfaction
+
+This is REAL GPT-5.5 via Path P codex exec foreground+tee — FULL satisfaction per CR-3 Phase 1 bootstrap exception. NOT subagent stand-in.
+
+# VERDICT FORMAT (JSON-strict at EOF)
+
+Return ONLY one JSON object at the very end:
+
+{
+  "verdict": "ARCHAEOLOGY-COMPLETE" | "ARCHAEOLOGY-PARTIAL" | "ARCHAEOLOGY-BLOCKED",
+  "confidence": <float 0.0-1.0>,
+  "top_20_hotspots": [
+    {
+      "rank": <int>,
+      "file": "<path>",
+      "hotspot_score": <int>,
+      "commits_90d": <int>,
+      "unique_authors": <int>,
+      "recent_fix_density": <int>,
+      "bus_factor_single_author_pct": <float>,
+      "bug_magnet_fix_ratio": <float>,
+      "risk_class": "LOW|MED|HIGH|CRITICAL"
+    }
+  ],
+  "high_risk_findings": [
+    {
+      "file": "<path>",
+      "concern": "<brief>",
+      "recommendation": "<pre-edit verification protocol>"
+    }
+  ],
+  "cross_model_gate_status": "FULL_VIA_PATH_P_REAL_GPT_5_5",
+  "next_steps": ["<recommendations>"]
+}
+
+# Budget
+
+Per Pattern D recipe: timeout 480s. Foreground+tee. DEFAULT profile (no -p deep-review-exec; this is high-volume short-call class per spec §4.3 rationale).
+
+END PROMPT.
+
+codex
+I’ll compute the requested archaeology metrics directly from git history over the specified path scope, then classify the highest-risk files from the resulting table.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$ErrorActionPreference='"'Stop'
+"'$patterns = @(
+  '"'"'^'"\\.claude/.*\\.(md|py|sh|json)"'$'"',
+  '"'^tools/.*'"\\.ps1"'$'"',
+  '"'^scripts/.*'"\\.py"'$'"',
+  '"'^CLAUDE.*'"\\.md"'$'"',
+  '"'^docs/[''^/]+'"\\.md"'$'"'
+)
+"'$files = git ls-files | Where-Object { $p=$_; $patterns | Where-Object { $p -match $_ } }
+$rows = foreach ($file in $files) {
+  $commits90 = @(git log --since='"'90 days ago' --pretty=oneline -- "'$file).Count
+  if ($commits90 -eq 0) { continue }
+  $authors90 = @(git log --pretty=format:'"'%an' --since='90 days ago' -- "'$file | Sort-Object -Unique).Count
+  $fix30 = @(git log --regexp-ignore-case --extended-regexp --grep='"'fix|bug|hotfix|patch|revert' --oneline --since='30 days ago' -- "'$file).Count
+  $score = $commits90 * $authors90 * $fix30
+  [pscustomobject]@{ file=$file; commits_90d=$commits90; unique_authors=$authors90; recent_fix_density=$fix30; hotspot_score=$score }
+}
+$top = $rows | Sort-Object @{Expression='"'hotspot_score';Descending="'$true}, @{Expression='"'commits_90d';Descending="'$true}, @{Expression='"'file';Descending="'$false} | Select-Object -First 20
+$top | ConvertTo-Json -Depth 4' in Z:\claude-sota-installed
+ succeeded in 74844ms:
+[
+  {
+    "file": "docs/install-provenance.md",
+    "commits_90d": 224,
+    "unique_authors": 1,
+    "recent_fix_density": 147,
+    "hotspot_score": 32928
+  },
+  {
+    "file": "docs/sota-installed-manifest.md",
+    "commits_90d": 80,
+    "unique_authors": 1,
+    "recent_fix_density": 57,
+    "hotspot_score": 4560
+  },
+  {
+    "file": ".claude/settings.json",
+    "commits_90d": 70,
+    "unique_authors": 1,
+    "recent_fix_density": 57,
+    "hotspot_score": 3990
+  },
+  {
+    "file": ".claude/plugins/installed_plugins.json",
+    "commits_90d": 51,
+    "unique_authors": 1,
+    "recent_fix_density": 6,
+    "hotspot_score": 306
+  },
+  {
+    "file": ".claude/.claude.json",
+    "commits_90d": 140,
+    "unique_authors": 1,
+    "recent_fix_density": 2,
+    "hotspot_score": 280
+  },
+  {
+    "file": "tools/eee.ps1",
+    "commits_90d": 19,
+    "unique_authors": 1,
+    "recent_fix_density": 13,
+    "hotspot_score": 247
+  },
+  {
+    "file": "docs/architecture-audit-2026-05-10.md",
+    "commits_90d": 16,
+    "unique_authors": 1,
+    "recent_fix_density": 13,
+    "hotspot_score": 208
+  },
+  {
+    "file": "CLAUDE.md",
+    "commits_90d": 15,
+    "unique_authors": 1,
+    "recent_fix_density": 9,
+    "hotspot_score": 135
+  },
+  {
+    "file": ".claude/plugins/known_marketplaces.json",
+    "commits_90d": 43,
+    "unique_authors": 1,
+    "recent_fix_density": 2,
+    "hotspot_score": 86
+  },
+  {
+    "file": ".claude/hooks/scripts/_guard_base.py",
+    "commits_90d": 5,
+    "unique_authors": 1,
+    "recent_fix_density": 4,
+    "hotspot_score": 20
+  },
+  {
+    "file": ".claude/hooks/scripts/codex_t1_consult_gate.py",
+    "commits_90d": 5,
+    "unique_authors": 1,
+    "recent_fix_density": 4,
+    "hotspot_score": 20
+  },
+  {
+    "file": ".claude/hooks/scripts/agent_spawn_gate.py",
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 12
+  },
+  {
+    "file": ".claude/hooks/scripts/codex_postcommit_review.py",
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 12
+  },
+  {
+    "file": ".claude/hooks/scripts/codex_prepush_review.py",
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 12
+  },
+  {
+    "file": ".claude/rules/named-failure-modes.md",
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 12
+  },
+  {
+    "file": ".claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 9
+  },
+  {
+    "file": ".claude/rules/agent-harness-fit-verification.md",
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 9
+  },
+  {
+    "file": ".claude/rules/fm17-subagent-fleet-depletion.md",
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 9
+  },
+  {
+    "file": "docs/codex-t1-pattern-b-forward-discipline.md",
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 9
+  },
+  {
+    "file": "scripts/codex-plugin-hooks-rewrite.py",
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "hotspot_score": 9
+  }
+]
+
+codex
+The hotspot pass found a strong single-author pattern across the whole top 20, so I’m adding the requested 90-day author concentration and 180-day fix-ratio metrics before assigning risk classes.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$ErrorActionPreference='"'Stop'
+"'$topFiles = @(
+'"'docs/install-provenance.md',
+'docs/sota-installed-manifest.md',
+'.claude/settings.json',
+'.claude/plugins/installed_plugins.json',
+'.claude/.claude.json',
+'tools/eee.ps1',
+'docs/architecture-audit-2026-05-10.md',
+'CLAUDE.md',
+'.claude/plugins/known_marketplaces.json',
+'.claude/hooks/scripts/_guard_base.py',
+'.claude/hooks/scripts/codex_t1_consult_gate.py',
+'.claude/hooks/scripts/agent_spawn_gate.py',
+'.claude/hooks/scripts/codex_postcommit_review.py',
+'.claude/hooks/scripts/codex_prepush_review.py',
+'.claude/rules/named-failure-modes.md',
+'.claude/hooks/scripts/codex_t2_pre_commit_gate.py',
+'.claude/rules/agent-harness-fit-verification.md',
+'.claude/rules/fm17-subagent-fleet-depletion.md',
+'docs/codex-t1-pattern-b-forward-discipline.md',
+'scripts/codex-plugin-hooks-rewrite.py'
+)
+"'$base = @{}
+# Recompute base so script is self-contained.
+foreach ($file in $topFiles) {
+  $commits90 = @(git log --since='"'90 days ago' --pretty=oneline -- "'$file).Count
+  $authors90 = @(git log --pretty=format:'"'%an' --since='90 days ago' -- "'$file | Sort-Object -Unique).Count
+  $fix30 = @(git log --regexp-ignore-case --extended-regexp --grep='"'fix|bug|hotfix|patch|revert' --oneline --since='30 days ago' -- "'$file).Count
+  $base[$file] = [pscustomobject]@{ commits_90d=$commits90; unique_authors=$authors90; recent_fix_density=$fix30; hotspot_score=($commits90*$authors90*$fix30) }
+}
+$rank=0
+$rows = foreach ($file in $topFiles) {
+  $rank++
+  $authorLines = @(git log --pretty=format:'"'%an' --since='90 days ago' -- "'$file)
+  $totalAuthorCommits = $authorLines.Count
+  $maxAuthorCommits = 0
+  if ($totalAuthorCommits -gt 0) {
+    $maxAuthorCommits = ($authorLines | Group-Object | Sort-Object Count -Descending | Select-Object -First 1).Count
+  }
+  $busPct = if ($totalAuthorCommits -gt 0) { [math]::Round(($maxAuthorCommits / $totalAuthorCommits) * 100, 2) } else { 0 }
+  $total180 = @(git log --oneline --since='"'180 days ago' -- "'$file).Count
+  $fix180 = @(git log --regexp-ignore-case --extended-regexp --grep='"'fix|bug|hotfix|patch|revert' --oneline --since='180 days ago' -- "'$file).Count
+  $ratio = if ($total180 -gt 0) { [math]::Round($fix180 / $total180, 4) } else { 0 }
+  $b=$base[$file]
+  $risk = '"'LOW'
+  if ("'$b.hotspot_score -ge 1000 -or $busPct -gt 70 -or $ratio -gt 0.40) { $risk='"'HIGH' }
+  if ("'$b.hotspot_score -ge 10000 -and $busPct -gt 70 -and $ratio -gt 0.40) { $risk='"'CRITICAL' }
+  elseif (("'$b.hotspot_score -ge 1000 -and $ratio -gt 0.40) -or ($b.hotspot_score -ge 3000 -and $busPct -gt 70)) { $risk='"'CRITICAL' }
+  elseif ("'$b.hotspot_score -ge 100 -or $ratio -gt 0.25) { if ($risk -ne '"'HIGH' -and "'$risk -ne '"'CRITICAL') { "'$risk='"'MED' } }
+  [pscustomobject]@{
+    rank="'$rank; file=$file; hotspot_score=$b.hotspot_score; commits_90d=$b.commits_90d; unique_authors=$b.unique_authors; recent_fix_density=$b.recent_fix_density;
+    bus_factor_single_author_pct=$busPct; total_180d=$total180; fix_180d=$fix180; bug_magnet_fix_ratio=$ratio; risk_class=$risk
+  }
+}
+$rows | ConvertTo-Json -Depth 4' in Z:\claude-sota-installed
+ succeeded in 21628ms:
+[
+  {
+    "rank": 1,
+    "file": "docs/install-provenance.md",
+    "hotspot_score": 32928,
+    "commits_90d": 224,
+    "unique_authors": 1,
+    "recent_fix_density": 147,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 224,
+    "fix_180d": 147,
+    "bug_magnet_fix_ratio": 0.6562,
+    "risk_class": "CRITICAL"
+  },
+  {
+    "rank": 2,
+    "file": "docs/sota-installed-manifest.md",
+    "hotspot_score": 4560,
+    "commits_90d": 80,
+    "unique_authors": 1,
+    "recent_fix_density": 57,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 80,
+    "fix_180d": 57,
+    "bug_magnet_fix_ratio": 0.7125,
+    "risk_class": "CRITICAL"
+  },
+  {
+    "rank": 3,
+    "file": ".claude/settings.json",
+    "hotspot_score": 3990,
+    "commits_90d": 70,
+    "unique_authors": 1,
+    "recent_fix_density": 57,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 70,
+    "fix_180d": 57,
+    "bug_magnet_fix_ratio": 0.8143,
+    "risk_class": "CRITICAL"
+  },
+  {
+    "rank": 4,
+    "file": ".claude/plugins/installed_plugins.json",
+    "hotspot_score": 306,
+    "commits_90d": 51,
+    "unique_authors": 1,
+    "recent_fix_density": 6,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 51,
+    "fix_180d": 6,
+    "bug_magnet_fix_ratio": 0.1176,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 5,
+    "file": ".claude/.claude.json",
+    "hotspot_score": 280,
+    "commits_90d": 140,
+    "unique_authors": 1,
+    "recent_fix_density": 2,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 140,
+    "fix_180d": 2,
+    "bug_magnet_fix_ratio": 0.0143,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 6,
+    "file": "tools/eee.ps1",
+    "hotspot_score": 247,
+    "commits_90d": 19,
+    "unique_authors": 1,
+    "recent_fix_density": 13,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 19,
+    "fix_180d": 13,
+    "bug_magnet_fix_ratio": 0.6842,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 7,
+    "file": "docs/architecture-audit-2026-05-10.md",
+    "hotspot_score": 208,
+    "commits_90d": 16,
+    "unique_authors": 1,
+    "recent_fix_density": 13,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 16,
+    "fix_180d": 13,
+    "bug_magnet_fix_ratio": 0.8125,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 8,
+    "file": "CLAUDE.md",
+    "hotspot_score": 135,
+    "commits_90d": 15,
+    "unique_authors": 1,
+    "recent_fix_density": 9,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 15,
+    "fix_180d": 9,
+    "bug_magnet_fix_ratio": 0.6,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 9,
+    "file": ".claude/plugins/known_marketplaces.json",
+    "hotspot_score": 86,
+    "commits_90d": 43,
+    "unique_authors": 1,
+    "recent_fix_density": 2,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 43,
+    "fix_180d": 2,
+    "bug_magnet_fix_ratio": 0.0465,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 10,
+    "file": ".claude/hooks/scripts/_guard_base.py",
+    "hotspot_score": 20,
+    "commits_90d": 5,
+    "unique_authors": 1,
+    "recent_fix_density": 4,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 5,
+    "fix_180d": 4,
+    "bug_magnet_fix_ratio": 0.8,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 11,
+    "file": ".claude/hooks/scripts/codex_t1_consult_gate.py",
+    "hotspot_score": 20,
+    "commits_90d": 5,
+    "unique_authors": 1,
+    "recent_fix_density": 4,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 5,
+    "fix_180d": 4,
+    "bug_magnet_fix_ratio": 0.8,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 12,
+    "file": ".claude/hooks/scripts/agent_spawn_gate.py",
+    "hotspot_score": 12,
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 4,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 0.75,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 13,
+    "file": ".claude/hooks/scripts/codex_postcommit_review.py",
+    "hotspot_score": 12,
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 4,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 0.75,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 14,
+    "file": ".claude/hooks/scripts/codex_prepush_review.py",
+    "hotspot_score": 12,
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 4,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 0.75,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 15,
+    "file": ".claude/rules/named-failure-modes.md",
+    "hotspot_score": 12,
+    "commits_90d": 4,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 4,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 0.75,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 16,
+    "file": ".claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+    "hotspot_score": 9,
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 3,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 1.0,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 17,
+    "file": ".claude/rules/agent-harness-fit-verification.md",
+    "hotspot_score": 9,
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 3,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 1.0,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 18,
+    "file": ".claude/rules/fm17-subagent-fleet-depletion.md",
+    "hotspot_score": 9,
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 3,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 1.0,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 19,
+    "file": "docs/codex-t1-pattern-b-forward-discipline.md",
+    "hotspot_score": 9,
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 3,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 1.0,
+    "risk_class": "HIGH"
+  },
+  {
+    "rank": 20,
+    "file": "scripts/codex-plugin-hooks-rewrite.py",
+    "hotspot_score": 9,
+    "commits_90d": 3,
+    "unique_authors": 1,
+    "recent_fix_density": 3,
+    "bus_factor_single_author_pct": 100.0,
+    "total_180d": 3,
+    "fix_180d": 3,
+    "bug_magnet_fix_ratio": 1.0,
+    "risk_class": "HIGH"
+  }
+]
+
+codex
+{
+  "verdict": "ARCHAEOLOGY-COMPLETE",
+  "confidence": 0.92,
+  "top_20_hotspots": [
+    {
+      "rank": 1,
+      "file": "docs/install-provenance.md",
+      "hotspot_score": 32928,
+      "commits_90d": 224,
+      "unique_authors": 1,
+      "recent_fix_density": 147,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.6562,
+      "risk_class": "CRITICAL"
+    },
+    {
+      "rank": 2,
+      "file": "docs/sota-installed-manifest.md",
+      "hotspot_score": 4560,
+      "commits_90d": 80,
+      "unique_authors": 1,
+      "recent_fix_density": 57,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.7125,
+      "risk_class": "CRITICAL"
+    },
+    {
+      "rank": 3,
+      "file": ".claude/settings.json",
+      "hotspot_score": 3990,
+      "commits_90d": 70,
+      "unique_authors": 1,
+      "recent_fix_density": 57,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8143,
+      "risk_class": "CRITICAL"
+    },
+    {
+      "rank": 4,
+      "file": ".claude/plugins/installed_plugins.json",
+      "hotspot_score": 306,
+      "commits_90d": 51,
+      "unique_authors": 1,
+      "recent_fix_density": 6,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.1176,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 5,
+      "file": ".claude/.claude.json",
+      "hotspot_score": 280,
+      "commits_90d": 140,
+      "unique_authors": 1,
+      "recent_fix_density": 2,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.0143,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 6,
+      "file": "tools/eee.ps1",
+      "hotspot_score": 247,
+      "commits_90d": 19,
+      "unique_authors": 1,
+      "recent_fix_density": 13,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.6842,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 7,
+      "file": "docs/architecture-audit-2026-05-10.md",
+      "hotspot_score": 208,
+      "commits_90d": 16,
+      "unique_authors": 1,
+      "recent_fix_density": 13,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8125,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 8,
+      "file": "CLAUDE.md",
+      "hotspot_score": 135,
+      "commits_90d": 15,
+      "unique_authors": 1,
+      "recent_fix_density": 9,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.6,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 9,
+      "file": ".claude/plugins/known_marketplaces.json",
+      "hotspot_score": 86,
+      "commits_90d": 43,
+      "unique_authors": 1,
+      "recent_fix_density": 2,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.0465,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 10,
+      "file": ".claude/hooks/scripts/_guard_base.py",
+      "hotspot_score": 20,
+      "commits_90d": 5,
+      "unique_authors": 1,
+      "recent_fix_density": 4,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 11,
+      "file": ".claude/hooks/scripts/codex_t1_consult_gate.py",
+      "hotspot_score": 20,
+      "commits_90d": 5,
+      "unique_authors": 1,
+      "recent_fix_density": 4,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 12,
+      "file": ".claude/hooks/scripts/agent_spawn_gate.py",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 13,
+      "file": ".claude/hooks/scripts/codex_postcommit_review.py",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 14,
+      "file": ".claude/hooks/scripts/codex_prepush_review.py",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 15,
+      "file": ".claude/rules/named-failure-modes.md",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 16,
+      "file": ".claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 17,
+      "file": ".claude/rules/agent-harness-fit-verification.md",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 18,
+      "file": ".claude/rules/fm17-subagent-fleet-depletion.md",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 19,
+      "file": "docs/codex-t1-pattern-b-forward-discipline.md",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 20,
+      "file": "scripts/codex-plugin-hooks-rewrite.py",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    }
+  ],
+  "high_risk_findings": [
+    {
+      "file": "docs/install-provenance.md",
+      "concern": "Extreme churn, single-author ownership, and high fix-ratio make provenance edits easy to corrupt or contradict.",
+      "recommendation": "Before edit: grep adjacent install records, verify cited commands and SHAs, preserve append-only ordering, run markdown/readback smoke probe, and apply Mia pre-apply to every prescribed file:line claim."
+    },
+    {
+      "file": "docs/sota-installed-manifest.md",
+      "concern": "Manifest is a high-churn install truth surface with high bug-magnet ratio and no author diversity.",
+      "recommendation": "Before edit: cross-check every install/version claim against install-provenance and local artifact state, then run targeted grep/readback for duplicate or stale entries."
+    },
+    {
+      "file": ".claude/settings.json",
+      "concern": "Critical runtime configuration has high churn and very high fix-ratio; malformed or unsafe permissions can break launch discipline.",
+      "recommendation": "Before edit: validate JSON syntax, diff permission allow/deny changes explicitly, run a launcher/config smoke probe, and inspect hook/permission side effects."
+    },
+    {
+      "file": ".claude/plugins/installed_plugins.json",
+      "concern": "Plugin registry has high activity and single-author concentration; stale plugin metadata can desync runtime state.",
+      "recommendation": "Before edit: validate JSON, compare against plugin directories and marketplace metadata, and run a plugin list/readback smoke probe."
+    },
+    {
+      "file": ".claude/.claude.json",
+      "concern": "High-churn Claude runtime state/config surface with single-author bus-factor risk.",
+      "recommendation": "Before edit: validate JSON, isolate intended keys, run config readback, and avoid broad reformatting."
+    },
+    {
+      "file": "tools/eee.ps1",
+      "concern": "Launcher script is a bug magnet and controls the portable runtime environment.",
+      "recommendation": "Before edit: run PowerShell parse validation, inspect env-var deltas, execute a noninteractive launcher smoke path where feasible, and verify no secrets or permission bypasses are introduced."
+    },
+    {
+      "file": "docs/architecture-audit-2026-05-10.md",
+      "concern": "Audit document has high fix-ratio and likely contains volatile architecture claims.",
+      "recommendation": "Before edit: require cite-backed verification for architectural claims, grep for duplicated claims, and run markdown/readback verification."
+    },
+    {
+      "file": "CLAUDE.md",
+      "concern": "Cardinal-rule surface is high-risk because small wording changes can alter repo-wide operating discipline.",
+      "recommendation": "Before edit: compare against AGENTS.md and sister-rule imports, verify each rule change with explicit cite trail, and run targeted grep for affected rule references."
+    },
+    {
+      "file": ".claude/plugins/known_marketplaces.json",
+      "concern": "Marketplace registry has substantial churn and single-author bus-factor risk.",
+      "recommendation": "Before edit: validate JSON, verify marketplace paths/URLs against installed plugin metadata, and run plugin discovery readback."
+    },
+    {
+      "file": ".claude/hooks/scripts/_guard_base.py",
+      "concern": "Shared hook base has high fix-ratio; regressions can affect multiple safety gates.",
+      "recommendation": "Before edit: run Python syntax check, execute focused hook unit/smoke probes if available, and test representative allowed and blocked command payloads."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_t1_consult_gate.py",
+      "concern": "Cross-model consult gate has high fix-ratio and enforces architecture workflow policy.",
+      "recommendation": "Before edit: run Python syntax check, simulate compliant and noncompliant T1 inputs, and verify verdict parsing/error paths."
+    },
+    {
+      "file": ".claude/hooks/scripts/agent_spawn_gate.py",
+      "concern": "Agent dispatch guard has high fix-ratio and can block or allow sensitive orchestration paths.",
+      "recommendation": "Before edit: run Python syntax check, simulate allowed/blocked spawn payloads, and verify BRIDGE-MODE/FM-17 related cases."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_postcommit_review.py",
+      "concern": "Post-commit review hook has high fix-ratio and can affect commit lifecycle reliability.",
+      "recommendation": "Before edit: run Python syntax check, simulate clean/failing review outcomes, and verify timeout and JSON-verdict handling."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_prepush_review.py",
+      "concern": "Pre-push review hook has high fix-ratio and can block release flow.",
+      "recommendation": "Before edit: run Python syntax check, simulate push gate pass/fail cases, and verify no bypass path is introduced."
+    },
+    {
+      "file": ".claude/rules/named-failure-modes.md",
+      "concern": "Failure-mode catalog is high-risk because inaccurate entries can misroute future incident response.",
+      "recommendation": "Before edit: verify each failure-mode claim against cited incidents/rules, grep for references, and preserve stable names."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+      "concern": "Pre-commit cross-model gate has 100% fix-ratio in recent history and directly controls commit admission.",
+      "recommendation": "Before edit: run Python syntax check, simulate commit payloads for approve/reject/timeout cases, and verify no --no-verify bypass advice or behavior is added."
+    },
+    {
+      "file": ".claude/rules/agent-harness-fit-verification.md",
+      "concern": "Rule file has 100% fix-ratio and governs agent/tool fit decisions.",
+      "recommendation": "Before edit: verify examples against current harness behavior, grep for downstream references, and run markdown/readback verification."
+    },
+    {
+      "file": ".claude/rules/fm17-subagent-fleet-depletion.md",
+      "concern": "FM-17 rule has 100% fix-ratio and affects subagent dispatch safety.",
+      "recommendation": "Before edit: verify claims against current subagent limits and dispatch behavior, grep for FM-17 references, and preserve mitigation wording exactly unless cited."
+    },
+    {
+      "file": "docs/codex-t1-pattern-b-forward-discipline.md",
+      "concern": "Pattern B discipline has 100% fix-ratio and affects timeout/non-finding handling.",
+      "recommendation": "Before edit: verify against current T1/T2 hook behavior, run grep for Pattern B references, and require readback of JSON-verdict handling language."
+    },
+    {
+      "file": "scripts/codex-plugin-hooks-rewrite.py",
+      "concern": "Rewrite script has 100% fix-ratio and may mutate hook/plugin configuration broadly.",
+      "recommendation": "Before edit: run Python syntax check, use dry-run or fixture input if available, inspect generated diff before applying, and validate resulting JSON/config outputs."
+    }
+  ],
+  "cross_model_gate_status": "FULL_VIA_PATH_P_REAL_GPT_5_5",
+  "next_steps": [
+    "Treat all top-20 files as HIGH or above because each has 100% single-author concentration over the 90-day window.",
+    "Prioritize pre-edit smoke probes for the three CRITICAL files: docs/install-provenance.md, docs/sota-installed-manifest.md, and .claude/settings.json.",
+    "For hook scripts, require Python syntax validation plus representative pass/fail payload simulation before committing.",
+    "For JSON runtime registries, require JSON validation plus runtime readback/discovery probes before committing.",
+    "For doctrine and audit markdown, require cite-backed grep/readback verification and Mia pre-apply on specific file:line prescriptions."
+  ]
+}
+tokens used
+33,363
+{
+  "verdict": "ARCHAEOLOGY-COMPLETE",
+  "confidence": 0.92,
+  "top_20_hotspots": [
+    {
+      "rank": 1,
+      "file": "docs/install-provenance.md",
+      "hotspot_score": 32928,
+      "commits_90d": 224,
+      "unique_authors": 1,
+      "recent_fix_density": 147,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.6562,
+      "risk_class": "CRITICAL"
+    },
+    {
+      "rank": 2,
+      "file": "docs/sota-installed-manifest.md",
+      "hotspot_score": 4560,
+      "commits_90d": 80,
+      "unique_authors": 1,
+      "recent_fix_density": 57,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.7125,
+      "risk_class": "CRITICAL"
+    },
+    {
+      "rank": 3,
+      "file": ".claude/settings.json",
+      "hotspot_score": 3990,
+      "commits_90d": 70,
+      "unique_authors": 1,
+      "recent_fix_density": 57,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8143,
+      "risk_class": "CRITICAL"
+    },
+    {
+      "rank": 4,
+      "file": ".claude/plugins/installed_plugins.json",
+      "hotspot_score": 306,
+      "commits_90d": 51,
+      "unique_authors": 1,
+      "recent_fix_density": 6,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.1176,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 5,
+      "file": ".claude/.claude.json",
+      "hotspot_score": 280,
+      "commits_90d": 140,
+      "unique_authors": 1,
+      "recent_fix_density": 2,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.0143,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 6,
+      "file": "tools/eee.ps1",
+      "hotspot_score": 247,
+      "commits_90d": 19,
+      "unique_authors": 1,
+      "recent_fix_density": 13,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.6842,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 7,
+      "file": "docs/architecture-audit-2026-05-10.md",
+      "hotspot_score": 208,
+      "commits_90d": 16,
+      "unique_authors": 1,
+      "recent_fix_density": 13,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8125,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 8,
+      "file": "CLAUDE.md",
+      "hotspot_score": 135,
+      "commits_90d": 15,
+      "unique_authors": 1,
+      "recent_fix_density": 9,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.6,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 9,
+      "file": ".claude/plugins/known_marketplaces.json",
+      "hotspot_score": 86,
+      "commits_90d": 43,
+      "unique_authors": 1,
+      "recent_fix_density": 2,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.0465,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 10,
+      "file": ".claude/hooks/scripts/_guard_base.py",
+      "hotspot_score": 20,
+      "commits_90d": 5,
+      "unique_authors": 1,
+      "recent_fix_density": 4,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 11,
+      "file": ".claude/hooks/scripts/codex_t1_consult_gate.py",
+      "hotspot_score": 20,
+      "commits_90d": 5,
+      "unique_authors": 1,
+      "recent_fix_density": 4,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.8,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 12,
+      "file": ".claude/hooks/scripts/agent_spawn_gate.py",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 13,
+      "file": ".claude/hooks/scripts/codex_postcommit_review.py",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 14,
+      "file": ".claude/hooks/scripts/codex_prepush_review.py",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 15,
+      "file": ".claude/rules/named-failure-modes.md",
+      "hotspot_score": 12,
+      "commits_90d": 4,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 0.75,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 16,
+      "file": ".claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 17,
+      "file": ".claude/rules/agent-harness-fit-verification.md",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 18,
+      "file": ".claude/rules/fm17-subagent-fleet-depletion.md",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 19,
+      "file": "docs/codex-t1-pattern-b-forward-discipline.md",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    },
+    {
+      "rank": 20,
+      "file": "scripts/codex-plugin-hooks-rewrite.py",
+      "hotspot_score": 9,
+      "commits_90d": 3,
+      "unique_authors": 1,
+      "recent_fix_density": 3,
+      "bus_factor_single_author_pct": 100.0,
+      "bug_magnet_fix_ratio": 1.0,
+      "risk_class": "HIGH"
+    }
+  ],
+  "high_risk_findings": [
+    {
+      "file": "docs/install-provenance.md",
+      "concern": "Extreme churn, single-author ownership, and high fix-ratio make provenance edits easy to corrupt or contradict.",
+      "recommendation": "Before edit: grep adjacent install records, verify cited commands and SHAs, preserve append-only ordering, run markdown/readback smoke probe, and apply Mia pre-apply to every prescribed file:line claim."
+    },
+    {
+      "file": "docs/sota-installed-manifest.md",
+      "concern": "Manifest is a high-churn install truth surface with high bug-magnet ratio and no author diversity.",
+      "recommendation": "Before edit: cross-check every install/version claim against install-provenance and local artifact state, then run targeted grep/readback for duplicate or stale entries."
+    },
+    {
+      "file": ".claude/settings.json",
+      "concern": "Critical runtime configuration has high churn and very high fix-ratio; malformed or unsafe permissions can break launch discipline.",
+      "recommendation": "Before edit: validate JSON syntax, diff permission allow/deny changes explicitly, run a launcher/config smoke probe, and inspect hook/permission side effects."
+    },
+    {
+      "file": ".claude/plugins/installed_plugins.json",
+      "concern": "Plugin registry has high activity and single-author concentration; stale plugin metadata can desync runtime state.",
+      "recommendation": "Before edit: validate JSON, compare against plugin directories and marketplace metadata, and run a plugin list/readback smoke probe."
+    },
+    {
+      "file": ".claude/.claude.json",
+      "concern": "High-churn Claude runtime state/config surface with single-author bus-factor risk.",
+      "recommendation": "Before edit: validate JSON, isolate intended keys, run config readback, and avoid broad reformatting."
+    },
+    {
+      "file": "tools/eee.ps1",
+      "concern": "Launcher script is a bug magnet and controls the portable runtime environment.",
+      "recommendation": "Before edit: run PowerShell parse validation, inspect env-var deltas, execute a noninteractive launcher smoke path where feasible, and verify no secrets or permission bypasses are introduced."
+    },
+    {
+      "file": "docs/architecture-audit-2026-05-10.md",
+      "concern": "Audit document has high fix-ratio and likely contains volatile architecture claims.",
+      "recommendation": "Before edit: require cite-backed verification for architectural claims, grep for duplicated claims, and run markdown/readback verification."
+    },
+    {
+      "file": "CLAUDE.md",
+      "concern": "Cardinal-rule surface is high-risk because small wording changes can alter repo-wide operating discipline.",
+      "recommendation": "Before edit: compare against AGENTS.md and sister-rule imports, verify each rule change with explicit cite trail, and run targeted grep for affected rule references."
+    },
+    {
+      "file": ".claude/plugins/known_marketplaces.json",
+      "concern": "Marketplace registry has substantial churn and single-author bus-factor risk.",
+      "recommendation": "Before edit: validate JSON, verify marketplace paths/URLs against installed plugin metadata, and run plugin discovery readback."
+    },
+    {
+      "file": ".claude/hooks/scripts/_guard_base.py",
+      "concern": "Shared hook base has high fix-ratio; regressions can affect multiple safety gates.",
+      "recommendation": "Before edit: run Python syntax check, execute focused hook unit/smoke probes if available, and test representative allowed and blocked command payloads."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_t1_consult_gate.py",
+      "concern": "Cross-model consult gate has high fix-ratio and enforces architecture workflow policy.",
+      "recommendation": "Before edit: run Python syntax check, simulate compliant and noncompliant T1 inputs, and verify verdict parsing/error paths."
+    },
+    {
+      "file": ".claude/hooks/scripts/agent_spawn_gate.py",
+      "concern": "Agent dispatch guard has high fix-ratio and can block or allow sensitive orchestration paths.",
+      "recommendation": "Before edit: run Python syntax check, simulate allowed/blocked spawn payloads, and verify BRIDGE-MODE/FM-17 related cases."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_postcommit_review.py",
+      "concern": "Post-commit review hook has high fix-ratio and can affect commit lifecycle reliability.",
+      "recommendation": "Before edit: run Python syntax check, simulate clean/failing review outcomes, and verify timeout and JSON-verdict handling."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_prepush_review.py",
+      "concern": "Pre-push review hook has high fix-ratio and can block release flow.",
+      "recommendation": "Before edit: run Python syntax check, simulate push gate pass/fail cases, and verify no bypass path is introduced."
+    },
+    {
+      "file": ".claude/rules/named-failure-modes.md",
+      "concern": "Failure-mode catalog is high-risk because inaccurate entries can misroute future incident response.",
+      "recommendation": "Before edit: verify each failure-mode claim against cited incidents/rules, grep for references, and preserve stable names."
+    },
+    {
+      "file": ".claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+      "concern": "Pre-commit cross-model gate has 100% fix-ratio in recent history and directly controls commit admission.",
+      "recommendation": "Before edit: run Python syntax check, simulate commit payloads for approve/reject/timeout cases, and verify no --no-verify bypass advice or behavior is added."
+    },
+    {
+      "file": ".claude/rules/agent-harness-fit-verification.md",
+      "concern": "Rule file has 100% fix-ratio and governs agent/tool fit decisions.",
+      "recommendation": "Before edit: verify examples against current harness behavior, grep for downstream references, and run markdown/readback verification."
+    },
+    {
+      "file": ".claude/rules/fm17-subagent-fleet-depletion.md",
+      "concern": "FM-17 rule has 100% fix-ratio and affects subagent dispatch safety.",
+      "recommendation": "Before edit: verify claims against current subagent limits and dispatch behavior, grep for FM-17 references, and preserve mitigation wording exactly unless cited."
+    },
+    {
+      "file": "docs/codex-t1-pattern-b-forward-discipline.md",
+      "concern": "Pattern B discipline has 100% fix-ratio and affects timeout/non-finding handling.",
+      "recommendation": "Before edit: verify against current T1/T2 hook behavior, run grep for Pattern B references, and require readback of JSON-verdict handling language."
+    },
+    {
+      "file": "scripts/codex-plugin-hooks-rewrite.py",
+      "concern": "Rewrite script has 100% fix-ratio and may mutate hook/plugin configuration broadly.",
+      "recommendation": "Before edit: run Python syntax check, use dry-run or fixture input if available, inspect generated diff before applying, and validate resulting JSON/config outputs."
+    }
+  ],
+  "cross_model_gate_status": "FULL_VIA_PATH_P_REAL_GPT_5_5",
+  "next_steps": [
+    "Treat all top-20 files as HIGH or above because each has 100% single-author concentration over the 90-day window.",
+    "Prioritize pre-edit smoke probes for the three CRITICAL files: docs/install-provenance.md, docs/sota-installed-manifest.md, and .claude/settings.json.",
+    "For hook scripts, require Python syntax validation plus representative pass/fail payload simulation before committing.",
+    "For JSON runtime registries, require JSON validation plus runtime readback/discovery probes before committing.",
+    "For doctrine and audit markdown, require cite-backed grep/readback verification and Mia pre-apply on specific file:line prescriptions."
+  ]
+}

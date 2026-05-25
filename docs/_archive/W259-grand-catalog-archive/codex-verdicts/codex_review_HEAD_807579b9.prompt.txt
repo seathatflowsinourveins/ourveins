@@ -1,0 +1,250 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 807579b965c90c6aa89d61d2cdc96112b7c7e739
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-16-gpt55-multi-anatomy/00-tracker.md      |  54 ++++--
+ .../05-verified-avoid-gpt55-verdict.md             | 132 +++++++++++++++
+ .../05-verified-avoid-reinforcement-synthesis.md   | 103 ++++++++++++
+ .../99-fire16-close-synthesis.md                   | 186 +++++++++++++++++++++
+ 4 files changed, 461 insertions(+), 14 deletions(-)
+
+=== git show --format=fuller ===
+commit 807579b965c90c6aa89d61d2cdc96112b7c7e739
+Author:     42 <42@local>
+AuthorDate: Sun May 10 18:08:59 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 18:08:59 2026 -0400
+
+    audit(w134-f16-anatomy4-close): verified-avoid Cohort 3 AFFIRM-REJECT conf=0.86 — FIRE 16 CLOSE 🎉 100% Fire 13 anatomies cross-model GPT-5.5 verified (5/5)
+    
+    ⭐ Fire 16 anatomy 4 + Fire 16 CLOSE ship: Path P recipe n=5 reproducible. Cross-model
+    gate FULLY SATISFIED for ALL 5 Fire 13 tier anatomies. Wave 134 13-fire arc reaches
+    DEFINITIVE-DEFINITIVE-DEFINITIVE close.
+    
+    Updates: docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/
+    
+    ## ⭐ GPT-5.5 verdict (conf=0.86, tokens=202,998 — sandbox-fallback expensive)
+    
+    Codex CLI v0.130.0, profile `deep-review`, model `gpt-5.5`, xhigh reasoning.
+    
+    GPT-5.5 scope-note (verbatim): "GitHub MCP resources were not exposed in this session,
+    and direct `gh api` / `Invoke-RestMethod` API reads were blocked by local policy. I
+    therefore used the live GitHub page where it exposes current public metadata, plus
+    the same-day Fire 12/13 anatomy file-line evidence for the GraphQL-only `diskUsage`
+    value, which the prompt allowed as fallback."
+    
+    ### ALL 4 CLAIMS VERIFIED — AFFIRM-REJECT-REINFORCED
+    
+    **Claim 1 — Stars 76,425 → 76,300 current (0.16% drift) ✅**
+    Within ±2k tolerance. Star-farming pattern STABLE (not ephemeral volatility).
+    
+    **Claim 2 — Disk usage 3,949 KB unchanged ✅**
+    No content investment since Fire 12 audit.
+    
+    **Claim 3 — Density 0.0518 KB/★ (9.66× below 0.5 threshold) ✅**
+    Fresh-paint signature PERSISTS. Fire 13 said "10× thinner" — precise multiplier
+    is 9.66×.
+    
+    **Claim 4 — Vendor-spam ESCALATED 3 → 19 topics ✅**
+    Original 3 markers (antigravity / cursor-ai / copilot) all still present.
+    **6 NEW vendor markers added since Fire 13**:
+    - `trae` (Bytedance AI)
+    - `codex` (OpenAI)
+    - `claude` + `claude-code` (Anthropic)
+    - `windsurf-ai` (Codeium)
+    - `kiro` (Amazon AI IDE)
+    - `qoder` (Alibaba AI IDE)
+    
+    Vendor-cross-listing star-farming behavior is ACCELERATING, not improving.
+    Vanity domain `uupm.cc` unchanged.
+    
+    ## 🎉 FIRE 16 CLOSE — 5/5 Fire 13 anatomies cross-model verified
+    
+    | # | Anatomy | Fire | Conf | Verdict | Verified | Refuted |
+    |---|---|---|---|---|---|---|
+    | 02 | PageIndex | 15 | 0.90 | NEEDS-REVISION | 0 | 1 |
+    | 03 | letta | 16-a1 | 0.93 | NEEDS-REVISION | 0 | 2 |
+    | 01 | OpenSpec | 16-a2 | 0.94 | NEEDS-REVISION | 2 | 1 |
+    | 04 | ARIS | 16-a3 | 0.97 | APPROVE (full) | 3 | 0 |
+    | 05 | verified-avoid Cohort 3 | 16-a4 | 0.86 | AFFIRM-REJECT | 4 | 0 |
+    | **Σ** | **5 anatomies** | **15+16** | **avg 0.92** | **5 verdicts** | **9 verified** | **4 refuted** |
+    
+    Total cumulative effort: **527k codex tokens** across 5 Path P consults.
+    
+    ## Path P recipe validation (n=5 RECURRINGLY REPRODUCIBLE)
+    
+    | Fire | Subject | LOC | Tokens | Verdict |
+    |---|---|---|---|---|
+    | 15 | PageIndex (small) | 48 | 22,803 | NEEDS-REVISION 0.90 |
+    | 16-a1 | letta (medium) | 51 | 136,321 | NEEDS-REVISION 0.93 |
+    | 16-a2 | OpenSpec (medium-small) | 51 | 87,481 | NEEDS-REVISION 0.94 |
+    | 16-a3 | ARIS (medium-small) | 53 | 79,120 | APPROVE 0.97 |
+    | 16-a4 | verified-avoid (live web) | 60 | 202,998 | AFFIRM-REJECT 0.86 |
+    
+    Path P recipe works across 4 distinct subject types (document-RAG / agent-memory /
+    spec-driven workflow / research harness) + live-GitHub-metadata audit.
+    
+    Token-budget calibration:
+    - Small repo / single-file probe: 20-30k tokens
+    - Medium-small repo: 80-90k tokens
+    - Medium repo: 130-140k tokens
+    - Live-GitHub web-scraping fallback: 200k+ tokens
+    
+    ## Key findings across 5 anatomies
+    
+    ### High-impact OVER refutations
+    1. **letta MCP-native FALSE** → first-class MCP CLIENT support (PRIMARY-eligible install)
+    2. **letta PostgreSQL-required FALSE** → SQLite default (LOW-MEDIUM setup complexity)
+    3. **OpenSpec cross-tool UNKNOWN FALSE** → 29 tools documented (`docs/supported-tools.md:25-53`)
+    
+    ### High-impact REINFORCEMENTS
+    1. **ARIS 20+ skills → 74 actual** (3.7× under-claim)
+    2. **ARIS workflow line cites EXACT** (zero drift over weeks)
+    3. **verified-avoid REJECT INTENSIFIED** (3 → 19 vendor-spam topics)
+    
+    ### Quantitative summary
+    - Total claims audited: 14
+    - VERIFIED (Fire 13 correct): 9 (64%)
+    - REFUTED (Fire 13 over-claim): 4 (29%)
+    - PARTIAL: 1 (7%)
+    
+    ## Coverage % impact (Wave 134 arc DEFINITIVE close)
+    
+    | Metric | Pre-Fire-16 | Fire 16 close | Δ |
+    |---|---|---|---|
+    | TRUE-repo baseline | 616 | 616 | — |
+    | A1+A2 strict combined | 99.84% | 99.84% | (unchanged) |
+    | A1+ Cross-model GPT-5.5 verified | 2 claims (PageIndex) | **14 claims** (5 anatomies) | +12 claims |
+    | Fire 13 anatomies cross-model verified | 1 of 5 (20%) | **5 of 5 (100%)** | +4 anatomies |
+    | Path P recipe success rate | 1/1 | **5/5 (100%)** | + n=5 evidence |
+    | Mia ladder | n=1238 | **n=1287** | +49 |
+    
+    ## Cumulative arc Fire 5-16 (13-fire arc DEFINITIVE close)
+    
+    11 folders, **~80 files**, **~12042 LOC** total.
+    
+    Mia ladder n=130 (pre-arc) → n=1287 (Fire 16 close) = **+1157 verifications across 13-fire arc**.
+    
+    ## Forward fires queued (post-Fire-16)
+    
+    ### High-leverage NOW-UNBLOCKED (cross-model gate satisfied)
+    1. W134-F17-effort-knob-ship — extract ARIS `effort: lite/balanced/max/beast` (verified 0.97)
+    2. W134-F17-aris-cite-ship — add ARIS as 6th-org architectural-comparison row
+    3. W134-F18-letta-install-pilot — install Letta IF demand surface (PRIMARY-eligible)
+    4. W134-F18-pageindex-pilot-install — install PageIndex per-document (3 corrections applied)
+    5. W134-F17-path-p-skill-promotion — codify Path P recipe as eee skill
+    6. W134-F17-pattern-d-codification — codify Pattern D in `codex-t1-fix-forward-pattern.md`
+    7. W134-F18-openspec-watch — re-audit when WORKSPACE_REIMPLEMENTATION_* completes
+    8. W134-F17-verified-avoid-cohort3-doc-add — add explicit Cohort 3 entry to `docs/verified-avoid.md`
+    
+    ## Conformance
+    
+    - CR-1: every claim cites file:line + HEAD SHA + codex session metadata + tokens used
+    - CR-3: cross-model gate ✅ SATISFIED for ALL 5 Fire 13 anatomies (100%)
+    - CR-5: AUDIT-only (no installs in Fire 16)
+    - CR-9: install-risk N/A
+    - CR-11: META-process — Fire 16 dogfoods Path P recipe n=5 reproducibility
+    
+    ## Files changed (3 NEW + 1 UPDATED in this Fire 16 close ship)
+    
+    docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/
+    ├── 00-tracker.md (UPDATED — Fire 16 ALL anatomies done + close marker)
+    ├── 05-verified-avoid-gpt55-verdict.md (NEW ~135 LOC)
+    ├── 05-verified-avoid-reinforcement-synthesis.md (NEW ~130 LOC)
+    └── 99-fire16-close-synthesis.md (NEW ~180 LOC)
+    
+    Plus 2 codex state files at `.claude/state/`:
+    - `codex_consult_w134_f16_verified_avoid_focused.txt` (~60 LOC prompt)
+    - `codex_consult_w134_f16_verified_avoid_focused_OUT.txt` (codex stdout capture)
+    
+    ## Cite trail
+    
+    - Codex CLI v0.130.0 REAL GPT-5.5 AFFIRM-REJECT conf=0.86 verdict
+    - Codex OUT: `.claude/state/codex_consult_w134_f16_verified_avoid_focused_OUT.txt`
+    - Live URL: `https://github.com/nextlevelbuilder/ui-ux-pro-max-skill`
+    - Fire 12 disk-usage anchor: `docs/sota-architecture-audit/fire-12-saturation-cleanup/01-fresh-paint-probe.md:67`
+    - Fire 13 subject: `docs/sota-architecture-audit/fire-13-tier-anatomy/05-verified-avoid-update.md`
+    - Path P recipe: `docs/sota
+
+[prompt truncated]

@@ -1,0 +1,91 @@
+W149-F2 CODEX T1 PATH P — safety_guard.py deny-list extension for Docker mass-deletion gap
+
+PURPOSE: Single-claim adversarial review of 4 proposed regex patterns to extend
+`.claude/hooks/scripts/safety_guard.py` `_DESTRUCTIVE_PATTERNS` tuple (L140-158)
+covering Docker mass-deletion gap surfaced by Wave 149 Fire 1 Agent A HNF #2.
+Forward Discipline #2 60-180s budget; tight single-claim audit.
+
+ORIGIN: W149-F1 Agent A sota-researcher HNF #2 (`tmp/wave149-f1-agent-a-docker-sysCmd-sota-research-2026-05-11.md` §6.1 #3) — current 12-pattern deny-floor covers `docker system prune` (L140-142) but NOT:
+- `docker rm -f $(docker ps -aq)` mass-deletion via subshell
+- `docker volume prune -f` (always broad; data-loss class)
+- `docker network prune -f`
+- `docker image prune -a` / `--all` (removes ALL unused, beyond dangling-only)
+
+═══════════════════════════════════════════════════════════════════════════════
+PROPOSED 4 NEW DENY PATTERNS (to add before L158 closing `)`)
+═══════════════════════════════════════════════════════════════════════════════
+
+```python
+    (re.compile(r"\bdocker\s+rm\b[^|;&]*\$\("),
+     "docker rm with subshell expansion (mass-deletion via $(docker ps...))",
+     "name specific container: `docker rm <name>` or list-then-confirm"),
+    (re.compile(r"\bdocker\s+volume\s+prune\b"),
+     "docker volume prune (removes ALL unused volumes — data loss risk)",
+     "name specific volume: `docker volume rm <volume-name>`"),
+    (re.compile(r"\bdocker\s+network\s+prune\b"),
+     "docker network prune (removes ALL unused networks)",
+     "name specific network: `docker network rm <network-name>`"),
+    (re.compile(r"\bdocker\s+(image|container)\s+prune\b[^|;&]*(-a|--all)"),
+     "docker image/container prune --all (broader than dangling-only — removes ALL unused images)",
+     "drop -a flag: `docker image prune` removes only dangling; or `docker image rm <id>` for specific"),
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+EXISTING CONTEXT (verbatim from safety_guard.py L140-158)
+═══════════════════════════════════════════════════════════════════════════════
+
+L140-142:
+    (re.compile(r"\bdocker\s+system\s+prune\b"),
+     "docker system prune (removes all unused containers/images/volumes)",
+     "be explicit: `docker container prune` or `docker image prune`"),
+
+L146-148 (chmod 777):
+    (re.compile(r"\bchmod\s+777\b"),
+     "chmod 777 (world-writable — security risk)",
+     "use 755 for dirs, 644 for files, or set owner-only 700/600"),
+
+═══════════════════════════════════════════════════════════════════════════════
+THE QUESTION
+═══════════════════════════════════════════════════════════════════════════════
+
+For each of the 4 proposed patterns:
+1. Does the regex correctly match the intended risk class WITHOUT false-positive on safe variants?
+2. Is the description clear + technically accurate?
+3. Is the suggested alternative actionable + technically correct?
+4. Does the new pattern conflict with EXISTING patterns at L140 (docker system prune)?
+5. Are there KNOWN safe Docker variants this would block accidentally (e.g., `docker rm -f single-name` — should NOT be blocked since no subshell)?
+
+Specifically validate:
+- Pattern 1 `\bdocker\s+rm\b[^|;&]*\$\(`: catches subshell after `docker rm`; should NOT trigger on `docker rm name` (no subshell) NOR on `docker rm -f $name` (no `$(...)` form)
+- Pattern 2 `\bdocker\s+volume\s+prune\b`: catches all `docker volume prune` variants
+- Pattern 3 `\bdocker\s+network\s+prune\b`: catches all `docker network prune` variants
+- Pattern 4 `\bdocker\s+(image|container)\s+prune\b[^|;&]*(-a|--all)`: catches `-a` / `--all` flag presence; should NOT block `docker image prune` (no flag — only dangling)
+
+═══════════════════════════════════════════════════════════════════════════════
+NOT-IN-SCOPE (Forward Discipline #2)
+═══════════════════════════════════════════════════════════════════════════════
+
+- DO NOT propose redesigning safety_guard.py structure (only patterns + descriptions)
+- DO NOT propose new substring-match-FP fixes (separate FM-CANDIDATE codified W149-F1)
+- DO NOT explore other Docker risk classes beyond 4 listed
+- Single-claim focus: ONLY the 4-pattern soundness question
+
+═══════════════════════════════════════════════════════════════════════════════
+JSON-STRICT EOF VERDICT SCHEMA (REQUIRED)
+═══════════════════════════════════════════════════════════════════════════════
+
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT | NEEDS-MORE-RESEARCH | BLOCK",
+  "confidence": 0.85-0.95,
+  "summary": "(2-3 sentences answering the soundness question)",
+  "pattern_1_subshell_rm": "SOUND | NEEDS-REVISION | UNSOUND with reason",
+  "pattern_2_volume_prune": "SOUND | NEEDS-REVISION | UNSOUND with reason",
+  "pattern_3_network_prune": "SOUND | NEEDS-REVISION | UNSOUND with reason",
+  "pattern_4_image_container_prune_all": "SOUND | NEEDS-REVISION | UNSOUND with reason",
+  "false_positive_check": "PASS | FAIL with specific safe-variant that would block",
+  "false_negative_check": "PASS | FAIL with specific risky-variant that would NOT block",
+  "conflict_with_L140": "NO-CONFLICT | OVERLAP with reason",
+  "prescribed_edits": [...cap at 5...],
+  "ship_readiness": "READY | NEEDS-PATTERN-A | NEEDS-MORE-RESEARCH | BLOCK",
+  "dogfood_metrics": {"wall_clock_sec": N, "verdict_loc": N}
+}

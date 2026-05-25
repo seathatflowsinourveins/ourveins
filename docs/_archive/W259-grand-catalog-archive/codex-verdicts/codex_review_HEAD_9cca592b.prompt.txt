@@ -1,0 +1,162 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 9cca592bc6bf7960fd36ca2d1895ab005962ec6a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/sota-deep-audit-progress-2026-05-12.md | 32 +++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+=== git show --format=fuller ===
+commit 9cca592bc6bf7960fd36ca2d1895ab005962ec6a
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:43:18 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:43:18 2026 -0400
+
+    chore(sota-audit): Fire 1 pre-fire setup + PROGRESS.md initialized (cwc-long-running-agents primitive)
+    
+    Per docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md §Fire 1 Task 1.0.
+    
+    Pre-fire status:
+    - T1.0.1 worktree: OK (main; 70 uncommitted from parallel session — narrow --only mandatory)
+    - T1.0.2 codex T1 hook: INSTALLED — Phase 1 bootstrap exception NOT active
+    - T1.0.3 codex CLI: 0.130.0 + auth ready
+    - T1.0.4 CADP fleet probe: FAILED (status.py KeyError) — single-account caution mandate
+    
+    Dispatch strategy: STAGGERED_3_THEN_2 (mitigates FM-17.b under failed fleet probe).
+    Wave 1: Agents A (sota-researcher) + B (architect) + E (probe-dag-verifier) — research-class.
+    Wave 2: Agents C (gpt5-archaeologist BRIDGE-MODE) + D (gpt5-reviewer BRIDGE-MODE) — after Wave 1 returns + pool stable.
+    
+    Cardinal rule conformance:
+    - CR-3: cross-model gate satisfied via T1 hook (Phase 1 bootstrap exception NOT invoked)
+    - CR-7: respecting current bypassPermissions per Wave 82d operator override
+    - CR-9: install-risk discipline; staggered dispatch under fleet-probe failure
+    - CR-11: META-process SOTA dogfood
+    
+    FM coverage:
+    - FM-02 (b)(c): narrow git add --only -F atomic form; protects against parallel session race
+    - FM-17.b pool-depletion: STAGGERED_3_THEN_2 mitigation under failed fleet probe
+    - FM-21 STATE PROBE: pre-fire verification complete
+    
+    Status: RUNNING. Awaiting Wave 1 (3-agent) dispatch.
+
+=== diff ===
+diff --git a/docs/sota-deep-audit-progress-2026-05-12.md b/docs/sota-deep-audit-progress-2026-05-12.md
+new file mode 100644
+index 0000000..f7b8da5
+--- /dev/null
++++ b/docs/sota-deep-audit-progress-2026-05-12.md
+@@ -0,0 +1,32 @@
++# SOTA Deep Audit Progress — 2026-05-12
++
++> **PROGRESS.md handoff per cwc-long-running-agents primitive**
++> Spec: `docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md` (commit ff6f553)
++> Plan: `docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md` (commit 4b0fa37)
++> Append-only — fresh-context evaluator pattern. Each fire writes outcome block.
++
++---
++
++## Fire 1 — Discovery + Audit
++
++```yaml
++---
++fire_id: fire-1
++status: RUNNING
++started_at: 2026-05-12T13:36:00Z
++operator_session: post-restart fresh CC; orchestrator-driven Path A execution
++pre_fire_checks:
++  T1.0.1_worktree_status: OK (main branch; 70 uncommitted from parallel session — narrow --only scope mandatory)
++  T1.0.2_codex_t1_hook: INSTALLED (Phase 1 bootstrap exception NOT active for T1; auto-fires on Edit/Write/MultiEdit)
++  T1.0.3_codex_cli: codex-cli 0.130.0 + auth.json ready
++  T1.0.4_cadp_fleet_probe: FAILED (status.py KeyError 'claude-max-local-42'); single-account caution mandate per CADP rule 5
++dispatch_strategy: STAGGERED_3_THEN_2 (mitigates FM-17.b pool-depletion risk under failed fleet probe)
++agents_dispatched: []
++artifacts: []
++codex_verdicts: []
++ship_decisions: []
++next_fire_brief: docs/superpowers/plans/2026-05-12-sota-architecture-deep-audit.md §"Fire 2"
++default_fail_reason: null
++---
++```
++
+</repository_context>

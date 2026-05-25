@@ -1,0 +1,108 @@
+feat(wave161): SB12 — retrofit codex_postcommit_review._append_jsonl to use atomic_append
+
+Wave 161 SB12 (cum-6 of cap-25) per /goal P1 #2 closure
+(architecture-audit-scorecard.md 9-bundle queue Bundle 1 phase 2 —
+retrofit top-2 of 3 JSONL emitters).
+
+Retrofits `.claude/hooks/scripts/codex_postcommit_review.py:_append_jsonl`
+to use `atomic_append()` from cite-imported `scripts/_atomic_jsonl_append.py`
+(W161 SB10 commits ed38d2a + fdbd73e). Replaces direct `with .open("a")
++ f.write(json.dumps(row, ensure_ascii=False) + "\n")` with
+`atomic_append(launch_log, row)` enforcing Round-3-7b cumulative invariants
+identical to W161 SB11 _observation_writer retrofit (commit 5929ccb).
+
+SIBLING PRECEDENT n=3 CUMULATIVE (Ship 2a + Ship 2b + W161 SB11):
+- Ship 2a: Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52
+- Ship 2b: Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py:40-49
+- W161 SB11: Z:/claude-sota-installed/.claude/hooks/scripts/_observation_writer.py
+  (commit 5929ccb, T3 APPROVE clean — fully-verified retrofit precedent in
+  this runtime)
+
+CODEX T1 PATTERN B HONEST-NON-FINDING (sibling-precedent + SB11 dogfood
+disposition per closed-loop-recursive-narrowing.md):
+- SB11's structurally-identical retrofit fired Pattern B HNF
+  (zero-investigation 494ms exit 0)
+- SB11 T3 APPROVE clean confirms cross-model verification path works
+- SB12 mirrors SB11 verbatim with single-source target swap
+  (_observation_writer.append_observation → codex_postcommit_review._append_jsonl)
+- T1 dispatch retried — expected Pattern B HNF or rapid APPROVE; T3 postcommit
+  hook provides verification anyway (Phase 1 bootstrap exception satisfied)
+
+PATTERN A APPLY (SB11 + Ship 2a/2b verbatim fidelity):
+- L80-96 NEW: import block — _REPO_ROOT = parents[3] (resolves to
+  Z:/claude-sota-installed/); sys.path.insert(scripts/); try/except import
+  atomic_append + RecordTooLarge; fail-open `atomic_append = None` +
+  RecordTooLarge stub
+- L799-825 _append_jsonl body: atomic_append primary path with
+  `except RecordTooLarge` Round-5 F-5 handling (log to stderr + skip,
+  do NOT block commit per fail-open contract); legacy with-open path
+  preserved as fallback when atomic_append is None
+
+LOCAL SMOKE PROBE:
+$ python -c "import codex_postcommit_review as m; ..."
+atomic_append_available: True
+RecordTooLarge_type: type
+_append_jsonl_defined: True
+
+AUDIT DIMENSIONS (mirror SB11):
+- Path resolution PASS — `Path(__file__).resolve().parents[3]` → root
+- Fail-open import PASS — try/except per Ship 2a R2
+- Backward compat PASS — atomic_append uses `json.dumps(row, ensure_ascii=False)
+  + "\n"` shape preserved
+- RecordTooLarge handling PASS — Round-5 F-5 invariant honored (stderr
+  log + skip; commit not blocked per fail-open contract)
+- Cycle-300 scope PASS — single-file ~30 LOC delta (out-of-scope:
+  L148 _emit_silent_fallback emergency-pathway write; smaller surface,
+  different concern, separate ship if ever needed)
+- Hook critical-path safety PASS — atomic_append overhead ~1-5ms acceptable
+- FM-02 (b)+(c) PASS — atomic single-shell commit
+
+PYRIGHT DIAGNOSTICS (sibling-inherited shape; suppressed):
+- Line 93 reportMissingImports + reportUnusedImport: suppressed via
+  `# pyright: ignore[reportMissingImports,reportUnusedImport]` per SB11
+  precedent
+- Line 93 "not accessed" warnings on atomic_append + RecordTooLarge:
+  pyright flow-analysis false-positive — symbols ARE used in _append_jsonl
+  at L824-827 (runtime probe verified); identical false-positive shape in
+  sibling Ship 2a/2b
+- Line 100 `_LAUNCH_LOG` unused: pre-existing diagnostic from Wave 160
+  SB8 commit body (out-of-scope per Karpathy P3 surgical-changes)
+
+OUT-OF-SCOPE (NOT in SB12):
+- L148 `_emit_silent_fallback` emergency-pathway write — different
+  function, different concern (silent-fallback emergency write path).
+  Risk-reward: small surface + emergency-only execution = defer per
+  cycle-300 ONE-LOGICAL-UNIT-PER-FIRE
+- SB13: retrofit codex_t1_consult_gate + subagent_stop_telemetry
+  (top-3 of 3 per scorecard P1 #2)
+
+CARDINAL-RULE CONFORMANCE:
+- CR-1 ✅ TIER-1-DIRECT sibling cite at file:line for Ship 2a/2b R2 +
+  W161 SB11 in-runtime precedent
+- CR-3 ✅ Path P codex T1 attempted (Pattern B HNF anticipated per SB11
+  precedent); T3 postcommit auto-verifies via PostToolUse hook
+- CR-8 ✅ TIER-3-LOCAL-COMPOSITION cite class
+- CR-9 ✅ Sibling-bleed defense applied (no Z:/claude-sota/ paths in
+  source body)
+- CR-11 ✅ META-process SOTA discipline (sibling-precedent n=3 +
+  in-runtime SB11 dogfood + T3 postcommit cross-model verification)
+- CR-12 ✅ CITE-CLASS-CANONICAL (sibling + SB11 are canonical retrofit
+  implementations)
+- cycle-300 ✅ ONE-LOGICAL-UNIT-PER-FIRE (single-file retrofit;
+  L148 emergency-fallback explicitly OUT-OF-SCOPE)
+- FM-02 (b)+(c) atomic single-shell `git add -- <1 path> &&
+  git commit -o -F tmp/w161-sb12-msg.txt -- <1 path>`
+
+Cite class:
+constituents=[TIER-1-DIRECT @ Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py:42-52
++ memory_persist_sessionend.py:40-49 sibling Ship 2a/2b R2 retrofit pattern,
+TIER-2 sister-rule cite codex-t1-fix-forward-pattern.md §Pattern B mitigation,
+TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 161 SB11 in-runtime precedent
+(commit 5929ccb T3 APPROVE clean) + Wave 161 SB12 mechanical mirror];
+effective_tier=TIER-3-LOCAL-COMPOSITION per
+Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+
+Wave 161 progress: SB12 cum-6 of cap-25 SHIPPED. Scorecard 9-bundle queue
+Bundle 1 phase 2 retrofit 2/3 shipped (top-1 = SB11 _observation_writer;
+top-2 = SB12 codex_postcommit_review). SB13 pending for codex_t1_consult_gate
++ subagent_stop_telemetry (top-3 of 3).

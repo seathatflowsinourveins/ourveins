@@ -1,0 +1,53 @@
+# Wave 84 codex T1 — what is the best next step ranking?
+
+Date: 2026-05-08
+
+## Context
+
+After 9 wave arcs (75-83), the runtime foundation is materially stable:
+- Wave 82: removed --dangerously-bypass-approvals-and-sandbox from T1 gate (your own verdict, conf=0.91)
+- Wave 83: applied codex-plugin-cc #191 + #245 patches via rewriter extension; eee.ps1 T0.2/T0.3 dynamic plugin discovery; orphan system-monitor.jsonl rotated
+
+Open items by class:
+- (a) operator-required: trivy install, rustup default stable, Docker Desktop start, CCBP HEAD bump
+- (b) large-scope: CLAUDE.md prune (~10K token prefill), 18fdbf0f 22h-stale needs-attention verdict, 35 bare-except audit
+- (c) low-priority defensive-pattern audits
+
+User asks the same broad "what's next" question; you must identify the highest-leverage move.
+
+## Your task
+
+Rank-order the next 5 actions by (foundation-stability impact) ÷ (effort + risk). Each must cite TIER-1-DIRECT to https://code.claude.com/docs/* OR openai/codex-plugin-cc HEAD 807e03ac OR upstream Anthropic-org repos.
+
+## 7 candidate actions
+
+C1. **CLAUDE.md prune** — current ~30 KB / ~10K tokens prefill every turn. Per your own Wave 80 prescribed_edit #10: "merge CR5/6/12, shrink CR8/11 into references, keep CR7/9/10 as short operational gates". Estimated savings: 30-50% prefill reduction. Risk: rule-layer redesign needs careful migration; may break audit chain.
+
+C2. **codex_review_HEAD_18fdbf0f.txt verdict resolution** — your own postcommit T3 fired `needs-attention` 22h ago on hardcoded `Z:\tools\nodejs\node.exe` paths in settings.json:121-157. The hook commands are codex-plugin-cc Wave 50 Fire 46 rewriter output (path-mangling fix). Decision: (a) ACCEPT-WITH-DOC per closed-loop-recursive-narrowing.md Outcome A — Wave 50 Fire 46 IS the documented mitigation, OR (b) fix-forward to ${CLAUDE_PLUGIN_ROOT}-relative form (would re-trigger #285 cross-drive bug)
+
+C3. **bare-except triage in codex_t1_consult_gate.py** (37 clauses across 1899 LOC) — most are defensive-by-design (hook MUST-NEVER-error pattern). Sample audit: are any masking real failures? Effort: 2 hours read; risk: low.
+
+C4. **CCBP HEAD bump** — pin 64fffd53 → bcaa2cc (32 commits, all non-code-relevant per Wave 78 fork). Effort: `git fetch && git reset --hard`. Value: cite-anchor freshness only. Skip if all cited file:line ranges still apply.
+
+C5. **Operator-required: trivy + rustup + Docker** — 30 min total operator-side work. Trivy unblocks container/IaC vuln scanning (not currently load-bearing). Rustup unblocks cargo install paths (no pending cargo install in this runtime). Docker unblocks qdrant/falkordb (per Wave 80 verdict: don't install — not load-bearing for Anthropic-CC-only runtime).
+
+C6. **Wire the system-monitor producer back** — the tools/system-monitor.ps1 file may exist (per Hidden-errors fork ref to "manually-invoked process"); decide whether to wire it to a SessionStart hook + add a consumer that surfaces growth alerts. Effort: 1 hour. Value: forward observability of proc/handle growth.
+
+C7. **Wave 80 prescribed_edit follow-ups not yet captured**: 
+   - C7a: Verify the `--ignore-rules` flag at codex_t1_consult_gate.py:1044 is still needed post-Wave-82 sandbox-bypass-removal
+   - C7b: Audit the network_access=true override line that Wave 82 removed alongside the bypass — does the read-only profile actually need it for WebFetch?
+   - C7c: Document why `web_search="live"` is retained (currently has Wave 82 commentary but should be in CLAUDE.md or codex config.toml as authoritative cite)
+
+## Specific Wave 84 questions
+
+Q1. Of C1-C7, which 3 have the highest **(impact ÷ effort)** ratio?
+
+Q2. The 18fdbf0f verdict (C2) — is closed-loop-recursive-narrowing Outcome A "ACCEPT-WITH-DOC" the right disposition, or does the cardinal-rule-9 install-risk discipline mandate fix-forward? The hardcoded path was introduced by Wave 50 Fire 46 specifically TO fix issue #285. Removing the hardcode would re-trigger #285. So this looks like a fundamental conflict — what's the precedent?
+
+Q3. CLAUDE.md prune (C1) — would a 30% reduction (drop historical Wave-N narratives) materially help the auto-mode classifier 429 issue (Hidden-errors #9: classifier rate-limited at 894K mainLoopTokens)? Or is the bottleneck somewhere else (skill metadata in system-reminder, deferred-tool list)?
+
+Q4. The codex postcommit/prepush "main_entered/0-completed" telemetry (Wave 78 verdict: BY DESIGN — verdict in stream sidecars) is operator-confusing. Should we add a SessionStart hook that reads stream sidecars and backfills `status: completed` rows, OR document the design more clearly in commit-body templates?
+
+Q5. After all 9 waves, what foundational gap REMAINS that we haven't addressed?
+
+OUTPUT_BUDGET: ≤1500 words artifact. Verdict shape: per-question conf score, top-3 ranked list with action spec for each.

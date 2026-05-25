@@ -1,0 +1,152 @@
+name: Codex-Verdict gate (binding)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+# W387 SOTA-2026 governance — fail-closed SERVER-SIDE binding of the off-platform codex
+# GPT-5.5 cross-model review gate. EVERY non-merge commit in a PR to a protected branch AND
+# the PR body MUST carry an own-line trailer:  Codex-Verdict: APPROVE   (or BOOTSTRAP).
+# Rationale: the commit_message_pattern ruleset rule cannot reliably gate squash merges
+# (codex W387 r1 P0#1), so this workflow is the L1 binding. Matching engine is GNU grep -P
+# (PCRE), line-oriented — NOT a ruleset RE2 (codex W387 r2 P2). The PR-body check exists because
+# a squash-merge uses the PR body as the commit message that lands on main, so the verdict
+# survives in permanent history (codex W387 r2 P1#2). HONEST LIMITS (DESIGN §8): single-identity,
+# the agent can edit this file, writes its own trailer, and can edit the squash message at merge
+# time — so this is NOT anti-fabrication; it blocks accidental omission + makes bypass auditable.
+# Real invoker!=approver separation needs the operator-gated two-App split (DESIGN §5 / §8 TIER-2).
+# No skip-label, no secret-absent bypass (unlike the advisory codex-review.yml — codex W387 r1 P1#4).
+#
+# W416 merge-commit filter (2026-05-24) — REVERSES the W387 r2 P1#1 decision. Per
+# `docs/architecture/W416-MERGE-COMMIT-FILTER/DESIGN.md` §2: under `allowed_merge_methods: ["squash"]`
+# + `required_linear_history: true`, merge commits in the PR branch are FLATTENED on merge and never
+# land on `main`. The PR-body check below remains the binding gate for what lands on `main`. Empirical
+# pain that motivated the reversal: W402+W403 BEHIND-state update-branch merges introduced default-
+# message merge commits without trailers, blocking otherwise-valid PRs. Adversary model:
+# squash-only ensures malicious-content paths still require an APPROVE trailer in the PR body — so
+# `--no-merges` does NOT lower the security floor below the W387 §8 single-identity residual. Cite:
+# T6 basic-memory `main/learnings/w402-w403-strict-policy-update-branch-lesson-force-rebase-fix`.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-verdict-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codex-verdict:
+    name: Codex-Verdict trailer (binding)
+    # Dependabot PRs are upstream version bumps governed by dependabot-auto-merge.yml's tiered
+    # policy, NOT the codex cross-model gate. The exemption keys on the GitHub-SET author login
+    # (not a user-controllable label), so the agent — whose PRs are authored by the human account,
+    # never dependabot[bot] — cannot spoof it (codex W387 r2 P1#6 / DESIGN §9). A skipped required
+    # check is treated as met by branch protection, so dependabot PRs are not deadlocked.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify Codex-Verdict trailer on every PR commit + the PR body (fail-closed)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true
+          # Own-line trailer. GNU grep -P (PCRE) is line-oriented: ^ / $ anchor each line.
+          # Rejects 'Codex-Verdict: APPROVED' (trailing [ \t]*$ forbids extra chars) and non-own-line mentions.
+          PATTERN='^Codex-Verdict:[ \t]*(APPROVE|BOOTSTRAP)[ \t]*$'
+          fail=0
+          # Ensure origin/main is fetched (we need it to identify "update-branch noise merges").
+          git fetch --no-tags --quiet origin main:refs/remotes/origin/main 2>/dev/null || true
+          MAIN_REF=$(git rev-parse origin/main 2>/dev/null || echo "")
+
+          # Classify EVERY PR commit. Three buckets:
+          #   (a) non-merge commit (1 parent)             → MUST have trailer (binding check).
+          #   (b) "update-branch noise merge"             → SKIP. Defined by ALL of:
+          #         - EXACTLY 2 parents (W416 codex r2 P1#2 octopus closure).
+          #         - second-parent IS ancestor of origin/main.
+          #         - merge commit's tree EXACTLY equals `git merge-tree --write-tree parent1 parent2`
+          #           (W416 codex r2 P1#1 custom-resolution closure — verifies no manual tree edit).
+          #   (c) "content-bearing merge" (any merge failing bucket-b)
+          #                                              → MUST have trailer.
+          # Cite: W416 codex r1 BLOCK + r2 BLOCK closure; DESIGN.md §4.
+          all_commits="$(git rev-list "${BASE_SHA}..${HEAD_SHA}")"
+          if [ -z "$all_commits" ]; then
+            echo "::error::No PR commits found to validate (base=${BASE_SHA} head=${HEAD_SHA})."
+            exit 1
+          fi
+          non_merge_count=0
+          for c in $all_commits; do
+            parents="$(git log -1 --format=%P "$c")"
+            parent_count=$(echo "$parents" | wc -w | tr -d ' ')
+            if [ "$parent_count" -le 1 ]; then
+              # (a) Non-merge: binding trailer check.
+              non_merge_count=$((non_merge_count + 1))
+              if git log -1 --format=%B "$c" | grep -Pq "$PATTERN"; then
+                echo "ok(commit) $c"
+              else
+                echo "::error::commit $c (non-merge) is missing an own-line 'Codex-Verdict: APPROVE' (or BOOTSTRAP) trailer."
+                fail=1
+              fi
+              continue
+            fi
+            # Merge commit. Classify.
+            is_noise=0
+            reason="content-bearing"
+            if [ "$parent_count" -eq 2 ]; then
+              first_parent=$(echo "$parents" | awk '{print $1}')
+              second_parent=$(echo "$parents" | awk '{print $2}')
+              if [ -n "$MAIN_REF" ] && [ -n "$second_parent" ] && git merge-base --is-ancestor "$second_parent" "$MAIN_REF" 2>/dev/null; then
+                # Second-parent on main — check tree-identity to defeat custom-resolution attack.
+                # `git merge-tree --write-tree A B` returns the SHA of the default-merge tree.
+                # The actual merge commit tree must EXACTLY equal it to qualify as noise.
+                actual_tree=$(git rev-parse "$c^{tree}" 2>/dev/null || echo "")
+                default_tree=$(git merge-tree --write-tree "$first_parent" "$second_parent" 2>/dev/null || echo "")
+                if [ -n "$actual_tree" ] && [ -n "$default_tree" ] && [ "$actual_tree" = "$default_tree" ]; then
+                  is_noise=1
+                  reason="noise-merge (2-parent + 2nd-parent on main + tree==default-merge)"
+                else
+                  reason="content-bearing (2-parent + 2nd-parent on main BUT tree!=default-merge; custom-resolution)"
+                fi
+              else
+                reason="content-bearing (2-parent + 2nd-parent NOT on main)"
+              fi
+            else
+              reason="content-bearing (parent_count=$parent_count — octopus merge per codex r2 P1#2)"
+            fi
+            if [ "$is_noise" -eq 1 ]; then
+              echo "ok(noise-merge-skip) $c — $reason"
+            else
+              if git log -1 --format=%B "$c" | grep -Pq "$PATTERN"; then
+                echo "ok(content-merge) $c — $reason"
+              else
+                echo "::error::commit $c is a $reason merge and is missing an own-line 'Codex-Verdict: APPROVE' (or BOOTSTRAP) trailer."
+                fail=1
+              fi
+            fi
+          done
+          # W416 r1-feedback: refuse merge-only PRs explicitly (codex r1 P1#2). Every PR MUST carry
+          # at least 1 non-merge commit with a trailer; PR-body-only fallback was too permissive.
+          if [ "$non_merge_count" -eq 0 ]; then
+            echo "::error::PR has 0 non-merge commits; every PR MUST have at least 1 reviewed non-merge commit carrying the Codex-Verdict trailer (W416 codex r1 P1#2 closure)."
+            fail=1
+          fi
+          # (2) PR BODY — becomes the squash commit message on main, so the verdict survives in history.
+          if printf '%s\n' "$PR_BODY" | grep -Pq "$PATTERN"; then
+            echo "ok(pr-body) verdict trailer present"
+          else
+            echo "::error::PR body is missing an own-line 'Codex-Verdict: APPROVE' (or BOOTSTRAP) trailer (it becomes the squash commit message on main)."
+            fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::Codex-Verdict gate FAILED — see docs/architecture/W387-SOTA-GOVERNANCE/DESIGN.md + docs/architecture/W416-MERGE-COMMIT-FILTER/DESIGN.md."
+            exit 1
+          fi
+          echo "PASS: $non_merge_count non-merge commit(s) + all content-bearing merge(s) + PR body carry a valid Codex-Verdict trailer; update-branch noise merges skipped."

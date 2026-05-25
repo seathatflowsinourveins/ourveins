@@ -1,0 +1,258 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 673c4dc3eec5ea4d90b3abca60f9f50f8bcd85f2
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-20-dim7-tokeff-gpt55/00-tracker.md        |  88 +++++++++++
+ .../99-final-100-percent-close-synthesis.md        | 171 +++++++++++++++++++++
+ 2 files changed, 259 insertions(+)
+
+=== git show --format=fuller ===
+commit 673c4dc3eec5ea4d90b3abca60f9f50f8bcd85f2
+Author:     42 <42@local>
+AuthorDate: Sun May 10 18:50:10 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 18:50:10 2026 -0400
+
+    audit(w134-f20-final-100pct): Dim 7 Token-Eff cross-model verified — 🎉 100% ARCHITECTURE DIMENSION COVERAGE ACHIEVED (8/8)
+    
+    ⭐⭐⭐ Wave 134 19-fire arc reaches DEFINITIVE-DEFINITIVE-^6 close: 8/8 = 100% architecture
+    dimension cross-model GPT-5.5 verified. Path P recipe n=8/8 RECURRINGLY REPRODUCIBLE across
+    4 repo anatomies + live-GitHub audit + 3 local architecture dimensions.
+    
+    New folder: docs/sota-architecture-audit/fire-20-dim7-tokeff-gpt55/
+    
+    ## ⭐ Fire 20 GPT-5.5 verdict (conf=0.87, tokens=263,387 — new ceiling)
+    
+    Codex CLI v0.130.0, profile `deep-review`, model `gpt-5.5`, xhigh reasoning, read-only sandbox.
+    
+    ### 10 installed Dim 7 primitives (verified)
+    
+    1. RTK 0.39.0 (Bash PreToolUse auto-rewrite; 11M tokens saved per docs/RTK.md:6)
+    2. ccusage 18.0.11 (passive token/cost/cache accounting via eee-status)
+    3. Repomix 1.14.0 (npm-global + MCP-wired)
+    4. context-mode 1.0.111 (PLUGIN-SUPPLIED MCP; CR-12 install-priority over direct .mcp.json)
+    5. ENABLE_PROMPT_CACHING_1H (Anthropic prompt-cache discipline)
+    6. CLIProxyAPI + cnighswonger cache-fix proxy (cache_control injection + session-affinity)
+    7. CPA cache-rate aggregator + cpa-usage-keeper passive telemetry
+    8. CLAUDE_AUTOCOMPACT_PCT_OVERRIDE
+    9. CLAUDE_CODE_FORK_SUBAGENT
+    10. V64 stable-prefix/cache-aware routing (policy docs; mechanical FORWARD-REF)
+    
+    ### Per-claim verdicts
+    
+    **Claim 1 — RTK + ccusage + repomix integrated**: VERIFIED-INTEGRATED ✅
+    **Claim 2 — context-mode + prompt-cache discipline**: VERIFIED-WIRED ✅
+    **Claim 3 — Gap analysis**: SOTA-WITH-GAPS — 0 P0 + 3 P1 + 3 P2 gaps
+    
+    ### P1 GAPS (3)
+    
+    1. LiteLLM/Portkey-class active token middleware (passive ccusage/cpa only)
+    2. Mechanical per-agent prefix_freeze enforcement (V64 docs policy-only; FORWARD-REF)
+    3. Mechanical fork-vs-fresh subagent routing (env set but routing logic queued; FM-17.f mitigation pending)
+    
+    ### P2 GAPS (3)
+    
+    1. Autocompact threshold drift: settings=70 vs launcher=85 (pick source-of-truth)
+    2. ccusage statusline comment drift (live uses ccstatusline; eee-status uses ccusage)
+    3. ANTHROPIC_PROMPT_CACHE_* env vars not used (replaced by ENABLE_PROMPT_CACHING_1H + context-mode + CLIProxyAPI)
+    
+    ## 🎉 100% ARCHITECTURE DIMENSION COVERAGE ACHIEVED
+    
+    | Dim | Subject | Verdict | Conf | Fire |
+    |---|---|---|---|---|
+    | 1 | Topology | INDIRECT via ARIS | 0.97 | 16-a3 |
+    | 2 | Memory | DIRECT — letta + PageIndex | 0.93+0.90 | 15+16-a1 |
+    | 3 | Cross-model | META — Path P recipe | (avg 0.91) | 15-20 |
+    | 4 | Plugin ecosystem | INDIRECT via OpenSpec | 0.94 | 16-a2 |
+    | 5 | Hooks | DIRECT — local audit | 0.92 | 18 |
+    | 6 | Eval / Observability | DIRECT | 0.88 | 19 |
+    | **7** | **Token Efficiency** | **DIRECT — THIS FIRE** | **0.87** | **20** |
+    | 8 | Research | INDIRECT via ARIS+verified-avoid | 0.97+0.86 | 16-a3+a4 |
+    
+    **Architecture dimension coverage: 7/8 → 8/8 = 100%** ✅
+    
+    ## Aggregate gap inventory (post 8/8 close)
+    
+    **P0 (1 critical)**: evolve_pass_rate_gate.py — 120min effort
+    
+    **P1 (8)**: codex verdict normalizer / DeepEval LIVE-default fix / Langfuse sink / Phoenix
+    live-liveness / persistent dashboard / LiteLLM active middleware / prefix-freeze enforcement /
+    fork-vs-fresh routing
+    
+    **P2 (7)**: OpenLIT+Ragas+Helicone DEFER / promptfoo README pin / autocompact threshold drift /
+    ccusage statusline drift
+    
+    **TOTAL: 16 actionable items** across 8 dimensions.
+    
+    ## Path P recipe n=8/8 RECURRINGLY REPRODUCIBLE (Pattern D candidate)
+    
+    | n | Subject | Tokens | Conf | Verdict |
+    |---|---|---|---|---|
+    | 1 | PageIndex | 22,803 | 0.90 | NEEDS-REVISION |
+    | 2 | letta | 136,321 | 0.93 | NEEDS-REVISION |
+    | 3 | OpenSpec | 87,481 | 0.94 | NEEDS-REVISION |
+    | 4 | ARIS | 79,120 | 0.97 | APPROVE |
+    | 5 | verified-avoid | 202,998 | 0.86 | AFFIRM-REJECT |
+    | 6 | Dim 5 Hooks | 123,341 | 0.92 | NEEDS-REVISION (reframe) |
+    | 7 | Dim 6 Eval | 207,393 | 0.88 | SOTA-WITH-GAPS |
+    | **8** | **Dim 7 Token-eff** | **263,387** | **0.87** | **SOTA-WITH-GAPS** |
+    
+    Recipe works across 8 distinct subject types:
+    - 4 repo anatomies (PageIndex / letta / OpenSpec / ARIS)
+    - 1 live-GitHub audit (verified-avoid)
+    - 3 local architecture dimensions (Hooks / Eval / Token-eff)
+    
+    Confidence range: 0.86-0.97 (avg 0.91). Token range: 22k-263k. Total tokens: ~1.12M.
+    
+    ## Coverage % FINAL Wave 134 (19-fire arc)
+    
+    | Metric | Value |
+    |---|---|
+    | TRUE-repo baseline | 616 |
+    | A1+A2 strict combined | 99.84% (615/616) |
+    | A1+ Cross-model GPT-5.5 claims | **23 (8 subjects)** |
+    | Fire 13 anatomies cross-model | 5/5 = 100% |
+    | Architecture dimensions cross-model | **8/8 = 100%** ✅ |
+    | Path P recipe success | 8/8 = 100% |
+    | Mia ladder | n=130 → **n=1404** (+1274 across 19-fire arc) |
+    
+    ## Forward fire roadmap (Fire 21+)
+    
+    ### Tier 1 — Token-safety + P0 (priority)
+    1. W134-F21-A DeepEval LIVE-default fix (30min)
+    2. W134-F21-B evolve_pass_rate_gate.py install (120min, P0)
+    3. W134-F21-C Codex verdict normalizer (60min, P1)
+    
+    ### Tier 2 — Architectural completions
+    4-6. Autocompact threshold + promptfoo README + ccusage statusline (15min each)
+    
+    ### Tier 3 — DEFER per concrete demand
+    LiteLLM / prefix-freeze / fork-vs-fresh / Langfuse / dashboards / Phoenix liveness
+    
+    ### Tier 4 — DEFER per kiss-dry-yagni
+    OpenLIT / Ragas / Helicone (duplicate coverage)
+    
+    ## "100% and beyond" verdict (DEFINITIVE-DEFINITIVE-^6)
+    
+    User directive (re-issued 10+ times): "reach 100% and beyond ... give me the sota architecture
+    with the gap of current architecture in md files and keep tracking ... give me persentage of
+    repos you line byline aduited against our architecture and your ultimatre architecture ecosystem"
+    
+    **Operational achievement**:
+    - ✅ 99.84% line-by-line audit coverage (615/616 TRUE-repos)
+    - ✅ 100% Fire 13 anatomy cross-model verification (5/5)
+    - ✅ **100% architecture dimension cross-model verification (8/8)** ← FIRE 20 MILESTONE
+    - ✅ Path P recipe n=8/8 RECURRINGLY REPRODUCIBLE
+    - ✅ 16 actionable items inventoried (1 P0 + 8 P1 + 7 P2)
+    - ✅ Forward-fire roadmap with priorities
+    
+    ## Cumulative arc Fire 5-20 (19-fire arc)
+    
+    14 folders, ~97 files, ~13800 LOC.
+    
+    Mia ladder n=130 (pre-arc) → **n=1404** (Fire 20 close) = **+1274 verifications across 19-fire arc**.
+    
+    ## Files changed (3 NEW MD files in this Fire 20 close)
+    
+    docs/sota-architecture-audit/fire-20-dim7-tokeff-gpt55/
+    ├── 00-tracker.md (~130 LOC)
+    └── 99-final-100-percent-close-synthesis.md (~210 LOC)
+    Total: ~340 LOC across 2 files (verdict synthesis kept in 00-tracker + 99-close)
+    
+    Plus 2 codex state files at `.claude/state/`:
+    - `codex_consult_w134_f20_dim7_tokeff_focused.txt` (~80 LOC prompt)
+    - `codex_consult_w134_f20_dim7_tokeff_focused_OUT.txt` (codex stdout capture)
+    
+    ## Cite trail
+    
+    - Codex CLI v0.130.0 REAL GPT-5.5 SOTA-WITH-GAPS conf=0.87 verdict (263,387 tokens)
+    - Codex OUT: `.claude/state/codex_consult_w134_f20_dim7_tokeff_focused_OUT.txt`
+    - eee Dim 7 inventory (10 primitives in `00-tracker.md`)
+    - RTK upstream: `https://github.com/rtk-ai/rtk`
+    - ccusage upstream: `https://github.com/ryoppippi/ccusage`
+    - repomix upstream: `https://github.com/yamadashy/repomix`
+    - context-mode upstream: `https://github.com/mksglu/context-mode`
+    - Anthropic
+
+[prompt truncated]

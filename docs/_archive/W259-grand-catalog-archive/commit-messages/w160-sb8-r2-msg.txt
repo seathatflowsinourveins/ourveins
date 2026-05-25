@@ -1,0 +1,58 @@
+fix(wave160): SB8 round-2 — thread payload through _launch_review per T3 verdict
+
+Wave 160 SB8 round-2 Pattern A fix-forward closing T3 codex review
+verdict on commit 65361fc.
+
+T3 VERDICT (round 1):
+- File: .claude/state/codex_review_HEAD_65361fcf.txt
+- verdict: needs-attention
+- 1 finding: medium severity, conf=0.93
+- Title: "Postcommit gate telemetry still loses agent context"
+- Recommendation: "Extend `_launch_review` to accept optional `payload`,
+  update its caller(s) in `main()` to pass the hook payload, and restore
+  `payload=payload` on the `gate_review()` call."
+- Plus next_steps: "Re-check any analogous helper-launch paths, especially
+  prepush if it has the same `_launch_review` shape"
+
+PATTERN A APPLY (single fix-forward atomic commit per closed-loop-recursive-narrowing.md):
+- codex_postcommit_review.py:
+  - L382: _launch_review signature extended with `payload: dict | None = None`
+  - L473: gate_review call restored to thread `payload=payload`
+  - L909: main()'s _launch_review call updated to pass `payload=payload`
+- codex_prepush_review.py (mirror per T3 next_steps):
+  - L433: _launch_review signature extended with `payload: dict | None = None`
+  - L498: gate_review call updated to thread `payload=payload`
+  - L861: main()'s _launch_review call updated to pass `payload=payload`
+
+OUTCOME:
+- codex_gate.jsonl T3-postcommit rows now carry agent_id + agent_type
+- codex_gate.jsonl T3-prepush rows now carry agent_id + agent_type
+- Logical unit COMPLETE — all gate-emit paths under postcommit/prepush
+  callers thread SDK _SubagentContextMixin context end-to-end
+
+CARDINAL-RULE CONFORMANCE:
+- CR-1 ✅ TIER-1-DIRECT SDK cite preserved (types.py:246-262 @ b512f256)
+- CR-3 ✅ Path P codex T3 verdict integrated via Pattern A (round-2 fix-forward
+  per cross-model-consensus.md §The contract closed-loop discipline)
+- CR-9 ✅ Sibling-bleed defense applied (no Z:/claude-sota/ paths)
+- CR-11 ✅ META-process SOTA discipline (T3 verdict → Pattern A apply →
+  atomic commit; recursive closed-loop arc closure)
+- CR-12 N/A (LOCAL-INSTALLED hook scripts; no upstream parity)
+- cycle-300 ONE-LOGICAL-UNIT-PER-FIRE ✅ (single logical unit: agent_id
+  thread through _launch_review → gate_review pathway)
+
+CLOSED-LOOP ARC STATUS (per closed-loop-recursive-narrowing.md):
+- Round 1: T3 needs-attention conf=0.93 medium severity
+- Round 2 (this commit): Pattern A apply — extend signature + thread payload
+- Round 3 (post-commit T3): expected APPROVE OR conf decline to confirm
+  Outcome A monotone-decline ACCEPT-WITH-DOC path
+
+FM-02 (b)+(c) defense: atomic single-shell `git add -- <2 paths> &&
+git commit -o -F tmp/w160-sb8-r2-msg.txt -- <2 paths>`.
+
+Cite class:
+constituents=[TIER-1-DIRECT @ claude-agent-sdk-python types.py:246-262
+@ HEAD b512f256, TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 160 SB8 T3 codex
+review needs-attention conf=0.93 + Pattern A fix-forward];
+effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+MIN_PRECEDENCE.

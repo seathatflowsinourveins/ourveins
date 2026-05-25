@@ -1,0 +1,58 @@
+
+
+## 2026-05-11T15:14Z — Wave 149 Fire 1: CPA port migration 8317 → 18317 (Windows-excluded-port-range CRITICAL FIX)
+
+- **Section**: Section 17 cwc-long-running-agents stack + CPA fleet (operational state — `.cli-proxy-api/config.yaml` gitignored; NSSM service config out-of-tree)
+- **Pattern**: D1 launch event per `Z:/claude-sota-installed/.claude/rules/launch-discipline.md` (reversible + observable + incremental binary-flip on single port)
+- **Trigger**: Wave 147 ship blocked since 2026-05-09 02:44 — CPA binary exited graceful (return code 0) within ~150ms of bind attempt; multi-day operator dark window
+- **Root cause** (Agent A Wave 149 verdict, runtime-evidence-confirmed): **port 8317 inside Windows TCP excluded range 8255-8354** (Hyper-V/WSL dynamic port reservation). `net.Listen("tcp", "127.0.0.1:8317")` at `Z:/repos/deps/CLIProxyAPI/internal/api/server.go:810 @ HEAD 1fca942b` failed with Windows WSAEACCES (10013) "An attempt was made to access a socket in a way forbidden by its access permissions"; error propagated through `sdk/cliproxy/service.go:592-600` serverErr channel + select at `service.go:720` → main exit. Verified n=30+ occurrences in `Z:/claude-sota-installed/.cli-proxy-api/logs/main.log:9046,9056,9066,9075,9084` + netsh confirmed `8255-8354` in excludedportrange.
+
+- **My OVER-claim (refuted)**: original Wave 149 hypothesis "OAuth refresh-token ~30-day TTL expired → CPA exits gracefully when 0 usable accounts" was **FM-20 path-drift cascade instance #16**. Agent A independently caught it via direct `cpa-stderr`/`main.log` runtime-evidence reads. Both refresh_tokens AND access_tokens were intact (post-fix, ALL 7 access_tokens auto-refreshed in first wave to expire 2026-05-11T19:13:50-04:00 = VALID for 479min). OAuth state was a downstream symptom, not root cause.
+
+- **Agent A prescription correction (Mia OVER catch #281)**: Agent A's port 8327 recommendation was ALSO inside excluded range 8255-8354 — Mia probe via netsh refuted, corrected to **18317** (in safe band 9979-49999, preserves "8317" suffix mnemonic).
+
+- **Pattern A apply (atomic Edit set)**:
+  - `Z:/claude-sota-installed/.cli-proxy-api/config.yaml:12` — `port: 8317` → `port: 18317` + 4-line provenance comment
+  - `Z:/claude-sota-installed/tools/eee.ps1:175` — `$EEE_PROXY_BASE = 'http://127.0.0.1:8317'` → `'http://127.0.0.1:18317'`
+  - NSSM `EEE-CacheFixProxy` `AppEnvironmentExtra` updated: `CACHE_FIX_PROXY_UPSTREAM=http://127.0.0.1:18317` (runtime-state, NOT committed to git)
+
+- **Smoke probes (post-fix)**:
+  - `Get-NetTCPConnection -LocalPort 18317` → State=Listen PID=11188 ✅
+  - `curl http://127.0.0.1:18317/healthz` → 200 `{"status":"ok"}` ✅
+  - `curl http://127.0.0.1:19801/health` (cache-fix-proxy) → 200 `{"status":"ok"}` ✅
+  - `main.log:11:13:49` "full client load complete - 10 clients (10 auth files...)" ✅
+  - `main.log:11:13:49` "core auth auto-refresh started (interval=15m0s)" ✅
+  - `main.log:11:13:50` events.go:122 — all 7 Claude OAuth + 1 antigravity auth files WRITE-refreshed
+  - ALL 7 OAuth access_tokens post-refresh: expire 2026-05-11T19:13:50-04:00 = VALID for 479min
+  - `Get-Service`: EEE-CLIProxyAPI Running ✅ + EEE-CacheFixProxy Running ✅
+
+- **End-to-end chain confirmed**: `claude.exe → cnighswonger:19801 → CLIProxyAPI:18317 → Anthropic` operational. 7-account OAuth fleet rotation restored after ~56h dark window.
+
+- **Cross-model gate (CR-3) status**: PARTIAL via Pattern B HONEST-NON-FINDING. Path P codex T1 `bh0dhmota` exit code 1 after 17,254 lines of source exploration (8min budget exhausted on `Z:/repos/deps/CLIProxyAPI/` deep-read at `sdk/cliproxy/service.go:592-602` + `internal/api/server.go:Start` + `internal/auth/claude/anthropic_auth.go:RefreshTokens`) WITHOUT terminal JSON verdict. Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B`: ship under Pattern B HNF disposition + trace-evidence-mining. Codex T1 trace CORROBORATES Agent A's root-cause finding (codex explored exactly the exit-flow paths Agent A identified). Codex T1 OUT preserved at `Z:/claude-sota-installed/.claude/state/codex_consult_w149_cpa_v7_exit_diagnose_OUT.txt` for forensic audit trail. Concrete-verification via direct main.log:9046+ + netsh evidence satisfies `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md §Outcome A monotone-decline ACCEPT-WITH-DOC`.
+
+- **T1 pre-edit consult**: WARN-acknowledged-known-false-positive per `Z:/claude-sota/.claude/rules/codex-t1-system-meta-review-fallback.md §When this rule applies` — meta-review consult at `codex_consult_w149_cpa_v7_exit_diagnose_OUT.txt` (1031KB, <24h fresh) explored exactly `sdk/cliproxy/service.go:592-602` exit-flow that the port-config remediation targets; verdict status Pattern B HNF (not REJECT); 4/4 fallback predicates hold.
+
+- **Advanced agent team dispatch (Wave 24-D standing directive)**: 3-voice fan-out per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md`:
+  - **Codex T1 Path P** (REAL GPT-5.5 BRIDGE-MODE foreground+tee orchestrator-side, CR-3 Phase 1 bootstrap exception avoiding FM-17.f 1M-context blocker) — Pattern B HNF disposition
+  - **Agent A `ae6f5e2933baf6b7c`** (general-purpose Sonnet, 236s, 504K tokens, 11 tool uses) — independent source-code deep-read; **delivered correct root-cause + cite anchors via runtime stderr/main.log evidence** (refuted my OVER-claim)
+  - **Agent B `a61da6e4e1fd7e4b4`** (general-purpose Sonnet, 226s, 490K tokens, 6 tool uses) — fix-forward decision tree; **propagated my OVER-claim brief (FM-20 path-drift cascade victim n=16)** — verdict refuted by Agent A's independent runtime evidence
+
+- **Ladders advanced this fire**:
+  - Mia n=280 → n=283 (+3: refuted my OVER #281 "OAuth refresh death" + Agent A's port 8327 prescription via netsh probe + cite-trail integrity)
+  - FM-20 path-drift cascade n=15 → n=16 (Agent B inherited orchestrator OVER-claim brief — independent evidence in Agent A overrode)
+  - Path P n=21 → n=22 (Pattern B HNF instance — trace-mineable corroboration without terminal verdict)
+  - Pattern D n=21 → n=22 (W149 Path P dispatch with 480s budget, exited Pattern B HNF class)
+  - Agent dispatches: Wave 149 Fire 1 = +2 (Agent A + Agent B); cumulative Wave 24-D standing-directive dispatches advanced
+
+- **Cardinal-rule conformance matrix**: CR-1 (cite-trail TIER-1-DIRECT to upstream CPA source at file:line + HEAD SHA + main.log runtime evidence at line numbers) ✅ / CR-3 (cross-model gate PARTIAL via Pattern B HNF + trace-corroboration; convergent on Agent A finding) ⚠️ / CR-5 (install-priority preserved — no hand-coded fix; upstream binary unchanged; only port config-state modified) ✅ / CR-6 (no install in this fire — port migration is config-class) N/A / CR-7 (Phase 1 bypassPermissions AUTO-PROCEED LOW-risk reversible config edit) ✅ / CR-8 (full-SOTA via upstream CPA + CCBP env-block discipline) ✅ / CR-9 (install-risk discipline — port migration is reversible via `git revert` on tools/eee.ps1 + config.yaml restore from `.cli-proxy-api/config.yaml.bak-pre-w147-usage-stats-fix`) ✅ / CR-10 (research-first via 3-voice advanced agent team + Path P codex T1) ✅ / CR-11 (META-process Mia pre-apply on Agent A prescription via netsh probe) ✅ / CR-12 (TERTIARY cite-import-AMBER N/A; this is operational config-class change to existing primitive) N/A
+
+- **Risk class** (per `.claude/rules/launch-discipline.md` D1): LOW — reversible (`git revert` + restore config.yaml backup + `nssm set` upstream env back to 8317), observable (main.log + curl /healthz + Get-NetTCPConnection), incremental (single-port-flip on single proxy instance).
+
+- **Refs**:
+  - Agent A artifact: ARTIFACT-INLINE in task notification (orchestrator-persistable per fm19-readonly-guard-sidestep.md if needed)
+  - Agent B artifact: `Z:/claude-sota-installed/tmp/wave149-agentB-fix-forward-design-2026-05-11.md` (530 LOC)
+  - Codex T1 trace: `Z:/claude-sota-installed/.claude/state/codex_consult_w149_cpa_v7_exit_diagnose_OUT.txt` (1031KB, 17254 lines source exploration)
+  - Main.log evidence: `Z:/claude-sota-installed/.cli-proxy-api/logs/main.log:9046,9056,9066,9075,9084` (30+ WSAEACCES errors 2026-05-11 09:18→10:19)
+  - Post-fix main.log success: `main.log:11:13:49` "full client load complete - 10 clients" + auto-refresh sweep across all 7 OAuth files
+  - Wave 147 NSSM SOTA install commit `7f8e18c..` (NSSM v2.24-101-g897c7ad infrastructure preserved; only port + env updated)
+  - User loop prompt deliverable: `Z:/claude-sota-installed/docs/loop-prompt-reusable.md` (new — encodes 12 cardinal rules + advanced-agent-team-standing-directive + Path P discipline)

@@ -1,0 +1,83 @@
+T1 PRE-COMMIT CONSULT — Wave 100 Ship 2R (eee HARD-GATE plugin cache populate; operational gap fix)
+
+USER DIRECTIVE (verbatim):
+"please resolve all gaps... gpt5.5 need to be fully unleashed... always using gpt5.5 fully e2e before commit"
+
+THIS T1 INVOCATION FIRES UNDER NEW FULLY-UNLEASHED DISCIPLINE (per Ship 2P 2026-05-08 commit b6dc7e5 + Pattern A 47b7cc6) — NO `--sandbox=read-only` flag; profile default `danger-full-access` applies.
+
+CONTEXT — operational gap surfaced via operator's eee launch attempt:
+```
+> eee
+[eee] Using native claude.exe at: Z:\claude-sota-installed\.local\bin\claude.exe
+[eee] cnighswonger cache-fix-proxy OK (http://127.0.0.1:19801; chained → CLIProxyAPI)
+[eee] cpa-usage-keeper Web Dashboard already listening on http://127.0.0.1:8079
+[eee] HARD-GATE FAIL-CLOSED -- SOTA-native-install integrity check failed:
+  [HARD] plugin cache root missing for 'claude-md-management@claude-plugins-official' at .../claude-md-management
+  [HARD] plugin cache root missing for 'pr-review-toolkit@claude-plugins-official' at .../pr-review-toolkit
+  [HARD] plugin cache root missing for 'skill-creator@claude-plugins-official' at .../skill-creator
+  [HARD] plugin cache root missing for 'claude-code-setup@claude-plugins-official' at .../claude-code-setup
+```
+
+ROOT CAUSE: Wave 100 Ship 2N-batch1 (commit 1deb221) enabled 3 plugins via settings.json `enabledPlugins` block. Wave 97 Ship 1A (commit 3c00615) enabled claude-md-management same way. CC's interactive `/plugin install` populates BOTH `enabledPlugins` AND cache directory. settings.json-only enable leaves cache uninstalled. claude-md-management was silently broken since Wave 97 — surfaced by eee HARD-GATE first launch attempt this fire.
+
+OPERATIONAL FIX APPLIED (cache gitignored per .gitignore; no commit needed for cache itself):
+- claude-md-management → .claude/plugins/cache/claude-plugins-official/claude-md-management/1.0.0/ (plugin.json version field)
+- claude-code-setup → .claude/plugins/cache/claude-plugins-official/claude-code-setup/1.0.0/ (plugin.json version field)
+- pr-review-toolkit → .claude/plugins/cache/claude-plugins-official/pr-review-toolkit/76b35e91d1c9/ (marketplace .gcs-sha first 12 chars; no plugin.json version)
+- skill-creator → .claude/plugins/cache/claude-plugins-official/skill-creator/76b35e91d1c9/ (same convention)
+
+VERIFICATION (post-fix):
+```
+cache contents:
+  agent-sdk-dev / claude-code-setup / claude-md-management / frontend-design /
+  pr-review-toolkit / pyright-lsp / ralph-loop / skill-creator / superpowers / typescript-lsp
+```
+Cache count 6 → 10 (4 newly populated). eee HARD-GATE expected PASS on next launch.
+
+SHIP SCOPE — Wave 100 Ship 2R (single ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+
+EDIT 1: PROGRESS.md ## Notes — append "Plugin enable → cache populate gap codified (Ship 2R 2026-05-08)" section documenting:
+- Operational gap (settings.json enable does not auto-populate cache)
+- Mitigation cp -r recipe + version subdir convention
+- Forward discipline (when enabling, ALSO populate cache OR run /plugin install interactively)
+- Cumulative impact: 4 plugins affected since Wave 97
+
+EDIT 2: docs/install-provenance.md — Ship 2R provenance entry documenting:
+- Root cause + operator launch trace
+- 4-plugin cache populate operational fix
+- Convention discovery (plugin.json version OR marketplace .gcs-sha SHA12)
+- Codification candidate: auto-script `tools/_eee_plugin_cache_populate.py` for future plugin enables
+- CR-9 install-risk LOW (gitignored cache + doc-only commits)
+
+CITE CHAIN:
+- TIER-1-DIRECT: operator eee launch trace 2026-05-08 (HARD-GATE FAIL-CLOSED output)
+- TIER-1-DIRECT: .claude/plugins/marketplaces/claude-plugins-official/.gcs-sha (76b35e91d1c99c090b1a08dade53bcc5e352c1b2 — marketplace clone integrity SHA)
+- TIER-1-DIRECT: per-plugin marketplace source plugin.json files
+- TIER-2 sister: Anthropic CC plugin docs convention (cache layout `<marketplace>/<plugin>/<version>/`)
+
+CR-9 INSTALL-RISK ANALYSIS:
+- LOW (gitignored cache fix; no commit affects cache; doc-only commits to PROGRESS.md + provenance)
+- No @latest install (used local marketplace clone source)
+- No sibling-bleed (zero Z:/claude-sota/ paths)
+- Reversible via `rm -rf` of the 4 cache dirs (eee HARD-GATE returns to FAIL-CLOSED state) + `git revert` of doc commits
+- 2-round fix-forward expectation: this Pattern A apply IS the 2nd round (Ship 2N-batch1 was R1 with operational gap; Ship 2R closes the gap)
+
+CR-3 FULLY-UNLEASHED INVOCATION (Ship 2P new discipline; SECOND test):
+- This T1 fires WITHOUT `--sandbox=read-only` flag per Ship 2P operator-override
+- Profile default `danger-full-access` applies
+- Codex has full sandbox during T1 review
+
+DESIGN-SURFACE FILES TOUCHED:
+- PROGRESS.md (## Notes append; doc-only)
+- docs/install-provenance.md (append Ship 2R entry; doc-only)
+
+QUESTIONS (JSON ONLY):
+1. Is the cache populate convention correct (plugin.json version OR marketplace SHA12)? Should I have used marketplace HEAD SHA differently for the 2 with version=1.0.0 vs the 2 without?
+2. Should Ship 2R include a tools/_eee_plugin_cache_populate.py auto-script NOW, or queue as separate Ship 2Q-followup?
+3. claude-md-management cache was missing since Wave 97 — operator-launch-eee never tested between Wave 97 and Wave 100 — is this a discipline-revision opportunity (e.g., post-plugin-enable mandatory `eee --dry-run-gates` validation)?
+4. PROGRESS.md ## Notes section is growing long — promotion to dedicated `.claude/rules/plugin-enable-cache-populate-discipline.md` candidate?
+5. Forward discipline mention "/plugin install interactively first" — but operator can't run interactively from this orchestrator. Is there a non-interactive way to populate cache via CC tooling, or is `cp -r` the only path?
+6. Is "auto-script `tools/_eee_plugin_cache_populate.py`" the right CR-9 codification path, or should this be a hook into eee.ps1 launcher itself?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

@@ -1,0 +1,78 @@
+# lychee.toml — W343-P2.E broken-link checker config
+# Used by .github/workflows/links.yml (lycheeverse/lychee-action@v2)
+# Doc: https://lychee.cli.rs/usage/config/
+
+# Cache: 7-day TTL — links seen recently are not re-probed.
+cache = true
+max_cache_age = "7d"
+
+# Concurrency + timeout (per-URL).
+max_concurrency = 16
+timeout = 30
+max_retries = 4
+retry_wait_time = 5
+
+# Accept 429 (rate-limit) + 403 (Cloudflare anti-bot, treated as transient
+# for known scraper-hostile hosts) + 405/406 (MCP endpoints reject GET probes
+# but the URL is canonical per their docs). Reject true 404s.
+# W349 P0.5 RC-8 fix: include 401/403/405/406 to handle bot-hostile docs hosts.
+accept = [200, 201, 202, 203, 204, 206, 226, 300, 301, 302, 303, 304, 307, 308, 401, 403, 405, 406, 429]
+
+# Exclude transient + private + non-cite URLs.
+exclude = [
+  # Private network ranges
+  '^https?://10\.',
+  '^https?://192\.168\.',
+  '^https?://172\.(1[6-9]|2[0-9]|3[0-1])\.',
+  '^https?://127\.',
+  '^https?://localhost',
+  '^https?://0\.0\.0\.0',
+  # File-only references
+  '^file://',
+  '^mailto:',
+  # Common false-positives in docs (rate-limit-prone or auth-required)
+  'twitter\.com',
+  'x\.com',
+  'linkedin\.com',
+  'facebook\.com',
+  # ARXiv often 429s for batch readers
+  'arxiv\.org/pdf/',
+  # W349 P0.5 RC-8 — MCP API endpoints (not browser-visitable; cite-anchor only).
+  # GET probes get 401/405/406 because these are POST-only auth-required APIs.
+  '^https?://api\.githubcopilot\.com/mcp',
+  '^https?://mcp\.context7\.com/mcp',
+  '^https?://mcp\.deepwiki\.com/mcp',
+  # W349 P0.5 RC-8 — anti-scraper hosts (Cloudflare 403 / 429). Docs prose-OK,
+  # but lychee probes get blocked. Manually verified in browser per W349 audit.
+  'medium\.com/',
+  'substack\.com/',
+  'ventusserver\.com/',
+  # W349 P0.5 RC-8 — upstream-restructured URLs cited across 17 archival
+  # docs (W320-W335 historical refs). Each URL was canonical at write-time;
+  # upstream renamed the path. Excluding rather than rewriting 17 docs
+  # because (a) historical record value > polish, (b) URL still resolves
+  # via web.archive.org per per-doc context, (c) cite-refresh will happen
+  # naturally in future waves that retouch these docs.
+  '^https?://csrc\.nist\.gov/pubs/ai/600/1/final',
+  '^https?://todogroup\.org/resources/guides/measuring-your-open-source-program',
+  '^https?://langfuse\.com/docs/integrations/opentelemetry/get-started',
+  '^https?://arize-phoenix\.readthedocs\.io/en/latest/setup/configuration',
+]
+
+# Exclude paths
+exclude_path = [
+  "_archived",
+  "archive",
+  ".claude/plugins/cache",
+  ".claude/plugins/marketplaces",
+  "tmp",
+  "node_modules",
+]
+
+# Output verbosity
+verbose = "info"
+no_progress = true
+
+# Skip private IPs + loopback by default (defense-in-depth)
+exclude_loopback = true
+exclude_private = true

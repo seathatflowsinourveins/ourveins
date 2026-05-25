@@ -1,0 +1,203 @@
+# .github/workflows/eval-nightly.yml
+#
+# W368 P0.3 — Nightly UK-AISI Inspect AI evaluation cadence.
+#
+# Closes W367 Action plan §11 P0.3 + Stream F gap #2 (nightly eval cadence).
+# Cite-anchors:
+#   - UK-AISI Inspect AI:  https://inspect.aisi.org.uk (de-facto Anthropic-evals successor;
+#                          anthropics/evals dormant since 2024-07-02 per W367 Stream B)
+#   - inspect_evals suite: github.com/UKGovernmentBEIS/inspect_evals (129 task modules incl.
+#                          swe_bench / swe_bench_lite verified W368 P0.3)
+#   - Cardinal-rule-1:     SHA-pinned first-party actions only (actions/* GitHub-owned)
+#   - Cardinal-rule-6:     verify-before-claim — workflow uploads inspect_logs/ JSONL so
+#                          score claims have independently-reproducible probes
+#
+# Local harness pointer: harness/eval_harness.py (W259-v9 P1-UNLEASH inspect_ai lane).
+# This workflow is the CI complement: runs inspect_evals/swe_bench_lite as a representative
+# upstream-curated suite (vs the local W259 lane which uses repo-defined tasks).
+
+name: eval-nightly
+
+on:
+  schedule:
+    # 0 7 * * *  — daily 07:00 UTC (off-peak; before EU business-day kickoff)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'inspect_evals task identifier (e.g. inspect_evals/swe_bench_lite)'
+        required: false
+        default: 'inspect_evals/swe_bench_lite'
+      limit:
+        description: 'Sample limit (lower = faster smoke; raise for full nightly)'
+        required: false
+        default: '10'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-nightly-${{ github.ref }}
+  cancel-in-progress: false  # nightly runs are valuable; do not preempt a running cycle
+
+jobs:
+  inspect-eval:
+    name: inspect_evals/swe_bench_lite (limit=${{ github.event.inputs.limit || '10' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90  # swe_bench is sandboxed Docker; allow head-room over the default 60
+
+    env:
+      INSPECT_LOG_DIR: ./inspect_logs
+      INSPECT_EVAL_MAX_RETRIES: '3'
+      # No model key in env by default — workflow uses mockllm/model for the CI smoke lane.
+      # To enable a real model run, add a repo secret (e.g. ANTHROPIC_API_KEY) and inject
+      # via `env: ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}` here, plus pass
+      # `--model anthropic/claude-sonnet-4-6` to inspect eval below.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          persist-credentials: false
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0 (W432-CI-STALE-BUMP; was v5.6.0, 394 days stale)
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install inspect-ai + inspect-evals
+        run: |
+          python -m pip install --upgrade pip
+          # Versions pinned floor — matches W368 P0.3 install probe (0.3.223 / 0.8.0)
+          python -m pip install "inspect-ai>=0.3.223" "inspect-evals>=0.8.0"
+          inspect --version
+
+      - name: Download previous nightly score (best-effort)
+        id: prev_score
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        continue-on-error: true  # first-ever run has no prior artifact; do not fail the job
+        with:
+          name: inspect-score-summary
+          path: ./prev_score
+          # Pull latest from any previous workflow run on the default branch
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id || '' }}
+
+      - name: Run Inspect evaluation
+        id: eval
+        env:
+          TASK: ${{ github.event.inputs.task || 'inspect_evals/swe_bench_lite' }}
+          LIMIT: ${{ github.event.inputs.limit || '10' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${INSPECT_LOG_DIR}"
+          # CI smoke uses mockllm/model — no API spend, deterministic output, exercises full
+          # eval pipeline (dataset load, solver invocation, scorer, log write). Swap to a
+          # real model via workflow_dispatch + secret as described in env block above.
+          inspect eval "${TASK}" \
+            --model mockllm/model \
+            --limit "${LIMIT}" \
+            --log-dir "${INSPECT_LOG_DIR}" \
+            --log-format json \
+            --no-fail-on-error \
+            || EVAL_RC=$?
+          echo "eval_rc=${EVAL_RC:-0}" >> "${GITHUB_OUTPUT}"
+
+      - name: Extract score summary
+        id: summary
+        run: |
+          set -euo pipefail
+          mkdir -p ./score_summary
+          python - <<'PY'
+          import json, os, glob, sys, pathlib
+          log_dir = os.environ['INSPECT_LOG_DIR']
+          logs = sorted(glob.glob(f"{log_dir}/*.json"))
+          if not logs:
+              print("WARN: no inspect_logs/*.json produced", file=sys.stderr)
+              pathlib.Path('./score_summary/score.json').write_text(json.dumps({
+                  "score": None, "samples": 0, "task": None, "status": "no-logs"
+              }))
+              sys.exit(0)
+          # Last log is the most recent run
+          with open(logs[-1], 'r', encoding='utf-8') as fh:
+              data = json.load(fh)
+          # inspect EvalLog shape: {"results": {"scores": [{"metrics": {"accuracy": {"value": ...}}}]}}
+          score = None
+          try:
+              scores = data.get('results', {}).get('scores', [])
+              if scores:
+                  metrics = scores[0].get('metrics', {})
+                  # Pick first numeric metric (accuracy/mean/f1/etc)
+                  for m_name, m_val in metrics.items():
+                      v = m_val.get('value') if isinstance(m_val, dict) else m_val
+                      if isinstance(v, (int, float)):
+                          score = float(v)
+                          break
+          except Exception as exc:
+              print(f"WARN: score extraction failed: {exc}", file=sys.stderr)
+          summary = {
+              "score": score,
+              "samples": len(data.get('samples', [])) if 'samples' in data else
+                         data.get('stats', {}).get('completed', 0),
+              "task": data.get('eval', {}).get('task'),
+              "model": data.get('eval', {}).get('model'),
+              "status": data.get('status', 'unknown'),
+              "log_file": os.path.basename(logs[-1]),
+          }
+          pathlib.Path('./score_summary/score.json').write_text(json.dumps(summary, indent=2))
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Score-regression gate (best-effort)
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, pathlib, sys
+          curr_path = pathlib.Path('./score_summary/score.json')
+          prev_path = pathlib.Path('./prev_score/score.json')
+          if not curr_path.exists():
+              print("SKIP: no current score summary; gate is no-op")
+              sys.exit(0)
+          curr = json.loads(curr_path.read_text())
+          curr_score = curr.get('score')
+          if curr_score is None:
+              print("SKIP: current score is None (mockllm or missing metric); gate is no-op")
+              sys.exit(0)
+          if not prev_path.exists():
+              print(f"INFO: no previous score artifact (first run); current={curr_score}")
+              sys.exit(0)
+          prev = json.loads(prev_path.read_text())
+          prev_score = prev.get('score')
+          if prev_score is None or prev_score == 0:
+              print(f"SKIP: previous score is None/0; cannot compute regression")
+              sys.exit(0)
+          delta = curr_score - prev_score
+          pct = (delta / prev_score) * 100.0
+          print(f"prev={prev_score:.4f} curr={curr_score:.4f} delta={delta:+.4f} ({pct:+.2f}%)")
+          # Fail only on >5% drop (per W368 P0.3 brief). Improvements never fail.
+          if pct < -5.0:
+              print(f"FAIL: regression {pct:.2f}% exceeds -5% threshold", file=sys.stderr)
+              sys.exit(1)
+          print("PASS: within tolerance")
+          PY
+
+      - name: Upload inspect logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: inspect-logs
+          path: ./inspect_logs/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload score summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: inspect-score-summary
+          path: ./score_summary/
+          retention-days: 90  # longer retention for regression-gate baseline
+          if-no-files-found: warn

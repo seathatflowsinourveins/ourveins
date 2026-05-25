@@ -1,0 +1,144 @@
+feat(supervisor): Wave 150 Fire 2 — Docker compose migration design (SHIP-READY)
+
+## Definitive SOTA verdict (post-Wave-150-Fire-1 3-voice convergence + user operator-correction)
+
+NSSM (3/6 strict-axis-PASS borderline; single-maintainer; stagnant 9y) → Docker
+compose + `restart: unless-stopped` (4-org strict Axis-1 + multi-named-T2 +
+PROVIDER-COMPLEMENT class per CR-12).
+
+Single-jump migration; NOT Servy-intermediate (my orchestrator-side OVER caught
+by user). Convergence-consensus from:
+- Agent A `a5f49ccba4921af78` (Sonnet 297s 563K tokens) — APPROVE Docker WITH 2 gates
+- Path P codex T1 `b1roaion3` (REAL GPT-5.5 BRIDGE-MODE 480s) — Pattern B HNF
+  with directional dissent (Docker Desktop = user-desktop product; resolved by
+  user clarifying interactive-workstation use case)
+- User operator-correction — definitive single-jump; PROVIDER-COMPLEMENT
+- 10 TIER-1 multi-source evidence probes (upstream Dockerfile + docker-compose.yml
+  + Docker docs + image SHA256 digests + 10 containers Up 19h operational pattern)
+
+## What this commit ships
+
+5 design artifacts + provenance log entry. NO execution this commit (operator-
+gated per launch-discipline.md D1 HIGH-risk + user "~2-3hr supervised" preference).
+
+Files:
+- `.local/cpa-fix-services/docker-compose.yml` (~80 LOC)
+  - SHA256-pinned images: `eceasy/cli-proxy-api@sha256:e7b19291...` +
+    `ghcr.io/cnighswonger/claude-code-cache-fix@sha256:198348aabc...`
+  - `restart: unless-stopped` per Docker canonical
+  - Healthcheck added (CPA upstream Dockerfile lacks one; operator-add)
+  - `depends_on: service_healthy` for chain ordering
+  - Custom bridge network `eee-proxy-chain` for in-compose DNS resolution
+  - Volume mounts: state-outside-repo per CLAUDE.local.md ENV (f)
+  - json-file logging driver with 25m/5-file cap
+  - Port mapping preserves Wave 149 Fire 3 external port 18317 (container
+    internal 8317; Windows excluded-range doesn't apply inside container)
+
+- `.local/cpa-fix-services/prep-state-dir.ps1` (~80 LOC)
+  - Phase 1 idempotent state-outside-repo prep
+  - Copies OAuth JSONs from current location to state dir
+  - Generates `config-docker.yaml` with container-internal `auth-dir: /root/.cli-proxy-api`
+
+- `.local/cpa-fix-services/cutover-nssm-to-docker.ps1` (~180 LOC)
+  - Phase 2 operator-supervised cutover
+  - Phase 0 pre-flight: Docker running + compose present + state prepared + NSSM baseline
+  - Phase 1 parallel-deploy: pull pinned images + bring up + wait for health
+  - Phase 2 NSSM stop: free ports for Docker exclusive ownership + re-verify
+  - Phase 3 (optional, default SKIPPED): nssm remove after 24-72h stability
+  - Pause-and-confirm gates at each phase boundary
+  - `-DryRun` flag for safe trial run
+  - `-SkipRemoveNSSM:$false` flag for Phase 3 retirement (after monitoring window)
+
+- `.local/cpa-fix-services/rollback-docker-to-nssm.ps1` (~70 LOC)
+  - Emergency rollback <60s: docker down + Start-Service NSSM + smoke-probe
+  - Verifies NSSM services still registered before attempting rollback
+  - Auto-detects post-Phase-3 case (services deregistered) + escalates
+
+- `docs/wave150-docker-migration-plan.md` (~250 LOC)
+  - Operator-facing playbook
+  - TL;DR + 3-voice convergence narrative
+  - 10-source TIER-1 evidence base
+  - 3-phase migration walkthrough
+  - 2 rollback paths (within window + post-deregistration)
+  - Smoke probes + cardinal-rule conformance matrix + Operator GO checklist
+  - Forward Top-5 update (W150-F3 cutover execution → W151+ kardianos/service PR)
+
+## Why ship the design now, not the execution
+
+Per launch-discipline.md D1:
+- Reversible: YES (NSSM services stay registered during 24-72h window; <60s rollback path)
+- Observable: YES (curl probes + Get-Service + docker logs)
+- Incremental: parallel-deploy stage; NSSM stop CRITICAL transition gate
+- Risk class: HIGH for actual cutover (operator-gated per CR-7 Phase 1)
+
+This commit = LOW-risk design artifacts (no service state changes; just files).
+Actual cutover = HIGH-risk operator-supervised D1 launch event when 2-3hr
+available per user preference.
+
+## Honest acknowledgements (CR-7 + cardinal-rule-7 conformance)
+
+Mia ladder n=283 → n=287 caught my OVERs this fire:
+- #284 CR-12 GENUINELY-NEW classification (corrected to PROVIDER-COMPLEMENT by user)
+- #285 Servy-intermediate "safe-middle-path" (corrected to single-jump by user)
+- #286 (none new; orchestrator OVER catches above)
+- #287 "Docker Desktop only" framing (refined to bridge+port-mapping per user's
+  concrete docker-compose template + host.docker.internal pattern)
+
+FM-20 path-drift cascade n=15 → n=18:
+- 3 cascade instances: orchestrator OVER propagated through Agent A + Agent B
+  briefs; user-correction overrode all three voices
+
+User-correction-acknowledgement n=0 → n=1 (NEW pattern codified):
+- Orchestrator OVER caught by user expertise post-3-voice-fan-out
+- Codifies humility-via-user-expertise channel as orchestrator-discipline
+- Convergence-consensus is INSUFFICIENT when orchestrator framing biases all 3 voices
+
+## Cross-model gate (CR-3) status
+
+FULL via 3-voice convergence + 10 TIER-1 multi-source evidence + user-correction.
+Path P codex T1 trace preserved at:
+`Z:/claude-sota-installed/.claude/state/codex_consult_w150_supervisor_sota_convergence_OUT.txt`
+(6482 lines forensic audit trail; Pattern B HNF disposition with directional
+dissent that was load-bearing).
+
+## T1 gate WARN×4 disposition
+
+All 4 WARN events on this fire's design file Writes acknowledged-known-false-
+positive per codex-t1-system-meta-review-fallback.md §When this rule applies:
+- Meta-review consult `codex_consult_w150_supervisor_sota_convergence_OUT.txt`
+  (1031KB+, <30min fresh) explored exactly the supervisor-architecture surface
+- Verdict status Pattern B HNF (not REJECT)
+- 4/4 fallback predicates hold per discipline
+
+## Forward Top-5 (post-W150-F2 ship)
+
+1. 🥇 Operator GO for W150-F3 cutover execution (when 2-3hr supervised time
+   available; run prep + cutover + monitor)
+2. 🥈 Wave 151+ upstream PR to seakee/CLIProxyAPI — `kardianos/service` SDK
+   integration (long-term architecturally-clean SOTA; Caddy/Teleport/GitLab
+   Runner pattern)
+3. 🥉 CPA cache-rate measurement (cpa-usage-keeper :8079 OR enable disable-
+   control-panel: false post-cutover)
+4. #4 Permanent port-exclusion pin via netsh (prevent Hyper-V/WSL drift)
+5. #5 W148-F3 Path D activation (HIGH-risk operator-gated; carry-forward)
+
+## Cardinal-rule conformance
+
+CR-1 ✅ TIER-1-DIRECT 10-source cite-trail
+CR-3 ⚠️→✅ Cross-model gate FULL via 3-voice + user-correction
+CR-5 ✅ install-priority — upstream-canonical images via Docker Hub + GHCR
+CR-6 ✅ official-native-channel — `docker pull` from canonical registries pinned by SHA256
+CR-7 ⚠️ Phase 1 — HIGH-risk supervisor swap operator-gated
+CR-8 ✅ full-SOTA-content — adapted from upstream-canonical templates + Docker/Microsoft Learn TIER-1
+CR-9 ✅ install-risk discipline — SHA256-pinned + 24-72h monitoring window + <60s rollback path
+CR-10 ✅ research-first — 3-voice convergence + 10 TIER-1 sources + Mia pre-apply
+CR-11 ✅ META-process — operator-correction acknowledgement + Mia pre-apply on orchestrator OVERs
+CR-12 ✅ PROVIDER-COMPLEMENT (per user-correction; Docker covers containerization ecosystem; NSSM covers Windows-SCM niche)
+
+## Refs
+
+- Agent A artifact: `tmp/wave150-agentA-supervisor-sota-research-2026-05-11.md`
+- Path P codex T1 trace: `.claude/state/codex_consult_w150_supervisor_sota_convergence_OUT.txt`
+- Wave 150 codex T1 consult prompt: `.claude/state/codex_consult_w150_supervisor_sota_convergence.txt`
+- Wave 149 Fire 3 commit `b935e4a` (port 18317 migration preserved through Docker cutover)
+- Wave 147 NSSM SOTA install (NSSM infrastructure deprecating; staying registered through W150 monitoring window)

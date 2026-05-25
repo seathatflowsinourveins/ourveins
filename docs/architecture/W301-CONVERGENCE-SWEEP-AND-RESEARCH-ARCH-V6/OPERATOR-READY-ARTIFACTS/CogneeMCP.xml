@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WinSW v2.12.0 (stable) service definition — CogneeMCP (cognee MCP server, T3 memory tier)
+
+  CARRIES SEV-1 CLOSURE: NSSM AppEnvironmentExtra REG_MULTI_SZ currently exposes LANGFUSE_SECRET_KEY
+    in plaintext registry (verified live 2026-05-18). This XML moves all env-vars (including the
+    secret) to a wrapper script that reads a SYSTEM+Administrators-ACL'd .env file outside the repo,
+    outside the registry. Pattern is the Windows analog of systemd's `EnvironmentFile=` directive.
+
+  CRITICAL: <envFromFile> does NOT exist in WinSW v2 or v3 (verified via DeepWiki winsw/winsw,
+    issue search `envFromFile`, and direct fetch of v2.12.0 + v3.0.0-alpha.11 schemas).
+    Mission spec's `<envFromFile path=...>` is a non-existent feature. This XML uses the
+    wrapper-script pattern documented in W301-STREAM-A-WINSW-MIGRATION-RUNBOOK.md §3.
+
+  Migration source: NSSM `CogneeMCP`
+    AppParameters    : -u src\server.py --transport http --host 127.0.0.1 --port 8000 --path /mcp --no-migration
+    Application      : Z:\venvs\claude\Scripts\python.exe
+    AppDirectory     : Z:\repos\deps\cognee\cognee-mcp
+    AppEnvironmentExtra (NSSM-only — DELETE during migration; replaced by .env file):
+      OPENAI_API_KEY=local
+      OPENAI_BASE_URL=http://127.0.0.1:8080/v1
+      LLM_MODEL=qwen36
+      PYTHONUNBUFFERED=1
+      PYTHONIOENCODING=utf-8
+      LANGFUSE_HOST=http://127.0.0.1:3000
+      LANGFUSE_BASE_URL=http://127.0.0.1:3000
+      LANGFUSE_PUBLIC_KEY=pk-lf-...    <-- ROTATE FIRST
+      LANGFUSE_SECRET_KEY=sk-lf-...    <-- SEV-1; ROTATE FIRST
+      SYSTEM_ROOT_DIRECTORY=Z:\claude-sota-installed-state\cognee
+      DATA_ROOT_DIRECTORY=Z:\claude-sota-installed-state\cognee\data
+
+  Schema: https://github.com/winsw/winsw/blob/v2.12.0/doc/xmlConfigFile.md
+  Runtime requirement: .NET Framework 4.6.1+ (Win11 ships 4.8 by default)
+
+  Apply (per W301 Stream A §4.3 — ORDER MATTERS):
+    PRE-FLIGHT (operator must complete BEFORE this XML is installed):
+      1a. ROTATE langfuse keys in Langfuse UI at http://127.0.0.1:3000 (Settings → API Keys → Generate)
+      1b. Update Z:\claude-sota-installed\CLAUDE.local.md gitignored env block w/ new keys (line 55ff)
+      1c. Create Z:\claude-sota-installed-state\winsw\ directory + ACL (SYSTEM:F, Administrators:F)
+      1d. Create Z:\claude-sota-installed-state\winsw\CogneeMCP.env with NEW langfuse keys + ACL
+            (SYSTEM:R, Administrators:R, inheritance:r — see W301 Stream A runbook §3.2)
+      1e. Create Z:\claude-sota-installed-state\winsw\CogneeMCP.start.cmd wrapper script
+            (template body in W301 Stream A runbook §4.3)
+
+    INSTALL:
+      2.  nssm stop CogneeMCP
+      3.  nssm set CogneeMCP Start SERVICE_DISABLED
+      4.  Copy-Item Z:\tools\winsw\winsw.exe Z:\tools\winsw\CogneeMCP.exe
+      5.  Copy-Item <this-xml> Z:\tools\winsw\CogneeMCP.xml
+      6.  Z:\tools\winsw\CogneeMCP.exe install
+      7.  Z:\tools\winsw\CogneeMCP.exe start
+
+    SMOKE-TEST (within 30s — see runbook §5 rollback gates):
+      8.  Tail -20 Z:\claude-sota-installed-state\logs\CogneeMCP\CogneeMCP.out.log
+           → expect "Uvicorn running on http://127.0.0.1:8000"
+      9.  curl -X POST http://127.0.0.1:8000/mcp -H "Content-Type: application/json"
+           -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
+           → expect 200 with capabilities JSON
+
+    POST-INSTALL REGISTRY CLEANUP (only after 5-minute soak passes):
+      10. reg delete "HKLM\SYSTEM\CurrentControlSet\Services\CogneeMCP\Parameters" /v AppEnvironmentExtra /f
+      11. reg query "HKLM\SYSTEM\CurrentControlSet\Services\CogneeMCP" /s | findstr /I "LANGFUSE"
+            → expect zero hits = SEV-1 CLOSED
+
+  Rollback (per runbook §5; NOTE rollback re-exposes SEV-1 — rotate keys AGAIN before NSSM re-up):
+      Z:\tools\winsw\CogneeMCP.exe stop
+      Z:\tools\winsw\CogneeMCP.exe uninstall
+      # Re-create NSSM env-block w/ second-rotation keys:
+      nssm set CogneeMCP AppEnvironmentExtra "OPENAI_API_KEY=local" "OPENAI_BASE_URL=http://127.0.0.1:8080/v1" ...
+      nssm set CogneeMCP Start SERVICE_AUTO_START
+      nssm start CogneeMCP
+-->
+<service>
+  <id>CogneeMCP</id>
+  <name>CogneeMCP (cognee T3 memory MCP server)</name>
+  <description>cognee MCP server (T3 memory tier per W259-v16 ultimate-architecture). Serves :8000/mcp HTTP transport. LLM/embed backend points at IkLlamaServer :8080 (post-W301-HIGH cognee-embedder-repoint, will point at LlamaSwap :8090/v1 instead). Langfuse v3.170.0 instrumented. SEV-1 closure: env-vars via wrapper script reading ACL'd file at Z:\claude-sota-installed-state\winsw\CogneeMCP.env (NOT in registry, NOT in repo, NOT in this XML). Cardinal-rule conformance: R1 upstream binary; R5 SYSTEM+Administrators-ACL'd secret file.</description>
+
+  <!-- WRAPPER-SCRIPT PATTERN — see W301 Stream A runbook §3 for full pattern + §4.3 for script body.
+       cmd.exe /c calls the .cmd which (a) reads CogneeMCP.env, (b) sets vars in its own env,
+       (c) exec-launches python.exe + cognee-mcp/src/server.py inheriting the env.
+       The python.exe ends up as a grandchild of WinSW; <stopparentprocessfirst>true</> ensures the
+       Ctrl+C reaches the cmd.exe wrapper first, which forwards it to its python child via the
+       same console event group. -->
+  <executable>cmd.exe</executable>
+  <arguments>/c "Z:\claude-sota-installed-state\winsw\CogneeMCP.start.cmd"</arguments>
+
+  <!-- Working directory for the cognee server (replaces NSSM AppDirectory).
+       The wrapper script could `cd /d` itself but explicit here for WinSW process attrs. -->
+  <workingdirectory>Z:\repos\deps\cognee\cognee-mcp</workingdirectory>
+
+  <startmode>Automatic</startmode>
+
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>Z:\claude-sota-installed-state\logs\CogneeMCP</logpath>
+
+  <!-- Normal priority — CogneeMCP is I/O-bound (HTTP + DB writes); no need to elevate. -->
+  <priority>Normal</priority>
+
+  <!-- Restart policy: cognee may have transient SQLite-lock issues; quick retry then back off. -->
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="300 sec"/>
+
+  <resetfailure>1 hour</resetfailure>
+
+  <!-- Graceful stop: cognee server handles SIGINT (cleanup DB connections, flush vector store).
+       45 sec grace because cognee may be mid-cognify when stop arrives — give writes time to commit. -->
+  <stoptimeout>45 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+
+  <!-- Service dependency chain — CogneeMCP requires:
+       1. IkLlamaServer :8080 for the LLM backend (per CogneeMCP.env: OPENAI_BASE_URL=http://127.0.0.1:8080/v1)
+       2. LlamaSwap :8090 for the embedding backend (post-W301-HIGH-cognee-embedder-repoint;
+          pre-repoint, embeddings come from OllamaServe which is on retirement track per Endgame-A).
+       Both <depend> entries are service-state gates only (not port-readiness — see LlamaSwap.xml note).
+       The wrapper script COULD poll both /health endpoints before exec-launching python.exe; deferred
+       as cognee's openai-compatible client has its own retry logic on cold backend. -->
+  <depend>IkLlamaServer</depend>
+  <depend>LlamaSwap</depend>
+
+  <!-- SECURITY CRITICAL: NO <env> blocks here. All env-vars (including LANGFUSE_SECRET_KEY) live
+       in Z:\claude-sota-installed-state\winsw\CogneeMCP.env (ACL: SYSTEM:R, Administrators:R).
+       Adding an <env name="LANGFUSE_SECRET_KEY" value="..."/> here would re-introduce SEV-1
+       (XML is plain-text + tends to land in operator-state backups). Wrapper script is the
+       SEV-1 closure mechanism. -->
+</service>

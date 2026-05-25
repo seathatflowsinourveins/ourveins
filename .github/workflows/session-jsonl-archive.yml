@@ -1,0 +1,94 @@
+name: Session JSONL archive
+on:
+  # W342 codex round-1 REVISE fix: cron schedule REMOVED because .claude/projects/
+  # is gitignored (.gitignore:28) — a GH-hosted runner's `actions/checkout` will NOT
+  # restore those files, so a scheduled run always no-ops on GH-hosted.
+  # Workflow is now operator-triggered ONLY (workflow_dispatch) — operator runs
+  # locally OR routes to a self-hosted runner where .claude/projects exists.
+  workflow_dispatch:
+    inputs:
+      runner-label:
+        description: 'Runner label (default: ubuntu-latest; use self-hosted label for full archive)'
+        required: false
+        default: 'ubuntu-latest'
+
+# Per W342 Stream X4 §1 (P1.3): protect session JSONL corpus per W341 Stream D §5.
+# Source: W341 Stream D — session JSONL corpus is research-asset, needs lifecycle policy.
+# Strategy: tar+gzip files older than 7d under .claude/projects/Z--claude-sota-installed/
+#           → write to .claude/session-archive/ (gitignored — local-only artifact);
+#           workflow uploads artifact for off-runner backup.
+# Schema-aware skip: workflow exits 0 with summary message if .claude/projects absent
+#           (typical for GH-hosted runner since path is gitignored).
+
+permissions:
+  contents: read
+
+concurrency:
+  group: session-archive-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: Roll old session JSONLs into tarballs
+    runs-on: ${{ inputs.runner-label || 'ubuntu-latest' }}
+    steps:
+      # W381 Stream D §1: SHA-pin straggler (egress-policy:audit retained per Stream A §3 #1 — flip to block needs allowed-endpoints allowlist).
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+        with: { egress-policy: audit }
+
+      # W381 Stream D §1: SHA-pin (was @v4; SHA per ci.yml:26).
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Build archive (files >7d under .claude/projects/)
+        id: build
+        run: |
+          set -euo pipefail
+          SRC=.claude/projects
+          DST=.claude/session-archive
+          mkdir -p "$DST"
+          if [ ! -d "$SRC" ]; then
+            echo "no_src=true" >> "$GITHUB_OUTPUT"
+            echo "Source dir $SRC absent — skip"
+            exit 0
+          fi
+          STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          TAR="$DST/sessions-${STAMP}.tar.gz"
+          # Find JSONLs older than 7d under projects/
+          count=$(find "$SRC" -type f -name '*.jsonl' -mtime +7 2>/dev/null | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "no_files=true" >> "$GITHUB_OUTPUT"
+            echo "no files older than 7d — skip"
+            exit 0
+          fi
+          find "$SRC" -type f -name '*.jsonl' -mtime +7 -print0 2>/dev/null \
+            | tar --null -czf "$TAR" --files-from=-
+          size=$(stat -c%s "$TAR" 2>/dev/null || stat -f%z "$TAR")
+          {
+            echo "tar_path=$TAR"
+            echo "tar_size=$size"
+            echo "file_count=$count"
+          } >> "$GITHUB_OUTPUT"
+
+      # W381 Stream D §1: SHA-pin (was @v4; SHA per provenance.yml:102 / scorecard.yml:48).
+      - name: Upload archive artifact
+        if: ${{ steps.build.outputs.tar_path != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: session-jsonl-archive-${{ github.run_number }}
+          path: ${{ steps.build.outputs.tar_path }}
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Session JSONL archive"
+            echo "- file_count: ${{ steps.build.outputs.file_count }}"
+            echo "- tar_size: ${{ steps.build.outputs.tar_size }} bytes"
+            echo "- tar_path: ${{ steps.build.outputs.tar_path }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,112 @@
+You are Codex T1 deep-review-exec for claude-sota-installed. Perform a three-axis adversarial review. Work from local files in Z:/claude-sota-installed and cite exact file:line anchors where possible. Prefer direct repo evidence over assumptions.
+
+Repository: Z:/claude-sota-installed
+Current repo HEAD: 0bca5f40633673935065b262c8d376ee6bf5195c
+Known upstream cite SHAs:
+- Z:/repos/deps/claude-code-best-practice-shan @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd
+- Z:/repos/deps/codex @ HEAD 993e3f407ea8213f7d32cb9367ae7616b7e15b4a
+
+Review standard:
+- Be adversarial. Identify false present-tense claims, stale assumptions, missing probes, or CR-8 overclaims.
+- If you prescribe edits, give concrete file:line targets and exact replacement direction.
+- Do not rely on historical MEMORY.md/CLAUDE.local.md claims when settings.json or runtime-loaded config contradicts them.
+- At EOF, emit JSON-strict only, using double quotes, no markdown fence, no trailing commentary.
+
+AXIS 1 - Post-restart compact-remind effectiveness
+
+Claim under review:
+ENV(j) is NOW LIVE with CRIT=700000 HIGH=650000 WARN=600000. This replaces stale pre-W187 settings values 350k/500k/600k. The userpromptsubmit_compact_threshold.py script defaults were aligned. intelligent-compact plugin PreCompact hook is auto-registered. Does this structural fix (CRIT=700k = 70% on 1M, below 80% autocompact threshold) plausibly translate to SOTA 50-60% post-/compact reclaim vs prior 13% per FM-20 row 15? Is the PreCompact chain sufficient or are more hooks needed?
+
+Evidence anchors to verify:
+- Z:/claude-sota-installed/.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:90-92 currently defines:
+  THRESH_WARN = _int_env("CONTEXT_WINDOW_COMPACT_WARN_TOKENS", 600_000)
+  THRESH_HIGH = _int_env("CONTEXT_WINDOW_COMPACT_HIGH_TOKENS", 650_000)
+  THRESH_CRIT = _int_env("CONTEXT_WINDOW_COMPACT_CRIT_TOKENS", 700_000)
+- Same script cites mechanism and evidence at :84-89; _int_env is at :65.
+- Z:/claude-sota-installed/.claude/settings.json:25-27 currently sets:
+  CONTEXT_WINDOW_COMPACT_WARN_TOKENS=600000
+  CONTEXT_WINDOW_COMPACT_HIGH_TOKENS=650000
+  CONTEXT_WINDOW_COMPACT_CRIT_TOKENS=700000
+- settings.json PreCompact hook chain at :501-508 invokes:
+  bash Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-settings/plugins/intelligent-compact/hooks/scripts/precompact_priorities.sh
+- settings.json:549 enables intelligent-compact@claude-settings=true.
+- CLAUDE.local.md:158-160 also sets the same ENV(j) values, but CLAUDE.local.md:144-148 still contains stale explanatory text saying defaults were 250k/300k/350k and CRIT should be 780k. Treat this as possible doc drift.
+- CLAUDE.local.md:86-93 documents ENV(i) autocompact override commented out/reverted; default autocompact is assumed ~80% unless you find stronger local evidence.
+- Relevant cache changelog lines exist in .claude/cache/changelog.md about 1M context and autocompact, including line hits around 572 and 763 from local rg. Verify exact relevance before citing.
+
+Questions:
+1. Are the loaded settings and script defaults structurally aligned after restart?
+2. Does early warning/crit at 600/650/700k, by itself, logically guarantee 50-60% post-compact reclaim? Or does reclaim depend on compact summary quality plus hook reinflation payload size and therefore require a measurement probe?
+3. Is a PreCompact-only hook enough for preservation, or should SessionStart(compact), statusline, UserPromptSubmit, or PostCompact be added/verified? Note settings.json already has SessionStart matcher "compact" at :457-465 invoking sessionstart_compact_hint_reader.py, and UserPromptSubmit only codex_stuck_detector at :470-479; verify current hook topology directly.
+4. Provide PASS only if the claim is appropriately bounded. If the prompt overclaims SOTA 50-60% reclaim as already proven, mark NEEDS-REVISION and prescribe measurement/codification.
+
+AXIS 2 - CR-8 manifest gap-close
+
+Claim under review:
+Z:/claude-sota-installed/docs/sota-installed-manifest.md currently has ~21 PENDING-AUDIT rows blocking >=90% conformance (current 64.7% = 55/85). Identify the highest-leverage subset of rows to backfill THIS fire targeting +>=7 rows to reach >=73%.
+
+Initial local probe by orchestrator:
+- `rg -n "PENDING-AUDIT" docs/sota-installed-manifest.md` found only two literal PENDING-AUDIT rows in current file:
+  - docs/sota-installed-manifest.md:159 Qdrant L2 vector row: CR-8 status PENDING-AUDIT because image staged but daemon/runtime/wiring not operational.
+  - docs/sota-installed-manifest.md:177 trivy row: PLANNED + PENDING-AUDIT, not installed yet.
+- `rg -n "PENDING|AUDIT|FORWARD-QUEUE|DEFERRED" docs/sota-installed-manifest.md` also found planned/deferred/forward-queue candidates:
+  - docs/sota-installed-manifest.md:426 AGENTS.md cross-runtime portable agent format: CITE-IMPORT-AMBER STAGED-PENDING-HNF.
+  - docs/sota-installed-manifest.md:427 gpt5-archaeologist subagent: PENDING at install execution.
+  - docs/sota-installed-manifest.md:428 agent_plan_readonly_bash_guard.py hook: PENDING at install execution.
+  - docs/sota-installed-manifest.md:429 fm17d_stall_detector.py hook: PENDING at install execution.
+  - docs/sota-installed-manifest.md:430 loop_remediation_cron pattern: STAGED-PENDING-HNF.
+  - docs/sota-installed-manifest.md:431 Class A sibling-novel codex hooks observability layer: CITE-IMPORT-AMBER STAGED-PENDING-SHA-CAPTURE.
+  - docs/sota-installed-manifest.md:459 openai/openai-agents-python: DEFER.
+  - docs/sota-installed-manifest.md:460 anthropics/claude-code-action: PLANNED-DEFERRED-PENDING-CI-DECISION.
+  - docs/sota-installed-manifest.md:461 anthropics/claude-code-base-action: PLANNED-DEFERRED.
+  - docs/sota-installed-manifest.md:462 anthropics/claude-code-security-review: PLANNED-DEFERRED.
+  - docs/sota-installed-manifest.md:639 research_first_pre_remediate.py: NOVEL-PENDING-DESIGN / PLANNED.
+  - docs/sota-installed-manifest.md:752 W184 R2 FM-20 row 17 candidate: FORWARD-QUEUE.
+
+Your tasks:
+1. First verify whether the user's "~21 PENDING-AUDIT rows" and "55/85 = 64.7%" are still accurate in the current manifest. If they are stale, say so and compute the safest current interpretation.
+2. Identify the highest-leverage +>=7 rows that can honestly be backfilled this fire without installing new tools or making false runtime claims.
+3. For each candidate row, provide:
+   - section
+   - row description
+   - proposed CR-8 status: ADAPTED-FROM-SOTA or NOVEL-DOCUMENTED-EXCEPTION
+   - cite anchor: TIER-1-DIRECT @ Z:/repos/deps/<repo>:line @ HEAD <SHA>, Anthropic CC docs URL, or local install path with SHA
+4. If fewer than 7 rows can be honestly backfilled from current evidence, mark NEEDS-REVISION and list blocker probes.
+5. Be especially careful not to convert PLANNED/DEFERRED/non-installed rows into ADAPTED-FROM-SOTA merely because an upstream exists. CR-8 status for install-class rows should reflect installed/adapted evidence, not wish-list entries.
+
+Potential high-leverage rows to examine before recommending:
+- Installed-but-disabled plugin rows in Section 17 around docs/sota-installed-manifest.md:116-134: clickhouse/outputai/qdrant-skills/cwc-makers/dash0/pigment/zilliz already have rich status, but verify whether CR-8 status column is missing due section schema or already covered by audit attestation.
+- Section 13/14/17 rows with local sibling-novel artifacts may be NOVEL-DOCUMENTED-EXCEPTION only if bootstrap necessity/rationale and HNF evidence are already present.
+- Bundled Anthropic slash commands in Section 6.5 (docs/sota-installed-manifest.md:372-380) are already ADAPTED-FROM-SOTA; do not double-count.
+
+AXIS 3 - FM-20 row 18 codification review
+
+Sub-class under review:
+"env-variable-codified-but-not-sourced" path-drift mechanism. CLAUDE.local.md ENV(j) block declared thresholds while Z:/claude-sota-installed/.claude/settings.json env block had different stale values. settings.json takes precedence at load-time per Anthropic CC settings/env behavior. CLAUDE.local.md claims propagated via MEMORY.md/orchestrator brief as if active without shell restart/settings verification. FM-20 path: orchestrator brief stated ENV(j) values -> synthesis assumed active -> next-fire used stale values.
+
+Local evidence:
+- CLAUDE.local.md:135-160 is ENV(j). Values at :158-160 now match settings.json, but explanatory text at :144-148 still references old defaults and a 780k invariant. This is evidence of codification text drift even after values were fixed.
+- settings.json:25-27 is the load-time env block for current runtime and takes precedence for Claude Code process env. Confirm via official Anthropic docs if needed, but cite local settings.json as current active surface.
+- userpromptsubmit_compact_threshold.py:90-92 now has matching defaults, so the script fallback is aligned too.
+- The failure mode is not "env var impossible"; it is "a declared env block was treated as sourced/active without proving the process actually loaded it, while another load-time env source contradicted it."
+
+Tasks:
+1. Review whether the sub-class definition is correct and sharply scoped.
+2. Draft <=80 LOC codification text with invariants preventing recurrence.
+3. Include these invariants if you agree:
+   - Active env truth source for Claude Code runtime is the launched process environment after applying settings.json env, not CLAUDE.local.md prose alone.
+   - Any env-value claim used in a synthesis or next-fire brief must cite a live process/runtime probe OR the exact settings.json env key/value plus restart/load boundary.
+   - If CLAUDE.local.md, settings.json, hook script defaults, and sidecar telemetry differ, classify as FM-20 candidate until reconciled.
+   - Memory/brief claims are recall surfaces, not activation proof.
+   - After env edits, verify by restart or by inspecting emitted hook telemetry/sidecar values from the current process.
+4. If the proposed class is too broad or duplicates existing marker-decay rules, prescribe narrower wording.
+
+Required EOF JSON-strict verdict format:
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_1_compact_effectiveness": {"status": "PASS | NEEDS-REVISION", "rationale": "..."},
+  "axis_2_cr8_gap_close": {"top_7_rows": ["..."], "rationale": "..."},
+  "axis_3_fm20_row18_codification": {"status": "PASS | NEEDS-REVISION", "draft_text_or_prescribed_edits": "..."},
+  "severity": "P0 | P1 | P2 | P3 | none"
+}

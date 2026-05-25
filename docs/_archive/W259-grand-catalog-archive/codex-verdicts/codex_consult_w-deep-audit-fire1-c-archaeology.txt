@@ -1,0 +1,65 @@
+CODEX T1 ARCHAEOLOGY AUDIT — claude-sota-installed runtime (Fire 1 Agent C equivalent via Path P)
+
+# Scope (Pattern D foreground+tee DEFAULT profile)
+
+Per docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md §4.3 Agent C BRIDGE-MODE archaeology brief. Path P dispatch from orchestrator (avoids FM-17.f 1M-context blocker on BRIDGE-MODE subagent dispatch).
+
+# Audit dimensions
+
+## AXIS-A1: Hotspot scoring (top-20 files)
+Per-file score = commits_last_90d × unique_authors × recent_fix_density. Query:
+- `git log --since='90 days ago' --pretty=oneline -- <file> | wc -l` for commit count
+- `git log --pretty=format:'%an' --since='90 days ago' -- <file> | sort -u | wc -l` for unique authors
+- `git log --grep='fix\|bug\|hotfix\|patch\|revert' --oneline --since='30 days ago' -- <file> | wc -l` for recent fix density
+
+Scope: .claude/**/*.{md,py,sh,json} + tools/**/*.ps1 + scripts/**/*.py + CLAUDE*.md + docs/*.md
+
+## AXIS-A2: Bus-factor analysis (top-20 by single-author%)
+Per top-20 hotspot file: % commits by single most-active author. >70% = HIGH bus-factor risk.
+
+## AXIS-A3: Bug-magnet scoring (top-20 by fix-commit ratio)
+Per top-20 hotspot file: (fix/bug/hotfix commits / total commits) over last 180 days. >40% = HIGH bug-magnet.
+
+## AXIS-A4: Pre-edit recommendations
+For each HIGH-risk hotspot (hotspot score OR bus-factor OR bug-magnet): recommend pre-edit verification protocol (test coverage / smoke probe / Mia pre-apply discipline).
+
+# Cross-model gate satisfaction
+
+This is REAL GPT-5.5 via Path P codex exec foreground+tee — FULL satisfaction per CR-3 Phase 1 bootstrap exception. NOT subagent stand-in.
+
+# VERDICT FORMAT (JSON-strict at EOF)
+
+Return ONLY one JSON object at the very end:
+
+{
+  "verdict": "ARCHAEOLOGY-COMPLETE" | "ARCHAEOLOGY-PARTIAL" | "ARCHAEOLOGY-BLOCKED",
+  "confidence": <float 0.0-1.0>,
+  "top_20_hotspots": [
+    {
+      "rank": <int>,
+      "file": "<path>",
+      "hotspot_score": <int>,
+      "commits_90d": <int>,
+      "unique_authors": <int>,
+      "recent_fix_density": <int>,
+      "bus_factor_single_author_pct": <float>,
+      "bug_magnet_fix_ratio": <float>,
+      "risk_class": "LOW|MED|HIGH|CRITICAL"
+    }
+  ],
+  "high_risk_findings": [
+    {
+      "file": "<path>",
+      "concern": "<brief>",
+      "recommendation": "<pre-edit verification protocol>"
+    }
+  ],
+  "cross_model_gate_status": "FULL_VIA_PATH_P_REAL_GPT_5_5",
+  "next_steps": ["<recommendations>"]
+}
+
+# Budget
+
+Per Pattern D recipe: timeout 480s. Foreground+tee. DEFAULT profile (no -p deep-review-exec; this is high-volume short-call class per spec §4.3 rationale).
+
+END PROMPT.

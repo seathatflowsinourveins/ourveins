@@ -1,0 +1,1892 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e268b-0683-70b0-a463-9cc8472ed869
+--------
+user
+W193 P1 — compact/context-hook SOTA audit. You are GPT-5.5 doing a cross-model review for claude-sota-installed (cwd Z:/claude-sota-installed). This is orchestrator-side Path P recovery (the BRIDGE-MODE subagent wedged).
+
+READ these 7 hook files in .claude/hooks/scripts/:
+1. context_window_guard.py
+2. context_window_statusline.sh   [UNTRACKED — in working tree, never git-committed]
+3. posttooluse_context_monitor.js
+4. precompact_guard.py            [UNTRACKED]
+5. precompact_hint_emitter.py
+6. sessionstart_compact_hint_reader.py
+7. userpromptsubmit_compact_threshold.py
+Also read .claude/rules/auto-compact-discipline.md (local SOTA auto-compact recipe Rank#1-7) and grep .claude/settings.json for each hook's registration + matcher.
+
+DELIVER (terse, max ~110 lines total):
+A) 7-row table: hook | SOTA-cited? (carries a cite-class header / cross-ref to a SOTA source -> SOTA; or locally-invented-uncited -> NOVEL) | wired in settings.json? (Y/N + event) | reinflation-cost (does it re-inject content on PreCompact/SessionStart/UserPromptSubmit — rough byte estimate) | verdict (KEEP / WIRE / REMOVE / RECALIBRATE)
+B) the 2 UNTRACKED hooks (precompact_guard.py + context_window_statusline.sh): WIRE or REMOVE — are they SOTA-grounded?
+C) reinflation-delta verdict: when /compact fires, do these hooks collectively re-inject enough that net reclaim is near-zero? a prior local finding (FM-20 row 15) claims ~13% reclaim vs SOTA 50-60% target — confirm or refute with the actual hook logic.
+D) LIGHT adversarial check on this trim plan: "narrow the over-broad self-referential `.claude/rules/**` paths-glob in ~51 rule files so they lazy-load instead of cold-loading ~1MB at session start (CCBP claude-memory.md:34-40 says descendant/conditional files SHOULD lazy-load)." Failure modes? Safe to ship?
+
+End with exactly two lines:
+VERDICT: <one-line overall>
+PER-HOOK: keep=[..] wire=[..] remove=[..] recalibrate=[..]
+
+codex
+I’ll inspect the hook bodies, settings registrations, and the local auto-compact rule, then reduce it to the requested audit table and verdict.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/context_window_guard.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/context_window_statusline.sh' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/posttooluse_context_monitor.js' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/precompact_guard.py' in Z:\claude-sota-installed
+ succeeded in 320ms:
+#!/usr/bin/env bash
+# W166 P3 context-window bridge.
+# SOTA: Claude Code status line commands receive JSON on stdin with
+# context_window.used_percentage and session_id fields:
+# https://code.claude.com/docs/en/statusline:189-224 [VERIFIED 2026-05-13]
+
+set -uo pipefail
+
+ROOT="${CLAUDE_PROJECT_DIR:-Z:/claude-sota-installed}"
+PYTHON_BIN="${PYTHON_BIN:-Z:/venvs/claude/Scripts/python.exe}"
+SIDEcar="$ROOT/.claude/state/context_window_sidecar.json"
+ERROR_LOG="$ROOT/.claude/state/context_window_statusline_errors.jsonl"
+STATUSLINE_CMD=(node C:/Users/42/AppData/Roaming/npm/node_modules/ccstatusline/dist/ccstatusline.js --config "$ROOT/.claude/ccstatusline/settings.json")
+
+payload="$(cat)"
+export CW_STATUSLINE_PAYLOAD="$payload"
+
+sidecar_stderr="$(mktemp 2>/dev/null || printf '%s' "$ROOT/.claude/state/context_window_statusline_stderr.tmp")"
+if ! "$PYTHON_BIN" - "$SIDEcar" "$ERROR_LOG" <<'PY' 2>"$sidecar_stderr"; then
+import json
+import os
+import sys
+import tempfile
+from datetime import UTC, datetime
+from pathlib import Path
+
+sidecar = Path(sys.argv[1])
+error_log = Path(sys.argv[2])
+raw = os.environ.get("CW_STATUSLINE_PAYLOAD", "")
+
+
+def log_error(stage, exc):
+    try:
+        error_log.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "schema": "context_window_statusline_error.v1",
+            "ts": datetime.now(UTC).isoformat(),
+            "stage": stage,
+            "error_type": type(exc).__name__,
+            "error": str(exc)[-2000:],
+        }
+        with error_log.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
+try:
+    event = json.loads(raw or "{}")
+except json.JSONDecodeError:
+    sys.exit(0)
+
+session_id = event.get("session_id")
+window = event.get("context_window") or {}
+if not session_id or not isinstance(window, dict):
+    sys.exit(0)
+
+row = {
+    "session_id": session_id,
+    "used_percentage": window.get("used_percentage"),
+    "remaining_percentage": window.get("remaining_percentage"),
+    "total_input_tokens": window.get("total_input_tokens"),
+    "total_output_tokens": window.get("total_output_tokens"),
+    "context_window_size": window.get("context_window_size"),
+    "updated_at": datetime.now(UTC).isoformat(),
+}
+
+try:
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    if sidecar.is_file():
+        with sidecar.open(encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = {}
+    else:
+        data = {}
+    data[session_id] = row
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{sidecar.name}.", suffix=".tmp", dir=str(sidecar.parent)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=True, indent=2, sort_keys=True)
+            f.write("\n")
+        os.replace(tmp_name, sidecar)
+    finally:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+except OSError as exc:
+    log_error("sidecar_write", exc)
+PY
+    "$PYTHON_BIN" - "$ERROR_LOG" "$sidecar_stderr" <<'PYERR' 2>/dev/null || true
+import json
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+error_log = Path(sys.argv[1])
+stderr_path = Path(sys.argv[2])
+try:
+    stderr = stderr_path.read_text(encoding="utf-8", errors="replace").strip()
+except OSError:
+    stderr = ""
+try:
+    error_log.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "schema": "context_window_statusline_error.v1",
+        "ts": datetime.now(UTC).isoformat(),
+        "stage": "sidecar_subprocess",
+        "error_type": "SubprocessError",
+        "error": stderr[-2000:] if stderr else "sidecar writer exited non-zero",
+    }
+    with error_log.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
+except OSError:
+    pass
+PYERR
+fi
+rm -f "$sidecar_stderr" 2>/dev/null || true
+
+printf '%s' "$payload" | "${STATUSLINE_CMD[@]}"
+
+
+ succeeded in 348ms:
+#!/usr/bin/env node
+// posttooluse_context_monitor.js — PostToolUse continuous context-monitor hook
+//
+// W189 P1 — cite-adapt of gsd-build/get-shit-done gsd-context-monitor.js. Fills the
+// runtime's documented gap: PreCompact + SessionStart + UserPromptSubmit compact hooks
+// exist, but there was NO PostToolUse continuous context-monitor (the existing 3
+// PostToolUse entries are codex-review / mcp-healthcheck / review-trace — none monitor
+// context). Reads the runtime's context_window_sidecar.json bridge file after each tool
+// use and injects an advisory (additionalContext) when context usage crosses thresholds.
+// Advisory-only, silent-fail — NEVER blocks tool execution.
+//
+// Cite-class lattice (per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE):
+// constituents=[
+//   TIER-1-DIRECT @ Z:/repos/deps/get-shit-done/hooks/gsd-context-monitor.js:1-193 @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5
+//     (file-pin SHA 7be9affea289287396cd282f1563e0502deee783) — gsd-build/get-shit-done PostToolUse
+//     context-monitor; MIT License Copyright (c) 2025 Lex Christopherson (LICENSE:1-3 + package.json:38),
+//     author TACHES; the advisory-only / silent-fail / debounced / severity-escalation PostToolUse
+//     monitor pattern this hook adapts,
+//   TIER-1-DIRECT @ https://code.claude.com/docs/en/hooks — Anthropic CC PostToolUse hook contract
+//     (hookSpecificOutput.additionalContext injection; silent exit-0 = no-block),
+//   TIER-1-DIRECT @ .claude/hooks/scripts/context_window_guard.py:25 + context_window_statusline.sh
+//     — runtime bridge-file path/schema (.claude/state/context_window_sidecar.json keyed-dict),
+//   TIER-3-LOCAL-COMPOSITION @ W189 P1 claude-sota-installed adaptation — bridge-file remap
+//     (/tmp/claude-ctx-{session}.json single-file -> .claude/state/context_window_sidecar.json keyed-dict;
+//     unix timestamp -> updated_at ISO; threshold env-wiring CONTEXT_WINDOW_COMPACT_*_TOKENS ->
+//     derived remaining-% thresholds); gsd-specific drops (.planning/ sentinel + STATE.md breadcrumb
+//     + Gemini AfterTool branch)
+// ]; effective_tier=TIER-3-LOCAL-COMPOSITION per rule #8 MIN_PRECEDENCE.
+//
+// Sister-rule integration:
+// - auto-compact-discipline.md Rank #3.5 (PreCompact hook layer — this hook is the PostToolUse-event
+//   COMPLEMENT, not PreCompact-class; fills the documented "no PostToolUse continuous monitor" gap)
+// - userpromptsubmit_compact_threshold.py (UserPromptSubmit-event peer — SAME CONTEXT_WINDOW_COMPACT_*_TOKENS
+//   env source; this hook = per-tool-use coverage, that hook = per-prompt coverage)
+// - sessionstart_compact_hint_reader.py (SessionStart matcher=="compact" peer — post-compact rehydrate)
+// - team-orch-patterns.md "1M context calibration" (rot zone ~300-400k on Opus 4.7)
+//
+// How it works:
+// 1. context_window_statusline.sh writes per-session metrics into
+//    .claude/state/context_window_sidecar.json (a dict keyed by session_id).
+// 2. This hook reads that bridge file after each tool use.
+// 3. When remaining context crosses derived thresholds, it injects an advisory as
+//    additionalContext, which the agent sees in its conversation.
+//
+// Thresholds: derived from CONTEXT_WINDOW_COMPACT_{WARN,CRIT}_TOKENS env (defaults
+//   600000 / 700000) divided by the session's context_window_size — single source of
+//   truth with userpromptsubmit_compact_threshold.py. On a 1M window: WARNING fires at
+//   <=40% remaining (60% used), CRITICAL at <=30% remaining (70% used).
+// Debounce: DEBOUNCE_CALLS tool uses between warnings. Severity escalation bypasses debounce.
+// Opt-out: POSTTOOLUSE_CONTEXT_MONITOR_DISABLE=1.
+
+const fs = require('fs');
+const path = require('path');
+
+const STATE_DIR = path.join(__dirname, '..', '..', 'state');
+const SIDECAR_PATH = path.join(STATE_DIR, 'context_window_sidecar.json');
+
+function intEnv(name, dflt) {
+  const v = process.env[name];
+  if (v === undefined || v === null || v === '') return dflt;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : dflt;
+}
+
+const WARN_TOKENS = intEnv('CONTEXT_WINDOW_COMPACT_WARN_TOKENS', 600000);
+const CRIT_TOKENS = intEnv('CONTEXT_WINDOW_COMPACT_CRIT_TOKENS', 700000);
+const STALE_SECONDS = intEnv('POSTTOOLUSE_CONTEXT_MONITOR_STALE_SECONDS', 120);
+const DEBOUNCE_CALLS = intEnv('POSTTOOLUSE_CONTEXT_MONITOR_DEBOUNCE_CALLS', 5);
+
+// Opt-out
+if (process.env.POSTTOOLUSE_CONTEXT_MONITOR_DISABLE === '1') process.exit(0);
+
+let input = '';
+// Timeout guard: if stdin doesn't close within 10s (Windows/Git Bash pipe issues, or
+// slow piping during large outputs), exit silently instead of hanging. See gsd #775, #1162.
+const stdinTimeout = setTimeout(() => process.exit(0), 10000);
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => input += chunk);
+process.stdin.on('end', () => {
+  clearTimeout(stdinTimeout);
+  try {
+    const data = JSON.parse(input);
+    const sessionId = data.session_id;
+    if (!sessionId) process.exit(0);
+
+    // Reject session IDs with path traversal / separators — sessionId is used to build
+    // file paths; an unsanitized value could escape .claude/state/. (gsd security check.)
+    if (/[/\\]|\.\./.test(sessionId)) process.exit(0);
+
+    // No sidecar bridge file -> subagent or fresh session -> exit silently
+    if (!fs.existsSync(SIDECAR_PATH)) process.exit(0);
+
+    const sidecar = JSON.parse(fs.readFileSync(SIDECAR_PATH, 'utf8'));
+    const row = sidecar && sidecar[sessionId];
+    if (!row) process.exit(0);
+
+    // Stale check — runtime sidecar uses updated_at (ISO-8601), not gsd's unix timestamp
+    if (row.updated_at) {
+      const parsed = Date.parse(row.updated_at);
+      if (Number.isFinite(parsed) && (Date.now() - parsed) > STALE_SECONDS * 1000) {
+        process.exit(0);
+      }
+    }
+
+    const remaining = row.remaining_percentage;
+    if (remaining === undefined || remaining === null || !Number.isFinite(Number(remaining))) {
+      process.exit(0);
+    }
+    const remainingNum = Number(remaining);
+    // used_pct: prefer the sidecar field if present, else derive from remaining
+    const usedPct = (row.used_percentage !== undefined && row.used_percentage !== null
+      && Number.isFinite(Number(row.used_percentage)))
+      ? Math.round(Number(row.used_percentage))
+      : Math.round(100 - remainingNum);
+
+    // Derive remaining-% thresholds from token thresholds / this session's context window
+    // (single source of truth with userpromptsubmit_compact_threshold.py CONTEXT_WINDOW_COMPACT_*_TOKENS)
+    const ctxSize = (Number.isFinite(Number(row.context_window_size)) && Number(row.context_window_size) > 0)
+      ? Number(row.context_window_size)
+      : 1000000;
+    const WARNING_REMAINING_PCT = 100 * (1 - WARN_TOKENS / ctxSize);
+    const CRITICAL_REMAINING_PCT = 100 * (1 - CRIT_TOKENS / ctxSize);
+
+    // No warning needed
+    if (remainingNum > WARNING_REMAINING_PCT) process.exit(0);
+
+    // Debounce — per-session warned-state file (parallel-session safe: each session owns
+    // its own file, no read-modify-write race on a shared keyed dict)
+    const warnPath = path.join(STATE_DIR, `posttooluse_context_monitor_warned_${sessionId}.json`);
+    let warnData = { callsSinceWarn: 0, lastLevel: null };
+    let firstWarn = true;
+    if (fs.existsSync(warnPath)) {
+      try { warnData = JSON.parse(fs.readFileSync(warnPath, 'utf8')); firstWarn = false; }
+      catch (e) { /* corrupted -> reset */ }
+    }
+    warnData.callsSinceWarn = (warnData.callsSinceWarn || 0) + 1;
+
+    const isCritical = remainingNum <= CRITICAL_REMAINING_PCT;
+    const currentLevel = isCritical ? 'critical' : 'warning';
+    // Severity escalation (warning -> critical) bypasses debounce
+    const severityEscalated = currentLevel === 'critical' && warnData.lastLevel === 'warning';
+    if (!firstWarn && warnData.callsSinceWarn < DEBOUNCE_CALLS && !severityEscalated) {
+      try { fs.writeFileSync(warnPath, JSON.stringify(warnData)); } catch (e) { /* non-critical */ }
+      process.exit(0);
+    }
+    warnData.callsSinceWarn = 0;
+    warnData.lastLevel = currentLevel;
+    try { fs.writeFileSync(warnPath, JSON.stringify(warnData)); } catch (e) { /* non-critical */ }
+
+    // Build advisory message — advisory only, never imperative (gsd #884 discipline).
+    // Points at the runtime's pre-emptive /compact discipline (auto-compact-discipline.md Rank #3).
+    let message;
+    if (isCritical) {
+      message = `CONTEXT CRITICAL: usage ~${usedPct}%, remaining ~${remainingNum}%. ` +
+        'Context is near the rot zone — consider wrapping up the current logical unit and ' +
+        'running /compact with a focused hint before new work (per auto-compact-discipline.md ' +
+        'Rank #3 pre-emptive compaction). Best to avoid starting new complex exploration.';
+    } else {
+      message = `CONTEXT WARNING: usage ~${usedPct}%, remaining ~${remainingNum}%. ` +
+        'Context is getting limited — consider avoiding unnecessary exploration and a ' +
+        'pre-emptive /compact <hint> at the next logical boundary.';
+    }
+
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        additionalContext: message
+      }
+    }));
+  } catch (e) {
+    // Silent fail — never block tool execution
+    process.exit(0);
+  }
+});
+
+
+2026-05-14T12:51:54.874237Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mGet-Content: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-Content -Raw .claude/hooks/scripts/precompact_guard.py[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot find path 'Z:\claude-sota-installed\.claude\hooks\scripts\precompact_guard.py' because it does not exist.[0m
+
+ exited 1 in 427ms:
+[31;1mGet-Content: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-Content -Raw .claude/hooks/scripts/precompact_guard.py[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot find path 'Z:\claude-sota-installed\.claude\hooks\scripts\precompact_guard.py' because it does not exist.[0m
+
+2026-05-14T12:51:54.896930Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.5 seconds
+Output:
+[31;1mGet-Content: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-Content -Raw .claude/hooks/scripts/context_window_guard.py[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot find path 'Z:\claude-sota-installed\.claude\hooks\scripts\context_window_guard.py' because it does not exist.[0m
+
+ exited 1 in 453ms:
+[31;1mGet-Content: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-Content -Raw .claude/hooks/scripts/context_window_guard.py[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot find path 'Z:\claude-sota-installed\.claude\hooks\scripts\context_window_guard.py' because it does not exist.[0m
+
+codex
+Two requested paths are absent at the exact locations given, while the statusline and PostToolUse monitor exist. I’m locating similarly named files and checking git status so the untracked/renamed state is explicit rather than guessed.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg --files .claude/hooks/scripts | rg "context_window_guard|precompact_guard|context_window_statusline|posttooluse_context_monitor|precompact_hint_emitter|sessionstart_compact_hint_reader|userpromptsubmit_compact_threshold"' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git status --short -- .claude/hooks/scripts .claude/settings.json .claude/rules/auto-compact-discipline.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/precompact_hint_emitter.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/sessionstart_compact_hint_reader.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/hooks/scripts/userpromptsubmit_compact_threshold.py' in Z:\claude-sota-installed
+ succeeded in 284ms:
+ M .claude/settings.json
+?? .claude/hooks/scripts/__pycache__/
+?? .claude/hooks/scripts/context_window_statusline.sh
+
+ succeeded in 307ms:
+.claude/hooks/scripts\posttooluse_context_monitor.js
+.claude/hooks/scripts\precompact_hint_emitter.py
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py
+.claude/hooks/scripts\sessionstart_compact_hint_reader.py
+.claude/hooks/scripts\context_window_statusline.sh
+.claude/hooks/scripts\__pycache__\context_window_guard.cpython-313.pyc.1513665377904
+.claude/hooks/scripts\__pycache__\context_window_guard.cpython-313.pyc
+.claude/hooks/scripts\__pycache__\context_window_guard.cpython-313.pyc.2141263869552
+.claude/hooks/scripts\__pycache__\userpromptsubmit_compact_threshold.cpython-314.pyc.2443872506768
+.claude/hooks/scripts\__pycache__\userpromptsubmit_compact_threshold.cpython-314.pyc.1494149973680
+.claude/hooks/scripts\__pycache__\userpromptsubmit_compact_threshold.cpython-314.pyc
+.claude/hooks/scripts\__pycache__\userpromptsubmit_compact_threshold.cpython-313.pyc
+.claude/hooks/scripts\__pycache__\sessionstart_compact_hint_reader.cpython-314.pyc
+.claude/hooks/scripts\__pycache__\sessionstart_compact_hint_reader.cpython-313.pyc.1569745412016
+.claude/hooks/scripts\__pycache__\precompact_hint_emitter.cpython-314.pyc
+.claude/hooks/scripts\__pycache__\precompact_hint_emitter.cpython-313.pyc
+.claude/hooks/scripts\__pycache__\precompact_guard.cpython-314.pyc.2439007591360
+.claude/hooks/scripts\__pycache__\precompact_guard.cpython-314.pyc
+
+ succeeded in 318ms:
+#!/usr/bin/env python3
+"""SessionStart compact-hint reader (W173 P1(a) recompose).
+
+Fires ONLY on SessionStart matcher=="compact" (post-auto-compact rehydrate boundary
+per Anthropic CC hooks contract). Emits 4 sections to stdout via
+hookSpecificOutput.additionalContext per https://code.claude.com/docs/en/hooks
+SessionStart contract:
+
+  (a) compact_hint.json (fresh <=300s) - pre-compact handoff content
+  (b) MEMORY.md head 3K chars - Karpathy section 5 Layer-2 index
+  (c) last-3 close-syntheses by mtime - Karpathy section 5 Layer-3 compiled wiki
+  (d) git log -5 --oneline - recent commit chronology (Layer-1 chronological proxy)
+
+Bounded <=9500 chars total (Anthropic CC 10K stdout cap safety margin).
+
+Distinct from existing SessionStart matcher=="*" entries (session-lifecycle-hook,
+context-mode-cache-heal, cli_path_audit) - this one ONLY fires on matcher=="compact"
+to avoid noise on startup/resume events.
+
+Sister-rule integration:
+- sessionstart-preload-discipline.md section The contract (3-layer preload sequence)
+- auto-compact-discipline.md Rank #5 (Karpathy section 5 3-layer progressive disclosure)
+- karpathy-adapted.md section 5 Wiki Compounding Surface (Layer 1/2/3 mapping)
+- fm20-path-drift-cascade.md (stale-belief-propagation defense at session-resume)
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+REPO_ROOT = Path("Z:/claude-sota-installed")
+STATE_DIR = REPO_ROOT / ".claude" / "state"
+HINT_PATH = STATE_DIR / "compact_hint.json"
+MEMORY_INDEX = REPO_ROOT / ".claude" / "projects" / "Z--claude-sota-installed" / "memory" / "MEMORY.md"
+TMP_DIR = REPO_ROOT / "tmp"
+TELEMETRY_PATH = STATE_DIR / "sessionstart_compact_hint_reader.jsonl"
+
+HINT_FRESH_SEC = 300       # <=300s sidecar freshness window
+MEMORY_HEAD_CHARS = 3000   # Karpathy section 5 Layer-2 head portion
+STDOUT_CAP_CHARS = 9500    # Anthropic 10K cap safety margin
+GIT_LOG_LINES = 5          # recent-commit chronology
+
+
+def _now_iso() -> str:
+    # W187 round-2 codex T1 prescription #5: datetime.utcnow() deprecated in Python 3.12+
+    # emits DeprecationWarning to stderr; SessionStart stderr is user-visible — pollutes rehydrate.
+    # Replaced with timezone-aware datetime.now(timezone.utc); .isoformat() yields '+00:00' suffix,
+    # .replace('+00:00', 'Z') preserves prior 'Z' suffix convention for ISO 8601 UTC.
+    return _dt.datetime.now(_dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _read_stdin_payload() -> dict[str, Any]:
+    try:
+        raw = sys.stdin.read() or ""
+        return json.loads(raw) if raw.strip() else {}
+    except Exception:
+        return {}
+
+
+def _section_a_hint() -> str:
+    """Section A: compact_hint.json fresh <=300s."""
+    if not HINT_PATH.exists():
+        return "## (a) compact_hint.json - ABSENT (no pre-compact handoff written)"
+    try:
+        age_sec = _dt.datetime.now().timestamp() - HINT_PATH.stat().st_mtime
+        if age_sec > HINT_FRESH_SEC:
+            return f"## (a) compact_hint.json - STALE ({age_sec:.0f}s > {HINT_FRESH_SEC}s cap)"
+        with HINT_PATH.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict) or data.get("version") != 1:
+            return "## (a) compact_hint.json - INVALID schema"
+        lines = [
+            "## (a) compact_hint.json (fresh, version=1)",
+            f"  ts: {data.get('ts')}",
+            f"  current_goal: {data.get('current_goal')}",
+            f"  test_state: {data.get('test_state')}",
+            f"  next_action: {data.get('next_action')}",
+            "  files_touched:",
+        ]
+        for f in (data.get("files_touched") or [])[:20]:
+            lines.append(f"    - {f}")
+        lines.append("  design_cites:")
+        for c in (data.get("design_cites") or [])[:10]:
+            lines.append(f"    - {c}")
+        return "\n".join(lines)
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"## (a) compact_hint.json - READ-ERROR: {exc!r}"
+
+
+def _section_b_memory_head() -> str:
+    """Section B: MEMORY.md head 3K chars (Karpathy section 5 Layer-2 index)."""
+    if not MEMORY_INDEX.exists():
+        return "## (b) MEMORY.md - ABSENT"
+    try:
+        text = MEMORY_INDEX.read_text(encoding="utf-8", errors="replace")
+        head = text[:MEMORY_HEAD_CHARS]
+        return f"## (b) MEMORY.md head ({len(head)} chars):\n{head}"
+    except Exception as exc:
+        return f"## (b) MEMORY.md - READ-ERROR: {exc!r}"
+
+
+def _section_c_close_synthesis() -> str:
+    """Section C: last-3 close-syntheses by mtime (Karpathy section 5 Layer-3)."""
+    patterns = [
+        list(TMP_DIR.glob("wave*close-synthesis*.md")),
+        list(TMP_DIR.glob("wave*-fire*-close-synthesis-*.md")),
+    ]
+    files: list[Path] = []
+    seen: set[str] = set()
+    for grp in patterns:
+        for p in grp:
+            if p.name not in seen:
+                files.append(p)
+                seen.add(p.name)
+    files.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+    last3 = files[:3]
+    if not last3:
+        return "## (c) close-syntheses - NONE FOUND (empty Layer-3)"
+    lines = [f"## (c) last-3 close-syntheses (total {len(files)}):"]
+    for p in last3:
+        try:
+            mtime = _dt.datetime.fromtimestamp(p.stat().st_mtime, _dt.timezone.utc).isoformat().replace("+00:00", "Z")
+            size = p.stat().st_size
+            # Read first 400 chars summary
+            preview = p.read_text(encoding="utf-8", errors="replace")[:400]
+            lines.append(f"  - {p.name} ({size} B, mtime={mtime})")
+            lines.append(f"    preview: {preview[:300]}...")
+        except Exception as exc:
+            lines.append(f"  - {p.name} READ-ERROR: {exc!r}")
+    return "\n".join(lines)
+
+
+def _section_d_git_log() -> str:
+    """Section D: git log -5 --oneline (Layer-1 chronological proxy)."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "log", f"-{GIT_LOG_LINES}", "--oneline"],
+            capture_output=True, text=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return f"## (d) git log -{GIT_LOG_LINES} --oneline:\n{result.stdout.strip()}"
+        return f"## (d) git log - FAILED (rc={result.returncode}): {result.stderr.strip()[:200]}"
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        return f"## (d) git log - ERROR: {exc!r}"
+
+
+def _append_telemetry(record: dict[str, Any]) -> None:
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        with TELEMETRY_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+    except Exception as exc:
+        sys.stderr.write(f"[sessionstart_compact_hint_reader] telemetry failed: {exc!r}\n")
+
+
+def main() -> int:
+    payload = _read_stdin_payload()
+    source = payload.get("source", "unknown")
+
+    # Fire ONLY on matcher=="compact" - verified via payload.source per Anthropic CC contract
+    # SessionStart payload.source in {startup, resume, clear, compact}
+    if source != "compact":
+        # No-op for non-compact SessionStart events
+        _append_telemetry({
+            "schema": "sessionstart_compact_hint_reader.v1",
+            "ts": _now_iso(),
+            "wire_event": "SessionStart",
+            "source": source,
+            "fired": False,
+            "reason": "source!=compact",
+        })
+        return 0
+
+    hint_present = HINT_PATH.exists()
+
+    # Build compact handoff context. Supplemental recall is useful only when a
+    # PreCompact hint exists; without it, these sections become unconditional
+    # reinflation on every post-compact SessionStart.
+    body_parts = [
+        "POST-AUTO-COMPACT REHYDRATE (W173 P1(a) compact-matcher reader)",
+        "",
+        _section_a_hint(),
+    ]
+    if hint_present:
+        body_parts.extend([
+            "",
+            _section_b_memory_head(),
+            "",
+            _section_c_close_synthesis(),
+            "",
+            _section_d_git_log(),
+        ])
+    body = "\n".join(body_parts)
+
+    # Cap to <=9500 chars
+    if len(body) > STDOUT_CAP_CHARS:
+        body = body[:STDOUT_CAP_CHARS - 30] + "\n... [TRUNCATED at 9500 chars]"
+
+    # Emit via hookSpecificOutput.additionalContext per Anthropic CC contract
+    sys.stdout.write(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": body,
+        }
+    }))
+
+    _append_telemetry({
+        "schema": "sessionstart_compact_hint_reader.v1",
+        "ts": _now_iso(),
+        "wire_event": "SessionStart",
+        "source": source,
+        "fired": True,
+        "session_id": payload.get("session_id"),
+        "agent_id": payload.get("agent_id"),
+        "agent_type": payload.get("agent_type"),
+        "model": payload.get("model"),
+        "transcript_path": payload.get("transcript_path"),
+        "compact_hint_present": hint_present,
+        "supplemental_sections_emitted": hint_present,
+        "body_chars": len(body),
+    })
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
+ succeeded in 319ms:
+#!/usr/bin/env python3
+"""UserPromptSubmit context-threshold gate (W173 P1(a) recompose).
+
+Fires on every user prompt; estimates context-window usage; routes hints via
+Anthropic CC contract:
+  - WARN (>=600k): emit hookSpecificOutput.additionalContext (advisory)
+  - HIGH (>=650k): emit additionalContext + systemMessage (visible advisory)
+  - CRIT (>=700k): emit additionalContext + systemMessage (visible advisory)
+
+Sidecar write: .claude/state/context_window_sidecar.json (via _atomic_jsonl_append.py
+if available; else direct write per atomic-rename pattern).
+
+Sister-rule integration:
+- auto-compact-discipline.md Rank #3 (Pre-emptive /compact at 300k threshold)
+- team-orch-patterns.md "1M context calibration" — Thariq @ TIER-1-NAMED-AUTHOR-QUOTE
+  Z:/repos/deps/claude-code-best-practice-shan/tips/claude-thariq-tips-16-apr-26.md:28
+  verbatim "context rot happens around ~300-400k tokens" (the rot-zone NUMBER source)
+- karpathy-adapted.md section 5 (Wiki Compounding Surface) — Karpathy "outsource
+  thinking vs understanding" framing (the discipline WHY, NOT the number)
+- evidence-policy.md Stuck Detection (operator-discipline at threshold escalation)
+
+CAVEAT (per CC team-orch-patterns.md section Context Budget): context-window estimate
+from transcript_path token counts; tokens-used may be unavailable in payload.
+Conservative threshold trips on estimate floor.
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+REPO_ROOT = Path("Z:/claude-sota-installed")
+STATE_DIR = REPO_ROOT / ".claude" / "state"
+SIDECAR_PATH = STATE_DIR / "context_window_sidecar.json"
+TELEMETRY_PATH = STATE_DIR / "userpromptsubmit_compact_threshold.jsonl"
+
+# W175 P6 — env-var-overridable thresholds (mechanism parity with sibling
+# context_window_guard.py:28-29 pattern).
+#
+# Code defaults are CONSERVATIVE Thariq-MEASURED rot-zone values (300-400k on
+# Opus 4.7 per Z:/repos/deps/claude-code-best-practice-shan/tips/claude-thariq-tips-16-apr-26.md:28
+# TIER-1-NAMED-AUTHOR-QUOTE verbatim "context rot happens around ~300-400k tokens").
+# Karpathy §5 supplies the WHY for compaction discipline (Wiki Compounding Surface),
+# NOT the number. Pre-emptive /compact discipline at auto-compact-discipline.md:63,110-111.
+#
+# Operators on 1M-context Opus 4.7 raise these via .claude/settings.json env
+# block. The CRIT ceiling MUST fire before the project autocompact threshold.
+# Current Anthropic CC default autocompact = ~80% (800k on 1M); CLAUDE.local.md
+# ENV(i) CLAUDE_AUTOCOMPACT_PCT_OVERRIDE is currently COMMENTED-OUT per W183 F1
+# REVERT (operator directive 2026-05-13). Per auto-compact-discipline.md:117
+# ("fire /compact before blind autocompact").
+# Required invariant: CRIT_tokens < autocompact_pct * context_window_size,
+# with enough buffer (≥100k) for the operator to actually run /compact.
+# W187 round-2 codex T1 verdict: CRIT=700k (100k buffer below 800k autocompact ceiling).
+#
+# SOTA refs:
+# - https://code.claude.com/docs/en/hooks:725-792  (decision:block contract) [VERIFIED 2026-05-13]
+# - .claude/rules/auto-compact-discipline.md:22,63,110-111,117 @ HEAD 6e4a5f6
+# - Z:/repos/deps/claude-code-best-practice-shan/tips/claude-thariq-tips-16-apr-26.md:28,125 @ HEAD 48f2ceb (Thariq TIER-1-NAMED-AUTHOR-QUOTE — rot-zone NUMBER + "model least intelligent at compacting" framing)
+# - .claude/rules/karpathy-adapted.md:section-5 (Wiki Compounding Surface discipline — Karpathy "outsource thinking vs understanding" framing, NOT the number) @ HEAD 6e4a5f6
+# - Sibling env-var pattern: .claude/hooks/scripts/context_window_guard.py:28-29 @ HEAD 6e4a5f6
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+# W187 Pattern A FIX-FORWARD 2026-05-13 (codex T1 NEEDS-REVISION conf=0.9 round-2 prescription #1+#2):
+# defaults: WARN=600k / HIGH=650k / CRIT=700k for 1M-context Opus 4.7 calibration.
+# Round-1 W187 attempted CRIT=780k but codex T1 verdict caught buffer-invariant violation:
+# auto-compact-discipline.md Rank #3 invariant requires CRIT_tokens < autocompact_pct * context_window_size
+# with ≥100k buffer. Autocompact ~80% on 1M = ~800k; CRIT 780k leaves only ~20k buffer (violation).
+# Round-2: CRIT=700k preserves 100k buffer; HIGH=650k preserves rot-zone progression.
+# Prior 200k-era defaults (250/300/350) fired CRIT at 35% on 1M = premature hard-block (user-reported).
+# FM-20 row 18 defense: env-variable-codified-but-not-sourced sub-class — script defaults match
+# settings.json env L25-29 + CLAUDE.local.md ENV(j) (coordinated dual-declaration mirror per codex T1 AXIS 2 PASS).
+# Cite anchors:
+# - Thariq named-T2 rot zone ~300-400k @ Z:/repos/deps/claude-code-best-practice-shan/tips/claude-thariq-tips-16-apr-26.md:28
+# - Karpathy §5 Wiki Compounding Surface (1M context calibration)
+# - https://code.claude.com/docs/en/hooks (PreCompact + UserPromptSubmit decision:block contract)
+# - auto-compact-discipline.md Rank #3 pre-emptive /compact discipline + 100k buffer invariant
+# - REAL GPT-5.5 codex T1 verdict @ .claude/state/codex_consult_w187_hooks_OUT.txt (NEEDS-REVISION conf=0.9 round-2 prescription)
+THRESH_WARN = _int_env("CONTEXT_WINDOW_COMPACT_WARN_TOKENS", 600_000)   # 60% on 1M (just below rot zone)
+THRESH_HIGH = _int_env("CONTEXT_WINDOW_COMPACT_HIGH_TOKENS", 650_000)   # 65% on 1M (rot threshold visible nudge)
+THRESH_CRIT = _int_env("CONTEXT_WINDOW_COMPACT_CRIT_TOKENS", 700_000)   # 70% on 1M (100k buffer before 80% autocompact)
+
+# Try to import atomic JSONL append per Round-3-7 invariants
+_ATOMIC_AVAILABLE = False
+try:
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import _atomic_jsonl_append as _aja  # noqa: F401
+    _ATOMIC_AVAILABLE = True
+except Exception:
+    _ATOMIC_AVAILABLE = False
+
+
+def _now_iso() -> str:
+    return _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+
+def _read_stdin_payload() -> dict[str, Any]:
+    try:
+        raw = sys.stdin.read() or ""
+        return json.loads(raw) if raw.strip() else {}
+    except Exception:
+        return {}
+
+
+def _estimate_tokens_used(payload: dict[str, Any]) -> int | None:
+    """Best-effort context-window estimate.
+
+    W174 P0b FIX (follow-up to commit 02f72fd): session-keyed lookup.
+
+    Prior Strategy 3 iterated `data.values()` and returned the first non-zero
+    `total_input_tokens` found — which for a multi-session sidecar leaked a
+    SIBLING session's reading into this session's gate. Telemetry confirmed
+    three distinct sessions (70bd13e6, b2a9dc5b, cd57ff20) all reported at
+    658,019 — the alphabetically-first key (1aeadaf1)'s real number.
+
+    Canonical sidecar shape is session-keyed, NOT flat. Both writers and the
+    sibling reader agree on this:
+      - Writer: .claude/hooks/scripts/context_window_statusline.sh:54-65
+        does `data[session_id] = row` (session-keyed insert).
+      - Sibling reader: .claude/hooks/scripts/context_window_guard.py:48
+        does `data.get(session_id)` (session-keyed lookup).
+    The "flat shape" comment in commit 02f72fd reflected an incorrect premise
+    about the sidecar layout.
+
+    Revised strategy:
+    1. Payload-provided usage if CC ever exposes it (ideal future).
+    2. Session-keyed sidecar lookup: data[session_id].total_input_tokens
+       (matches sibling context_window_guard.py:48 selection logic).
+    3. None -> severity UNKNOWN -> no emit, no block (fail-open per cardinal-rule 7).
+
+    SOTA references:
+    - UserPromptSubmit payload includes session_id field:
+      https://code.claude.com/docs/en/hooks:743-757 [VERIFIED 2026-05-13]
+    - Sibling lookup pattern (in-repo authoritative):
+      .claude/hooks/scripts/context_window_guard.py:40-49 @ HEAD 02f72fd9
+    - Sidecar writer (session-keyed shape source-of-truth):
+      .claude/hooks/scripts/context_window_statusline.sh:54-65 @ HEAD 02f72fd9
+    """
+    # Strategy 1: payload-provided usage (ideal-future contract)
+    usage = payload.get("usage") or payload.get("context_usage") or {}
+    if isinstance(usage, dict):
+        tokens = usage.get("input_tokens") or usage.get("total_tokens")
+        if isinstance(tokens, (int, float)) and tokens > 0:
+            return int(tokens)
+
+    # Strategy 2: session-keyed sidecar lookup. No cross-session leak possible —
+    # we only ever read the row for THIS session_id.
+    session_id = payload.get("session_id")
+    if not isinstance(session_id, str) or not session_id:
+        return None
+    try:
+        if SIDECAR_PATH.exists():
+            with SIDECAR_PATH.open(encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                row = data.get(session_id)
+                if isinstance(row, dict):
+                    tokens = row.get("total_input_tokens")
+                    if isinstance(tokens, (int, float)) and tokens > 0:
+                        return int(tokens)
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    # Strategy 3: fail-open per cardinal-rule 7 silent-fallback prohibition
+    return None
+
+
+def _emit_warn(tokens: int) -> None:
+    """>=WARN threshold: advisory additionalContext only."""
+    notice = (
+        f"CONTEXT-WINDOW WARN: estimated {tokens:,} tokens used (~{tokens/1000:.0f}k) "
+        f"crosses WARN threshold {THRESH_WARN:,}. Approaching Thariq rot zone "
+        "(300-400k on Opus 4.7 per claude-thariq-tips-16-apr-26.md:28). "
+        "Consider /compact <hint> per auto-compact-discipline.md Rank #3 to pre-empt "
+        "blind autocompact."
+    )
+    sys.stdout.write(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": notice,
+        }
+    }))
+
+
+def _emit_high(tokens: int) -> None:
+    """>=HIGH threshold: advisory + systemMessage visible advisory."""
+    notice = (
+        f"CONTEXT-WINDOW HIGH: estimated {tokens:,} tokens (~{tokens/1000:.0f}k) "
+        f"crosses HIGH threshold {THRESH_HIGH:,}. At/past Thariq rot threshold "
+        "(300-400k per claude-thariq-tips-16-apr-26.md:28). STRONGLY recommend "
+        "/compact <hint> NOW per auto-compact-discipline.md Rank #3."
+    )
+    sys.stdout.write(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": notice,
+        },
+        "systemMessage": (
+            f"[context-threshold] HIGH ({tokens:,} tokens). Run /compact <hint> "
+            "before autocompact fires blind (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE)."
+        ),
+    }))
+
+
+def _emit_crit_advisory(tokens: int) -> None:
+    """>=CRIT threshold below 80%: advisory + systemMessage visible advisory."""
+    notice = (
+        f"CONTEXT-WINDOW CRITICAL: estimated {tokens:,} tokens (~{tokens/1000:.0f}k) "
+        f"exceeds CRIT threshold {THRESH_CRIT:,}. Run /compact <hint> with focused "
+        "goal/files/cites/commands/test-state/next-action per "
+        "auto-compact-discipline.md Rank #3 before blind autocompact "
+        "(CLAUDE_AUTOCOMPACT_PCT_OVERRIDE). "
+        "To re-tune for 1M-ctx, set CONTEXT_WINDOW_COMPACT_CRIT_TOKENS in "
+        ".claude/settings.json env block."
+    )
+    sys.stdout.write(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": notice,
+        },
+        "systemMessage": (
+            f"[context-threshold] CRIT ({tokens:,} tokens). Run /compact <hint> "
+            "before autocompact fires blind (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE)."
+        ),
+    }))
+
+
+# NOTE (W174 P0a/P0b fix-forward): prior _write_sidecar() wrote from this
+# hook into context_window_sidecar.json and risked corrupting the canonical
+# statusline-owned layout. The canonical sidecar is session-keyed:
+# data[session_id] = {"session_id": session_id,
+#                     "total_input_tokens": N,
+#                     "updated_at": "...", ...}
+# This hook treats that shared file as READ-ONLY; the statusline pipeline owns
+# writes. Per-fire telemetry continues to land in
+# userpromptsubmit_compact_threshold.jsonl (separate file, no shared-shape
+# contract).
+
+
+def _append_telemetry(record: dict[str, Any]) -> None:
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        with TELEMETRY_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+    except Exception as exc:
+        sys.stderr.write(f"[userpromptsubmit_compact_threshold] telemetry failed: {exc!r}\n")
+
+
+def main() -> int:
+    payload = _read_stdin_payload()
+    tokens = _estimate_tokens_used(payload)
+
+    severity = "UNKNOWN"
+    exit_code = 0
+
+    if tokens is None:
+        severity = "UNKNOWN"
+    elif tokens >= THRESH_CRIT:
+        severity = "CRIT"
+        _emit_crit_advisory(tokens)
+    elif tokens >= THRESH_HIGH:
+        severity = "HIGH"
+        _emit_high(tokens)
+    elif tokens >= THRESH_WARN:
+        severity = "WARN"
+        _emit_warn(tokens)
+    else:
+        severity = "OK"
+
+    _append_telemetry({
+        "schema": "userpromptsubmit_compact_threshold.v1",
+        "ts": _now_iso(),
+        "wire_event": "UserPromptSubmit",
+        "session_id": payload.get("session_id"),
+        "agent_id": payload.get("agent_id"),
+        "agent_type": payload.get("agent_type"),
+        "model": payload.get("model"),
+        "transcript_path": payload.get("transcript_path"),
+        "tokens_estimated": tokens,
+        "severity": severity,
+        "thresh_warn": THRESH_WARN,
+        "thresh_high": THRESH_HIGH,
+        "thresh_crit": THRESH_CRIT,
+        "atomic_available": _ATOMIC_AVAILABLE,
+    })
+
+    return exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
+ succeeded in 350ms:
+#!/usr/bin/env python3
+"""PreCompact hint emitter (W173 P1(a) recompose).
+
+Fires on PreCompact event ADJACENT to existing precompact_guard.py per FM-19/W170-A
+extension pattern. Emits compact-hint payload to stdout - routes to model context
+via PreCompact stdout-to-"Additional Instructions:" semantic per:
+  https://code.claude.com/docs/en/hooks (PreCompact contract)
+
+CAVEAT (per W164 F38a Wave 82e codex T1): PreCompact stdout NOT directly model-visible
+per Anthropic CC docs L661-663 verbatim (only UserPromptSubmit/UserPromptExpansion/
+SessionStart route stdout to model context). PreCompact emits "Additional Instructions:"
+via the compact-summary text seam; semantic effect verified per W164 F38a live probe.
+SessionStart matcher=compact reader (File 4) is the primary post-compact rehydrate
+path; this emitter is the pre-compact handoff.
+
+Schema: .claude/schemas/compact_hint.v1.json (compact_hint.v1).
+Sidecar: .claude/state/compact_hint.json (fresh <=300s; else fallback to MEMORY.md tail).
+
+Per Anthropic CC 10K stdout cap (https://code.claude.com/docs/en/hooks PreCompact
+section): payload bounded <=9500 chars (safety margin).
+
+Sister-rule integration:
+- auto-compact-discipline.md Rank #3 (Pre-emptive /compact <hint>)
+- sessionstart-preload-discipline.md section The contract (cross-session continuity)
+- mia-pre-apply.md (Mia verify-before-trust at handoff boundary)
+- launch-discipline.md section Observable (telemetry to .claude/state/ JSONL)
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+REPO_ROOT = Path("Z:/claude-sota-installed")
+STATE_DIR = REPO_ROOT / ".claude" / "state"
+HINT_PATH = STATE_DIR / "compact_hint.json"
+MEMORY_INDEX = REPO_ROOT / ".claude" / "projects" / "Z--claude-sota-installed" / "memory" / "MEMORY.md"
+TELEMETRY_PATH = STATE_DIR / "precompact_hint_emitter.jsonl"
+
+HINT_FRESH_SEC = 300  # <=300s sidecar staleness window (5 min)
+STDOUT_CAP_CHARS = 9500  # Anthropic CC 10K cap safety margin
+MEMORY_TAIL_CHARS = 3000  # Karpathy section 5 Layer-2 fallback portion size
+
+
+def _now_iso() -> str:
+    return _dt.datetime.utcnow().isoformat() + "Z"
+
+
+def _read_stdin_payload() -> dict[str, Any]:
+    """Parse PreCompact hook stdin per https://code.claude.com/docs/en/hooks contract."""
+    try:
+        raw = sys.stdin.read() or ""
+        return json.loads(raw) if raw.strip() else {}
+    except Exception:
+        return {}
+
+
+def _load_fresh_hint() -> dict[str, Any] | None:
+    """Load compact_hint.json if exists AND mtime within HINT_FRESH_SEC."""
+    if not HINT_PATH.exists():
+        return None
+    try:
+        age_sec = _dt.datetime.now().timestamp() - HINT_PATH.stat().st_mtime
+        if age_sec > HINT_FRESH_SEC:
+            return None
+        with HINT_PATH.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict) or data.get("version") != 1:
+            return None
+        return data
+    except (OSError, json.JSONDecodeError, ValueError):
+        return None
+
+
+def _load_memory_fallback() -> str:
+    """Karpathy section 5 Layer-2 fallback when hint sidecar absent/stale."""
+    if not MEMORY_INDEX.exists():
+        return "(MEMORY.md not found - no Layer-2 fallback available)"
+    try:
+        text = MEMORY_INDEX.read_text(encoding="utf-8", errors="replace")
+        return text[-MEMORY_TAIL_CHARS:] if len(text) > MEMORY_TAIL_CHARS else text
+    except Exception as exc:
+        return f"(MEMORY.md read error: {exc!r})"
+
+
+def _format_hint_payload(hint: dict[str, Any]) -> str:
+    """Format compact_hint v1 fields into Additional-Instructions-style block."""
+    lines = [
+        "PRE-COMPACT HINT (compact_hint.v1)",
+        f"  ts: {hint.get('ts', '?')}",
+        f"  current_goal: {hint.get('current_goal', '?')}",
+        f"  test_state: {hint.get('test_state', 'UNKNOWN')}",
+        f"  next_action: {hint.get('next_action', '?')}",
+        "",
+        "files_touched:",
+    ]
+    for f in (hint.get("files_touched") or [])[:20]:
+        lines.append(f"  - {f}")
+    lines.append("")
+    lines.append("design_cites:")
+    for c in (hint.get("design_cites") or [])[:10]:
+        lines.append(f"  - {c}")
+    lines.append("")
+    lines.append("commands_run (last 15):")
+    for cmd in (hint.get("commands_run") or [])[-15:]:
+        lines.append(f"  - {cmd}")
+    return "\n".join(lines)
+
+
+def _format_memory_fallback(memory_tail: str) -> str:
+    """Format Karpathy section 5 Layer-2 fallback into preload block."""
+    return (
+        "PRE-COMPACT FALLBACK (compact_hint.json stale/absent - MEMORY.md tail):\n"
+        f"{memory_tail}\n"
+        "(end MEMORY.md fallback)"
+    )
+
+
+def _append_telemetry(record: dict[str, Any]) -> None:
+    """Append telemetry per audit-action-loop.md Wire stage. Best-effort; no fail-closed."""
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        with TELEMETRY_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+    except Exception as exc:
+        sys.stderr.write(f"[precompact_hint_emitter] telemetry append failed: {exc!r}\n")
+
+
+def main() -> int:
+    payload = _read_stdin_payload()
+    hint = _load_fresh_hint()
+
+    if hint is not None:
+        body = _format_hint_payload(hint)
+        source = "compact_hint_fresh"
+    else:
+        body = _format_memory_fallback(_load_memory_fallback())
+        source = "memory_md_fallback"
+
+    # Cap to <=9500 chars per Anthropic 10K stdout limit
+    if len(body) > STDOUT_CAP_CHARS:
+        body = body[:STDOUT_CAP_CHARS - 30] + "\n... [TRUNCATED at 9500 chars]"
+
+    # Emit to stdout - PreCompact routes to "Additional Instructions:" semantic
+    sys.stdout.write(body + "\n")
+
+    _append_telemetry({
+        "schema": "precompact_hint_emitter.v1",
+        "ts": _now_iso(),
+        "wire_event": "PreCompact",
+        "source": source,
+        "trigger": payload.get("trigger", "unknown"),
+        "session_id": payload.get("session_id"),
+        "agent_id": payload.get("agent_id"),
+        "agent_type": payload.get("agent_type"),
+        "model": payload.get("model"),
+        "transcript_path": payload.get("transcript_path"),
+        "body_chars": len(body),
+        "hint_present": hint is not None,
+    })
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Force .claude/hooks/scripts | Format-Table -Auto Name,Length,Mode,LastWriteTime' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/rules/auto-compact-discipline.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Select-String -Path .claude/settings.json -Pattern 'context_window_guard|context_window_statusline|posttooluse_context_monitor|precompact_guard|precompact_hint_emitter|sessionstart_compact_hint_reader|userpromptsubmit_compact_threshold' -Context 4,6" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git ls-files -- .claude/hooks/scripts/context_window_guard.py .claude/hooks/scripts/precompact_guard.py .claude/hooks/scripts/context_window_statusline.sh .claude/hooks/scripts/posttooluse_context_monitor.js .claude/hooks/scripts/precompact_hint_emitter.py .claude/hooks/scripts/sessionstart_compact_hint_reader.py .claude/hooks/scripts/userpromptsubmit_compact_threshold.py' in Z:\claude-sota-installed
+ succeeded in 405ms:
+---
+name: auto-compact-discipline
+description: SOTA context-window auto-compact recipe — context-mode ctx_batch_execute (PRIMARY) + repomix pack→grep + pre-emptive /compact-hint + Karpathy §5 progressive disclosure + rewind-first. Cycle-322 n=1 user-trigger explicit (/goal directive 2026-05-13 + Mia probe of 43%-at-start session).
+paths: ["CLAUDE.md", "CLAUDE.local.md", ".claude/rules/**", ".claude/agents/**", ".claude/skills/**/SKILL.md", ".claude/projects/*/memory/**", "tmp/**"]
+---
+
+# Auto-compact discipline — SOTA token-efficiency recipe for long-arc /loop sessions
+
+# Cite-class lattice (per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE):
+# constituents=[
+#   TIER-1-DIRECT @ Karpathy §5 Wiki Compounding Surface at Z:/claude-sota/.claude/rules/karpathy-adapted.md §5 (LLM Wiki 3-layer compounding-surface; named-author Karpathy quote at AI Engineer fireside chat 2026-05-02 + CCBP karpathy video transcript:153 @ HEAD 64fffd53),
+#   TIER-1-DIRECT @ context-mode MCP plugin v1.0.111 + v1.0.124 (ctx_batch_execute / ctx_execute_file / ctx_fetch_and_index — primary token-savings primitive measured ~98% reduction vs raw Read+Bash+WebFetch on this fire's probes),
+#   TIER-1-DIRECT @ repomix README pack-grep workflow at Z:/repos/deps/repomix/README.md:979 + :1089 @ HEAD 7dfd2b96 (tree-sitter compression ~70% token reduction),
+#   TIER-1-DIRECT @ coordination.md §12 rewind-first vs correct-layered at Z:/claude-sota/.claude/rules/coordination.md §12 (Thariq 2026-04-16 named-T2 endorsement),
+#   TIER-1-DIRECT @ deepagents middleware summarization at Z:/repos/deps/deepagents/libs/deepagents/deepagents/middleware/summarization.py:122-149 @ HEAD 95f845d29745ece957144d045849f02c667ac711 (LangChain-org TruncateArgsSettings pre-emptive arg-truncation),
+#   TIER-3-LOCAL-OBSERVED @ /goal directive 2026-05-13 user-trigger + 43%-at-session-start fresh probe (this fire is itself the n=1 trigger)
+# ]; effective_tier=TIER-3-LOCAL-COMPOSITION per rule #8 MIN_PRECEDENCE.
+#
+# Sister-rule integration:
+# - karpathy-adapted.md §5 Wiki Compounding Surface (Layer 1 JSONL / Layer 2 index / Layer 3 compiled wiki)
+# - coordination.md §12 rewind-first
+# - team-orch-patterns.md §Context Budget per agent + §1M context calibration (rot threshold ~300-400k on Opus 4.7)
+# - synthesis-layer-verify.md (orchestrator-side OVER/UNDER/HNF on agent returns)
+# - codex-t1-fix-forward-pattern.md §Pattern B (HNF disposition when codex T1 timeout; ranking from this fire's [B] partial trace)
+
+## The rule
+
+When working in long-arc /loop sessions (≥4h wall-clock OR multi-Bundle ship cycles OR cron-driven autonomous arcs), context bloat dominates token cost. The local runtime treats late blind autocompact as a failure mode: CCBP documents the upstream default as roughly 95 unless overridden (`Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:826 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd`), while this repo may set a lower local target in `.claude/settings.json`. Blind autocompact produces lossy summaries (per `karpathy-adapted.md §5`). SOTA auto-compact discipline is **pre-emptive, ranked, and routes-around the autocompact mechanism entirely**.
+
+## Ranked recipe (codex T1 ranking from /goal P2[B] partial trace 2026-05-13)
+
+### Rank #1 — context-mode `ctx_batch_execute` (PRIMARY, ~98% savings)
+
+**When**: any command/probe/script producing >20 lines of output. Multi-command batches with multiple search queries.
+
+**How**:
+```
+mcp__plugin_context-mode_context-mode__ctx_batch_execute(
+  commands: [{label, command}, ...],
+  queries: [<5-8 specific questions>],
+  concurrency: 4-8 for I/O-bound batches
+)
+```
+
+Raw stdout/output indexed into FTS5 in subprocess sandbox; only the search-result excerpts enter context. **Single batch_execute call replaces 30+ ctx_execute + 10+ ctx_search calls**.
+
+**Sub-variants**:
+- `ctx_execute(language: shell|python|javascript, code, intent: "...")` — single command with intent → indexed if output >5KB, returns titled previews
+- `ctx_execute_file(path, language, code)` — read+process file content in sandbox; only printed result enters context
+- `ctx_fetch_and_index(requests: [{url, source}], concurrency: 4-8)` — replaces WebFetch; raw HTML stays in sandbox, ~3KB preview + searchable knowledge base
+
+### Rank #2 — repomix pack→grep workflow (~70% compression for repo-scope audits)
+
+**When**: line-by-line auditing a `Z:/repos/deps/<repo>` subtree spanning ≥5 files. Replaces 10+ Read calls.
+
+**How** (per `Z:/repos/deps/repomix/src/mcp/mcpServer.ts:20-23 @ HEAD 7dfd2b96`):
+1. **Pack**: `mcp__repomix__pack_codebase(directory, compress=true)` → returns `outputId`. Tree-sitter compression ~70% per `Z:/repos/deps/repomix/README.md:1089 @ 7dfd2b96`.
+2. **Grep**: `mcp__repomix__grep_repomix_output(outputId, pattern, contextLines=5)` for incremental retrieval — preferred over re-packing uncompressed per README:979.
+3. **Skill persist** (if learning is durably reusable): **DO NOT** use `mcp__repomix__generate_skill(directory, skillName)` for routine auto-compact reuse — that primitive writes `.claude/skills/<name>/SKILL.md` outside the documented install/provenance path, violating cardinal-rule-5 install-priority + cardinal-rule-6 official-native-channel. Instead: (a) persist topic-scoped findings to `.claude/projects/*/memory/` per Karpathy §5 Layer-3 compiled wiki (no install-class artifact created), OR (b) escalate as install-class candidate via sota-researcher dispatch with convergence-gate Axis-1+2+3 verification + Section 14 marketplace install path + `docs/install-provenance.md` row. Local `generate_skill` invocations bypass T1+T2 audit and provenance log.
+
+### Rank #3 — Pre-emptive `/compact <hint>` (superpowers + Karpathy §5 layered)
+
+**When**: context approaches 300k tokens (rot threshold on Opus 4.7 per Thariq 2026-04-16 at `coordination.md §12 Rewind-first` row Mid-task hint). **NEVER let CC autocompact fire blind at the local target/default boundary**.
+
+**How**: invoke `/compact` with a focused hint that steers the lossy summary toward retained-value content:
+```
+/compact focus on Bundle ship cumulative state and active queue, drop verbose codex T1 verdict bodies
+```
+
+Per `coordination.md §12` row 2: hint steered summary BEFORE rot dominates. Karpathy §5 Layer-3 compiled wiki is the equivalent persistent-storage discipline.
+
+### Rank #3.5 — PreCompact hook layer (4-layer incumbent stack)
+
+**When**: `/compact` manual OR auto triggers the PreCompact preservation stack; ECC suggest-compact is the adjacent PreToolUse Edit|Write threshold-suggestion layer (NOT PreCompact-class). Matching hooks run in parallel per Anthropic CC hooks contract.
+
+| Layer | Plugin | Surface | Event | LOC |
+|---|---|---|---|---|
+| Prompt-augmentation | fcakyon/intelligent-compact | 6-section priority injection (A-F) | PreCompact | 71 |
+| State-save audit | ECC pre-compact | compaction-log.txt timestamp | PreCompact | 48 |
+| Session-event SQLite | context-mode precompact.mjs | <2KB XML resume-snapshot | PreCompact | 76 |
+| Tool-call threshold | ECC suggest-compact | `/compact` suggestion at N=50 + every 25 | PreToolUse Edit\|Write | 80 |
+| Compact-remind risk | `precompact_hint_emitter.py` + `sessionstart_compact_hint_reader.py` + `posttooluse_context_monitor.js` | advisory `additionalContext` around compact boundaries; precompact/sessionstart output caps 9500 chars; posttooluse disable via `POSTTOOLUSE_CONTEXT_MONITOR_DISABLE=1`; disable if stale reminders, duplicate state, or post-compact reinflation exceeds measured budget; reinflation delta `[UNKNOWN-TO-MEASURE]` as of W192 F3 | PreCompact + SessionStart(compact) + PostToolUse | W192 |
+
+**CRITICAL**: per CC v2.1.105+, PreCompact `{"decision":"block"}` OR exit 2 BLOCKS compaction — reserve for hard-block scenarios. All 4 layers above currently exit 0 / emit no block decision = SAFE (advisory-only). suggest-compact is threshold-adjacent (different event surface), not part of the PreCompact 3-layer preservation stack.
+
+Cite classes (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
+- **TIER-1-DIRECT** installed hook sources at runtime HEAD `eec69e21ee37ae2f235016361494842a08013a9b`:
+  - `Z:/claude-sota-installed/.claude/plugins/cache/claude-settings/intelligent-compact/1.0.0/hooks/scripts/precompact_priorities.sh:1-71`
+  - `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/scripts/hooks/pre-compact.js:24-31,41-47`
+  - `Z:/claude-sota-installed/.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/scripts/hooks/suggest-compact.js:30-33,69-70`
+  - `Z:/claude-sota-installed/.claude/plugins/cache/context-mode/context-mode/1.0.111/hooks/precompact.mjs:1-76`
+- **TIER-1-DIRECT** Anthropic CC hooks contract: `https://code.claude.com/docs/en/hooks` (PreCompact event spec + exit 2 / `{"decision":"block"}` semantic).
+- **TIER-3-LOCAL-OPERATOR-DERIVED**: Agent C W177 F2 R1-R3 INCUMBENT-KEEP+PROVIDER-COMPLEMENT verdict (`tmp/wave177-fire2-agentC-autocompact-r1r2r3-2026-05-13.md`); Mia 4/4 file-existence probes 2026-05-13; codex T1 NEEDS-REVISION conf=0.91 Pattern A apply (verdict at `.claude/state/codex_consult_w177_rank35_addition_OUT.txt`). `effective_tier=TIER-3-LOCAL-COMPOSITION` per rule #8 MIN_PRECEDENCE.
+
+## Supporting disciplines (Rank #4-#7)
+
+### Rank #4 — Rewind-first on failure (coordination.md §12)
+
+When an approach fails mid-iteration, prefer `/rewind` to last sound state over layering corrections. Drops failed-tail + retains good reads. Per Thariq table at `coordination.md §12`:
+
+| Situation | Use | Why |
+|---|---|---|
+| Explored N files, tried approach A, failed | **Rewind** to after-reads, re-prompt with learning | Keep expensive reads, drop failed attempt |
+| Session bloated mid-task | `/compact <hint>` | Steered lossy summary |
+| Genuinely new task | `/clear` + brief | Zero rot, controlled carry-over |
+| High-volume exploration, only conclusion matters | Subagent fork | Tool noise GC'd on exit |
+
+### Rank #5 — Karpathy §5 3-layer progressive disclosure
+
+Per `karpathy-adapted.md §5 Wiki Compounding Surface`:
+- **Layer 1 chronological log**: `.claude/state/*.jsonl` (codex_review_HEAD_*.jsonl / codex_consult_*_OUT.txt / mcp_health.jsonl / subagent_transcripts.jsonl)
+- **Layer 2 index**: `.claude/projects/*/memory/MEMORY.md` (≤200 lines / 150-char one-line topic pointers)
+- **Layer 3 compiled wiki**: `docs/karpathy-llm-wiki-practice.md` + `.claude/rules/*.md` + per-topic `memory/` files
+
+**MEMORY.md discipline**: NEVER write content directly; always one-line pointer with `[Title](file.md) — hook` format. If a top entry exceeds ~3000 chars, archive immediately (this rule's codification trigger).
+
+### Rank #6 — Pre-emptive arg truncation (deepagents pattern, doc-only port)
+
+Per `Z:/repos/deps/deepagents/.../summarization.py:122-149 @ 95f845d2`: TruncateArgsSettings TypedDict — for long-arc /loop fires touching Edit/Write/execute args with content >4KB, retain only first ~20-1000 chars of the arg with a `"[truncated — N chars; see file/commit for full content]"` placeholder. NOT active middleware in claude-sota-installed (no Python SDK runtime) — but discipline applies operationally: when args bloat, persist the full content to disk first (Write tool), then reference path in subsequent steps.
+
+### Rank #7 — Subagent forks for high-output exploration
+
+Per `parallel-agent-wave.md §Fork-vs-fresh routing` + `team-orch-patterns.md §1M context calibration`: dispatch tool-noisy exploration into subagent fork (forked = inherits parent context, conversation-history-cached) OR fresh subagent (zero parent context, isolation). The subagent's tool output GC'd on exit — only the final return enters parent context.
+
+## How to apply (operational checklist)
+
+For every long-arc /loop fire:
+
+1. **At session start**: check `[████░░░] N/1000k` context indicator. If >20% at start, immediately invoke `/compact <hint>` BEFORE any work
+2. **For every >20-line probe**: route through `ctx_batch_execute` (multi-command + queries) OR `ctx_execute` (single command + intent)
+3. **For every repo-scope audit ≥5 files**: pack with repomix BEFORE Reading individual files
+4. **For every URL fetch**: prefer `ctx_fetch_and_index` over `WebFetch` (raw HTML stays in sandbox)
+5. **At ~250k context**: invoke `/compact <hint>` pre-emptively (NOT wait for blind autocompact at the local target/default boundary)
+6. **At ~300k context**: STOP planning new work; ship current Bundle + commit + `/clear` between Bundle cycles
+7. **On approach-failure**: rewind to last-sound-state with `/rewind`, NEVER layer corrections
+8. **MEMORY.md hygiene**: if any entry exceeds ~300 chars or grows beyond a single line of pointer text, immediately archive + reset to proper one-line index format
+
+## Anti-patterns
+
+- **Let autocompact fire blind at the local target/default boundary** — refuted by `karpathy-adapted.md §5` + Thariq tip 2026-04-16. Autocompact at the model's "least intelligent point" produces lossy summaries with no operator steering. Pre-emptive `/compact <hint>` is the SOTA.
+- **Read large files into context for analysis** — refuted by file_writing_policy + ctx_execute discipline. Use `ctx_execute_file(path, code)` to process in sandbox; only printed answer enters context.
+- **Bash for >20-line commands** — refuted by PreToolUse hook guidance. Route through `ctx_execute(language: shell)` or `ctx_batch_execute`.
+- **Multiple ctx_execute calls when one batch suffices** — refuted by ctx_batch_execute description. One call replaces 30+ ctx_execute + 10+ ctx_search calls.
+- **Repeated Read of same large file** — refuted by progressive disclosure. Read once, persist findings to a topic-scoped memory file, reference from there.
+- **MEMORY.md content-as-entries** (writing content directly into the index) — refuted by Karpathy §5 Layer-2 vs Layer-3 distinction. Index = pointers; content = linked files.
+- **Subagent for sub-1000-token operations** — refuted by `parallel-agent-wave.md §Fork-vs-fresh`. Subagent overhead > savings for trivial ops.
+
+## When NOT to apply
+
+- **Short sessions (<10 turns total)**: discipline overhead exceeds savings
+- **Interactive debugging single-file edits**: `/compact` interrupts flow; routine Edit+Read suffices
+- **Hot-path tool calls where every ms counts**: ctx_execute subprocess startup adds ~50-200ms; not worth on single-line `git status`
+- **Files <100 lines or outputs <20 lines**: just use Read/Bash directly
+
+## Cite anchors
+
+- TIER-1 Karpathy §5 Wiki Compounding Surface: `Z:/claude-sota/.claude/rules/karpathy-adapted.md §5` + named-author Karpathy quote at AI Engineer fireside chat 2026-05-02
+- TIER-1 context-mode MCP plugin (v1.0.111+ installed via plugin marketplace; v1.0.124 latest)
+- TIER-1 repomix pack-grep: `Z:/repos/deps/repomix/README.md:979,1089 + src/mcp/mcpServer.ts:20-23 @ HEAD 7dfd2b96`
+- TIER-1 coordination §12 rewind-first: `Z:/claude-sota/.claude/rules/coordination.md §12` (Thariq 2026-04-16 tips)
+- TIER-1 deepagents summarization: `Z:/repos/deps/deepagents/.../summarization.py:122-149 @ HEAD 95f845d2`
+- TIER-3 LOCAL trigger: /goal directive 2026-05-13 user-trigger explicit; fresh probe of 43%-at-session-start; codex T1 P2[B] partial-trace top-3 ranking (Pattern B HNF disposition)
+
+## Promotion threshold (cycle-322 jurisdiction)
+
+This rule is codified at **n=1 user-trigger explicit** per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 jurisdiction:
+- /goal directive 2026-05-13 DELIVER (5): "auto-compact recipe → .claude/rules/auto-compact-discipline.md if cycle-322 n≥3" — n=1 user-trigger satisfies the gate (per cycle-322 §user-trigger n=1 automatic)
+- Expected savings ≥10 min/mo: each long-arc fire saves ~20-50min via pre-emptive discipline vs autocompact-at-80% lossy recovery; ~5-10 fires/mo = ~100-500 min/mo savings
+- LOC ≤200: this rule ~180 LOC under ceiling
+- TIER-1 cite chain acquired: 5 distinct upstream cites per Cite class lattice (Karpathy + context-mode + repomix + coordination + deepagents) — convergence-gate Axis-1 ≥3-orgs SATISFIED
+
+## Update triggers
+
+Re-evaluate this rule when:
+- Anthropic CC ships native pre-emptive compact primitive (e.g., `--compact-at N%` env or runtime hook) — flip Rank #3 from operator-discipline to mechanical gate
+- A 6th SOTA auto-compact source emerges (currently 5 — Karpathy / context-mode / repomix / coordination / deepagents) — add Rank #N row
+- context-mode MCP plugin schema changes (currently v1.0.124 latest; v1.0.111 running) — re-pin TIER-1 cite + verify ctx_batch_execute / ctx_execute_file API stability
+- A long-arc fire produces a NEW anti-pattern not covered by 7 listed — extend §Anti-patterns
+
+
+ succeeded in 439ms:
+
+[32;1mName                                 [0m[32;1m Length[0m[32;1m Mode [0m[32;1m LastWriteTime[0m
+[32;1m----                                 [0m [32;1m------[0m [32;1m---- [0m [32;1m-------------[0m
+__pycache__                                  d---- 5/14/2026 8:47:14 AM
+cwc                                          d---- 5/12/2026 11:57:00 AM
+_codex_plugin_root.py                 6204   -a--- 5/6/2026 10:07:44 PM
+_codex_preflight.py                   21535  -a--- 5/10/2026 12:22:20 PM
+_guard_base.py                        28239  -a--- 5/10/2026 12:22:20 PM
+_observation_writer.py                12998  -a--- 5/13/2026 9:12:12 PM
+agent_plan_readonly_bash_guard.py     48994  -a--- 5/13/2026 9:11:53 PM
+agent_spawn_gate.py                   23687  -a--- 5/12/2026 11:01:17 AM
+auto_proceed_gate.py                  30069  -a--- 5/13/2026 9:11:24 PM
+block_no_verify_guard.py              9856   -a--- 5/10/2026 12:22:20 PM
+codex_failure_audit.py                5294   -a--- 5/12/2026 10:31:14 PM
+codex_gate.py                         25065  -a--- 5/12/2026 10:37:53 PM
+codex_mcp_healthcheck.py              19481  -a--- 5/12/2026 10:31:47 PM
+codex_postcommit_review.py            53903  -a--- 5/13/2026 9:11:16 PM
+codex_prepush_review.py               44975  -a--- 5/13/2026 9:11:08 PM
+codex_review_queue.py                 19653  -a--- 5/12/2026 10:39:03 PM
+codex_review_thread_bridge.py         15717  -a--- 5/9/2026 3:08:24 PM
+codex_review_trace.py                 9705   -a--- 5/10/2026 12:22:20 PM
+codex_stuck_detector.py               14406  -a--- 5/10/2026 12:22:20 PM
+codex_t1_consult_gate.py              87224  -a--- 5/12/2026 11:35:05 PM
+codex_t2_pre_commit_gate.py           48872  -a--- 5/12/2026 10:35:09 PM
+codex_t5_plan_review_gate.py          7379   -a--- 5/10/2026 12:22:20 PM
+context_window_statusline.sh          3984   -a--- 5/13/2026 3:40:31 PM
+fm17_class_lint.py                    5173   -a--- 5/14/2026 12:25:52 AM
+fm17d_stall_detector.py               13822  -a--- 5/10/2026 12:22:20 PM
+fm19_artifact_inline_lint.py          6766   -a--- 5/11/2026 4:04:28 PM
+fm20_path_drift_lint.py               4782   -a--- 5/13/2026 9:11:30 PM
+gitleaks_pre_commit_gate.py           12121  -a--- 5/12/2026 10:36:24 PM
+posttooluse_context_monitor.js        9332   -a--- 5/14/2026 12:54:14 AM
+precompact_hint_emitter.py            6339   -a--- 5/13/2026 2:07:24 PM
+safety_guard.py                       17666  -a--- 5/13/2026 9:11:59 PM
+secret_scan_guard.py                  6275   -a--- 5/10/2026 12:22:20 PM
+sessionstart_compact_hint_reader.py   9112   -a--- 5/14/2026 8:46:49 AM
+subagent_stop_telemetry.py            6626   -a--- 5/12/2026 11:39:26 PM
+userpromptsubmit_compact_threshold.py 13755  -a--- 5/14/2026 3:31:05 AM
+utils.py                              6752   -a--- 5/10/2026 12:22:20 PM
+
+
+ succeeded in 386ms:
+.claude/hooks/scripts/posttooluse_context_monitor.js
+.claude/hooks/scripts/precompact_hint_emitter.py
+.claude/hooks/scripts/sessionstart_compact_hint_reader.py
+.claude/hooks/scripts/userpromptsubmit_compact_threshold.py
+
+ succeeded in 489ms:
+
+  .claude\settings.json:363:        "matcher": "*",
+  .claude\settings.json:364:        "hooks": [
+  .claude\settings.json:365:          {
+  .claude\settings.json:366:            "type": "command",
+> .claude\settings.json:367:            "command": "\"Z:/tools/nodejs/node.exe\" 
+\"Z:/claude-sota-installed/.claude/hooks/scripts/[7mposttooluse_context_monitor[0m.js\"",[0m
+[7m[0m  .claude\settings.json:368:            "timeout": 10,[0m
+[7m[0m  .claude\settings.json:369:            "async": true[0m
+[7m[0m  .claude\settings.json:370:          }[0m
+[7m[0m  .claude\settings.json:371:        ][0m
+[7m[0m  .claude\settings.json:372:      }[0m
+[7m[0m  .claude\settings.json:373:    ],[0m
+  .claude\settings.json:455:            "async": true
+  .claude\settings.json:456:          },
+  .claude\settings.json:457:          {
+  .claude\settings.json:458:            "type": "command",
+> .claude\settings.json:459:            "command": "\"Z:/venvs/claude/Scripts/python.exe\" 
+\"Z:/claude-sota-installed/.claude/hooks/scripts/[7muserpromptsubmit_compact_threshold[0m.py\"",[0m
+[7m[0m  .claude\settings.json:460:            "timeout": 10,[0m
+[7m[0m  .claude\settings.json:461:            "async": true[0m
+[7m[0m  .claude\settings.json:462:          }[0m
+[7m[0m  .claude\settings.json:463:        ][0m
+[7m[0m  .claude\settings.json:464:      }[0m
+[7m[0m  .claude\settings.json:465:    ],[0m
+  .claude\settings.json:497:        "matcher": "compact",
+  .claude\settings.json:498:        "hooks": [
+  .claude\settings.json:499:          {
+  .claude\settings.json:500:            "type": "command",
+> .claude\settings.json:501:            "command": "\"Z:/venvs/claude/Scripts/python.exe\" 
+\"Z:/claude-sota-installed/.claude/hooks/scripts/[7msessionstart_compact_hint_reader[0m.py\"",[0m
+[7m[0m  .claude\settings.json:502:            "timeout": 5[0m
+[7m[0m  .claude\settings.json:503:          }[0m
+[7m[0m  .claude\settings.json:504:        ][0m
+[7m[0m  .claude\settings.json:505:      }[0m
+[7m[0m  .claude\settings.json:506:    ],[0m
+[7m[0m  .claude\settings.json:507:    "SessionEnd": [[0m
+  .claude\settings.json:526:            "timeout": 5
+  .claude\settings.json:527:          },
+  .claude\settings.json:528:          {
+  .claude\settings.json:529:            "type": "command",
+> .claude\settings.json:530:            "command": "\"Z:/venvs/claude/Scripts/python.exe\" 
+\"Z:/claude-sota-installed/.claude/hooks/scripts/[7mprecompact_hint_emitter[0m.py\"",[0m
+[7m[0m  .claude\settings.json:531:            "timeout": 5[0m
+[7m[0m  .claude\settings.json:532:          }[0m
+[7m[0m  .claude\settings.json:533:        ][0m
+[7m[0m  .claude\settings.json:534:      }[0m
+[7m[0m  .claude\settings.json:535:    ][0m
+[7m[0m  .claude\settings.json:536:  },[0m
+  .claude\settings.json:537:  "defaultShell": "powershell",
+  .claude\settings.json:538:  "statusLine": {
+  .claude\settings.json:539:    "type": "command",
+> .claude\settings.json:540:    "command": "bash 
+Z:/claude-sota-installed/.claude/hooks/scripts/[7mcontext_window_statusline[0m.sh",[0m
+[7m[0m  .claude\settings.json:541:    "padding": 0,[0m
+[7m[0m  .claude\settings.json:542:    "refreshInterval": 30[0m
+[7m[0m  .claude\settings.json:543:  },[0m
+[7m[0m  .claude\settings.json:544:  "enabledPlugins": {[0m
+[7m[0m  .claude\settings.json:545:    "superpowers@claude-plugins-official": true,[0m
+[7m[0m  .claude\settings.json:546:    "codex@openai-codex": true,[0m
+
+
+codex
+The source tree only has five of the seven named hook source files. `context_window_guard.py` and `precompact_guard.py` are not present as `.py` sources; only stale `__pycache__` artifacts match those names, so I’m treating them as not auditable/wireable source.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content .claude/settings.json | Select-Object -Index (340..545)' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n '"'^paths:.*'"\\.claude/rules/\\*\\*|\\.claude/rules/\\*\\*' .claude/rules -g '*.md'" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "(Get-ChildItem -Recurse .claude/rules -File | Measure-Object Length -Sum).Sum; (rg -l '\\.claude/rules/\\*\\*' .claude/rules -g '*.md' | Measure-Object).Count" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git diff -- .claude/settings.json' in Z:\claude-sota-installed
+ succeeded in 335ms:
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 7835896..73c82ce 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -517,16 +517,6 @@
+       }
+     ],
+     "PreCompact": [
+-      {
+-        "matcher": "auto",
+-        "hooks": [
+-          {
+-            "type": "command",
+-            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/precompact_guard.py\"",
+-            "timeout": 5
+-          }
+-        ]
+-      },
+       {
+         "matcher": "*",
+         "hooks": [
+warning: in the working copy of '.claude/settings.json', LF will be replaced by CRLF the next time Git touches it
+
+ succeeded in 372ms:
+.claude/rules\ahfv-probe-dag.md:12:paths: [".claude/agents/**", ".claude/rules/**", ".claude/state/codex_consult_*", "reports/sota-*"]
+.claude/rules\ahfv-codex-rescue-blind-spot.md:12:paths: [".claude/agents/**", ".claude/rules/**", ".claude/state/codex_consult_*", "reports/sota-*"]
+.claude/rules\advanced-agent-team-standing-directive.md:12:paths: [".claude/rules/**", ".claude/agents/**", ".claude/skills/**/SKILL.md", ".claude/commands/**", "CLAUDE*.md", "tmp/wave**"]
+.claude/rules\agent-harness-fit-verification.md:4:paths: [".claude/agents/**", ".claude/rules/**", ".claude/state/codex_consult_*", "reports/sota-*", ".claude/rules/ahfv-seven-sub-classes.md", ".claude/rules/ahfv-probe-dag.md", ".claude/rules/ahfv-codex-rescue-blind-spot.md"]
+.claude/rules\auto-compact-discipline.md:4:paths: ["CLAUDE.md", "CLAUDE.local.md", ".claude/rules/**", ".claude/agents/**", ".claude/skills/**/SKILL.md", ".claude/projects/*/memory/**", "tmp/**"]
+.claude/rules\ahfv-seven-sub-classes.md:12:paths: [".claude/agents/**", ".claude/rules/**", ".claude/state/codex_consult_*", "reports/sota-*"]
+.claude/rules\cardinal-rule-11-meta-process-sota.md:4:paths: ["CLAUDE*.md", ".claude/rules/**", ".claude/agents/**", ".claude/skills/**", "docs/install-provenance.md"]
+.claude/rules\canonical.md:13:paths: ["CLAUDE*.md", ".mcp.json", ".claude/settings.json", ".claude/agents/**", ".claude/commands/**", ".claude/hooks/**", ".claude/rules/**", ".claude/skills/**/SKILL.md"]
+.claude/rules\audit-action-loop.md:13:paths: [".claude/state/*.jsonl", "CLAUDE.md", ".claude/rules/**", ".claude/settings.json", ".claude/projects/*/memory/MEMORY.md"]
+.claude/rules\citation-discipline.md:13:paths: [".claude/agents/**", ".claude/skills/**", ".claude/hooks/**", ".claude/commands/**", ".claude/rules/**", "docs/**", "reports/**"]
+.claude/rules\citation-discipline.md:44:7. **Anthropic-bundled-skill cites: cite the current slash command, not local folder names** — *(specialization of rule #4 for bundled-skill identifier divergence)* — Bundled skill identifiers can diverge across local folders, CCBP tables, changelogs, and official docs. Example: CCBP `changelog/best-practice/concepts/changelog.md:410 @ 76599cb` records a stale-name correction from `/fewer-permission-prompts` to `/less-permission-prompts`, while CCBP `best-practice/claude-skills.md:48 @ 76599cb` still lists the folder-style `fewer-permission-prompts`, AND the current official Commands page (`code.claude.com/docs/en/commands` line 90 [VERIFIED 2026-05-01 via codex T1 web-fetch]) shows `/fewer-permission-prompts` — so the three authoritative surfaces actively disagree. **Discipline**: when sss documents an Anthropic-bundled skill invocation, cite the current command from `code.claude.com/docs/en/commands` FIRST as the tie-breaker; use `code.claude.com/docs/en/skills` only for general skill mechanics; use CCBP tables/changelogs as secondary drift evidence when they conflict. Never treat `.claude/skills/<folder>` or plugin cache paths as proof of the user-visible slash command. Apply to: `CLAUDE.md`, `.claude/agents/*.md`, `.claude/commands/**`, `.claude/skills/**/SKILL.md`, `.claude/rules/**`, `docs/sota-grand-catalog/**`, active adoption/citation docs, and commit bodies citing skill invocations. n=1 per `codification-threshold.md`: observed live conflict across official Commands docs / official Skills docs / CCBP changelog / CCBP skills table / sss docs costs ~15 min to re-derive per stale cite, this rule is <200 LOC; re-evaluate at the next Anthropic bundled-skill rename or official/CCBP conflict.
+.claude/rules\citation-discipline.md:68:   Apply to: any rule body section in `.claude/rules/**` that mixes upstream + sister-rule + local-operator-codification claims. Sister: `cross-model-consensus.md §Normative Authority Map` (POINTS TO this rule, does NOT carry softer duplicate).
+.claude/rules\cmc-env-funneled-disclosure.md:11:paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", ".claude/settings.json", "CLAUDE*.md", ".mcp.json", ".claude/state/codex_consult_*.txt", ".claude/state/codex_review_HEAD_*.txt"]
+.claude/rules\cmc-t1-t7-lifecycle.md:11:paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", ".claude/settings.json", "CLAUDE*.md", ".mcp.json", ".claude/state/codex_consult_*.txt", ".claude/state/codex_review_HEAD_*.txt"]
+.claude/rules\cmc-verdict-shapes.md:11:paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", ".claude/settings.json", "CLAUDE*.md", ".mcp.json", ".claude/state/codex_consult_*.txt", ".claude/state/codex_review_HEAD_*.txt"]
+.claude/rules\codex-t1-pattern-b-forward-discipline.md:4:paths: [".claude/state/codex_consult_*.txt", ".claude/rules/**", "CLAUDE*.md", ".claude/agents/**", ".claude/skills/**/SKILL.md", "docs/codex-*"]
+.claude/rules\codification-threshold.md:13:paths: [".claude/rules/**", ".claude/projects/*/memory/**", "evals/**", "reports/**"]
+.claude/rules\convergence-gate.md:13:paths: ["reports/**", ".claude/rules/**", ".claude/skills/**/SKILL.md", ".claude/skills/sota-research/**"]
+.claude/rules\cross-model-consensus.md:15:paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", ".claude/settings.json", "CLAUDE*.md", ".mcp.json", ".claude/state/codex_consult_*.txt", ".claude/state/codex_review_HEAD_*.txt"]
+.claude/rules\deprecation-discipline.md:4:paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", "scripts/**", "tools/**", "docs/**"]
+.claude/rules\evidence-policy.md:13:paths: ["docs/**", "reports/**", ".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", ".claude/projects/*/memory/**", "evals/**"]
+.claude/rules\layered-gates-architecture.md:13:paths: [".claude/settings.json", ".claude/hooks/scripts/**", ".claude/rules/**", ".claude/agents/**", ".codex/config.toml", "CLAUDE*.md", ".gitignore", ".claude/rules/lga-five-layers.md", ".claude/rules/lga-async-rewake.md", ".claude/rules/lga-worktree-prereq.md"]
+.claude/rules\lga-five-layers.md:12:paths: [".claude/settings.json", ".claude/hooks/scripts/**", ".claude/rules/**", ".codex/config.toml", "tests/**"]
+.claude/rules\launch-discipline.md:4:paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", "tools/**", "scripts/**", "deploy/**", "ci/**"]
+.claude/rules\karpathy-adapted.md:13:paths: ["CLAUDE*.md", ".claude/agents/**", ".claude/commands/**", ".claude/hooks/**", ".claude/rules/**", ".claude/skills/**", ".claude/settings.json", ".mcp.json", "scripts/**", "tests/**", "evals/**"]
+.claude/rules\lga-worktree-prereq.md:11:paths: [".claude/settings.json", ".claude/hooks/scripts/**", ".claude/rules/**", ".gitignore"]
+.claude/rules\lga-async-rewake.md:11:paths: [".claude/settings.json", ".claude/hooks/scripts/**", ".claude/rules/**"]
+.claude/rules\mia-pre-apply.md:13:paths: [".claude/rules/**", ".claude/agents/**", ".claude/skills/**/SKILL.md", ".claude/state/codex_consult_*", "CLAUDE*.md", "docs/**"]
+.claude/rules\kiss-dry-yagni.md:13:paths: ["scripts/**", "tools/**", "tests/**", "evals/**", ".claude/agents/**", ".claude/commands/**", ".claude/hooks/**", ".claude/rules/**", ".claude/skills/**", ".claude/settings.json", ".mcp.json"]
+.claude/rules\port-note-discipline.md:13:paths: [".claude/rules/**", ".claude/hooks/scripts/**/*.py", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", ".claude/settings.json", "CLAUDE*.md", "*.toml"]
+.claude/rules\research-protocol.md:13:paths: ["docs/**", "reports/**", ".claude/rules/**", ".claude/skills/sota-research/**", ".claude/projects/*/memory/**", "CLAUDE*.md"]
+.claude/rules\sessionstart-preload-discipline.md:4:paths: ["CLAUDE*.md", ".claude/rules/**", ".claude/projects/*/memory/**", "docs/install-provenance.md", "tmp/wave*close-synthesis*.md"]
+.claude/rules\sota-research-architecture.md:4:paths: [".claude/rules/**", "docs/sota-installed-manifest.md", "docs/install-provenance.md", "tmp/wave*-audit*.md"]
+.claude/rules\synthesis-layer-verify.md:13:paths: [".claude/agents/**", ".claude/commands/**", ".claude/rules/**", ".claude/agent-memory/**", "reports/**", ".claude/state/codex_consult_*.txt"]
+
+ succeeded in 374ms:
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_mcp_healthcheck.py\"",
+            "timeout": 12,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_review_trace.py\"",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/tools/nodejs/node.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/posttooluse_context_monitor.js\"",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_failure_audit.py\"",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/auto_proceed_gate.py",
+            "timeout": 5,
+            "async": false
+          },
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bash \".claude/hooks/scripts/cwc/commit-on-stop-throttled.sh\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\stop-review-gate-hook.mjs\"",
+            "timeout": 300
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_stuck_detector.py\"",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/subagent_stop_telemetry.py",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_review_trace.py\"",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/fm19_artifact_inline_lint.py\"",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/fm17_class_lint.py\"",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/codex_stuck_detector.py\"",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/userpromptsubmit_compact_threshold.py\"",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionStart",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/42/AppData/Local/fnm_multishells/91528_1778251978120/node.exe\" \"Z:/claude-sota-installed/.claude/hooks/context-mode-cache-heal.mjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/scripts/cli_path_audit.py\" --jsonl 1>$null",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/sessionstart_compact_hint_reader.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionEnd",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-settings/plugins/intelligent-compact/hooks/scripts/precompact_priorities.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/precompact_hint_emitter.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "defaultShell": "powershell",
+  "statusLine": {
+    "type": "command",
+    "command": "bash Z:/claude-sota-installed/.claude/hooks/scripts/context_window_statusline.sh",
+    "padding": 0,
+    "refreshInterval": 30
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "codex@openai-codex": true,
+
+ succeeded in 413ms:
+1033784
+32
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git show HEAD:.claude/hooks/scripts/context_window_guard.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git show HEAD:.claude/hooks/scripts/precompact_guard.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem .claude/hooks/scripts/__pycache__ | Where-Object {$_.Name -match '"'context_window_guard|precompact_guard'} | Format-Table -Auto Name,Length,LastWriteTime" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "git grep -n \"context_window_guard\\|precompact_guard\" HEAD -- .claude/settings.json .claude/hooks/scripts .claude/rules" in Z:\claude-sota-installed
+2026-05-14T12:52:31.401370Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.3 seconds
+Output:
+fatal: path '.claude/hooks/scripts/precompact_guard.py' does not exist in 'HEAD'
+
+ exited 1 in 295ms:
+fatal: path '.claude/hooks/scripts/precompact_guard.py' does not exist in 'HEAD'
+
+2026-05-14T12:52:31.425944Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.3 seconds
+Output:
+fatal: path '.claude/hooks/scripts/context_window_guard.py' does not exist in 'HEAD'
+
+ exited 1 in 320ms:
+fatal: path '.claude/hooks/scripts/context_window_guard.py' does not exist in 'HEAD'
+
+ succeeded in 338ms:
+HEAD:.claude/hooks/scripts/posttooluse_context_monitor.js:21://   TIER-1-DIRECT @ .claude/hooks/scripts/context_window_guard.py:25 + context_window_statusline.sh
+HEAD:.claude/hooks/scripts/precompact_hint_emitter.py:4:Fires on PreCompact event ADJACENT to existing precompact_guard.py per FM-19/W170-A
+HEAD:.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:41:# context_window_guard.py:28-29 pattern).
+HEAD:.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:64:# - Sibling env-var pattern: .claude/hooks/scripts/context_window_guard.py:28-29 @ HEAD 6e4a5f6
+HEAD:.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:131:      - Sibling reader: .claude/hooks/scripts/context_window_guard.py:48
+HEAD:.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:139:       (matches sibling context_window_guard.py:48 selection logic).
+HEAD:.claude/hooks/scripts/userpromptsubmit_compact_threshold.py:146:      .claude/hooks/scripts/context_window_guard.py:40-49 @ HEAD 02f72fd9
+HEAD:.claude/settings.json:525:            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/precompact_guard.py\"",
+
+ succeeded in 381ms:
+
+[32;1mName                                              [0m[32;1m Length[0m[32;1m LastWriteTime[0m
+[32;1m----                                              [0m [32;1m------[0m [32;1m-------------[0m
+context_window_guard.cpython-313.pyc                 5150 5/14/2026 1:10:47 AM
+context_window_guard.cpython-313.pyc.1513665377904   5130 5/13/2026 11:19:18 AM
+context_window_guard.cpython-313.pyc.2141263869552   5130 5/13/2026 11:19:32 AM
+precompact_guard.cpython-314.pyc                     4529 5/14/2026 1:47:29 AM
+precompact_guard.cpython-314.pyc.2439007591360       9246 5/14/2026 8:45:50 AM
+
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-memory.md | Select-Object -Index (30..44)' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"context_window_guard|context_window_statusline|posttooluse_context_monitor|precompact_guard|precompact_hint_emitter|sessionstart_compact_hint_reader|userpromptsubmit_compact_threshold\" .claude/rules .claude/hooks/scripts -g '*.md' -g '*.py' -g '*.js' -g '*.sh'" in Z:\claude-sota-installed
+ succeeded in 324ms:
+.claude/rules\auto-compact-discipline.md:82:| Compact-remind risk | `precompact_hint_emitter.py` + `sessionstart_compact_hint_reader.py` + `posttooluse_context_monitor.js` | advisory `additionalContext` around compact boundaries; precompact/sessionstart output caps 9500 chars; posttooluse disable via `POSTTOOLUSE_CONTEXT_MONITOR_DISABLE=1`; disable if stale reminders, duplicate state, or post-compact reinflation exceeds measured budget; reinflation delta `[UNKNOWN-TO-MEASURE]` as of W192 F3 | PreCompact + SessionStart(compact) + PostToolUse | W192 |
+.claude/hooks/scripts\context_window_statusline.sh:12:ERROR_LOG="$ROOT/.claude/state/context_window_statusline_errors.jsonl"
+.claude/hooks/scripts\context_window_statusline.sh:18:sidecar_stderr="$(mktemp 2>/dev/null || printf '%s' "$ROOT/.claude/state/context_window_statusline_stderr.tmp")"
+.claude/hooks/scripts\context_window_statusline.sh:36:            "schema": "context_window_statusline_error.v1",
+.claude/hooks/scripts\context_window_statusline.sh:107:        "schema": "context_window_statusline_error.v1",
+.claude/hooks/scripts\precompact_hint_emitter.py:4:Fires on PreCompact event ADJACENT to existing precompact_guard.py per FM-19/W170-A
+.claude/hooks/scripts\precompact_hint_emitter.py:41:TELEMETRY_PATH = STATE_DIR / "precompact_hint_emitter.jsonl"
+.claude/hooks/scripts\precompact_hint_emitter.py:129:        sys.stderr.write(f"[precompact_hint_emitter] telemetry append failed: {exc!r}\n")
+.claude/hooks/scripts\precompact_hint_emitter.py:151:        "schema": "precompact_hint_emitter.v1",
+.claude/hooks/scripts\posttooluse_context_monitor.js:2:// posttooluse_context_monitor.js — PostToolUse continuous context-monitor hook
+.claude/hooks/scripts\posttooluse_context_monitor.js:21://   TIER-1-DIRECT @ .claude/hooks/scripts/context_window_guard.py:25 + context_window_statusline.sh
+.claude/hooks/scripts\posttooluse_context_monitor.js:33:// - userpromptsubmit_compact_threshold.py (UserPromptSubmit-event peer — SAME CONTEXT_WINDOW_COMPACT_*_TOKENS
+.claude/hooks/scripts\posttooluse_context_monitor.js:35:// - sessionstart_compact_hint_reader.py (SessionStart matcher=="compact" peer — post-compact rehydrate)
+.claude/hooks/scripts\posttooluse_context_monitor.js:39:// 1. context_window_statusline.sh writes per-session metrics into
+.claude/hooks/scripts\posttooluse_context_monitor.js:47://   truth with userpromptsubmit_compact_threshold.py. On a 1M window: WARNING fires at
+.claude/hooks/scripts\posttooluse_context_monitor.js:117:    // (single source of truth with userpromptsubmit_compact_threshold.py CONTEXT_WINDOW_COMPACT_*_TOKENS)
+.claude/hooks/scripts\posttooluse_context_monitor.js:129:    const warnPath = path.join(STATE_DIR, `posttooluse_context_monitor_warned_${sessionId}.json`);
+.claude/hooks/scripts\sessionstart_compact_hint_reader.py:41:TELEMETRY_PATH = STATE_DIR / "sessionstart_compact_hint_reader.jsonl"
+.claude/hooks/scripts\sessionstart_compact_hint_reader.py:158:        sys.stderr.write(f"[sessionstart_compact_hint_reader] telemetry failed: {exc!r}\n")
+.claude/hooks/scripts\sessionstart_compact_hint_reader.py:170:            "schema": "sessionstart_compact_hint_reader.v1",
+.claude/hooks/scripts\sessionstart_compact_hint_reader.py:213:        "schema": "sessionstart_compact_hint_reader.v1",
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:38:TELEMETRY_PATH = STATE_DIR / "userpromptsubmit_compact_threshold.jsonl"
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:41:# context_window_guard.py:28-29 pattern).
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:64:# - Sibling env-var pattern: .claude/hooks/scripts/context_window_guard.py:28-29 @ HEAD 6e4a5f6
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:129:      - Writer: .claude/hooks/scripts/context_window_statusline.sh:54-65
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:131:      - Sibling reader: .claude/hooks/scripts/context_window_guard.py:48
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:139:       (matches sibling context_window_guard.py:48 selection logic).
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:146:      .claude/hooks/scripts/context_window_guard.py:40-49 @ HEAD 02f72fd9
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:148:      .claude/hooks/scripts/context_window_statusline.sh:54-65 @ HEAD 02f72fd9
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:247:# userpromptsubmit_compact_threshold.jsonl (separate file, no shared-shape
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:257:        sys.stderr.write(f"[userpromptsubmit_compact_threshold] telemetry failed: {exc!r}\n")
+.claude/hooks/scripts\userpromptsubmit_compact_threshold.py:282:        "schema": "userpromptsubmit_compact_threshold.v1",
+
+ succeeded in 378ms:
+
+Claude Code uses two distinct mechanisms for loading CLAUDE.md files:
+
+#### Ancestor Loading (UP the directory tree)
+
+When you start Claude Code, it walks **upward** from your current working directory toward the filesystem root and loads every CLAUDE.md it finds along the way. These files are loaded **immediately at startup**.
+
+#### Descendant Loading (DOWN the directory tree)
+
+CLAUDE.md files in subdirectories below your current working directory are **NOT loaded at launch**. They are only included when Claude reads files in those subdirectories during your session. This is known as **lazy loading**.
+
+### Example Monorepo Structure
+
+Consider a typical monorepo with separate directories for different components:
+
+
+codex
+**A) Hook Audit**
+
+| hook | SOTA-cited? | wired in `settings.json`? | reinflation-cost | verdict |
+|---|---|---|---|---|
+| `context_window_guard.py` | N/A: source missing; only `__pycache__` remains | N | unknown; cannot audit | REMOVE |
+| `context_window_statusline.sh` | SOTA: cites Anthropic statusline JSON contract | Y: `statusLine`, refresh 30s | 0 model bytes; writes sidecar only | KEEP |
+| `posttooluse_context_monitor.js` | SOTA-ish: cites `gsd-context-monitor.js` + Anthropic hooks, but local cite to missing `context_window_guard.py` is stale | Y: `PostToolUse`, matcher `*`, async | ~250-450B per warning, debounced every 5 tool uses; not compact-time | RECALIBRATE |
+| `precompact_guard.py` | N/A: source missing; only `__pycache__` remains | N in worktree; HEAD had broken `PreCompact` matcher `auto` registration | unknown; cannot audit | REMOVE |
+| `precompact_hint_emitter.py` | SOTA/local: cites Anthropic PreCompact, auto-compact rule, Karpathy/session preload discipline | Y: `PreCompact`, matcher `*` | up to 9.5KB; usually fresh hint or ~3KB `MEMORY.md` tail fallback | RECALIBRATE |
+| `sessionstart_compact_hint_reader.py` | SOTA/local: cites Anthropic SessionStart compact, Karpathy 3-layer preload | Y: `SessionStart`, matcher `compact` | absent hint: tiny; any existing hint file: up to 9.5KB, even stale | RECALIBRATE |
+| `userpromptsubmit_compact_threshold.py` | SOTA/local: cites Anthropic UserPromptSubmit + Thariq/Karpathy + codex T1 | Y: `UserPromptSubmit`, matcher `*`, async | ~250-600B per prompt above threshold; no debounce | RECALIBRATE |
+
+**B) Untracked Hooks**
+
+`context_window_statusline.sh`: WIRE/KEEP. It is untracked but SOTA-grounded and needed as the sidecar producer for the PostToolUse/UserPromptSubmit readers. Risk is provenance, not design: commit it or remove dependent monitors.
+
+`precompact_guard.py`: REMOVE. The source is absent, not untracked in the working tree. Current `.claude/settings.json` already removes the prior broken HEAD registration to a missing file. No auditable SOTA grounding exists from source.
+
+**C) Reinflation Delta**
+
+Refute “hooks collectively re-inject enough that reclaim is near-zero.” Actual compact-boundary reinjection is bounded: `precompact_hint_emitter.py` max 9.5KB, `sessionstart_compact_hint_reader.py` max 9.5KB, plus small prompt/tool advisories. That is roughly 10-20KB worst-case hook text, not enough to explain near-zero reclaim on a large session.
+
+But the stack does have a real inefficiency: `sessionstart_compact_hint_reader.py` uses `hint_present = HINT_PATH.exists()`, so a stale `compact_hint.json` still triggers supplemental MEMORY/close-synthesis/git-log sections after compact. Recalibrate to emit supplemental sections only when the hint is fresh/valid, and make PreCompact fallback opt-in or smaller.
+
+FM-20 “~13% reclaim vs 50-60% SOTA target” is not confirmed by these hook bodies alone. If true, the bigger suspect is cold-loading broad `.claude/rules/**` frontmatter, not compact hook reinflation.
+
+**D) Trim Plan Adversarial Check**
+
+Plan: narrow over-broad `.claude/rules/**` path globs in rule frontmatter. Evidence: `.claude/rules` is ~1,033,784 bytes and 32 rule files currently reference `.claude/rules/**`; CCBP `claude-memory.md:34-40` says descendant files should lazy-load, not cold-load.
+
+Failure modes:
+- Under-loading governance rules for edits touching cross-cutting surfaces.
+- Breaking “closest rule wins” expectations if a narrowed glob misses shared meta-rules.
+- Losing automatic trigger for docs/settings/hooks changes that genuinely need citation/evidence/gate discipline.
+- Hidden dependency: some rules use `.claude/rules/**` as a crude “always on for rule work” trigger.
+
+Safe to ship? Yes, as a staged trim, not a blind global replace. Keep broad globs only in canonical/meta rules that truly govern rule edits; narrow topical rules to their concrete surfaces; add explicit filenames for dependencies like `citation-discipline.md`, `evidence-policy.md`, `cross-model-consensus.md` where needed. Measure startup context before/after.
+
+VERDICT: Keep the statusline bridge, remove missing phantom guards, recalibrate the advisory/rehydrate hooks; the real compact-reclaim risk is broad rule cold-load, not hook reinflation.
+PER-HOOK: keep=[context_window_statusline.sh] wire=[] remove=[context_window_guard.py, precompact_guard.py] recalibrate=[posttooluse_context_monitor.js, precompact_hint_emitter.py, sessionstart_compact_hint_reader.py, userpromptsubmit_compact_threshold.py]
+tokens used
+46,634
+**A) Hook Audit**
+
+| hook | SOTA-cited? | wired in `settings.json`? | reinflation-cost | verdict |
+|---|---|---|---|---|
+| `context_window_guard.py` | N/A: source missing; only `__pycache__` remains | N | unknown; cannot audit | REMOVE |
+| `context_window_statusline.sh` | SOTA: cites Anthropic statusline JSON contract | Y: `statusLine`, refresh 30s | 0 model bytes; writes sidecar only | KEEP |
+| `posttooluse_context_monitor.js` | SOTA-ish: cites `gsd-context-monitor.js` + Anthropic hooks, but local cite to missing `context_window_guard.py` is stale | Y: `PostToolUse`, matcher `*`, async | ~250-450B per warning, debounced every 5 tool uses; not compact-time | RECALIBRATE |
+| `precompact_guard.py` | N/A: source missing; only `__pycache__` remains | N in worktree; HEAD had broken `PreCompact` matcher `auto` registration | unknown; cannot audit | REMOVE |
+| `precompact_hint_emitter.py` | SOTA/local: cites Anthropic PreCompact, auto-compact rule, Karpathy/session preload discipline | Y: `PreCompact`, matcher `*` | up to 9.5KB; usually fresh hint or ~3KB `MEMORY.md` tail fallback | RECALIBRATE |
+| `sessionstart_compact_hint_reader.py` | SOTA/local: cites Anthropic SessionStart compact, Karpathy 3-layer preload | Y: `SessionStart`, matcher `compact` | absent hint: tiny; any existing hint file: up to 9.5KB, even stale | RECALIBRATE |
+| `userpromptsubmit_compact_threshold.py` | SOTA/local: cites Anthropic UserPromptSubmit + Thariq/Karpathy + codex T1 | Y: `UserPromptSubmit`, matcher `*`, async | ~250-600B per prompt above threshold; no debounce | RECALIBRATE |
+
+**B) Untracked Hooks**
+
+`context_window_statusline.sh`: WIRE/KEEP. It is untracked but SOTA-grounded and needed as the sidecar producer for the PostToolUse/UserPromptSubmit readers. Risk is provenance, not design: commit it or remove dependent monitors.
+
+`precompact_guard.py`: REMOVE. The source is absent, not untracked in the working tree. Current `.claude/settings.json` already removes the prior broken HEAD registration to a missing file. No auditable SOTA grounding exists from source.
+
+**C) Reinflation Delta**
+
+Refute “hooks collectively re-inject enough that reclaim is near-zero.” Actual compact-boundary reinjection is bounded: `precompact_hint_emitter.py` max 9.5KB, `sessionstart_compact_hint_reader.py` max 9.5KB, plus small prompt/tool advisories. That is roughly 10-20KB worst-case hook text, not enough to explain near-zero reclaim on a large session.
+
+But the stack does have a real inefficiency: `sessionstart_compact_hint_reader.py` uses `hint_present = HINT_PATH.exists()`, so a stale `compact_hint.json` still triggers supplemental MEMORY/close-synthesis/git-log sections after compact. Recalibrate to emit supplemental sections only when the hint is fresh/valid, and make PreCompact fallback opt-in or smaller.
+
+FM-20 “~13% reclaim vs 50-60% SOTA target” is not confirmed by these hook bodies alone. If true, the bigger suspect is cold-loading broad `.claude/rules/**` frontmatter, not compact hook reinflation.
+
+**D) Trim Plan Adversarial Check**
+
+Plan: narrow over-broad `.claude/rules/**` path globs in rule frontmatter. Evidence: `.claude/rules` is ~1,033,784 bytes and 32 rule files currently reference `.claude/rules/**`; CCBP `claude-memory.md:34-40` says descendant files should lazy-load, not cold-load.
+
+Failure modes:
+- Under-loading governance rules for edits touching cross-cutting surfaces.
+- Breaking “closest rule wins” expectations if a narrowed glob misses shared meta-rules.
+- Losing automatic trigger for docs/settings/hooks changes that genuinely need citation/evidence/gate discipline.
+- Hidden dependency: some rules use `.claude/rules/**` as a crude “always on for rule work” trigger.
+
+Safe to ship? Yes, as a staged trim, not a blind global replace. Keep broad globs only in canonical/meta rules that truly govern rule edits; narrow topical rules to their concrete surfaces; add explicit filenames for dependencies like `citation-discipline.md`, `evidence-policy.md`, `cross-model-consensus.md` where needed. Measure startup context before/after.
+
+VERDICT: Keep the statusline bridge, remove missing phantom guards, recalibrate the advisory/rehydrate hooks; the real compact-reclaim risk is broad rule cold-load, not hook reinflation.
+PER-HOOK: keep=[context_window_statusline.sh] wire=[] remove=[context_window_guard.py, precompact_guard.py] recalibrate=[posttooluse_context_monitor.js, precompact_hint_emitter.py, sessionstart_compact_hint_reader.py, userpromptsubmit_compact_threshold.py]

@@ -1,0 +1,229 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 0172841636c9d01fb3940e34e0e4da5acb276480
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/fire49-audit-percentage-report.md | 210 +++++++++++++++++++++++++++++++++
+ docs/install-provenance.md             |  21 ++++
+ 2 files changed, 231 insertions(+)
+
+=== git show --format=fuller ===
+commit 0172841636c9d01fb3940e34e0e4da5acb276480
+Author:     42 <42@local>
+AuthorDate: Mon May 11 02:19:14 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 02:19:14 2026 -0400
+
+    docs(audit-tally): Wave 134 Fire 49 — Audit percentage dashboard SHIPPED (direct user "% line-by-line audited" deliverable)
+    
+    15th codification ship in Wave 134 series; 1st audit-tally-dashboard. NEW
+    docs/fire49-audit-percentage-report.md (~190 LOC; 12 sections).
+    
+    User's repeated standing /loop directive question — "give me persentage of
+    repos you line byline aduited againt our architecture and your ultimatre
+    architecture ecosystem" — answered directly with 3-tier honest framing.
+    
+    ## 🎯 HEADLINE NUMBERS (direct answer)
+    
+    | Metric | Count | % |
+    |---|---|---|
+    | Total outer-research v1-v65 baseline | 609 | 100% |
+    | Successful programmatic SRA D1-D10 probe | 555 | **91.13%** ✅ |
+    | Strict line-by-line deep-dive (LICENSE-file CONTENT READ + README ≥200 lines + manual D1-D10 + verdict + replacement-of) | 17 | **2.79%** ⚠️ |
+    | Attempted line-by-line (any audit invoked, incl. 44 → 404) | 599 | **98.36%** ✅ |
+    | Pre-existing baseline already-cited primitives | 7 | 1.15% |
+    
+    Source-of-truth: `docs/sota-architecture-audit/05-audit-coverage-tracker.md`
+    Wave 134 Fire 5 close 2026-05-10 (mass-parallel-probe results).
+    
+    Post-Wave-134-Fire-5 Fire 6-48 (15 ships) effect on baseline coverage:
+    **ZERO new outer-research repos added**. All Fire 6-48 activity is
+    architecture-integration (1 INSTALL Sigstore.Cosign + 1 dogfood verify-blob
+    + 14 codification + 1 synthesis). Baseline numbers UNCHANGED.
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 Honest 3-tier framing (programmatic / strict / attempted)
+    
+    - 91.13% programmatic (gh API + SPDX + scored D1-D10 heuristic)
+    - 2.79% strict (full LICENSE-file content read + README scan)
+    - 98.36% attempted (incl. 44 returning 404 from kit-typo'd slugs)
+    - 7.22% (44) unreachable typo'd slugs; 1.64% (~10) untouched
+    
+    ### #2 Gap-closure path identified
+    
+    Deep-dive only 161 STUDY-PILOT-CANDIDATEs (since 394 of 555 already
+    disqualified) = ~13.5 hours / ~5-7 fires → strict deep-dive coverage
+    17/609 (2.79%) → 178/609 (29.23%).
+    
+    ### #3 Top-15 STUDY-PILOT priority queue surfaced
+    
+    1. sst/opencode (157k★)
+    2. nousresearch/hermes-agent (142k★)
+    3. langchain-ai/langchain (136k★)
+    4. microsoft/markitdown (122k★)
+    5. firecrawl (118k★ AGPL CLI-only)
+    6. google-gemini/gemini-cli (104k★)
+    7. github/spec-kit (95k★)
+    8. browser-use (93k★)
+    9. garrytan/gstack (93k★)
+    10. microsoft/playwright (88k★)
+    11. mermaid-js/mermaid (88k★)
+    12. junegunn/fzf (80k★)
+    13. thedotmack/claude-mem (74k★)
+    14. farion1231/cc-switch (66k★)
+    15. unclecode/crawl4ai (65k★)
+    
+    ## Coverage of "ultimate architecture ecosystem" (user's exact phrase)
+    
+    | Dimension | Coverage |
+    |---|---|
+    | Baseline outer-research v1-v65 audit-touched | 98.36% attempted / 91.13% successful / 2.79% strict |
+    | Already-in-eee-runtime (current architecture integration) | ~7% of total baseline (44/609 confirmed-cited) |
+    | Fire 41 10-gate framework gate-coverage (ultimate architecture) | ~40% (2 MOSTLY-WIRED / 6 PARTIAL / 2 NOT-YET-WIRED) |
+    | Top-15 STUDY-PILOT highest-impact candidates | 15/161 = 9.3% of subset, 0% strict-deep-dived |
+    
+    ## No codex T1 fired
+    
+    Fire 49 is pure data presentation of already-verified state per cycle-300
+    ONE-LOGICAL-UNIT-PER-FIRE (presentation IS the unit, not new audits).
+    Wave 134 Fire 5 close was independently codex-reviewed; Fire 48 synthesis
+    reviewed cumulative Fire 6-48 ship trail.
+    
+    ## REVISED Forward Top-5 (post-Fire-49)
+    
+    | Priority | Fire candidate | Effect |
+    |---|---|---|
+    | 🥇 | W134-F33c frigg DEFER 2026-06-04 | Closes Band 6a re-audit ladder |
+    | 🥈 | W134-F-IMP-Q-2ND-DOGFOOD | 2nd verify-blob → Fire 45 cycle-322 n=2 → n=3 → rule-tier promotion |
+    | 🥉 | W134-F-STUDY-PILOT-DEEPDIVE-TOP15 | Strict deep-dive 1-3 of Top-15 per fire (closes baseline gap 17/609 → 178/609 over ~5-7 fires) |
+    | #4 | W134-F-IMP-O | OTel schema standardization (Fire 41 Gate 8 prerequisite) |
+    | #5 | W134-F-IMP-Q-MECHANICAL | Fire 45 mechanical-hook (Fire 41 Gate 1 MOSTLY-WIRED → FULLY-WIRED) |
+    
+    ## NEW cohort entries
+    
+    - Audit-tally-dashboard ships: n=0 → **n=1 NEW**
+    - Wave 134 series ships: n=15 → **n=16**
+    - User-prompt direct-deliverable ships: n=0 → **n=1 NEW** (Fire 49 directly answers verbatim user question)
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION disclosed (sister-rule cite-imports)
+    - CR-3 cross-model: ✅ Phase 1 bootstrap exception (synthesis-of-prior-codex-reviewed)
+    - CR-10 research-first-then-install: ✅ Research = 05-audit-coverage-tracker + Wave 134 Fire 6-48
+    - CR-11 META-process: ✅ user-facing dashboard layer
+    - CR-12 5-class lattice: ✅ GENUINELY-NEW (1st audit-tally-dashboard ship)
+    - FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+    
+    ## Trailers
+    
+    Refs: docs/fire49-audit-percentage-report.md (NEW ~190 LOC)
+    Refs: docs/install-provenance.md (Fire 49 entry)
+    Cite: TIER-3-LOCAL-COMPOSITION via 05-audit-coverage-tracker (Wave 134 Fire 5 close) + Wave 134 Fire 6-48 cumulative architecture-integration ship trail (all individually codex-reviewed)
+    Verify: `[VERIFIED via docs/fire49-audit-percentage-report.md SHIPPED (12 sections / ~190 LOC) + headline 91.13% + 2.79% + 98.36% verified against docs/sota-architecture-audit/05-audit-coverage-tracker.md Wave 134 Fire 5 close + post-Fire-5 cumulative effect UNCHANGED + Top-15 STUDY-PILOT priority queue surfaced + addresses user-prompt repeated "percentage of repos line-by-line audited" question directly with 3-tier honest framing (91.13% programmatic / 2.79% strict / 98.36% attempted)]`
+
+=== diff ===
+diff --git a/docs/fire49-audit-percentage-report.md b/docs/fire49-audit-percentage-report.md
+new file mode 100644
+index 0000000..7ce2401
+--- /dev/null
++++ b/docs/fire49-audit-percentage-report.md
+@@ -0,0 +1,210 @@
++# Fire 49 — Audit Percentage Dashboard (direct user "% line-by-line audited" deliverable)
++
++> **Purpose**: Single-shot dashboard directly answering the user's repeated standing /loop directive — "give me persentage of repos you line byline aduited againt our architecture and your ultimatre architecture ecosystem".
++> **Source-of-truth**: `docs/sota-architecture-audit/05-audit-coverage-tracker.md` (Wave 134 Fire 5 close 2026-05-10) + post-Fire-5 cumulative additions through Fire 48.
++> **Cite class**: `constituents=[TIER-3-LOCAL-OPERATOR-DERIVED @ 05-audit-coverage-tracker + Wave 134 Fires 5-48 cumulative ship trail, TIER-2 sister-rule cite-import-AMBER @ all 14 Wave 134 codification docs + 1 install + 1 dogfood + 1 synthesis]; effective_tier=TIER-3-LOCAL-COMPOSITION` per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE.
++
++## 🎯 HEADLINE NUMBERS (direct answer)
++
++**The user-prompt headline question** ("percentage of repos line-by-line audited"):
++
++| Metric | Count | % | Notes |
++|---|---|---|---|
++| **Total outer-research v1-v65 baseline** | **609** | 100% | Unique repos across 55 kit metadata files |
++| **Successful programmatic SRA D1-D10 probe** (LICENSE SPDX + stars + age + push + topics + scored) | **555** | **91.13%** ✅ | Per Wave 134 Fire 5 close mass-parallel probe |
++| **Strict line-by-line deep-dive** (LICENSE file CONTENT READ + README ≥200 lines + manual D1-D10 + verdict + replacement-of line) | **17** | **2.79%** ⚠️ | Wave 134 Fire 5 Batch 1+2 only; honest deep-dive subset |
++| **Attempted line-by-line** (any audit invoked, including 44 return
+
+[prompt truncated]

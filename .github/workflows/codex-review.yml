@@ -1,0 +1,98 @@
+# RETIRED 2026-05-24 per W432-FINALIZE-spec §13 ADR v2 (Local-Only architecture).
+# This workflow originally required OPENAI_API_KEY for codex GPT-5.5 review on PRs.
+# Replaced by: (a) local `codex exec` r1 review (ChatGPT Pro subscription auth);
+# (b) codex-trailer-gate (binding) pre-commit hook + W416 PR-body trailer gate.
+# Workflow retained for future re-enable if Copilot Code Review activates OR Codex
+# GitHub App is installed (per W432-COPILOT-PROBE RESULT.md). Manual fire via
+# workflow_dispatch supported for ad-hoc cross-model review on specific PRs.
+name: codex-review (PR-triggered GPT-5.5 cross-model gate) [RETIRED — workflow_dispatch only]
+on:
+  workflow_dispatch:  # MANUAL-ONLY per W432-AI-CI-RETIRE (A2 Local-Only architecture)
+
+permissions:
+  pull-requests: write
+  contents: read
+
+concurrency:
+  group: codex-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  codex:
+    name: codex GPT-5.5 adversarial review
+    runs-on: ubuntu-latest
+    # W334 policy: local-codex via operator's ChatGPT Pro subscription is the canonical path
+    # (free, no API key needed). CI codex requires OPENAI_API_KEY (paid API) and auto-skips
+    # when the secret is absent. To enable CI codex review, operator sets OPENAI_API_KEY in
+    # GH Actions secrets. To force-skip on any PR, label `skip-codex`.
+    if: |
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-codex') &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      vars.OPENAI_API_KEY_AVAILABLE == 'true'
+    steps:
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with: { fetch-depth: 0, persist-credentials: false }
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with: { node-version: '22.22.0' }
+
+      - name: Capture PR diff
+        id: diff
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          DIFF_FILE="$RUNNER_TEMP/pr-${PR_NUMBER}.diff"
+          git fetch origin "$BASE_REF" --depth=1
+          git diff "origin/$BASE_REF...HEAD" > "$DIFF_FILE"
+          echo "diff_path=$DIFF_FILE" >> "$GITHUB_OUTPUT"
+          echo "diff_lines=$(wc -l < "$DIFF_FILE")" >> "$GITHUB_OUTPUT"
+          echo "## Diff stats" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Lines changed: $(wc -l < "$DIFF_FILE")" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: codex GPT-5.5 adversarial review (W331 P0.7 FRONTIER-PEER POLICY)
+        id: codex
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          OUT_FILE="$RUNNER_TEMP/codex-review.md"
+          npx -y @openai/codex@0.131.0 exec \
+            "You are codex GPT-5.5 acting as cross-model adversarial reviewer per the claude-sota-installed W331 P0.7 FRONTIER-PEER POLICY (codex = AUTHORITY; not a tie-breaker). Review the attached PR diff against these criteria: (1) Cardinal rules R1-R6 violations; (2) cite-anchor inflation (claiming aspirational tools as operational — inspect_ai/Sigstore/SLSA/GEPA flags); (3) silent-fallback patterns (W325-A F1 family); (4) CR-9 pin drift in .mcp.json; (5) self-invent regression (W255-banned file categories); (6) verify-before-claim probes (R6). Output VERDICT (APPROVE | REVISE | NEEDS-REVISION | BLOCK) + 3-line rationale + paste-ready remediation block. Position-swap re-invocation suggested for T1-equivalent ship-decisions." \
+            --diff "${{ steps.diff.outputs.diff_path }}" \
+            > "$OUT_FILE" 2>&1 || echo "codex exec returned non-zero; preserving output"
+          # Extract VERDICT for status check
+          VERDICT=$(grep -oE 'VERDICT:?\s*(APPROVE|REVISE|NEEDS-REVISION|BLOCK)' "$OUT_FILE" | head -1 | grep -oE '(APPROVE|REVISE|NEEDS-REVISION|BLOCK)' || echo "INDETERMINATE")
+          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+          echo "out_path=$OUT_FILE" >> "$GITHUB_OUTPUT"
+          {
+            echo "## codex GPT-5.5 Review"
+            echo "**Verdict**: \`$VERDICT\`"
+            echo ""
+            cat "$OUT_FILE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post review comment to PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (W432-CI-STALE-BUMP; was v7.1.0, 351 days stale — github-script v9 dropped require('@actions/github') but our scripts use injected github + Node-builtin fs only)
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('${{ steps.codex.outputs.out_path }}', 'utf8');
+            const verdict = '${{ steps.codex.outputs.verdict }}';
+            const emoji = { APPROVE: '✓', REVISE: '!', 'NEEDS-REVISION': '!', BLOCK: '✗', INDETERMINATE: '?' }[verdict] || '?';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ${emoji} codex GPT-5.5 Review — VERDICT: \`${verdict}\`\n\n_W331 P0.7 FRONTIER-PEER POLICY — codex = cross-model AUTHORITY_\n\n${body}\n\n---\n_To skip this gate, label PR with \`skip-codex\`._`
+            });
+
+      - name: Fail step on BLOCK verdict
+        if: ${{ steps.codex.outputs.verdict == 'BLOCK' }}
+        run: |
+          echo "::error::codex GPT-5.5 returned BLOCK verdict — blocking merge per W331 P0.7"
+          exit 1

@@ -1,0 +1,86 @@
+# Codex T1 Pre-Edit Consult — Wave 127 W124-WIRES E2E REVIEW
+
+## USER DIRECTIVE (verbatim auto-proceed standing directive 2026-05-09)
+"you decide next steps, we need most advanced automative workflow ... always launch advanced agent team including gpt5.5, make sure gpt5.5 related fully sota set for our architecture, unleash its potential with sota harness ... ship with convergence insights"
+
+## CONTEXT (eee runtime state, post-Wave-126 codex profile ship)
+- HEAD: `3de349d` (Wave 125 W124-A5 REVERT)
+- Wave 124 batch: 5/6 codex hooks INSTALLED
+  - W124-A1 codex_failure_audit (WIRED PostToolUseFailure)
+  - W124-A2 codex_mcp_healthcheck (WIRED PostToolUse Edit|Write|MultiEdit)
+  - W124-A3 codex_review_thread_bridge (LIBRARY no-wire by design)
+  - W124-A4 codex_review_trace (INSTALLED-DORMANT)
+  - W124-A5 codex_stop_review_gate REVERTED (Path A: openai-codex plugin's stop-review-gate-hook.mjs at settings.json:284 satisfies use case)
+  - W124-A6 codex_stuck_detector (INSTALLED-DORMANT)
+- Wave 126 ship: 2 new codex profiles at CODEX_HOME (deep-review + t2-exec) — closes Agent E P0 finding
+- Outstanding: W124-WIRES — wire 2 DORMANT hooks (review_trace + stuck_detector)
+
+## WAVE 125 AGENT C ARCHAEOLOGY DESIGN (artifact at tmp/wave125-agentC-w124-wires-archaeology-2026-05-09.md, 490 LOC)
+Agent C designed 5 surgical Edit blocks for W124-WIRES:
+- Edit 1: SessionStart 2nd hook (codex_review_trace.py with PostToolUse Bash matcher? — verify scope)
+- Edit 2: PostToolUse Bash 5th hook entry (codex_review_trace.py, async true, timeout 5s)
+- Edit 3: NEW PostToolUse Agent matcher (codex_review_trace.py, async true, timeout 5s)
+- Edit 4: SubagentStop 2nd hook (codex_review_trace.py, async true, timeout 5s)
+- Edit 5: Stop 4th hook (codex_stuck_detector.py, async true, timeout 10s)
+- Edit 5b: NEW UserPromptSubmit event block (codex_stuck_detector.py, async true, timeout 10s)
+
+Sibling wire shapes (verified Wave 124 fan-out):
+- codex_review_trace: 3 entries (PostToolUse Bash + PostToolUse Agent + SubagentStop *) all timeout=5 async=true
+- codex_stuck_detector: 2 entries (Stop * + UserPromptSubmit *) all timeout=10 async=true
+
+## 3-AXIS ADVERSARIAL REVIEW (please verify each)
+
+### AXIS-1: Sequential settings.json Edit safety per FM-02 sub-class (b)
+Wave 125 Agent C designed 5-6 sequential Edits to settings.json. Per Z:/claude-sota/.claude/rules/parallel-session-worktree-isolation.md FM-02 sub-class (b) staging-index race:
+- Each Edit MUST be applied via `git commit --only -- .claude/settings.json` to scope atomic
+- Sequential Edits across 5-6 entries = 5-6 atomic commits OR 1 batch commit?
+- Per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE: this is "wire 2 hooks" = arguably 1 LU = 1 commit
+
+VERIFY: Is single-batch commit (all 5-6 Edits) the correct shape OR per-Edit atomic ship?
+
+### AXIS-2: Wire-time safety preconditions
+- codex_review_trace requires LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY env (verified set per Wave 124-A4 smoke probe) AND langfuse server v3.170.0 running at http://localhost:3000 (verified RUNNING)
+- codex_stuck_detector requires _guard_base.py at `.claude/hooks/scripts/_guard_base.py` (verified PRESENT 21.4K) AND codex_review_thread_bridge importable (verified W124-A3 SHIPPED)
+
+VERIFY: Any other env-knob OR runtime precondition required before W124-WIRES safely flips DORMANT → ACTIVE?
+
+### AXIS-3: Cross-hook integration post-wire stability
+- codex_review_trace fires on PostToolUse Bash|Agent + SubagentStop = high invocation frequency; filters internally via `_is_codex_command()` + early-exit. Will high frequency cause runtime perf regression?
+- codex_stuck_detector fires on Stop + UserPromptSubmit; reads codex_postcommit_reviews.jsonl (986 rows) + codex_prepush_reviews.jsonl (844 rows) to scan for stuck PIDs; reasonable runtime cost?
+- Cross-hook with W124-A3 (codex_review_thread_bridge) library: codex_stuck_detector imports `bridge_unresolved_rows` via try/except ImportError (verified import succeeds post-A3 ship)
+
+VERIFY: Any cross-hook integration risks / FM-17 sub-class candidates?
+
+## CARDINAL-RULE GATE
+Per Z:/claude-sota-installed/CLAUDE.md cardinal-rules-1+3+9+11+12:
+- CR-1 cite-trail: TIER-1-DIRECT cites required
+- CR-3 cross-model gate: this consult IS the cross-model gate satisfaction
+- CR-9 install-risk: 2-round fix-forward expectation
+- CR-11 META-process: SOTA-cited every step
+- CR-12 priority: Path A > Path B > Path C; W124-WIRES is Path C cite-import-AMBER WIRE (already-cite-imported in Wave 124, this is the WIRE step)
+
+## OUTPUT SCHEMA (JSON-strict)
+```json
+{
+  "verdict": "approve | needs-attention",
+  "summary": "<one-sentence>",
+  "findings": [
+    {
+      "severity": "critical | high | medium | low",
+      "title": "<short>",
+      "body": "<detail>",
+      "file": "<path>",
+      "line_start": <int>,
+      "line_end": <int>,
+      "confidence": <0.0-1.0>,
+      "recommendation": "<action>"
+    }
+  ],
+  "next_steps": ["<step1>", "<step2>"]
+}
+```
+
+## DELIVERABLE
+3-axis verdict per Pattern A v1: APPROVE → ship as-designed; NEEDS-REVISION → apply prescriptions in single atomic commit per Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md Pattern A.
+
+Per FM-17.d defense + per-call codex time-budget: 240s narrow timeout sufficient for this 3-axis bounded scope.

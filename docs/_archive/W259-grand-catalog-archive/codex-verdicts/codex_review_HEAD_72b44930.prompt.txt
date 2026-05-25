@@ -1,0 +1,249 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 72b44930765f3b425ff45e82ebfb5fab48285a6e
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-16-gpt55-multi-anatomy/00-tracker.md      |  25 ++--
+ .../04-aris-gpt55-verdict.md                       | 134 +++++++++++++++++++++
+ .../04-aris-reinforcement-synthesis.md             | 109 +++++++++++++++++
+ 3 files changed, 261 insertions(+), 7 deletions(-)
+
+=== git show --format=fuller ===
+commit 72b44930765f3b425ff45e82ebfb5fab48285a6e
+Author:     42 <42@local>
+AuthorDate: Sun May 10 17:56:05 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 17:56:05 2026 -0400
+
+    audit(w134-f16-anatomy3): ARIS Fire 13 anatomy GPT-5.5 APPROVE conf=0.97 — FULL CONVERGENCE (all 3 claims VERIFIED)
+    
+    ⭐ Fire 16 anatomy 3 ship: Path P recipe n=4 reproducible. ARIS is FIRST anatomy to
+    achieve full-convergence APPROVE in multi-anatomy GPT-5.5 audit arc.
+    
+    Updates: docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/
+    
+    ## ⭐ GPT-5.5 verdict (conf=0.97, tokens=79,120)
+    
+    Codex CLI v0.130.0, profile `deep-review`, model `gpt-5.5`, xhigh reasoning, read-only sandbox.
+    
+    ### ALL 3 CLAIMS VERIFIED — full convergence
+    
+    **Claim 1 — "20+ research skills" → VERIFIED-20+ at actual=74 ✅**
+    
+    ARIS has **74 SKILLs** under `skills/<name>/SKILL.md`. Fire 13's "20+" was technically
+    correct but materially UNDER-COUNTED (3.7× under-claim). 20 named skills all VERIFIED
+    at `<skill>/SKILL.md:2` frontmatter.
+    
+    Minor caveat: `skills/comm-lit-review/SKILL.md:2` declares `name: comm-lit-review-claude-single`
+    (frontmatter-vs-directory naming inconsistency). P3 LOW data-quality observation; directory
+    inventory remains correct.
+    
+    **Claim 2 — Workflow line cites VERIFIED-EXACT (zero drift) ✅**
+    
+    All 7 line cites resolve EXACTLY:
+    - `README.md:489` = Workflow 1 ✅
+    - `README.md:568` = Workflow 1.5 ✅
+    - `README.md:613` = Workflow 2 ✅
+    - `README.md:678` = Workflow 3 ✅
+    - `README.md:791` = Workflow 4 ✅
+    - `README.md:846` = Research Wiki ✅
+    - `README.md:913` = Workflow M ✅
+    
+    ARIS README is structurally STABLE — line-anchors durable per `port-note-discipline.md §1`.
+    
+    **Claim 3 — Cross-tool 4-tool support VERIFIED ✅**
+    
+    - Claude Code @ `AGENT_GUIDE.md:9` + `README.md:3,49,55`
+    - Codex CLI @ `AGENT_GUIDE.md:14` (codex-specific skills at `:18` → `skills/skills-codex/`)
+    - Cursor @ `AGENT_GUIDE.md:9` (grouped with CC/Trae syntax)
+    - Trae @ `AGENT_GUIDE.md:9` (grouped with CC/Cursor syntax)
+    
+    ## Confidence trajectory across Fire 15-16 anatomies
+    
+    | Fire | Subject | Conf | Outcome |
+    |---|---|---|---|
+    | 15 | PageIndex | 0.90 | NEEDS-REVISION (2 claims) |
+    | 16-a1 | letta | 0.93 | NEEDS-REVISION (2 claims REFUTED) |
+    | 16-a2 | OpenSpec | 0.94 | NEEDS-REVISION (2 verified + 1 refuted) |
+    | **16-a3** | **ARIS** | **0.97** | **APPROVE — full convergence** |
+    
+    ARIS achieved HIGHEST CONFIDENCE YET (0.97) — first full-convergence APPROVE.
+    
+    ## ARIS disposition (reinforced)
+    
+    CITE-PATTERN-REINFORCED (was CITE-PATTERN at Fire 13). All 3 verified claims STRENGTHEN
+    the Fire 13 disposition rather than refute it. ARIS forward-fire candidates:
+    
+    1. **W134-F17-effort-knob-ship** — extract `effort: lite/balanced/max/beast` to
+       `advanced-agent-team-standing-directive.md` (now CROSS-MODEL verified 0.97)
+    2. **W134-F17-aris-cite-ship** — add ARIS as 6th-org architectural-comparison row
+       in `team-orchestration.md §Sister-framework references`
+    3. **W134-F17-aris-skills-catalog-extract** — extract 74-skill catalog for review-loop
+       variants + experiment-bridge + meta-optimize patterns (sss has ~30 skills vs ARIS 74)
+    
+    Per `port-note-discipline.md §6`: Fire 13 ARIS anatomy STAYS at commit `c57d807` (historical
+    record). Fire 16 anatomy 3 reinforcements documented forward-only.
+    
+    ## Path P recipe validation (n=4 success — recurringly reproducible)
+    
+    | Fire | Subject | Prompt LOC | Tokens used | Verdict |
+    |---|---|---|---|---|
+    | 15 | PageIndex | 48 | 22,803 | NEEDS-REVISION conf=0.9 |
+    | 16-a1 | letta | 51 | 136,321 | NEEDS-REVISION conf=0.93 |
+    | 16-a2 | OpenSpec | 51 | 87,481 | NEEDS-REVISION conf=0.94 |
+    | 16-a3 | ARIS | 53 | 79,120 | **APPROVE conf=0.97** |
+    
+    Recipe is 4/4 success across distinct anatomy types (per-document RAG / agent memory /
+    spec-driven workflow / research harness). Token-budget calibration: small=20k, medium-small=80k,
+    medium=87k, large=136k.
+    
+    ## Coverage % impact
+    
+    | Metric | Fire 16 a2 | Fire 16 a3 close | Δ |
+    |---|---|---|---|
+    | TRUE-repo baseline | 616 | 616 | — |
+    | A1+A2 strict combined | 99.84% | 99.84% | (unchanged) |
+    | A1+ Cross-model GPT-5.5 verified | 7 claims (PageIndex+letta+OpenSpec) | **10 claims** (+ARIS 3 verified) | +3 claims |
+    | Fire 13 anatomies cross-model verified | 3 of 5 | **4 of 5** (80%) | +1 anatomy |
+    | Path P recipe success rate | 3/3 | **4/4** (100%) | + n=4 evidence |
+    | Mia ladder | n=1261 | **n=1273** | +12 |
+    
+    ## Cumulative arc Fire 5-16 (anatomy 3 close)
+    
+    10 folders, ~76 files, ~11242 LOC total across 12-fire arc.
+    
+    Mia ladder n=130 (pre-arc) → n=1273 (Fire 16 anatomy 3 close) = +1143 across 12-fire arc.
+    
+    ## Files changed (2 NEW + 1 UPDATED)
+    
+    docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/
+    ├── 00-tracker.md (UPDATED — anatomy 3 status + forward queue refresh)
+    ├── 04-aris-gpt55-verdict.md (NEW ~135 LOC)
+    └── 04-aris-reinforcement-synthesis.md (NEW ~160 LOC)
+    
+    Plus 2 codex state files at `.claude/state/`:
+    - `codex_consult_w134_f16_aris_focused.txt` (53 LOC prompt)
+    - `codex_consult_w134_f16_aris_focused_OUT.txt` (codex stdout capture)
+    
+    ## Cite trail
+    
+    - Codex CLI v0.130.0 REAL GPT-5.5 APPROVE conf=0.97 verdict
+    - Codex OUT: `.claude/state/codex_consult_w134_f16_aris_focused_OUT.txt`
+    - Repo HEAD pin (Fire 13): `Z:/repos/deps/aris-auto-claude @ 5725459ef5847263e9982f3390a6aa12f2320eaa`
+    - Fire 13 subject: `docs/sota-architecture-audit/fire-13-tier-anatomy/04-aris-anatomy.md`
+    - Path P recipe: `docs/sota-architecture-audit/fire-15-gpt55-convergence/02-path-p-recovery-recipe.md`
+    - Scope note: codex sandbox rejected `git rev-parse` so HEAD SHA not independently re-confirmed (Fire 13 pin preserved)
+    
+    ## Conformance
+    
+    - CR-1: every claim cites file:line + HEAD SHA + codex session metadata + tokens used
+    - CR-3: cross-model gate ✅ SATISFIED for ARIS (3 claims audited; full APPROVE)
+    - CR-5: AUDIT-only (no installs)
+    - CR-9: install-risk N/A (CITE-PATTERN only — vertical-domain mismatch with eee core)
+    - CR-11: META-process — Fire 16 anatomy 3 dogfoods Path P recipe n=4 reproducibility
+    
+    ## Forward queue (Fire 16 anatomy 4 remaining)
+    
+    1. verified-avoid Cohort 3 — apply Path P to `docs/sota-architecture-audit/fire-13-tier-anatomy/05-verified-avoid-update.md`
+    
+    Then Fire 16 close with all 4 anatomies cross-model verified (5 of 5 Fire 13 anatomies done
+    including Fire 15 PageIndex).
+    
+    ## Commits arc (13-fire)
+    
+    638b389 → 583d0bb → ac8ea8a → 88adcd6 → 55204a2 → e785fc5 → f0c2ca2 → e087cbc →
+    38d3976 → c57d807 → 2028b39 → 2163d60 (F15) → 982f8e6 (F16-a1) → 1e0972f (F16-a2) → THIS (F16-a3)
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/00-tracker.md b/docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/00-tracker.md
+index 35218ba..d19993c 100644
+--- a/docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/00-tracker.md
++++ b/docs/sota-architecture-audit/fire-16-gpt55-multi-anatomy/00-tracker.md
+@@ -4,16 +4,16 @@
+ > for full cross-model GPT-5.5 verification.
+ > **Method**: Path P codex T1 with 5-element discipline (minimal/focused/JSON-at-EOF/foreground-tee/300s).
+ > **Recipe source**: `docs/sota-architecture-audit/fire-15-gpt55-convergence/02-path-p-recovery-recipe.md`
+-> **Status**: ANATOMY 2/4 SHIPPED (letta + OpenSpec — 3 Fire 13 claims REFUTED, 2 VERIFIED)
++> **Status**: ANATOMY 3/4 SHIPPED
+
+[prompt truncated]

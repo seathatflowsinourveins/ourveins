@@ -1,0 +1,98 @@
+You are GPT-5.5 reviewing a pre-commit Ship 1C wire plan for cpa-usage-keeper sidecar startup in tools/eee.ps1.
+
+CONTEXT
+- Ship 1B (commit 5fedaad) installed cpa-usage-keeper v1.5.2 at .local/cpa-usage-keeper/cpa-usage-keeper_v1.5.2_windows_amd64/cpa-usage-keeper.exe
+- Wave 81 iter-3 discovered proxy port 8317 multiplexes HTTP+RESP; AUTH+LPOP returns rich per-account JSON usage events
+- iter-4 verified: APP_PORT=8079 free; existing T0.8 ADVISORY block in eee.ps1 at L377-400 sets the pattern for sidecar advisory wiring
+- Wave 82m-B sota-researcher just landed deprecation-discipline.md + launch-discipline.md (Osmani-derived TIER-3-LOCAL-COMPOSITION) — Ship 1C is a DEPLOY (launch-discipline.md applies)
+
+SHIP 1C SCOPE (atomic single-commit wire)
+
+EDIT 1: tools/eee.ps1 — add T0.9 ADVISORY block AFTER L400 (T0.8 CLIProxyAPI fleet check) BEFORE L402 (verdict-render section)
+  Pattern mirrors existing T0.8 advisory shape:
+  - Test-Path binary + .env
+  - Get-NetTCPConnection check for already-listening on APP_PORT 8079
+  - Start-Process -PassThru -WindowStyle Hidden -ArgumentList '-env',$cukEnv
+  - PID written to "$env:CLAUDE_CODE_TMPDIR/cpa-usage-keeper.pid"
+  - Sleep 1500ms then Invoke-WebRequest http://127.0.0.1:8079/ -TimeoutSec 3 (healthcheck)
+  - On success: Write-Host "[eee] cpa-usage-keeper sidecar started" -ForegroundColor Green
+  - On bind-failure: $EEE_ADVISORY_WARNS += message (NOT hard-fail; matches T0.7/T0.8 advisory tier)
+  - On binary missing: $EEE_ADVISORY_WARNS with install hint
+
+EDIT 2: tools/eee.ps1 — add cpa-usage-keeper section header comment block above T0.9 (cite chain to upstream README + Wave 81 Ship 1C trail)
+
+EDIT 3: docs/install-provenance.md — append Wave 81 Ship 1C entry with 6-axis launch-discipline checklist + 3-invariant disposition (reversible / observable / incremental)
+
+NOT IN SHIP 1C
+- SessionEnd cleanup hook (Ship 1D candidate — when session ends, kill PID-tracked cpa-usage-keeper.exe)
+- CLIProxyAPI auto-start (currently advisory-warn only at L399; separate ship)
+- .mcp.json entry (cpa-usage-keeper is NOT MCP — sidecar HTTP service consuming RESP)
+- Cardinal-rule-7 Phase 2 promotion (T0.9 stays ADVISORY tier per current Phase 1 discipline)
+
+LAUNCH-DISCIPLINE 3-INVARIANT DISPOSITION
+
+INVARIANT 1 — REVERSIBLE
+- Code rollback: `git revert <Ship1C-sha>` removes T0.9 block; eee.ps1 returns to pre-Ship-1C state
+- Process rollback: kill PID from "$env:CLAUDE_CODE_TMPDIR/cpa-usage-keeper.pid" + restart eee
+- Config rollback: .env stays unchanged (gitignored — Ship 1B); ANTHROPIC_BASE_URL still points to proxy
+- External effects: SQLite DB (.local/cpa-usage-keeper/.../data/) is gitignored + can be deleted to clean state
+- Two-button rollback: `git revert HEAD` + `Stop-Process -Id <pid-from-tmp/cpa-usage-keeper.pid>`
+
+INVARIANT 2 — OBSERVABLE
+- Logs: cpa-usage-keeper writes to .local/.../data/log/* (LOG_FILE_ENABLED=true default)
+- Metrics: Web Dashboard at http://127.0.0.1:8079/ renders per-account stats; ccusage statusline aggregate continues
+- Alert validation: Invoke-WebRequest /healthcheck on 8079 in eee.ps1 boot; bind-failure surfaces as ADVISORY_WARN
+- Verifiable: post-deploy `curl http://127.0.0.1:8079/api/usage/daily` returns JSON
+
+INVARIANT 3 — INCREMENTAL
+- Stage: ADVISORY tier (matches T0.7/T0.8) — NOT HARD-FAIL; eee launches even if cpa-usage-keeper fails to start
+- Traffic: 0% impact on existing path (eee → proxy → claude.exe); cpa-usage-keeper is read-only sidecar consuming RESP queue events
+- Rollout gate: post-Ship-1C, monitor 24-72h via D2 monitoring window — if Web Dashboard renders + per-account stats accurate vs Wave 80 P3 hypothesis → Outcome A clean APPROVE; else Outcome B revert
+- Cardinal-rule-7 Phase 2 promotion (HARD-FAIL on cpa-usage-keeper failure) requires arc-convergence ≥7 consecutive build-fires post-Tier-2-INSTALLED + Phase 3 trigger predicates
+
+REVIEW AXES (Launch-Discipline 6-axis adapted for sidecar wire)
+
+AXIS 1 — Code quality
+- Test-Path guard for binary + .env presence?
+- Get-NetTCPConnection idempotency (re-launches don't double-start)?
+- Start-Process error handling -ErrorAction Stop with try/catch?
+- Pattern matches T0.7/T0.8 advisory tier (no breaking change to existing flow)?
+
+AXIS 2 — Security
+- .env contains secret CPA_MANAGEMENT_KEY (gitignored L29 + L60 double-cover; verified Ship 1B)
+- PID file in $env:CLAUDE_CODE_TMPDIR (gitignored via tmp/ rule)
+- Web Dashboard 8079 binds to 127.0.0.1 only (NOT 0.0.0.0)
+- No new secret material introduced in eee.ps1 itself
+- AUTH_ENABLED=false in .env — does this leak any per-account stats to localhost-other-process? .env example default is false; revisit if multi-user.
+
+AXIS 3 — Performance
+- Sidecar memory + CPU footprint (cpa-usage-keeper.exe 15.1MB binary; Go runtime ~30-50MB resident estimate)
+- 1.5s sleep before healthcheck — too long? too short? Need shorter for fast-eee-launch UX
+- Healthcheck timeout 3s — appropriate for first-bind?
+- Web Dashboard polling rate from React frontend (default in v1.5.2 — UNKNOWN; needs probe post-deploy)
+
+AXIS 4 — Infrastructure
+- Healthcheck endpoint: README says "exposes aggregation APIs" but doesn't specify health path. Best-effort GET / in v1.5.2 — UNVERIFIED until smoke. Should design tolerate /healthz 404 (treat as healthy if APP_PORT bound)?
+- Log aggregation: cpa-usage-keeper writes to its own data/log/ — NOT routed to .claude/state/ JSONL audit-trail. Is this acceptable for Ship 1C? (could pipe via stderr capture but adds complexity)
+- Database: SQLite at .local/.../data/usage.db (defaults). Backup interval 24h. Gitignored.
+- Rollback strategy DOCUMENTED in this Ship 1C plan ✓
+
+AXIS 5 — Communication
+- Provenance entry in docs/install-provenance.md ✓
+- Manifest entry in docs/sota-installed-manifest.md (need to add — Section 4.5 candidate)
+- Cite chain: TIER-1 cpa-usage-keeper README + CLIProxyAPI ecosystem README
+
+AXIS 6 — Cross-model gate (cardinal-rule-3 Phase 1 bootstrap exception)
+- THIS PROMPT IS T1 — fired via proxy /v1/chat/completions model=gpt-5.5 owned_by=openai (Codex-Pro OAuth via codex-bridge fleet-key)
+- Phase 1 bootstrap exception applies; cross-model gate satisfied via real GPT-5.5 BRIDGE-MODE
+- Mia pre-apply discipline (cite-import-AMBER per CLAUDE.md S14.5): Will run on prescribed_edits before Pattern A apply
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-6,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

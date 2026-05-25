@@ -1,0 +1,124 @@
+# Wave 141A — Docker SOTA permission unleash + manifest additions adversarial review
+
+You are codex GPT-5.5 acting as adversarial reviewer per cross-model-consensus.md
+T1 lifecycle. Single-claim audit. JSON-at-EOF.
+
+## Context
+
+User directive 2026-05-10 (post Wave 141 Fire 1 close at HEAD 9e925083):
+"please also enable youself with sota automation with max permission of docker
+and other related, you need to have the permission and references to full learn
+and use all the essential parts like docker and more, with premission unleashed
+with sota automation with sota harness, so in future session you can learn and
+run them seamlessly with sota workflow, please deep dive into docker org repos
+and sota repos related, compounding study and utilize in future session to
+seamlessly pick up."
+
+## Pre-cloned Docker SOTA reference repos (CR-6 fresh-from-github, --depth 1)
+
+| Repo | HEAD SHA | License | Role |
+|---|---|---|---|
+| `docker/mcp-gateway` | `b46ac896505da28d66eadf941be7979022d16e84` | MIT | Docker MCP CLI plugin + Gateway; container-based MCP isolation + secrets mgmt + OAuth + dynamic discovery; Docker Desktop 4.59+ pre-installed |
+| `docker/docker-agent` | `b6575306cd59b85f3ee529bffe6fd21a04e4c7e8` | Apache-2.0 | Docker Agent Builder CLI plugin; multi-agent + MCP tool ecosystem + AI provider agnostic incl Anthropic Claude; YAML declarative; Docker Desktop 4.63+ pre-installed |
+| `docker/docker-py` | `df3f8e2abc5a03de482e37214dddef9e0cee1bb1` | Apache-2.0 | Python SDK (v7.1.0 INSTALLED in `Z:/venvs/claude/`) |
+| `docker/genai-stack` | `0444f467c600658841580866c4913eaab327b8ec` | CC0 | Reference Langchain + Docker + Neo4j + Ollama compose stack |
+| `docker/awesome-compose` | `18f59bdb09ecf520dd5758fbf90dec314baec545` | CC0 | 60+ Compose example stacks |
+
+## Live Docker state
+
+- Docker Desktop 4.x — Engine 29.4.1 (linux/amd64, kernel 6.6.87.2-microsoft-standard-WSL2)
+- 10 containers running, 13 images
+- docker-py 7.1.0 in `Z:/venvs/claude/Scripts/python.exe`
+
+## Current permission state
+
+- `permissions.defaultMode`: `bypassPermissions` (Wave 82d temp override; CCBP-canonical SOTA = `auto`)
+- `permissions.allow[]`: 11 entries — only Docker-related is `Bash(docker pull *)`
+- `permissions.deny[]`: 8 entries — secret-class file Read patterns only
+- `safety_guard.py` at `Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py`: 1 Docker entry — `docker system prune` regex deny at L106-108
+
+## Proposed Wave 141A design (Voice 3 architect refines)
+
+### A. settings.json `permissions.allow[]` Docker class additions (~12-15 entries)
+
+Add Bash(docker run *) / Bash(docker exec *) / Bash(docker ps *) / Bash(docker stop *) /
+Bash(docker rm *) / Bash(docker images *) / Bash(docker logs *) / Bash(docker inspect *) /
+Bash(docker compose *) / Bash(docker network *) / Bash(docker volume ls *) /
+Bash(docker volume inspect *) / Bash(docker version *) / Bash(docker info *) /
+Bash(docker mcp *) / Bash(docker agent *)
+
+Each entry cite-anchored at `https://docs.docker.com/reference/cli/docker/<subcommand>/`
+or upstream `docker/cli` source.
+
+### B. safety_guard.py Docker policy extension (~5-7 NEW deny patterns)
+
+KEEP existing `docker system prune` regex. ADD:
+- `docker rm -f $(docker ps -aq)` (remove ALL incl running)
+- `docker rmi $(docker images -q)` (remove ALL images)
+- `docker run --privileged` (host-namespace escape)
+- `docker run --net=host` / `docker run --net host` (host network bypass)
+- `docker run --pid=host` / `docker run --pid host` (host PID bypass)
+- `docker exec --privileged` (privileged exec)
+- `docker plugin install` (third-party kernel-level plugin attack surface)
+
+### C. State-outside-repo Docker volume discipline
+
+- Docker volume mounts MUST source from `Z:/claude-sota-installed-state/` NOT from
+  `Z:/claude-sota-installed/`
+- Convention: `Z:/claude-sota-installed-state/.docker-volumes/<container-name>/`
+- CR-9 sibling-bleed: NEVER mount sibling claude-sota state into eee containers
+
+### D. Manifest §3 Docker plugin row additions (2 NEW rows)
+
+- `docker/mcp-gateway` (CLI plugin `docker-mcp`) — Docker Desktop 4.59+ pre-installed
+- `docker/docker-agent` (CLI plugin `docker-agent`) — Docker Desktop 4.63+ pre-installed OR `brew install docker-agent`
+
+### E. Manifest §10 CLI tools Docker family (3 NEW rows)
+
+- Docker Engine (Docker Desktop) — INSTALLED-VIA-SYSTEM-PATH (29.4.1)
+- Docker CLI (`docker`) — INSTALLED-VIA-SYSTEM-PATH (29.4.1)
+- docker-py (Python SDK) — INSTALLED in venv (v7.1.0)
+
+## Single-claim audit
+
+CLAIM: "The Wave 141A design proposal (sections A+B+C+D+E above) is necessary
+AND sufficient to enable seamless SOTA Docker workflow (compose, mcp-gateway,
+docker-agent, build, exec, multi-network) WITHOUT violating CR-1 cite-trail
+OR CR-7 graduated-unleash OR CR-9 install-risk discipline OR introducing
+security regression beyond Wave 82d bypassPermissions baseline."
+
+Specifically classify:
+- (a) Are Section A allow entries OVER-permissive (gaps where wildcard `*`
+  opens unintended attack surface)?
+- (b) Are Section B deny patterns sufficient (any catastrophic Docker pattern
+  missed)?
+- (c) Section C state-outside-repo volume discipline — does it actually
+  enforce sibling-bleed defense or just document it?
+- (d) Section D plugin manifest rows — verify CLI plugins ARE present in
+  Docker Desktop 4.x at this Engine version (29.4.1) — pre-installed claim
+  needs probe
+- (e) Hidden Docker security failure modes: Docker socket mount via
+  `-v /var/run/docker.sock`? Docker context switching to remote engines?
+  Capabilities (CAP_SYS_ADMIN, CAP_NET_ADMIN) added via `--cap-add`?
+  User namespace remapping? Seccomp profiles?
+
+## Output format (MANDATORY JSON at EOF)
+
+After analysis, emit final verdict as single JSON object on LAST line. Schema:
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "section_a_overpermissive": ["..."],
+  "section_b_missing_denies": ["..."],
+  "section_c_enforces_sibling_bleed": true,
+  "section_d_plugins_actually_installed": "verified|unverified|absent",
+  "hidden_security_modes": ["..."],
+  "concerns": ["..."],
+  "prescribed_edits": ["..."]
+}
+```
+
+Be terse. ~30 LOC reasoning before JSON. Cite primary sources at file:line +
+HEAD SHA OR `https://docs.docker.com/...` URL.

@@ -1,0 +1,147 @@
+docs(cosign-verify): Wave 134 Fire 47 — W134-F-IMP-Q-DISCIPLINE-V2 patch SHIPPED (Pattern A 8-edit applied; 11th Forward Discipline #2 recursive dogfood; Path D direct-apply 4th consecutive; 1st cite-class-upgrade-from-dogfood-feedback)
+
+14th Tier-2 codification ship in Wave 134 series (this is a Fire 45 patch
+ship). Closes Fire 46 LOAD-BEARING findings #1 (KMS-backed identity pattern
+not documented) + #3 (modern bundle format SOTA-pin not documented).
+
+## Patch architecture (post Pattern A 8-edit)
+
+NEW §Step 3 sub-rules + 3 new anti-patterns + TIER-1-DIRECT Sigstore docs cite anchors added to docs/cosign-verify-attestation-discipline.md (278 → 327 LOC).
+
+### NEW §Step 3 sub-rule: Identity patterns (non-exhaustive list of common patterns)
+
+| Pattern | SAN | OIDC issuer |
+|---|---|---|
+| (a) GitHub Actions workflow | `https://github.com/<owner>/<repo>/.github/workflows/<workflow>.yml@refs/tags/<version>` | `https://token.actions.githubusercontent.com` |
+| (b) Google KMS-backed service account | `<account>@<project>.iam.gserviceaccount.com` | `https://accounts.google.com` |
+| (c) Generic OIDC CI/provider (NEW Pattern A edit #2) | Discovered (varies per CI: GitLab, CircleCI, Buildkite, Azure AD) | Discovered (e.g., `https://gitlab.com`, `https://login.microsoftonline.com/<tenant>`) |
+
+Identity + issuer MUST be DISCOVERED from cert/bundle BEFORE applying flags
+(never pattern-matched against a 2- or 3-pattern allowlist). 5-step
+discovery flow including OCI `cosign tree <image>` path for OCI variants.
+
+### NEW §Step 3 sub-rule: Bundle-first modern format (3-tier SOTA-pin)
+
+| Tier | Format | Status |
+|---|---|---|
+| 1 | `--bundle <file>.sigstore.json` v0.3 mediaType `application/vnd.dev.sigstore.bundle.v0.3+json` | ✅ PREFERRED current SOTA |
+| 2 | `--bundle <file>.sigstore.json` v0.2 OR v0.1 | ⚠️ COMPAT (inspect mediaType deliberately) |
+| 3 | `--certificate <pem> --signature <sig>` separate flags | ❌ LEGACY (fallback only) |
+
+Discovery flow: `jq '.mediaType' <bundle>` BEFORE invocation.
+
+### NEW 3 anti-patterns
+
+1. Treating GitHub Actions + Google KMS-backed as ONLY keyless identities (refuted by §Step 3 sub-rule; ecosystem accepts ANY OIDC-issued identity)
+2. Using legacy `--certificate <pem> --signature <sig>` flags when bundle exists (refuted by SOTA-pin discipline; loses Rekor evidence)
+3. Using bundle without mediaType/shape check (refuted by Gate 9 SCHEMA-DRIFTED composition; v0.1/v0.2/v0.3 have different verificationMaterial shapes)
+
+## Codex T1 verdict (11th Forward Discipline #2 dogfood; Path D 4th consecutive)
+
+```json
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.9,
+  "summary": "The patch direction is sound, but the identity split is under-specified as two exhaustive patterns and the new external cosign/bundle claims need official Sigstore cite anchors.",
+  "identity_split_complete": "NEEDS-ADDITION",
+  "bundle_first_correct": "YES",
+  "discovery_flow_precise": "NEEDS-FIX",
+  "anti_pattern_additions_correct": "NEEDS-FIX",
+  "integration_with_fire_45_clean": "YES",
+  "cite_class_correct": "NO",
+  "prescribed_edits": 8
+}
+```
+
+~120s wall-clock / 7,318 tokens.
+
+## Pattern A 8-edit applied (single atomic fix-forward)
+
+1. ✅ Identity split: "2 patterns" → "common patterns; non-exhaustive"
+2. ✅ NEW 3rd pattern (c) Generic OIDC CI/provider + GitLab/Azure examples
+3. ✅ Azure-specific clarification: SAN ≠ Google-style format
+4. ✅ TIER-1-DIRECT Sigstore official docs (3 URLs) cite anchors added
+5. ✅ Cite class upgrade: TIER-3-LOCAL-only → +TIER-1-DIRECT Sigstore docs
+6. ✅ OCI discovery extended with `cosign tree <image>`
+7. ✅ NEW anti-pattern: GitHub Actions + KMS as ONLY keyless identities
+8. ✅ NEW anti-pattern: bundle without mediaType/shape check
+
+## 🚨 Three LOAD-BEARING findings
+
+### #1 Forward Discipline #2 ladder n=10→n=11 + Path D 4th consecutive (Fire 42+43+45+47)
+
+| Fire | Wall-clock | Outcome | Path D apply # |
+|---|---|---|---|
+| 42 | ~150s | NEEDS-REVISION conf=0.9 + 5 prescribed | 1st direct |
+| 43 | ~150s | NEEDS-REVISION conf=0.89 + 5 prescribed | 2nd direct |
+| 45 | ~150s | NEEDS-REVISION conf=0.91 + 9 prescribed | 3rd direct |
+| **47** | **~120s** | **NEEDS-REVISION conf=0.9 + 8 prescribed** | **4th direct (PATCH ship)** |
+
+Pattern D recipe ESTABLISHED PRODUCTION-DEFAULT for codification fires
+(4 consecutive successful applications including patch ship). n=11
+cumulative cross-arc + n=4 consecutive Path-D-direct evidence.
+
+### #2 4th architectural-extension via Pattern A (Wave 134 series running pattern)
+
+| Fire | Architectural extension |
+|---|---|
+| 41 | 8 gates → 10 gates (Output Validation + Side-Effect/Permission Boundary Audit added) |
+| 43 | Band 6 sub-bands 2 → 3 (Tier-4 stale-activity Band 6c added) |
+| 45 | 5 steps → 6 steps (Step 0 verify-the-verifier added) |
+| **47** | **2 identity patterns → 3 + non-exhaustive framing (Pattern (c) generic OIDC + reframing)** |
+
+Cross-model peer review extending operator-side design at SCAFFOLDING level
+recurring across codification ships. 4 consecutive Wave 134 codifications
+hit by architectural-extension Pattern A outcome shape.
+
+### #3 1st cite-class upgrade FROM operational dogfood feedback
+
+Fire 46 dogfood empirically discovered (a) KMS-backed identity pattern not
+in Fire 45 docs + (b) bundle-first SOTA-pin not in Fire 45 docs. Fire 47
+patch closes both gaps AND upgrades cite class from TIER-3-LOCAL-only to
+include TIER-1-DIRECT Sigstore official docs (3 URLs). First Wave 134
+codification with cite-class upgrade triggered by operational dogfood
+feedback. Sister pattern to Fire 41 framework Status table Gate 1
+PARTIAL→MOSTLY-WIRED upgrade FROM Fire 46 dogfood — both are
+operational-driven framework refinements that close gaps invisible at
+codification time.
+
+## NEW cohort entries
+
+- Tier-2 codification ships: n=13 → **n=14**
+- Forward Discipline #2 evidence ladder beyond promotion gate: n=10 → **n=11**
+- Pattern A multi-edit single-atomic-apply instances: n=7 → **n=8**
+- Path D direct-apply (4th consecutive) instances: n=3 → **n=4**
+- Architectural-extension via Pattern A instances: n=3 → **n=4**
+- Cite-class-upgrade-from-dogfood-feedback instances: n=0 → **n=1 NEW**
+- Patch-ship codifications (Fire-N follow-up to Fire-N-1 dogfood): n=0 → **n=1 NEW**
+
+## REVISED Forward Top-5 (post-Fire-47)
+
+| Priority | Fire | Subject |
+|---|---|---|
+| 🥇 | W134-F33c | bnomei/frigg INSTALL pilot (DEFERRED to 2026-06-04) |
+| 🥈 | W134-F-SISTER-RULE-EDIT | sota-research-architecture.md §"Quantitative rubric" cite-reference |
+| 🥉 | W134-F-IMP-O | eee OTel schema standardization |
+| #4 | W134-F-IMP-Q-MECHANICAL | Fire 45 Steps 0-5 mechanical-hook codification |
+| #5 | W134-F-CG-UPSTREAM | sibling-rule-port Band 6 |
+
+## Discipline conformance
+
+- CR-1 cite-trail: TIER-1-DIRECT Sigstore docs (3 URLs) + TIER-3-LOCAL sister-rule cites
+- CR-3 cross-model: ✅ FULLY SATISFIED — REAL GPT-5.5 NEEDS-REVISION conf=0.9 + Pattern A 8-edit applied
+- CR-6 official-native-channel: ✅ official Sigstore docs URLs cited
+- CR-9 install-risk: ✅ extended via empirical-driven discipline refinement
+- CR-10 research-first-then-install: ✅ Fire 46 dogfood drove research; Pattern A applied codex T1 findings
+- CR-11 META-process: ✅ THIS FIRE IS the CR-11 dogfood (META-process patch ship from operational feedback)
+- CR-12 5-class lattice: ✅ GENUINELY-NEW
+- FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+- Pattern A fix-forward: ✅ 8-edit single atomic apply
+- Forward Discipline #2 (11th recursive dogfood): ✅ ladder n=10→n=11 + Path D 4th consecutive
+
+## Trailers
+
+Refs: docs/cosign-verify-attestation-discipline.md (278→327 LOC post Pattern A 8-edit)
+Refs: .claude/state/codex_consult_w134_f47_kms_bundle_patch_OUT.txt
+Cite: TIER-1-DIRECT Sigstore official docs (3 URLs: quickstart-cosign + verify + signing_with_containers) + TIER-3-LOCAL sister-rule cite-imports
+Verify: `[VERIFIED via .claude/state/codex_consult_w134_f47_kms_bundle_patch_OUT.txt — REAL GPT-5.5 NEEDS-REVISION conf=0.9 + Pattern A 8-edit applied + docs/cosign-verify-attestation-discipline.md 278→327 LOC SHIPPED (3 patterns non-exhaustive + bundle-first 3-tier SOTA-pin + 3 new anti-patterns + TIER-1-DIRECT Sigstore docs cite-class upgrade) + Forward Discipline #2 ladder n=10→n=11 + Path D 4th consecutive + 1st cite-class-upgrade-from-dogfood-feedback + 4th architectural-extension via Pattern A]`

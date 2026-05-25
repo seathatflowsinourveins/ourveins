@@ -1,0 +1,43 @@
+## Wave 83b T1 retroactive consult — fm17d_stall_detector schema fix
+
+### Edit summary
+Replaced top-level `stop_reason` / `tool_uses` / `last_assistant_message` field expectations with `agent_transcript_path` JSONL mining in `.claude/hooks/scripts/fm17d_stall_detector.py`.
+
+### TIER-1 cite (load-bearing)
+`Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:309-316 @ HEAD b512f256` — `SubagentStopHookInput` TypedDict: only `hook_event_name` / `stop_hook_active` / `agent_id` / `agent_transcript_path` / `agent_type` are top-level. NOT stop_reason / tool_uses / last_assistant_message.
+
+### TIER-2 cite
+`.claude/rules/synthesis-layer-verify.md §SubagentStop transcript-mining` — canonical SOTA pattern: read `agent_transcript_path` JSONL, parse for tool_use blocks + stop_reason + last text.
+
+### Prior bug
+fm17d_stall_detector.py main() called `_safe_field(payload, "stop_reason")` and `_safe_int(payload, "tool_uses", "tool_count")` and emitted `schema_missing` whenever those fields were absent. Per SDK schema, those fields are ALWAYS absent at top-level → schema_missing fired on EVERY invocation = noise not signal.
+
+### New code shape
+```python
+def _mine_transcript(transcript_path):
+    # Read JSONL line-by-line, parse JSON, extract message.content blocks,
+    # count tool_use blocks, capture last text block + stop_reason from
+    # final assistant message. Returns (last_text, stop_reason, tool_uses, parse_status).
+    # parse_status enum: "ok" / "no_transcript_path" / "transcript_missing" / "parse_empty" / "parse_failed"
+
+def main():
+    transcript_path = payload.get("agent_transcript_path")
+    last_msg, stop_reason, tool_uses, parse_status = _mine_transcript(transcript_path)
+    schema_missing = ["agent_transcript_path"] if missing_transcript else \
+                     [f"transcript_{parse_status}"] if parse_status != "ok" else []
+```
+
+### Axes for review
+1. **CITE TRAIL**: Does the fix correctly use TIER-1 SDK schema (file:line + HEAD SHA) as backing?
+2. **CORRECTNESS**: Is JSONL transcript-mining shape correct? message.content is a list of blocks each with `type` ∈ {text, tool_use, tool_result, ...}.
+3. **HARNESS-FIT**: Does this preserve fm17d classification semantics (FM-17.b vs c.ii vs d vs suspected_d)?
+4. **EDGE CASES**: What happens if transcript_path is set but file is empty? File has 0 messages? File has malformed JSON?
+5. **SECURITY**: Any path traversal risk? Encoding errors leak info? Read of arbitrary path?
+
+### Output schema (verbatim)
+```json
+{"verdict": "approve|needs-revision|reject", "confidence": 0.0-1.0, "summary": "...", "findings": [...], "prescribed_edits": [...]}
+```
+
+### Disclosure
+Per CR-3 Phase 1 bootstrap exception: this is RETROACTIVE T1 — Edit landed before T1 fired. Cross-model-gate-satisfaction-status: PARTIAL via STAND-IN-NOTICE; codex GPT-5.5 reviews post-Edit; full T2 commit-time gate will fire on commit.

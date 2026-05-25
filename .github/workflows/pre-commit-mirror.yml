@@ -1,0 +1,109 @@
+## W344 Stream Z6 P3.4 #2 — pre-commit mirror on PR
+##
+## Runs .pre-commit-config.yaml on CI for every PR, mirroring the local pre-commit gate.
+## Ensures the runtime's hook discipline (gitleaks, ruff, shellcheck, git, cr2-2kb-hooks)
+## also runs in CI before merge.
+##
+## Cite-anchors (3-org-distinct per CR-6):
+## - pre-commit.ci (pre-commit org) — https://pre-commit.com/#github-actions-example
+## - OpenSSF / Sigstore — supply-chain integrity context
+## - actions/cache (GitHub Inc) — cache action pinning
+
+name: pre-commit-mirror
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master, w344-mainsession-ship, 'w34*-mainsession-ship', 'goal/W3*-sota-unleash']
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: pre-commit-mirror-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: pre-commit (mirror local .pre-commit-config.yaml)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.2.2, 577 days stale)
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0 (W432-CI-STALE-BUMP; was v5.3.0, 576 days stale)
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node.js v22 LTS
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22.22.0'
+
+      - name: Cache pre-commit envs
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-
+
+      # W349 P0.5 RC-15: install system binaries that .pre-commit-config.yaml hooks
+      # depend on via `gitleaks-system` + `actionlint-system` (language: system).
+      # Without these, pre-commit runs `gitleaks-system` / `actionlint-system` and gets
+      # `Executable not found` exit=1. Pin to the same versions as the upstream pre-commit
+      # repos in .pre-commit-config.yaml (gitleaks v8.30.1; actionlint v1.7.12).
+      # Cite: github.com/gitleaks/gitleaks/releases/tag/v8.30.1
+      #       github.com/rhysd/actionlint/releases/tag/v1.7.12
+      - name: Install gitleaks (v8.30.1)
+        run: |
+          set -euo pipefail
+          curl -sSLo /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Install actionlint (v1.7.12)
+        run: |
+          set -euo pipefail
+          curl -sSLo /tmp/actionlint.tar.gz "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          sudo mv /tmp/actionlint /usr/local/bin/actionlint
+          actionlint -version
+
+      - name: Install pre-commit
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'pre-commit>=3.8.0'
+          pre-commit --version
+
+      - name: Run pre-commit on all files
+        if: github.event_name == 'push'
+        env:
+          SKIP: cr7-worktree-collision
+        run: pre-commit run --all-files --show-diff-on-failure --color always
+
+      - name: Run pre-commit on PR diff
+        if: github.event_name == 'pull_request'
+        env:
+          SKIP: cr7-worktree-collision
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git fetch origin "$BASE_SHA":refs/remotes/origin/base-ref || true
+          pre-commit run \
+            --from-ref "$BASE_SHA" \
+            --to-ref "$HEAD_SHA" \
+            --show-diff-on-failure \
+            --color always

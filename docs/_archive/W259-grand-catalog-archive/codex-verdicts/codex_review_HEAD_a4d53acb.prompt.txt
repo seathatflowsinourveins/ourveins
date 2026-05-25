@@ -1,0 +1,238 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit a4d53acbf33670edfa4adb3236f27da7103e1118
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/cwc/commit-on-stop.sh | 17 -----------------
+ .claude/hooks/scripts/cwc/kill-switch.sh    |  9 ---------
+ .claude/hooks/scripts/cwc/steer.sh          | 14 --------------
+ .claude/hooks/scripts/cwc/track-read.sh     | 11 -----------
+ .claude/hooks/scripts/cwc/verify-gate.sh    | 29 -----------------------------
+ 5 files changed, 80 deletions(-)
+
+=== git show --format=fuller ===
+commit a4d53acbf33670edfa4adb3236f27da7103e1118
+Author:     42 <42@local>
+AuthorDate: Tue May 12 11:57:00 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 11:57:00 2026 -0400
+
+    revert(hooks): wave loop89d7bbd4 fire 3 — REVERT-AND-REMOVE Fire 2 cwc NEW-path duplicates (Pattern A fix-forward per T3 NEEDS-ATTENTION conf=0.82)
+    
+    Closes T3 codex postcommit NEEDS-ATTENTION verdict on Fire 2 commit
+    `94a3248` per `.claude/state/codex_review_HEAD_94a32488.txt` (medium
+    severity finding "Duplicate hook tree leaves CWC behavior path-dependent
+    and potentially inert"). Outcome B REVERT-AND-REMOVE per
+    `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md`
+    §Disposition signal + §REVERT-then-recovery trajectory.
+    
+    ## Concrete operational verification supporting REVERT
+    
+    Per `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md`
+    §Severity gate: medium severity requires concrete-verification before
+    Outcome A ACCEPT-WITH-DOC; concrete-verification IS available and points
+    to REVERT not ACCEPT:
+    
+    1. **Wave 153 fire 1 commit `5495bbd`** ("cwc-active-wire-path-
+       reconciliation") INTENTIONALLY wired the 4 cwc PreToolUse hooks
+       (kill-switch / steer / track-read / verify-gate) at OLD path
+       `.claude/hooks/cwc/`. The OLD-path files are LOCAL ADAPTATIONS (blob
+       SHAs c8765d28 / b5d1bf77 / eb08e2f1 / 2751ab3b — ALL diverge from
+       upstream @ffd563d6). The local adaptations were made for a reason
+       (path expansion, env-var resolution) and are the wired canonical.
+    
+    2. **`.claude/settings.json` hooks confirm wiring at OLD path**:
+       - L137: kill-switch.sh → `.claude/hooks/cwc/`
+       - L142: steer.sh → `.claude/hooks/cwc/`
+       - L152: track-read.sh → `.claude/hooks/cwc/`
+       - L162: verify-gate.sh → `.claude/hooks/cwc/`
+       - L404: commit-on-stop-throttled.sh → `.claude/hooks/scripts/cwc/`
+         (LOCAL Wave 101 Ship 2Q wrapper; bypasses both via
+         `${CLAUDE_PROJECT_DIR}/.local/cwc/...` direct call to upstream
+         install)
+    
+    3. **`commit-on-stop-throttled.sh:62` bypasses both local cwc trees**:
+       `UPSTREAM_HOOK="${CLAUDE_PROJECT_DIR}/.local/cwc/claude-code-config/
+       .claude/hooks/commit-on-stop.sh"` then `bash "$UPSTREAM_HOOK"`. This
+       means commit-on-stop.sh in `.claude/hooks/scripts/cwc/` (Fire 2
+       addition) is UNUSED — never invoked by any hook wire.
+    
+    4. **CLAUDE.md §Section 17 canonical install location**: per CLAUDE.md
+       L274-277 the canonical install is `.local/cwc/` (Wave 6 port; per-file
+       SHAs recorded in `docs/install-provenance.md` Wave 62B fix-forward).
+       The 5 files Fire 2 added at `.claude/hooks/scripts/cwc/` are NOT at
+       the canonical install path AND are NOT wired AND are NOT consumed.
+    
+    5. **5 Fire-2 files = pure DEAD CODE**: 4 byte-match-upstream cite
+       anchors that duplicate already-wired (but locally-adapted) OLD-path
+       versions + 1 unconsumed commit-on-stop.sh whose throttle wrapper
+       bypasses to `.local/cwc/` directly. Per `kiss-dry-yagni.md`
+       Must-Never #4 (no duplicate functionality without clear reason), 5/5
+       are duplicate-without-reason.
+    
+    ## Cite-anchor preservation (REVERT does NOT lose CR-1 cite trail)
+    
+    The CR-1 cite-trail purpose Fire 2 attempted (anchor 5 cwc primitives at
+    upstream @ffd563d6) is preserved WITHOUT the files in repo via:
+    
+    - **CLAUDE.md §Architecture L274-277** ("Native install at
+      `Z:/claude-sota-installed/.local/cwc/` per Wave 6 port; per-file blob
+      SHAs recorded in `docs/install-provenance.md` Wave 62B fix-forward
+      entry") — already TIER-1-DIRECT cite anchor at HEAD ffd563d6
+    - **`.local/cwc/` native install** — Wave 6 port (the actual canonical
+      Anthropic install)
+    - **`docs/install-provenance.md` Wave 62B fix-forward entry** —
+      per-file blob SHAs already recorded
+    - **Fire 2 commit `94a3248`** preserved in git history as audit trail
+      (this REVERT does NOT rewrite history per `port-note-discipline.md §6`)
+    
+    REVERT-then-narrower-re-introduction trajectory per
+    `closed-loop-recursive-narrowing.md §REVERT-then-recovery`: this commit
+    closes arc 1 (Fire 2 over-broad install-at-wrong-path); next-fire
+    candidate is narrower provenance-log append (operational closure of
+    `94a3248` via Wire→Surface→Close per `audit-action-loop.md`) without
+    file duplication.
+    
+    ## Files removed (5; reverses Fire 2 additions)
+    
+    - .claude/hooks/scripts/cwc/commit-on-stop.sh (17 lines)
+    - .claude/hooks/scripts/cwc/kill-switch.sh (9 lines)
+    - .claude/hooks/scripts/cwc/steer.sh (14 lines)
+    - .claude/hooks/scripts/cwc/track-read.sh (11 lines)
+    - .claude/hooks/scripts/cwc/verify-gate.sh (29 lines)
+    
+    `.claude/hooks/scripts/cwc/commit-on-stop-throttled.sh` PRESERVED — it
+    is the LOCAL Wave 101 Ship 2Q wrapper (already tracked pre-Fire-2; wired
+    at L404; not part of this REVERT).
+    
+    ## CR conformance
+    
+    - CR-1: ✅ cite-trail preserved via CLAUDE.md §Section 17 + provenance
+      log (no need for files-in-repo)
+    - CR-3: ✅ T3 codex postcommit verdict drove this REVERT (cross-model
+      gate; Phase 1 bootstrap exception — T3 hook IS active per
+      `codex_review_HEAD_94a32488.txt` written automatically; Mia OVER on
+      own Fire 2 brief which claimed Tier 1a NOT-yet-INSTALLED — manifest
+      §Section 2 row needs reconciliation forward-only)
+    - CR-5: ✅ install-priority preserved — `.local/cwc/` (canonical
+      upstream install) is unchanged by this REVERT
+    - CR-7: ✅ Phase 1 bootstrap discipline + REPORT mandate satisfied (T3
+      verdict cited inline; concrete-verification per Wave 153 fire 1
+      + settings.json wiring + throttled wrapper bypass)
+    - CR-8: ✅ ADAPTED-FROM-SOTA — local adaptations at OLD path are the
+      canonical wired install (Wave 153 decision); upstream cite anchor
+      preserved in CLAUDE.md §Section 17
+    - CR-9: ✅ install-risk discipline — Fire 2 ship-with-immediate-T3-
+      catch is exactly the 2-round fix-forward Pattern A budgeted (per
+      cardinal-rule-9 "2-round fix-forward expectation: hook installs and
+      rule installs historically require NEEDS-REVISION → fix-forward →
+      APPROVE per sibling first-50-commits evidence (8/12 ports needed 2
+      rounds)")
+    - CR-11: ✅ META-process SOTA — T3 verdict → Pattern A fix-forward →
+      Outcome B REVERT-AND-REMOVE per closed-loop-recursive-narrowing IS
+      the canonical lifecycle
+    - CR-12: ✅ disposition lattice — Fire 2's DUPLICATE-FUNCTIONALITY at
+      wrong path → REJECT-FOR-FIT class; REVERT is correct disposition
+    
+    ## FM-class risk
+    
+    - FM-02 (b)+(c): LOW — narrow `git rm ... && git commit --only -F ... --`
+      atomic single-shell chain per git-cli-grammar-discipline
+    - FM-17.f: ZERO — orchestrator-direct REVERT (no BRIDGE-MODE subagent)
+    - FM-19: ZERO — file removal is Edit-class; safety_guard.py passes
+    - FM-20: ZERO — REVERT cites concrete operational evidence (Wave 153
+      commit SHA + settings.json line refs + throttled wrapper code path);
+      no cite-propagation drift
+    
+    ## Concurrent observations (NOT primary fire action; documented per
+    cardinal-rule-7 REPORT mandate)
+    
+    ### Wave 1 Agent A FM-17.e close-synthesis
+    
+    Wave 1 Agent A (codex:codex-rescue "GPT-5.5 rule layer staleness audit",
+    task `a26f4db993e3f8926`) returned FM-17.e signature per
+    `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md §FM-17.e`:
+    
+    - `<status>completed</status>` + literal "Autoc
+
+[prompt truncated]

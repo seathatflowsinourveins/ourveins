@@ -1,0 +1,169 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 3bee1fae9f584b88a6915289d11d01ae2f5cdc94</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/agents/evaluator.md | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 3bee1fae9f584b88a6915289d11d01ae2f5cdc94
+Author:     42 <42@local>
+AuthorDate: Tue May 12 16:03:14 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 16:03:14 2026 -0400
+
+    fix(agents): Ship 1.1 — evaluator.md Pattern A fix-forward closing T3 a4bb3f14 (HIGH conf=0.9 + MED conf=0.75)
+    
+    Wave 156 Ship 1.1 per plan cryptic-shimmying-dewdrop.md §1 PATH A. Pattern A
+    single atomic apply per codex-t1-fix-forward-pattern.md §Pattern A closing
+    Ship 1 (commit a4bb3f1) T3 NEEDS-ATTENTION verdict at
+    .claude/state/codex_review_HEAD_a4bb3f14.txt (2 findings):
+    
+      (1) HIGH conf=0.9 — "Reviewer still has mutating shell access under auto
+          permissions": Bash under permissionMode auto doesn't enforce read-only
+          via agent_plan_readonly_bash_guard.py; disallowedTools doesn't constrain
+          arbitrary shell commands.
+    
+      (2) MED conf=0.75 — "Full GitHub MCP grant is not shown to be read-only":
+          mcpServers: github exposes 12 mutating tools (create_issue,
+          create_pull_request, add_issue_comment, merge_pull_request, update_issue,
+          create_or_update_file, push_files, create_branch, fork_repository,
+          create_repository, create_pull_request_review, update_pull_request_branch).
+    
+    Per closed-loop-recursive-narrowing.md §Severity gate: ACCEPT-WITH-DOC HARD-DENY
+    on unresolved HIGH conf=0.9 → MUST Pattern A fix-forward (this commit).
+    
+    Cross-model gate satisfaction (cardinal-rule-3 + Phase 1 bootstrap exception):
+    - Ship 1.1 T1 consult fired via Path P codex exec foreground+tee
+      (bg job b18q9dabv exit 0) at
+      .claude/state/codex_consult_ship1.1_evaluator_t3_fix_forward.txt
+    - T1 verdict: NEEDS-REVISION conf=0.91 (4 prescribed_edits) at
+      .claude/state/codex_consult_ship1.1_evaluator_t3_fix_forward_OUT.txt
+    - Critical codex insight (axis_2 reframe): "Anthropic docs say subagents can
+      set permissionMode: plan, but parent bypassPermissions/acceptEdits takes
+      precedence and auto ignores subagent permissionMode. This repo currently
+      runs defaultMode bypassPermissions, so plan-mode alone is not a hard Bash
+      boundary." (per CLAUDE.md §Intentional divergences (d) Wave 82d operator
+      override). Existing guarded agents wire agent_plan_readonly_bash_guard.py
+      in frontmatter hooks block; evaluator did not.
+    - Pattern A apply per codex-t1-fix-forward-pattern.md §Pattern A: ALL 4
+      prescribed_edits applied in this single atomic commit (no iter chain).
+    
+    Prescribed edits applied (4 atomic):
+    
+    1. permissionMode: `auto` → `plan` (frontmatter L7)
+       Directionally correct per T3 HIGH; activates plan-mode behavioral
+       semantics. NOT sufficient alone (see Edit 3).
+    
+    2. Removed `- github` from mcpServers (frontmatter L18-20)
+       Closes T3 MED conf=0.75. Evaluator role uses local Read/Glob/Grep/Bash(git
+       diff) + repomix MCP for analysis; no GitHub API needed. Removes 12-tool
+       mutation surface entirely. Only repomix remains (analysis-oriented).
+    
+    3. Added hooks.PreToolUse:Bash block invoking agent_plan_readonly_bash_guard.py
+       --policy readonly with timeout 5 (frontmatter NEW)
+       Load-bearing closure of T3 HIGH conf=0.9. Per Anthropic sub-agents docs
+       parent-precedence rule + Ship 1.1 codex T1 verdict: parent
+       bypassPermissions overrides subagent permissionMode → per-agent hooks block
+       enforces read-only Bash at runtime regardless of parent mode. Mirrors
+       code-reviewer.md L51-57 wire pattern (verified via Mia pre-apply probe).
+    
+    4. Updated HTML comment block with Ship 1.1 closure notes (d/e/f) documenting
+       each Pattern A edit per cardinal-rule-7 REPORT mandate.
+    
+    Post-edit verification:
+    - YAML parses clean (Python yaml.safe_load); field count 15 (was 14 in Ship 1)
+    - guard script exists: True (Z:/claude-sota-installed/.claude/hooks/scripts/
+      agent_plan_readonly_bash_guard.py present)
+    - BOM preserved
+    - HTML comment block intact + extended with (d)(e)(f) closure notes
+    
+    Launch-discipline 3 invariants check (per launch-discipline.md):
+    - Reversible: ✅ `git revert HEAD` works (atomic single-file commit)
+    - Observable: ✅ T3 codex_postcommit_review.py auto-fires post-commit;
+      verdict at .claude/state/codex_review_HEAD_<sha8>.txt
+    - Incremental: ✅ single-file atomic; small surface
+    
+    Mia pre-apply discipline (per mia-pre-apply.md) — n=412 cumulative ladder
+    + N more on this ship's 4 prescriptions:
+    - ✅ evaluator.md L7 `permissionMode: auto` VERIFIED via Read
+    - ✅ evaluator.md L18-20 `- github` in mcpServers VERIFIED via Read
+    - ✅ code-reviewer.md L51-57 hooks pattern VERIFIED via Read (mirror target)
+    - ✅ guard script existence VERIFIED via Python os.path.exists probe
+    
+    Cite class for this ship:
+    constituents=[
+      TIER-1-DIRECT @ Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents
+        (parent-precedence rule; permissionMode semantics; hooks frontmatter spec),
+      TIER-1-DIRECT @ .claude/agents/code-reviewer.md:51-57 (mirror pattern; eee-runtime),
+      TIER-3-LOCAL-OPERATOR-DERIVED @ codex T3 verdict NEEDS-ATTENTION at
+        .claude/state/codex_review_HEAD_a4bb3f14.txt,
+      TIER-3-LOCAL-OPERATOR-DERIVED @ codex T1 ship1.1 verdict NEEDS-REVISION conf=0.91 at
+        .claude/state/codex_consult_ship1.1_evaluator_t3_fix_forward_OUT.txt,
+      TIER-3-LOCAL-COMPOSITION @ Wave 156 plan ship-1.1 + Pattern A apply discipline
+    ];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8 MIN_PRECEDENCE
+    
+    FM-02 (b)+(c) destructive-race defense: atomic single-shell `git add -- <path>
+    && git commit -o -F <msg> -- <path>` pattern per git-cli-grammar-discipline.md.
+    
+    Ship 1.1 closes Ship 1 round 2 closed-loop arc per closed-loop-recursive-narrowing.md
+    §Outcome A monotone-decline candidate (round 1 conf=0.9 NEEDS-REVISION applied;
+    round 2 conf=0.91 → expect round 3 APPROVE OR severity downgrade per Iron Law
+    verification-before-completion fresh-probe gate).
+    
+    Ship 1.1 of 24+ per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE.
+
+=== diff ===
+diff --git a/.claude/agents/evaluator.md b/.claude/agents/evaluator.md
+index 04c4562..905bff2 100644
+--- a/.claude/agents/evaluator.md
++++ b/.claude/agents/evaluator.md
+@@ -4,7 +4,7 @@ description: Skeptical second-opinion reviewer. Reads the diff and the builder's
+ tools: [Read, Glob, Grep, Bash]
+ disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+ model: sonnet
+-permissionMode: auto
++permissionMode: plan
+ maxTurns: 20
+ effort: high
+ isolation: worktree
+@@ -16,8 +16,22 @@ skills:
+   - superpowers:requesting-code-review
+   - addy-agent-skills:code-review-and-quality
+ mcpServers:
+-  - github
+   - repomix
++# Ship 1.1 operational Bash guard per codex T1 NEEDS-REVISION conf=0.91 verdict at
++# .claude/state/codex_consult_ship1.1_evaluator_t3_fix_forward_OUT.txt (closing T3
++# a4bb3f14 HIGH conf=0.9 finding). Mirrors code-reviewer.md L51-57 wire pattern.
++# Per Anthropic sub-agents docs parent-precedence rule (subagent permissionMode is
++# overridden by parent bypassPermissions/acceptEdits): plan-mode alone is NOT a
++# hard Bash boundary in this runtime (CLAUDE.md §Intentional divergences (d) Wave
++# 82d operator override sets defaultMode: bypassPermissions). THIS HOOK enforces
++# read-only Bash at runtime regardless of parent mode.
++hooks:
++  PreToolUse:
++    - matcher: "Bash"
++      hooks:
++        - type: command
++          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
++          timeout: 5
+ ---
+ <!-- Pattern A apply per codex T1 NEEDS-REVISION conf=0.9 verdict at .claude/state/codex_consult_ship1_evaluator_frontmatter_OUT.txt: -->
+ <!-- (a) Removed `everything-claude-code:silent-failure-hunter` from skills: list (it is an AGENT not SKILL.md preload per CCBP claude-subagents.md:32-34). -->
+@@ -25,6 +39,12 @@ mcpServers:
+ <!-- (c) For silent-failure coverage: invoke `everything-claude-code:silent-failure-hunter` AGENT explicitly via Agent tool when reviewing error-handling-class diffs (not preload-class). -->
+ <!-- MCP scoping rationale (narrowed per codex T1 prescription #4): github is read-only; repomix is analysis-oriented (pack+grep); gitnexus REMOVED for adversarial-review read-only purity. -->
+ 
++<!-- Ship 1.1 Pattern A fix-forward apply per codex T3 a4bb3f14 NEEDS-ATTENTION (2 findings) + codex T1 ship1.1 NEEDS-REVISION conf=0.91 verdict at .claude/state/codex_consult_ship1.1_evaluator_t3_fix_forward_OUT.txt (4 prescribed_edits applied atomically): -->
++<!-- (d) permissionMode `auto` → `plan` — directionally correct per T3 HIGH conf=0.9 (Bash under auto doesn't enforce read-only). -->
++<!-- (e) Removed `github` from mcpServers: list — closes T3 MED conf=0.75 (github MCP exposes 12 mutating create_*/update_*/merge_* tools; adversarial-review uses Read/Glob/Grep/Bash(git diff) for local-repo scope; no GitHub API needed). -->
++<!-- (f) Added hooks.PreToolUse:Bash block invoking agent_plan_readonly_bash_guard.py --policy readonly — THIS is the load-bearing closure of T3 HIGH conf=0.9. Per Anthropic sub-agents docs parent-precedence rule + Ship 1.1 codex T1 verdict: parent bypassPermissions overrides subagent permissionMode (CLAUDE.md §Intentional divergences (d) Wave 82d), so plan-mode alone is NOT a hard Bash boundary; per-agent hooks block enforces read-only at runtime. Mirrors code-reviewer.md L51-57 wire pattern. -->
++<!-- MCP scope post-Ship-1.1: only `repomix` remains (analysis-oriented pack+grep; gitnexus removed Ship 1; github removed Ship 1.1). -->
++
+ <!-- Copyright 2026 Anthropic PBC -->
+ <!-- SPDX-License-Identifier: Apache-2.0 -->
+ <!-- Cite: anthropics/cwc-long-running-agents/claude-code-config/.claude/agents/evaluator.md @ HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629 (verbatim cite-import 2026-05-08 Wave 75) --></repository_context>

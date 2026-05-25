@@ -1,0 +1,48 @@
+fix(hooks): userpromptsubmit_compact_threshold estimator no longer over-counts ~17x
+
+W174 P0a Pattern A fix-forward integrated with W173 P0b 4-file ship.
+
+Bug: prior estimator used `Path(transcript_path).stat().st_size // 4` as a
+~4-chars-per-token proxy. The transcript JSONL accumulates the FULL history
+(all system reminders, tool outputs, agent transcripts) — easily 36 MB,
+producing ~9M "tokens" estimate. CC's actual input_tokens reflects only the
+CURRENT context window (post-autocompact). Operator observed 8.97M reading
+(~897% of 1M ceiling) while real context was 525k / 53%.
+
+Fix in _estimate_tokens_used():
+  1. payload.usage.input_tokens (if CC ever exposes; ideal)
+  2. canonical sidecar total_input_tokens (flat shape; same field that
+     context_window_guard.py:60-61 and context_window_statusline.sh:41 read)
+  3. nested-session legacy fallback
+  4. None -> severity UNKNOWN -> no emit, no block (fail-open per cardinal-rule 7)
+
+Also removed _write_sidecar() — the broken nested-session shape was
+CORRUPTING the flat-shape sidecar that context_window_guard.py and the
+statusline pipeline depend on. Sidecar is now READ-ONLY from this hook;
+statusline-pipeline owns writes.
+
+Smoke probes (3/3 PASS):
+- empty-payload -> reads sidecar -> 658k -> correct CRIT block (was: 8.9M block)
+- payload-provided usage 100k -> Strategy 1 -> no emit (below WARN)
+- sidecar-read at session-live -> matches CC's ~50% reading
+
+Linter cleanups: removed unused `import os` (was only used by _write_sidecar);
+utcnow -> datetime.now(timezone.utc) (Python 3.12+ deprecation).
+
+W173 P0b ship integrated: 4 new hook files + schema + settings.json wiring
+(PreCompact emitter alongside precompact_guard.py / UserPromptSubmit threshold
+PREPEND preserving codex_stuck_detector.py / SessionStart matcher=compact reader).
+
+Cite anchors:
+- https://code.claude.com/docs/en/hooks (UserPromptSubmit decision:block JSON contract)
+- karpathy-adapted.md section 5 (Layer-2 wiki preload; 1M context calibration)
+- auto-compact-discipline.md Rank #3 (pre-emptive /compact gate)
+- sessionstart-preload-discipline.md (post-compact rehydrate contract)
+
+T1 codex consult: WARN-only at edit time (codex-t1-gate emitted no_path_match;
+recovery via SYSTEM-meta-review fallback per codex-t1-system-meta-review-fallback.md
+at goal-predicate authorship layer); T3 postcommit will provide cross-model
+gate net per CR-3 Phase 1 bootstrap exception.
+
+Threshold tuning (CRIT 350k may be too tight for routine Opus 4.7 1M sessions
+where autocompact fires at 80% / 800k) queued as separate P0a-followup ship.

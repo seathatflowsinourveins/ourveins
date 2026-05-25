@@ -1,0 +1,32 @@
+WAVE 142 FIRE 1 VOICE 1 — CROSS-MODEL CONSENSUS GATE (PATH P RECIPE)
+
+ROLE: Cross-model adversarial reviewer. Single-claim audit on ONE specific question. JSON-at-EOF.
+
+CONTEXT: Z:/claude-sota-installed (eee) runtime + sibling Z:/claude-sota both wire getzep/graphiti MCP to the SAME FalkorDB instance at redis://127.0.0.1:16379 with DIFFERENT discriminators:
+- eee: --group-id eee + FALKORDB_DATABASE=default_db + LiteLLM proxy at http://127.0.0.1:11700/v1
+- sibling: --group-id claude-sota + FALKORDB_DATABASE unset + LiteLLM proxy at http://127.0.0.1:4000/v1
+
+Wave 141 Voice 4 T1 review identified routing-ambiguity OPEN per:
+- Z:/repos/deps/graphiti/graphiti_core/decorators.py:47-68 @ HEAD c427615044678f4bde026745d8d28a16504868c5
+- Z:/repos/deps/graphiti/graphiti_core/driver/falkordb_driver.py:217-224,307-318 @ HEAD c427615
+- Z:/repos/deps/graphiti/mcp_server/src/services/factories.py:122-146 @ HEAD c427615
+- Upstream README.md:521-528 @ HEAD c427615 (OpenAIGenericClient recommendation for OpenAI-compat providers like LiteLLM/Ollama)
+
+CLAIM TO AUDIT (single-claim):
+"When two graphiti MCP instances connect to the same FalkorDB at port 16379 with DIFFERENT --group-id discriminators (eee vs claude-sota) AND a search-before-add code path exists at falkordb_driver.py:217-224,307-318, data writes via add_memory in one runtime ARE PROVABLY ISOLATED from search_nodes results in the other runtime, AND the OpenAIClient at factories.py:122-146 produces structured outputs equivalent to OpenAIGenericClient when targeting a LiteLLM/Ollama compat endpoint."
+
+EVIDENCE NEEDED:
+1. Read graphiti_core/decorators.py:47-68 verbatim — does group_id propagate to ALL Cypher query templates (add + search + delete)?
+2. Read graphiti_core/driver/falkordb_driver.py:217-224 + :307-318 verbatim — does search-before-add filter by group_id, OR does it do a global scan + filter post-fact (race-window risk)?
+3. Read mcp_server/src/services/factories.py:122-146 verbatim — does OpenAIClient instantiation accept a base_url override + how does it differ from OpenAIGenericClient structured-output behavior?
+4. Read mcp_server/README.md:521-528 verbatim — what does upstream prescribe for OpenAI-compat providers (LiteLLM/Ollama)?
+
+THREE OPTIONS for the CLAIM verdict:
+- OPTION A: APPROVE — group_id isolation is provably enforced at all code paths; OpenAIClient equivalent to OpenAIGenericClient for LiteLLM. No mitigation needed.
+- OPTION B: NEEDS-REVISION — partial isolation; one or more code paths leak across group_id OR OpenAIClient structured-output differs materially from OpenAIGenericClient. Prescribe specific mitigations.
+- OPTION C: REJECT — cross-runtime data leak proven OR structured-output incompatibility breaks add_memory/search_nodes. Recommend separate FalkorDB instance OR OpenAIGenericClient switch.
+
+RESPONSE FORMAT (JSON-at-EOF, single object, no preamble):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"selected_option":"A|B|C","group_id_isolation_proof":{"add_path":"verbatim cite + line range","search_path":"verbatim cite + line range","delete_path":"verbatim cite + line range","leak_risk":"HIGH|MEDIUM|LOW|NONE + reasoning"},"openaiclient_vs_generic":{"factories_py_122_146":"verbatim cite","upstream_readme_521_528":"verbatim cite","compat_verdict":"EQUIVALENT|DIFFERENT|UNVERIFIED + reasoning"},"prescribed_edits":[{"target":"file:line","change":"description","priority":"P0|P1|P2|P3"}],"hidden_failure_modes":["..."],"axis_evidence":{"axis_1_independent_t1":"3+ orgs evidence for group_id pattern","axis_2_named_t2":"named-T2 endorsing this pattern","axis_3_stability":"≥3mo + cpd-band"}}
+
+Output the JSON object as the LAST printed thing. Do NOT include any commentary after the JSON.

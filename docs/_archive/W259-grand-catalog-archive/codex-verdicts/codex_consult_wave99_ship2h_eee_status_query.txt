@@ -1,0 +1,77 @@
+T1 PRE-COMMIT CONSULT — Wave 99 Ship 2H (eee-status fleet dashboard cohesive activation)
+
+USER DIRECTIVE (verbatim):
+"give me all the accounts status, including real time usage, reset time, cache rate"
+"all sota approach. always edit with sota references deep dived. always using gpt5.5 fully e2e before commit"
+
+CONTEXT — Wave 99 ship convergence post Wave 98 Ship 2A landing:
+- Wave 99 1-agent fan-out in flight (un-covered SOTA discovery, agentId ab34403269892681e)
+- Orchestrator-direct Ship 2H — fleet dashboard delivers user-facing answer to account-status ask
+- Mia OVER #12 averted: existing tools/eee-status.ps1 (8.6KB) is UNTRACKED but Pattern A-applied with codex T1 NEEDS-REVISION conf=0.86 verdict at .claude/state/codex_consult_eee_status_ps1_OUT.txt
+
+SHIP SCOPE — Wave 99 Ship 2H (single ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+
+EDIT 1 (NEW): tools/_eee_status_query.py (~140 LOC Python helper)
+- Read-only query of cpa-usage-keeper SQLite (Willxup/cpa-usage-keeper v1.5.2 — already installed via Ship 1W)
+- Optional CPA Management API probe at /v0/management/auth-files
+- Outputs human-readable fleet table OR JSON
+- Exposes per-account 5h/7d window % + reset times + cache_tokens that CPA itself does NOT expose (per Wave 98 Agent C HONEST-NON-FINDING: "CPA upstream has NO native 5h/7d window tracking — only operator-injected via Ship 1W cpa-usage-keeper")
+- Smoke probe PASS this fire: 10 accounts surfaced; helper validates fleet status
+
+COMMIT 2 (UNTRACKED → TRACKED): tools/eee-status.ps1 (8.6KB existing; Pattern A-applied prior arc)
+- Comprehensive PS1 dashboard: healthz + Mgmt API auth-files + routing strategy + api-key-usage + ccusage daily
+- Cited in docs/install-provenance.md L1446+L1513 as "Pattern-A-applied real-time dashboard"
+- T1 verdict file: .claude/state/codex_consult_eee_status_ps1_OUT.txt (3708 bytes) — codex T1 NEEDS-REVISION conf=0.86 + 7 prescribed_edits applied per file header (F-A.1 degraded-mode + F-A.2 secret-path -Verbose gate + F-B.1 independent regex + F-B.2 numeric casting + F-C.1 api-key-usage + F-C.2 expiry warnings)
+- This fire's T1 NOT re-firing on PS1 — prior verdict + Pattern A apply is load-bearing under cross-model-consensus.md mechanical-mirror exception
+
+RATIONALE for Ship 2H = both files cohesive:
+- PS1 + Python helper are operational COMPLEMENTS (PS1 = healthz + Mgmt API + ccusage; Python = SQLite usage telemetry)
+- Wave 98 Agent C verdict explicitly recommended "tools/eee-status.ps1 fleet dashboard (consumer of Ship 1W SQLite)" — both files together fulfill that recommendation
+- Per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE: fleet dashboard activation is single logical unit even though 2 files
+
+CITE CHAIN:
+- TIER-1-DIRECT: Willxup/cpa-usage-keeper v1.5.2 SQLite schema (38-column usage_identities) per Ship 1W docs/install-provenance.md:3726
+- TIER-1-DIRECT: router-for-me/CLIProxyAPI internal/api/server.go:506-659 @ HEAD ed1458aa — /v0/management/auth-files endpoint
+- TIER-2 sister: Wave 98 Agent C account-rotation report tmp/wave98-C-account-rotation-sota-2026-05-08.md (5 ship recommendations + CPA feature audit)
+- TIER-3-LOCAL-COMPOSITION: PS1 prior verdict at .claude/state/codex_consult_eee_status_ps1_OUT.txt @ 2026-05-08 02:23
+
+LIVE FLEET STATE (helper smoke probe this fire — operator user-facing answer):
+| Account | Type | 5h% | 5h-reset | 7d% | 7d-reset | Status |
+|---|---|---:|---|---:|---|---|
+| aesthetic9c (operator) | claude | 39% | 1h21m | 29% | 4d20h | ✅ HEALTHY (99.4% cache rate) |
+| mr.euphoriaincarnate | claude | 0% | - | 12% | 6d5h | ✅ BEST RESERVE |
+| nalawowac | claude | 0% | - | 5% | 4d4h | ✅ 2ND RESERVE |
+| avantmanifest | claude | 0% | - | 89% | 3d7h | 🟡 depleted-pending-reset |
+| dreamweaverhoudini | claude | 0% | - | 100% | 2d16h | 🔴 LIMIT |
+| zfan7@sva.edu | claude | 0% | - | 96% | 4h11m | 🟡 near-exhausted (resets soon) |
+| 739955940fc (Claude) | claude | 0% | - | 100% | 1d7h | 🔴 LIMIT + 75% fail rate |
+| zfan7@sva.edu-pro | codex | 6% | 1h36m | 27% | 2d23h | ✅ HEALTHY |
+
+CR-9 INSTALL-RISK ANALYSIS:
+- LOW risk (read-only operational tooling; no mutations; reversible via git revert)
+- No @latest install (cpa-usage-keeper v1.5.2 already installed; CPA already configured)
+- No sibling-bleed (no Z:/claude-sota/ paths in either file; all paths reference local install)
+- Python helper: stdlib only (sqlite3 + urllib.request + argparse + datetime + json)
+- PS1: depends on existing Test-Path / Invoke-RestMethod / ccusage CLI (all already INSTALLED)
+
+DESIGN-SURFACE FILES TOUCHED:
+- tools/_eee_status_query.py (NEW; +140 LOC)
+- tools/eee-status.ps1 (UNTRACKED → TRACKED; +192 LOC; prior Pattern A applied)
+
+OPERATOR USAGE:
+- `python tools/_eee_status_query.py` — fleet table (default human-readable)
+- `python tools/_eee_status_query.py --json` — JSON for programmatic consumption
+- `python tools/_eee_status_query.py --cpa-probe` — also probe CPA live state
+- `Z:\claude-sota-installed\tools\eee-status.ps1` — comprehensive dashboard (existing comprehensive PS1)
+- Optional future: PS1 wraps Python helper to add SQLite usage panel alongside Mgmt API + ccusage panels
+
+QUESTIONS (JSON ONLY):
+1. Is shipping BOTH files as Ship 2H correct (cohesive fleet dashboard activation per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE)? Or should they split to Ship 2H.1 (Python helper, NEW T1 e2e this fire) + Ship 2H.2 (PS1, prior T1 0.86 + Pattern A as cite-import)?
+2. Python helper hardcodes `CPA_AUTH = 'eee-fleet-key-orchestrator'` for Management API auth probe — is this appropriate (matches `.cli-proxy-api/config.yaml:26` `eee-fleet-key-codex-bridge` neighbor) OR should it read from secret file like PS1 does (`Z:\claude-sota-installed-state\cliproxy-mgmt-secret.txt`)?
+3. Python helper does NOT call ccusage CLI (delegated to PS1 already-existing surface). Is the orthogonal split correct (PS1=API+ccusage, Python=SQLite)?
+4. CR-9 sibling-bleed defense: confirmed no Z:/claude-sota/ paths in either file. Any other CR-9 axis I'm missing?
+5. Mia probe of working tree shows tools/__pycache__/, tools/eee-backup.ps1, tools/eee.ps1.pre-fire46-fix as additional untracked items NOT part of Ship 2H — confirm these stay untracked (NOT swept into commit)?
+6. Cross-model gate satisfaction: this T1 IS the cross-model gate per CR-3 Phase 1 bootstrap exception. PS1 prior T1 0.86 is the load-bearing T1 for the PS1 portion. Is this dual-cite (this T1 + prior PS1 T1) admissible?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

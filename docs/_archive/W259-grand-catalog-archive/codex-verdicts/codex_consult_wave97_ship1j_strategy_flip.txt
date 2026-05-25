@@ -1,0 +1,78 @@
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1J (CLIProxyAPI strategy fill-first → round-robin to close FM-17.b.i 429 fires)
+
+CONTEXT:
+- User explicit Wave 97 mandate: "avoid API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited, investigiate the limit and offload ours within limits form our advanced accounts rotation, usge them well before the reset time"
+- Current pool state (live verified at 2026-05-08T20:39:13Z):
+  - 4 of 7 Claude accounts disabled by Ship 1X cycle-aware rotation (739955940fc + avantmanifest + dreamweaverhoudini + zfan7@sva.edu)
+  - 3 active: aesthetic9c + mr.euphoriaincarnate + nalawowac
+  - **NEW: 2 of remaining 3 hitting 429** in latest poller cycle (nalawowac + zfan7 polling) — pool starvation
+- Wave 97 fan-2 Agent fan2-C 429'd at <12s (FM-17.b.i wrapper-funneling PRE-FIRE class)
+
+ROOT CAUSE IDENTIFIED:
+- `Z:/claude-sota-installed/.cli-proxy-api/config.yaml:70` has `strategy: "fill-first"` (Wave 86 Ship 1Q decision)
+- fill-first = "burns one account before moving to the next, which can help stagger" (per Wave 86 cite verbatim from `selector.go:33-36 @ HEAD 785b00c3`)
+- That trade-off shifts when 4/7 accounts disabled: fill-first burns the FIRST remaining active account first → burst load (3 parallel agents) all hit same account → 429
+- CLIProxyAPI default per `config.example.yaml:114` + `README:51` is `round-robin` ("Multiple accounts with round-robin load balancing")
+- selector.go core implementation IS round-robin native (`RoundRobinSelector provides a simple provider scoped round-robin selection strategy` at L26); fill-first is opt-in
+
+CHANGE (single file: .cli-proxy-api/config.yaml):
+- Line 70: `strategy: "fill-first"` → `strategy: "round-robin"`
+- Update L60-65 + L73-75 comment block to document inversion rationale + cite trail
+- session-affinity: true PRESERVED (sticky sessions still get cache-locality benefit; strategy only affects NEW sessions)
+- session-affinity-ttl: "4h" PRESERVED (Wave 86 SOTA tuning intact)
+
+WHY THIS IS THE RIGHT FIX:
+1. **Burst-load distribution**: round-robin distributes 3 parallel agent dispatches across 3 active accounts, preventing single-account 5h-budget exhaustion
+2. **Cache-locality preserved via session-affinity**: per `selector.go:498-535 @ HEAD ed1458aa` session affinity keys by `provider::session::model` — sticky sessions keep using same key for 4h, maintaining cnighswonger v3.5.3 cache-prefix benefits
+3. **Recovery trajectory**: as accounts hit 7d reset (next: 2026-05-09 03:00Z = zfan7), Ship 1X re-enables them; round-robin immediately rebalances (no fill-first's "burn-first" delay)
+4. **Upstream default**: round-robin IS the documented CLIProxyAPI default; fill-first was the Wave 86 opt-in for cache-locality, but cache-locality is now preserved by session-affinity (4h TTL is the load-bearing primitive, not strategy)
+
+HOT-RELOAD STATUS:
+- `internal/api/modules/amp/amp.go:OnConfigUpdated` documents hot-reload for: `model-mappings`, `upstream-api-key`, `upstream-url`, `restrict-management-to-localhost`
+- `routing.strategy` is **NOT** in documented hot-reload list → CLIProxyAPI restart required to apply
+- Operator restart path: `eee --restart-cliproxy` OR kill-and-relaunch via `eee.ps1` next launch
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT: `Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/selector.go:26 @ HEAD 785b00c3` (RoundRobinSelector definition — core upstream pattern)
+- TIER-1-DIRECT: `Z:/repos/deps/CLIProxyAPI/README.md:51 @ HEAD 785b00c3` ("Multiple accounts with round-robin load balancing" — official documented behavior)
+- TIER-1-DIRECT: `Z:/claude-sota-installed/.cli-proxy-api/config.example.yaml:112-114` ("strategy: round-robin (default), fill-first")
+- TIER-1-DIRECT: `Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/selector.go:498-535` (session-affinity provider::session::model — preserves cache-locality independent of strategy)
+- TIER-2: this T1 itself (cross-model gate); supersedes Wave 86 Ship 1Q decision under new pool-state context
+
+MIA PROBES (3/3 PASS):
+- Mia #1: current strategy verified `fill-first` at config.yaml:70 (live read)
+- Mia #2: round-robin native in upstream (selector.go:26 + README:51); not custom; not deprecated
+- Mia #3: session-affinity:true preserved across strategy flip — verified per selector.go:498-535 keying scheme
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1-DIRECT cite chain at file:line + HEAD SHA for upstream CLIProxyAPI selector + README + config.example
+- CR-3: this consult IS the cross-model gate (real GPT-5.5 e2e BEFORE commit)
+- CR-5: install-priority — round-robin IS upstream-canonical; fill-first was opt-in
+- CR-6: official-native-channel — config.yaml syntax matches upstream config.example.yaml
+- CR-7: Phase 1 — config edit doesn't change permission scope
+- CR-8: ADAPTED-FROM-SOTA — round-robin is upstream default + native implementation
+- CR-9: install-risk LOW — config-only edit; reversible via 1-line revert; no destructive ops; CLIProxyAPI restart required (operator-controlled timing)
+- CR-10: research-first — Mia probed pool state + selector.go source + README + config.example BEFORE proposing edit
+- CR-11: META-process SOTA — Wave 97 fan-2 dispatched + root-cause analysis + GPT-5.5 e2e + provenance log
+
+LAUNCH-DISCIPLINE D1:
+- REVERSIBLE: 1-line revert in config.yaml + CLIProxyAPI restart
+- OBSERVABLE: Aperant poller JSONL telemetry at `.claude/state/aperant_poller.jsonl` will show 429 frequency change post-restart; ≥3-active-accounts should rotate evenly
+- INCREMENTAL: 1-line strategy flip; orthogonal to existing session-affinity/TTL tuning
+
+DEFERRED:
+- CLIProxyAPI restart timing (operator decides; next eee launch OR explicit `eee --restart-cliproxy` if such flag exists)
+- Long-term: re-enable disabled accounts as 7d resets occur (Ship 1X cron handles this; first reset 2026-05-09 03:00Z)
+
+QUESTION (JSON ONLY):
+Is Wave 97 Ship 1J — CLIProxyAPI `strategy: fill-first → round-robin` flip — APPROVE-COMMIT?
+
+Concerns to consider:
+1. Is round-robin truly compatible with cnighswonger v3.5.3 cache-prefix preservation? (selector.go:498-535 says session-affinity preserves it independently of strategy)
+2. Could round-robin produce worse throughput than fill-first under some workload? (CLIProxyAPI README says round-robin IS default → upstream view is opposite)
+3. Should the flip include `disable-cooling: true` OR keep `disable-cooling: false` (current)? (cooling-down auths get blocked when fill-first burns them; round-robin distributes BEFORE burn, may make cooling less critical)
+4. Does this affect Wave 92 Ship 1T cnighswonger cache-fix chain? (cnighswonger sits IN FRONT of CLIProxyAPI; CLIProxyAPI strategy is downstream of cnighswonger cache; orthogonal layers)
+5. Should session-affinity-ttl be re-tuned alongside strategy flip? (probably not — Wave 86 4h-TTL was for cache-warmth; strategy is for NEW sessions)
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

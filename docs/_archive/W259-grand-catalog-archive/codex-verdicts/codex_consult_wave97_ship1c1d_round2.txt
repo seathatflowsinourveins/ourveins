@@ -1,0 +1,47 @@
+T1 ROUND-2 NARROW — Wave 97 Ship 1C+1D Pattern A fix-forward verification
+
+PRIOR ROUND-1 VERDICT (verbatim from .claude/state/codex_consult_wave97_ship1c1d_gitleaks_phase2_OUT.txt):
+{"verdict":"NEEDS-REVISION","confidence":0.94,"rationale":"The bundle is logically correct, but the proposed command is invalid for installed gitleaks v8.30.1 because `detect --staged` is unknown, so fail-open would make the hook inert.","prescribed_edits":["Replace `gitleaks detect --staged ...` with `gitleaks git --staged ...` and smoke-test the exact command before commit.","Emit deny output under `hookSpecificOutput` with `hookEventName\":\"PreToolUse\"`; parse stdout even when gitleaks exits 1, since findings use nonzero exit.","Wire both `Bash(git commit *)` and `Bash(git -C * commit *)`, preferably before the slower Codex T2 hook.","Tighten the rule-specific allowlist with `condition = \"AND\"`, the anchored path, and a `regexTarget = \"match\"` regex for the redacted curl-header example rather than path-only."]}
+
+PATTERN A FIX-FORWARD APPLIED (single atomic apply per codex-t1-fix-forward-pattern.md §Pattern A):
+
+F1 — Replace `gitleaks detect --staged` with `gitleaks git --staged`:
+   `.claude/hooks/scripts/gitleaks_pre_commit_gate.py:170` — exec list now uses `[bin_path, "git", "--staged", ...]` NOT `[bin_path, "detect", "--staged", ...]`
+   SMOKE TEST PASS: `.local/bin/gitleaks.exe git --staged --redact --no-banner --report-format json --report-path - --config .gitleaks.toml` returns `[]` + "no leaks found" in 159ms
+
+F2 — Emit deny via hookSpecificOutput.hookEventName="PreToolUse"; parse stdout EVEN ON exit 1:
+   `gitleaks_pre_commit_gate.py:_emit_allow / _emit_deny` — both functions emit `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": ..., "permissionDecisionReason": ...}}` shape
+   `gitleaks_pre_commit_gate.py:208-225` — parses result.stdout regardless of result.returncode (gitleaks exits 1 on findings; hook MUST parse stdout for the JSON findings array even on exit 1)
+   SMOKE TEST: dry-run with `{"tool_name":"Bash","tool_input":{"command":"git commit -m test"}}` returned proper hookSpecificOutput JSON
+
+F3 — Wire BOTH `Bash(git commit *)` AND `Bash(git -C * commit *)`, ordered BEFORE codex T2:
+   `.claude/settings.json` — gitleaks_pre_commit_gate.py inserted as 2 hook entries (one per matcher) AT POSITION BEFORE existing codex_t2_pre_commit_gate.py blocks. Per-hook timeout: 10s (vs codex T2's 180s). Faster fail-fast for secrets > slower cross-model T2 review.
+
+F4 — Tighten allowlist with condition="AND" + anchored path + regexTarget="match" regex matching redacted curl-header:
+   `.gitleaks.toml` — rule-level allowlist for curl-auth-header rule:
+     condition = "AND"
+     paths = ['''docs/install-provenance\.md$''']  (anchored ending)
+     regexTarget = "match"
+     regexes = ['''["']x-api-key["']\s*:\s*["']REDACTED''']
+   ALL 3 must match (path AND regex on redacted token literal) for allowlist to apply. Real auth-header secrets in the same file would still be DETECTED because the regex requires "REDACTED" placeholder.
+
+VERIFIED LIVE SMOKE PROBES (5/5 PASS):
+1. `gitleaks git --staged --config .gitleaks.toml` returns [] in 159ms (corrected command works)
+2. `python -m py_compile gitleaks_pre_commit_gate.py` → SYNTAX-OK
+3. Non-Bash hook input → allow with status="non_bash_tool" (defensive default)
+4. Bash + non-commit cmd → allow with reason="not a git commit command"
+5. Bash + `git commit -m test` → allow + 495ms scan + reason="gitleaks staged scan clean"
+6. settings.json JSON-VALID after edit
+
+NEW EDITS (4 files atomic):
+- `.gitleaks.toml` (NEW; ~20 LOC; git-tracked)
+- `.claude/hooks/scripts/gitleaks_pre_commit_gate.py` (NEW; ~210 LOC; git-tracked)
+- `.claude/settings.json` (modified; +12 LOC; git-tracked)
+- `docs/install-provenance.md` (will append Wave 97 Ship 1C+1D entry; ~135 LOC)
+
+QUESTION: Does the Pattern A fix-forward correctly address ALL 4 Round-1 prescribed_edits (F1-F4)?
+
+Outcome A monotone-decline expected per closed-loop-recursive-narrowing.md (Round-1 0.94 NEEDS-REV → Round-2 should be APPROVE OR confidence-decline NEEDS-REV).
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

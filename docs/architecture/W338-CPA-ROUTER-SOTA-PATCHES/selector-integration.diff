@@ -1,0 +1,91 @@
+From: claude-sota-installed W338
+Subject: [PATCH 5/4] selector: wire breaker + limiter into SessionAffinity.Pick
+
+Integrates the ProviderBreaker (Patch 3) and AIMDLimiter (Patch 4) into
+the active SessionAffinitySelector so that:
+
+1. Auths whose provider is in OPEN state are skipped entirely
+2. Each (provider, model) tuple has an inflight cap that auto-tunes
+3. RecordOverload fires on 529 from both breaker AND limiter
+4. RecordSuccess fires on 2xx response, growing both
+
+Refs:
+- See breaker.go and aimd_limiter.go in this directory
+- Conductor.MarkResult is the natural integration point
+
+---
+ sdk/cliproxy/auth/selector.go  | 28 ++++++++++++++++++++++++
+ sdk/cliproxy/auth/conductor.go | 14 ++++++++++++
+ 2 files changed, 42 insertions(+)
+
+diff --git a/sdk/cliproxy/auth/selector.go b/sdk/cliproxy/auth/selector.go
+--- a/sdk/cliproxy/auth/selector.go
++++ b/sdk/cliproxy/auth/selector.go
+@@ -437,6 +437,10 @@ type SessionAffinitySelector struct {
+ 	stickyCache map[string]*affinityEntry
+ 	cacheMu     sync.RWMutex
+ 	stopCh      chan struct{}
++
++	// W338 Patch 5: provider-wide breaker + per-tuple AIMD limiter.
++	breaker *ProviderBreaker
++	limiter *AIMDLimiter
+ }
+
+ type SessionAffinityConfig struct {
+@@ -484,6 +488,30 @@ func (s *SessionAffinitySelector) Pick(ctx context.Context, provider, model string, opts cliproxyexecutor.Options, auths []*Auth) (*Auth, error) {
+ 	if len(auths) == 0 {
+ 		return nil, errNoAuthAvailable
+ 	}
++
++	// W338 Patch 5: provider-wide circuit breaker gate.
++	if s.breaker != nil {
++		if err := s.breaker.Allow(provider); err != nil {
++			return nil, fmt.Errorf("provider %s breaker open: %w", provider, err)
++		}
++	}
++
++	// W338 Patch 5: AIMD inflight limiter.
++	limiterKey := provider + "::" + model
++	if s.limiter != nil {
++		// Acquire with a short ceiling — we'd rather fail-fast than queue.
++		acqCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
++		defer cancel()
++		if err := s.limiter.Acquire(acqCtx, limiterKey); err != nil {
++			return nil, fmt.Errorf("limiter timeout for %s: %w", limiterKey, err)
++		}
++		// Note: Release happens in MarkResult (success or failure).
++		// Caller must ensure MarkResult is invoked; this is the existing contract.
++	}
+
+ 	// Skip auths whose provider has just been overloaded.
++	auths = filterByBreaker(auths, s.breaker)
++
+ 	// ... (existing pick logic continues)
+
+diff --git a/sdk/cliproxy/auth/conductor.go b/sdk/cliproxy/auth/conductor.go
+--- a/sdk/cliproxy/auth/conductor.go
++++ b/sdk/cliproxy/auth/conductor.go
+@@ -2151,6 +2151,20 @@ func (m *Manager) MarkResult(ctx context.Context, result Result) {
+ 	if auth, ok := m.auths[result.AuthID]; ok && auth != nil {
+ 		now := time.Now()
+ 		auth.recordRecentRequest(now, result.Success)
++
++		// W338 Patch 5: feed breaker + limiter signals.
++		if m.breaker != nil {
++			if result.Success {
++				m.breaker.RecordSuccess(auth.Provider)
++			} else if statusCodeFromResult(result.Error) == 529 {
++				m.breaker.RecordOverload(auth.Provider)
++			}
++		}
++		if m.limiter != nil {
++			limKey := auth.Provider + "::" + result.Model
++			m.limiter.Release(limKey)
++			if result.Success {
++				m.limiter.RecordSuccess(limKey)
++			} else if statusCodeFromResult(result.Error) == 529 {
++				m.limiter.RecordOverload(limKey)
++			}
++		}
++
+ 		if result.Success {

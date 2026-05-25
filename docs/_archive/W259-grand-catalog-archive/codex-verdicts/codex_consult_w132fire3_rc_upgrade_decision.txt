@@ -1,0 +1,166 @@
+# Codex T1 Path P consult — Wave 132 Fire 3 gitnexus@1.6.4-rc.112 upgrade decision
+
+## Context
+
+Wave 132 Fire 3 HNF-4 (gitnexus Windows-broken-on-1.6.3) verification + RC upgrade decision.
+Phase 1 bootstrap exception per cardinal-rule-3 (T1 hooks not yet INSTALLED) — this Path P codex
+exec foreground+tee dispatch IS the cross-model gate satisfaction. Verdict origin = REAL GPT-5.5
+codex CLI subprocess.
+
+## Empirical evidence (REPRODUCIBLE — just probed on Windows 2026-05-10)
+
+### gitnexus@1.6.3 (currently installed via .mcp.json:88) on Windows BROKEN
+
+Test setup: small 3-file multi-language scratch repo at /z/claude-sota-installed/tmp/w132f3-hnf4-test
+(JS + Python + TS, 18 LOC total, HEAD 358291f).
+
+Behavior:
+- `gitnexus analyze .` → exits 0 with ONLY "GitNexus Analyzer" banner + NO_COLOR warnings (no analysis output)
+- `.gitnexus/` folder created with `lbug` (4KB) + `lbug.wal` (25KB) — graph DB writes succeed
+- `meta.json` MISSING from .gitnexus/ — registry-side handoff broken
+- `~/.gitnexus/registry.json` NOT WRITTEN (verified via direct ls)
+- `gitnexus list` → "No indexed repositories found" (registry-side read sees nothing)
+- `gitnexus status` → "Repository not indexed" (registry-side read sees nothing)
+- `gitnexus index .` → "exists but meta.json is missing. Use --force to register anyway"
+- ALL downstream commands (context/impact/query/cypher/detect-changes) WOULD silently fail because
+  registry shows no indexed repos
+
+Root cause class: silent write-failure of meta.json + registry.json post-graph-DB-write.
+EXIT CODE 0 masks the failure (no stderr, no exit signal).
+
+### gitnexus@1.6.4-rc.112 (RC stream) on Windows FULLY WORKS
+
+Same test repo, sandboxed install via `npm install --no-save gitnexus@1.6.4-rc.112` to local
+node_modules. Same `analyze` command:
+
+- `analyze .` → "Repository indexed successfully (9.4s) | 12 nodes | 15 edges | 3 clusters | 0 flows"
+- `.gitnexus/lbug` 13.5MB (vs 4KB on 1.6.3 — actual graph data lands)
+- `.gitnexus/meta.json` 732 bytes WRITTEN (was MISSING on 1.6.3)
+- `~/.gitnexus/registry.json` 441 bytes WRITTEN (was MISSING on 1.6.3)
+- `list` → "Indexed Repositories (1) | w132f3-hnf4-test | Path: ... | Indexed: 5/10/2026, 2:01:46 AM"
+- `status` → "Status: ✅ up-to-date"
+- `context greet` → returns 3 candidates JSON (JS/Python/TS) with disambiguation guidance
+- `impact greet` → returns ambiguous status + impactedCount=0 (correct)
+- `query "greet farewell flow"` → returns processes/definitions arrays
+- `cypher "MATCH (n) RETURN n LIMIT 5"` → returns 5 nodes with full graph metadata
+- `detect-changes` → "No changes detected" (correct)
+
+ALL 5 BIGGER-scope subcommands functional. ZERO silent failures.
+
+### RC dependency delta (npm view 1.6.3 vs 1.6.4-rc.112)
+
+```
+@ladybugdb/core: ^0.15.2 → ^0.16.1   (KEY native dep bump — likely fix source)
+tree-sitter-c: 0.23.2 → 0.21.4       (DOWNGRADE — note for stability)
+tree-sitter-cpp: ^0.23.4 → 0.23.2    (downgrade)
+NEW: pino, pino-pretty               (logging)
+NEW: express-rate-limit              (rate limit)
+```
+
+@ladybugdb/core 0.16.1 contents on Windows: lbugjs.node (13MB native binding) loads OK; cmake-js + node-addon-api deps.
+
+## Proposed ship plan (4 atomic edits per cardinal-rule codex-t1-fix-forward-pattern Pattern A)
+
+### Edit 1 — npm install upgrade (CR-12 PRIMARY upstream-install via official native channel)
+
+```bash
+npm install -g gitnexus@1.6.4-rc.112
+```
+
+Per CR-9 install-risk discipline:
+- Version-pinned (1.6.4-rc.112 explicit, NOT @latest)
+- D6 today-release-auto-upgrade risk acknowledged inline (RC stream)
+- Pre-cite-import REVERT check: gitnexus has NO REVERT precedent (verified Wave 132 Fire 2 Round-3)
+- Sibling-bleed defense: N/A (gitnexus is install-class npm-global, not sibling-cite)
+- Rollback path: `npm install -g gitnexus@1.6.3` — <30s, fully reversible
+
+### Edit 2 — .mcp.json:88 _comment_gitnexus update (version bump + Fire 3 evidence)
+
+Update version reference from "1.6.3" to "1.6.4-rc.112" + add HNF-4 fix-forward evidence.
+The mcpServers.gitnexus block itself does NOT need version pin (uses gitnexus binary on PATH;
+which version is the ACTIVE one is governed by npm-global install).
+
+### Edit 3 — docs/sota-installed-manifest.md HNF-4 row update
+
+Section 7 row PLANNED → INSTALLED-DEEP-DIVE-VERIFIED-RC-UPGRADED with new HEAD SHA pin
+(the npm package equivalent of the 1.6.4-rc.112 release).
+
+### Edit 4 — docs/install-provenance.md APPEND Wave 132 Fire 3 RC-UPGRADE decision-record
+
+Comprehensive close-synthesis: Phase 1 probes + RC verification + ship plan + Mia ladder advance.
+
+## Audit axes (please review each)
+
+### AXIS-1 — RC-channel stability risk
+
+gitnexus@1.6.4-rc.112 is RC stream (NOT stable). Stable line is 1.6.3 (BROKEN on Windows).
+Trade-off: known-broken stable vs known-working RC. Is the RC mature enough for production
+runtime use (eee /loop autonomous arc context)?
+
+Probe needed: gitnexus GitHub release notes for 1.6.4-rc.* line, breaking changes,
+known issues, beta-channel discipline.
+
+### AXIS-2 — @ladybugdb/core 0.16.1 native binding cross-platform stability
+
+Bump from ^0.15.2 → ^0.16.1. Native binding (lbugjs.node 13MB). Empirically works on Windows
+(verified). Concerns:
+- WSL2 stability (sibling Wave 130 noted SIGSEGV #1431 in WSL2 context)
+- macOS/Linux compatibility (eee runs Windows but should not break cross-platform port)
+- Native binding load behavior under different OS/CPU combinations
+
+### AXIS-3 — Cross-model gate satisfaction for the ship
+
+This Path P consult IS the cross-model gate per CR-3 Phase 1 bootstrap exception.
+Verdict origin = REAL GPT-5.5 codex CLI subprocess (NOT BRIDGE-MODE wrapper, NOT Sonnet stand-in).
+Confirm: does this satisfy the cross-model invariant for the proposed ship?
+
+### AXIS-4 — Cardinal-rule conformance
+
+CR-1 cite-trail: TIER-1-DIRECT to gitnexus repo + npm registry + @ladybugdb/core npm metadata
+CR-3 cross-model: Path P satisfies (this consult)
+CR-9 install-risk: version-pinned RC + acknowledged + REVERT-safe + rollback path
+CR-10 research-first: Mia probes done before edits
+CR-11 META-process: Mia pre-apply + Pattern A atomic apply + audit-trail in install-provenance.md
+CR-12 upstream-install-priority: PRIMARY path (npm install from official registry)
+
+### AXIS-5 — HNF-4 root cause (forensic interest)
+
+The empirical pattern: 1.6.3 writes graph DB but skips registry write. RC fixes both.
+What's the actual code path that broke between 1.6.2 and 1.6.3? Is there a documented issue
+on the gitnexus repo for this class? (Useful for cross-arc memory codification but NOT blocking.)
+
+## Output schema (JSON-strict)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "rationale_one_line": "<short>",
+  "axis_findings": {
+    "axis_1_rc_stability": "<finding>",
+    "axis_2_ladybugdb_binding": "<finding>",
+    "axis_3_cross_model_gate": "<finding>",
+    "axis_4_cardinal_rule_conformance": "<finding>",
+    "axis_5_hnf4_root_cause": "<finding-or-HNF>"
+  },
+  "prescribed_edits": [
+    {
+      "edit_id": "X",
+      "target": "<file>:<line> OR npm-cmd",
+      "claim": "<what to change>",
+      "evidence_cite": "<TIER-1 source>"
+    }
+  ],
+  "blockers_remaining": ["<if any>"],
+  "next_steps": "<one-sentence>"
+}
+```
+
+## Verdict-shape convention reminder
+
+- APPROVE conf >=0.90 → ship as-proposed
+- NEEDS-REVISION conf 0.85-0.93 → apply prescribed_edits in single Pattern A fix-forward atomic commit
+- REJECT or conf <0.85 → STOP + escalate
+
+Read EOF first per `feedback_codex_t1_verdict_reading_discipline.md` — codex emits verdict template
+near start, real verdict at file end.

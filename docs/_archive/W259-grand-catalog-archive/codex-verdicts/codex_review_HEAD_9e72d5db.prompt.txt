@@ -1,0 +1,189 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 9e72d5db892cd8423d22deec51ae1986c825d6b1
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 89 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 89 insertions(+)
+
+=== git show --format=fuller ===
+commit 9e72d5db892cd8423d22deec51ae1986c825d6b1
+Author:     42 <42@local>
+AuthorDate: Mon May 11 12:21:37 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 12:21:37 2026 -0400
+
+    docs(install-provenance): Wave 141 Fire 1 — Graphiti MCP frontend invocation smoke probe HONEST-NON-FINDING [VERIFIED 2026-05-11] — backend READY but frontend BROKEN; 8 workspace .mcp.json entries NOT loaded by CC runtime (only plugin + cloud MCPs active); fix deferred to W141.1b operator-gated; 13th cumulative consecutive no-Path-P-dispatch
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 6239183..3dae61a 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -16282,3 +16282,92 @@ CR-1 (TIER-1 cites to canonical channel registries) / CR-5 (verifies existing in
+ - MEMORY index W145-F8 entry: manifest drift root-cause established (install-provenance updated but manifest section-row status NOT auto-updated when install ships land — structural drift)
+ 
+ **Wave 145 Fire 13 SHIPPED CLEAN** — ~36 NEW DRIFT entries surfaced via 36-entry multi-channel install-state probe sweep. 12th cumulative consecutive no-Path-P-dispatch (cumulative ~2160s + ~60K tokens + ~3400 LOC saved across W145-F2-F13 + W141 + W146 + W149 arc). Next-cron-fire: W141.1 Graphiti frontend invocation probe (LIGHT) OR W145-F14 manifest sweep PART-3 (~46 remaining PLANNED entries).
++
++---
++
++## Wave 141 Fire 1 — Graphiti MCP frontend invocation smoke probe — HONEST-NON-FINDING [VERIFIED 2026-05-11]
++
++**Trigger**: /loop cron `*/12` fire post-W145-F13 (manifest drift sweep PART-2 at `fc4e8b4`); 5th-consecutive stale-cron pivot (cron prompt named W145-F12 forward-pick already SHIPPED at 1a9d0a7 — Mia probe via `git log -2` confirms). Auto-pivot to W141.1 Graphiti MCP frontend invocation smoke probe (LIGHT sister to W141 backend; tests if MCP tools are accessible to CC runtime).
++
++### HONEST-NON-FINDING surfaced — GENUINE GAP at CC-MCP-runtime layer
++
++| Probe | Command | Result |
++|---|---|---|
++| `.mcp.json` graphiti entry parse | python json.load + key check | `mcpServers.graphiti` present (14 servers total); type=stdio; command=uv; args + env fully populated per W141 backend probe |
++| `claude mcp list` runtime | `claude mcp list` | 12 active MCPs shown; **graphiti NOT in list** |
++| `claude mcp get graphiti` | direct query | "No MCP server found with name 'graphiti'. Configured servers: [12 listed]" |
++| `disabledMcpjsonServers` | settings.json | empty array |
++| `enabledMcpjsonServers` | settings.json | KEY_NOT_PRESENT (all enabled by default per CC convention) |
++
++**Root-cause analysis** (Mia n=329 → n=332 +3 sub-probes):
++
++CC `mcp list` shows **12 servers** all prefixed with either:
++- `claude.ai *` (4 cloud OAuth-based: Gmail / Calendar / Drive / MT Newswires)
++- `plugin:* :*` (8 plugin-marketplace-sourced: everything-claude-code's github/context7/exa/memory/playwright/sequential-thinking + context-mode + clickhouse)
++
++**ZERO** of the workspace `.mcp.json` `mcpServers` entries are loaded into CC runtime. The 8 declared servers (github / context7 / deepwiki / playwright / repomix / serena / memory / graphiti) appear to be either (a) NOT auto-loaded from workspace-root `.mcp.json`, OR (b) shadowed by plugin-marketplace variants that take precedence.
++
++### Verdict
++
++**HONEST-NON-FINDING** per `synthesis-layer-verify.md §Reporting categories` — Graphiti MCP backend INFRASTRUCTURE is ready (W141 confirmed all 5 deps healthy) BUT frontend integration with CC runtime is BROKEN. The `.mcp.json` wire is structurally correct but CC is not picking it up.
++
++### Possible root causes (for next-fire investigation)
++
++1. **Plugin shadowing**: ECC plugin-marketplace `everything-claude-code:*` MCPs may shadow workspace `.mcp.json` entries with same name (github / context7 / playwright / memory). For graphiti (NOT in any plugin), the shadowing hypothesis does NOT apply — different root cause needed.
++2. **Workspace `.mcp.json` not auto-loaded**: CC may require explicit `claude mcp add` per-server registration rather than auto-loading workspace `.mcp.json`.
++3. **`.mcp.json` requires session-restart**: maybe CC reads `.mcp.json` only at session-start; mid-session edits not picked up. Current session may have started before recent `.mcp.json` graphiti entry landed.
++4. **MCP scope precedence**: per `https://code.claude.com/docs/en/settings` MCP scopes — project / user / plugin / claude.ai-cloud — there may be a scope ordering issue.
++
++### Resolution options (deferred to operator-gated W141.1b install fire)
++
++**Option A** — Explicit `claude mcp add` registration:
++```bash
++claude mcp add --scope project graphiti \
++  --type stdio \
++  --command uv \
++  --args 'run --isolated --directory Z:/claude-sota-installed/.local/graphiti/mcp_server --project . main.py --transport stdio --database-provider falkordb --model qwen3.6:35b --embedder-model qwen3-embedding:0.6b --group-id eee' \
++  --env FALKORDB_URI=redis://127.0.0.1:16379 OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://127.0.0.1:11700/v1
++```
++
++**Option B** — Session restart with verified `.mcp.json` graphiti entry — confirms whether mid-session edits are the issue.
++
++**Option C** — Investigate `.mcp.json` precedence via `claude mcp list --json` (which failed JSON parse this probe — may need different syntax) OR `--debug` flag.
++
++### Cross-model gate disposition
++
++N/A (single-surface smoke probe; no design-surface edit; HONEST-NON-FINDING surfaces existing config drift).
++
++### Ladder advances
++
++| Ladder | Prior (post-W145-F13) | This fire |
++|---|---|---|
++| Mia pre-apply | n=329 | **n=332** (+3 sub-probes: .mcp.json parse / claude mcp list / claude mcp get graphiti) |
++| FM-20 path-drift cascade | n=21 | **n=22** (+1: 5th-consecutive stale cron prompt pivot catch; cron sustained-stale signal) |
++| HONEST-NON-FINDING category | (recurring tracking) | +1 (W141.1 frontend BROKEN despite backend READY) |
++| Path P recipe | n=32 | n=32 (13th cumulative consecutive no-Path-P probe/codification) |
++| Cumulative cost-savings | ~2160s + ~60K tokens + ~3400 LOC | **~2280s + ~62K tokens + ~3500 LOC** |
++
++### REVISED Forward Top-5 (post-W141.1)
++
++🥇 **W141.1b** Graphiti MCP frontend wire fix (OPERATOR-GATED HIGH-RISK — requires `claude mcp add` registration OR session restart OR investigation of why workspace `.mcp.json` not auto-loaded)
++🥈 **W141.2-NEW** Investigation: why workspace `.mcp.json` 8 entries NOT loaded by CC runtime (read-only forensics; LIGHT)
++🥉 **W145-F14-NEW** Manifest drift sweep PART-3 (~46 remaining PLANNED entries)
++#4 W146-F8 SOTA cleanliness re-audit (HEAVY 3-agent Wave 24-D fan-out)
++#5 Fresh ecosystem discovery sweep
++OPERATOR-GATED HIGH-RISK: W145-F12b/F11b/F10b install / W138-F4 / W141B / W145-F5b
++
++### Cite class
++
++`constituents=[TIER-1-DIRECT @ CC MCP scope docs https://code.claude.com/docs/en/settings + .mcp.json schema reference, TIER-2 @ Z:/claude-sota/.claude/rules/cite-imports (synthesis-layer-verify.md HONEST-NON-FINDING reporting category), TIER-3-LOCAL-OPERATOR-DERIVED @ Mia 3 runtime probes + 5-fires-stale cron pivot]; effective_tier=TIER-3-LOCAL-COMPOSITION` per citation-discipline.md rule 8 MIN_PRECEDENCE.
++
++### Cardinal-rule conformance
++
++CR-1 (TIER-1 cite to CC MCP scope docs) / CR-3 (N/A — HNF surfaces; no design-surface) / CR-5 (verifies existing install-class config; identifies NEW GAP) / CR-7 (Phase 1 AUTO-PROCEED LOW-risk read-only smoke probe) / CR-8 (probes verify SOTA-content integrity at runtime layer) / CR-9 (N/A — no new install in this fire) / CR-10 (research-first via 3 runtime probes BEFORE conclusion) / CR-11 (META-process Mia pre-apply with sustained 5-fires-stale-cron detection) / CR-12 (N/A — gap-surface, not adoption) / Mia n=332 / FM-20 n=22 / FM-02 b+c atomic / git-cli-grammar / 13th cumulative no-Path-P-dispatch / port-note-discipline section 6 f
+
+[prompt truncated]

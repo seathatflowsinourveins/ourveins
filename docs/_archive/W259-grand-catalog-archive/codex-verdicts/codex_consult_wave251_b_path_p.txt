@@ -1,0 +1,65 @@
+ROLE: Adversarial code-review GPT-5.5 (codex deep-review-exec profile)
+
+SCOPE: Single-claim audit of Wave 250 SOTA repo catalog at
+`Z:/claude-sota-installed/docs/sota-pure-runtime-catalog-2026-05-15.md`
+(60+ repos, 4 categories: §1 memory/RAG, §2 orchestration+skills, §3 token-opt, §4 observability).
+
+CONTEXT: Sonnet stand-in just shipped this catalog scoring 60+ repos on
+Axis 1+2+3 + SRA D1/D6 + CR-12 disposition + native-CC-tier + wired-difficulty + verdict.
+Operator wants comprehensive multi-dimensional scoring artifact with per-repo letter grade.
+
+TASK (4 deliverables — keep response tight):
+
+1. ADVERSARIAL SCORING AUDIT: read catalog §1-§4 row-by-row. List TOP-5 scoring errors with file:line:row cite + concrete fix. Examples to look for:
+   - Axis-1 "PASS PASS PASS" marked but only 2-distinct-orgs evidenced
+   - Probe 6 LICENSE blocker missed (AGPL/GPL marked OK)
+   - wired-difficulty understated (claim 1/5 for repos needing Docker+config)
+   - CR-12 disposition swapped (CITE-CLASS-CANONICAL vs DUPLICATE)
+   - Stand-in penetration disclosure missing on volatile scores
+
+2. ADDITIONAL DIMENSIONS for comprehensive scoring (Wave 250 used ~7 dims; operator wants 10+):
+   Propose 3-5 NEW dimensions beyond {stars, license, Axis 1+2+3, CR-12, SRA D1/D6, native-CC-tier, wired-difficulty}. Candidates:
+   - token-efficiency-impact (% reduction if applicable)
+   - cross-platform-compat (Windows/macOS/Linux PASS/PARTIAL/FAIL)
+   - dependency-footprint (npm install size / pip install size / Docker image MB)
+   - maintainer-bus-factor (1 person / small team / org-backed)
+   - security-posture (CVE history / SAST results / signed releases)
+   - install-reversibility (1 cmd revert / multi-step / DB migration)
+   - runtime-overhead-tokens (MCP server cold-start tokens / hook overhead)
+   - cohort-membership-count (cited in awesome-claude-code + awesome-mcp-servers + addy-skills + etc.)
+   - arxiv-cite-class (peer-reviewed paper backing the repo)
+   - cite-impact (how many other Wave 250 repos cite this one as canonical)
+   Recommend 3-5 with measurement method + data source.
+
+3. PER-DIMENSION GRADE THRESHOLDS: propose A+/A/B/C/D/F band thresholds per dimension. Example:
+   stars: A+ >50k, A 10-50k, B 1-10k, C 100-1k, D <100, F phantom-not-exists
+   For each of the 7 baseline dims + 3-5 NEW dims, give threshold map.
+
+4. PHANTOM-CITE candidates: skim catalog for repo names suspicious of being phantoms (created <30d + fast-churn + 0 peer cite). Wave 250 §6 flagged cytostack/openwolf and cocaxcode/token-optimizer-mcp. List any others you see in §1-§4.
+
+OUTPUT FORMAT (JSON-strict at EOF — single fenced block):
+
+```json
+{
+  "verdict": "APPROVE|NEEDS-REVISION|REJECT",
+  "conf": 0.0-1.0,
+  "top5_scoring_errors": [
+    {"row_cite": "L#", "repo": "owner/name", "error": "...", "fix": "..."}
+  ],
+  "additional_dims": [
+    {"name": "...", "measurement": "...", "data_source": "...", "weight_band": "0-10"}
+  ],
+  "grade_thresholds_per_dim": {
+    "stars": {"A+": ">50000", "A": "10000-50000", "B": "1000-10000", "C": "100-1000", "D": "<100", "F": "phantom"},
+    "license": {"A+": "MIT/Apache-2.0", "A": "BSD/CC-BY-4.0", "B": "Elastic-2.0", "C": "CC-BY-NC-ND-4.0 cite-only", "D": "GPL-3.0", "F": "AGPL/proprietary"},
+    "axis_3_stability": {"A+": "age>730d cpd<5", "A": "age>365d cpd<10", "B": "age>180d cpd<20", "C": "age>90d cpd<30", "D": "age<90d", "F": "fast-churn or fresh-paint"}
+  },
+  "phantom_candidates": ["repo1", "repo2"]
+}
+```
+
+CONSTRAINTS:
+- Cite catalog file:line for every "scoring error" claim
+- Mia-pre-apply: verify each "phantom" against gh search before listing
+- Use Probe DAG 1-7 from `.claude/rules/ahfv-probe-dag.md` as audit lens
+- Honest-non-finding allowed: if you can't find 5 errors, report fewer with REJECT-on-EOF

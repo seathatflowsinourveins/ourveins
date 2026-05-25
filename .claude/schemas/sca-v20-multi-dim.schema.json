@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claude-sota-installed/schemas/sca-v20-multi-dim.schema.json",
+  "title": "sca-v20 Multi-Dim SOTA-Repo Verdict",
+  "description": "Multi-dim scoring extension of sca-v18. 19 dimensions across 8 clusters with per-decision-class weighting (INSTALL/PATTERN-STUDY/CITE-ONLY/MONITOR). Stars stay informational-only (OSSF Criticality formula excludes stars). Pareto-frontier preserved via per-class scoring (no single scalar). Cite-anchored to W376 SYNTHESIS S9-S12 + sca-v18 lineage + OSSF Criticality + DSPy GEPA Pareto-frontier (arxiv 2507.19457) + Kapravelos ICSE-26 fake-stars + MALTA (arxiv 2603.10265) + verdict-jury L3 + CLAUDE.md cardinal-rule-1 trust-tuple + cardinal-rule-6 verify-before-claim. Authored 2026-05-23 from W377 META-C stream.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repo", "evaluated_at", "schema_version", "dimensions", "per_class_scores", "tier", "decision_class_rationale", "cardinal_rule_compliance"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "sca-v20",
+      "description": "Schema lineage marker. Strict superset of sca-v18."
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "owner/name in GitHub canonical form"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_id", "subagent_type"],
+      "properties": {
+        "model_id": {"type": "string", "description": "e.g. claude-opus-4-7[1m]"},
+        "subagent_type": {"type": "string", "description": "FQN per CR-3 (e.g. general-purpose)"},
+        "stream_id": {"type": "string", "description": "W377 stream id e.g. META-C, META-A"}
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["D04_last_commit_days", "D05_contributors_90d", "D07_license_class", "D13_cc_install_path", "D14_cc_pattern_density", "D15_cc_cite_anchor_density", "D17_pinning_discipline", "D18_arch_relevance"],
+      "description": "19 dimensions across 8 clusters per META-C §1. Required = the minimum subset for tier routing. Stars cluster (D01-D03) is optional + informational-only.",
+      "properties": {
+        "D01_stars_raw": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cluster I — Popularity. Informational ONLY. NEVER weighted into INSTALL/PATTERN-STUDY/CITE-ONLY scores. Source: gh-api /repos/{owner}/{name}.stargazers_count. Anti-game: MALTA fake-star check."
+        },
+        "D02_stars_growth_per_month": {
+          "type": "number",
+          "description": "Cluster I — Popularity. stars/month last 90d. Informational. Source: github star-history. Anti-game: cross-check vs commit cadence."
+        },
+        "D03_forks_per_star": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster I — Popularity. forks_count / stargazers_count. Informational. Healthy 0.05-0.15; <0.01 vanity; >0.5 template."
+        },
+        "D04_last_commit_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cluster II — Activity. Days since HEAD commit. INSTALL pass ≤90, PATTERN-STUDY ≤365, CITE-ONLY ≤730, BLOCK if >730d AND archived=true. Source: gh-api .pushed_at + git log -1 --format=%cI."
+        },
+        "D05_contributors_90d": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cluster II — Activity. Contributor count last 90d, bot-stripped. INSTALL pass ≥5, PATTERN-STUDY ≥2. Source: gh-api /contributors paginate + commit-author-date filter."
+        },
+        "D06_issue_close_rate_90d": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster II — Activity. closed_issues_90d / opened_issues_90d. INSTALL pass ≥0.4, PATTERN-STUDY ≥0.2. Source: gh-api. Anti-game: exclude pure stale-bot closes."
+        },
+        "D07_license_class": {
+          "type": "string",
+          "enum": ["permissive", "source-available", "copyleft", "proprietary", "noassertion"],
+          "description": "Cluster III — Trust. Inherits sca-v18 license_class enum. INSTALL hard-filter: must be permissive (or operator-attestation on source-available). BLOCK on proprietary OR noassertion. Source: gh-api /license + LICENSE file read (cross-verify)."
+        },
+        "D08_signed_release_level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Cluster III — Trust. SLSA-L0..L4. INSTALL pass ≥2 OR operator-attestation. Source: slsa-verifier CLI + npm-provenance + signed git-tags. Anti-game: claimed-not-verified worse than not-claimed (BLOCK)."
+        },
+        "D09_maintainer_reputation_tier": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D", "F"],
+          "description": "Cluster III — Trust. Inherits sca-v18 maintainership_tier enum. INSTALL pass ∈ {A,B}, PATTERN-STUDY ∈ {A,B,C}, CITE-ONLY ∈ {A,B,C,D}. F=stale/abandoned. Source: corporate-backing + named-prod-users + commit cadence."
+        },
+        "D10_test_coverage_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster IV — Quality. INSTALL pass ≥0.6, PATTERN-STUDY ≥0.4. Source: codecov/coveralls badge + pytest --cov reproducible. Anti-game: check tests-LOC / src-LOC ratio (healthy 0.3-0.8)."
+        },
+        "D11_ci_green_streak_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cluster IV — Quality. Consecutive-success days on default branch, required-status-checks only. INSTALL pass ≥14, PATTERN-STUDY ≥3. Source: gh-api /actions/runs. Anti-game: filter to required checks (lint workflows inflate)."
+        },
+        "D12_doc_completeness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster IV — Quality. README depth + per-module docs + deepwiki + recipe count. INSTALL pass ≥0.5, PATTERN-STUDY ≥0.7, CITE-ONLY ≥0.8. Source: deepwiki + manual rubric. Anti-game: auto-gen boilerplate scores 0.3-0.5; hand-curated 0.8-1.0."
+        },
+        "D13_cc_install_path": {
+          "type": "string",
+          "enum": ["plugin", "mcp-server", "sdk-python", "sdk-typescript", "cli-only", "library-only", "none"],
+          "description": "Cluster V — Claude Code runtime fit (NEW v20). INSTALL hard-filter: ∈ {plugin, mcp-server, sdk-python, sdk-typescript}. cli-only and library-only route to PATTERN-STUDY. none = full skip. Source: .claude/plugin.json OR mcp.json OR package.json:claude-code-skill OR PyPI/npm pkg + entrypoint."
+        },
+        "D14_cc_pattern_density": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster V — Claude Code runtime fit. unique_patterns_in_repo / 12 known-pattern-slots (orchestrator-workers, evaluator-optimizer, parallel-fanout, callbacks-stream, asyncio-shield-cleanup, container-isolation, retry-policy, structured-output, MCP-tool-bridging, hierarchical-delegation, memory-tiering, jury-with-veto). PATTERN-STUDY pass ≥0.4, CITE-ONLY ≥0.2. Source: deepwiki + repomix. Anti-game: each pattern MUST cite file:line."
+        },
+        "D15_cc_cite_anchor_density": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster V — Claude Code runtime fit. files_with_stable_paths / total_files * file_stability_90d_factor. PATTERN-STUDY pass ≥0.3, CITE-ONLY ≥0.5. Source: codegraph + repomix + git log --diff-filter=R. Anti-game: rename-heavy repos cannot anchor."
+        },
+        "D16_cc_deepwiki_indexed": {
+          "type": "boolean",
+          "description": "Cluster V — Claude Code runtime fit. CITE-ONLY required true. Source: deepwiki.com/{owner}/{name} HTTP 200 + ask_question non-empty."
+        },
+        "D17_pinning_discipline": {
+          "type": "string",
+          "enum": ["image-digest-sha256", "git-commit-sha", "npm-exact-version", "uvx-exact-version", "version-range", "untagged", "not-applicable"],
+          "description": "Cluster VI — Production-readiness. INSTALL pass ∈ {image-digest-sha256, git-commit-sha, npm-exact-version, uvx-exact-version}. Inherits sca-v18 cr9_pinning_strategy enum. Source: inspect own pinning of upstream + ability to pin THIS repo."
+        },
+        "D18_arch_relevance_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cluster VII — Architectural relevance. Composite over: matches-our-6-tier-memory (T1..T6), matches-our-4-mode-parallel, Temporal/asyncio compat, Pydantic-v2 native, MCP-native, Anthropic-cite-anchorable. INSTALL pass ≥0.5, CITE-ONLY ≥0.4. Source: cite each sub-axis to CLAUDE.md cardinal-rule or docs anchor."
+        },
+        "D19_community_external_mentions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cluster VIII — Community signal. cited-by other top-50 repos + arxiv refs + HN/Reddit story-count last 90d. PATTERN-STUDY pass ≥3, CITE-ONLY ≥3 (sca-v13 3-org-distinct floor). Source: gh code search + perplexity + exa. Anti-game: N LLM-judges parroting same blog = 1 mention."
+        }
+      }
+    },
+    "per_class_scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["install", "pattern_study", "cite_only", "monitor"],
+      "description": "Per-decision-class weighted scores per META-C §2. NOT a single scalar — each class has its own weight profile. Pareto-frontier preserved.",
+      "properties": {
+        "install": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weighted sum per §2 INSTALL weight profile. Stars cluster weight=0. License weight=0.15 (hard filter). Signed-release weight=0.10."
+        },
+        "pattern_study": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weighted sum per §2 PATTERN-STUDY weight profile. cc_pattern_density weight=0.25 (highest). doc_completeness 0.15. cc_cite_anchor_density 0.15."
+        },
+        "cite_only": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weighted sum per §2 CITE-ONLY weight profile. cc_cite_anchor_density weight=0.30 (highest). doc_completeness 0.20. cc_deepwiki_indexed 0.20."
+        },
+        "monitor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weighted sum per §2 MONITOR profile. Stars cluster non-zero here (drift detection). community_mentions weight=0.10."
+        }
+      }
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["INSTALL", "PATTERN-STUDY", "CITE-ONLY", "MONITOR", "BLOCK"],
+      "description": "Inherits sca-v18 5-tier soft-gate ladder. Routed per META-C §3 logic: hard BLOCK filters first, then try INSTALL → PATTERN-STUDY → CITE-ONLY → MONITOR. Soft-routing-down only; never silently up."
+    },
+    "hard_filter_violations": {
+      "type": "array",
+      "description": "Per-class hard-filter violations that downgrade from INSTALL → lower tier. Transparency record.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dim", "blocked_class", "reason"],
+        "properties": {
+          "dim": {"type": "string", "description": "e.g. D13_cc_install_path"},
+          "blocked_class": {"type": "string", "enum": ["INSTALL", "PATTERN-STUDY", "CITE-ONLY"]},
+          "reason": {"type": "string", "description": "Free-text explanation, e.g. 'cli-only path is not Claude-Code-installable primitive'"}
+        }
+      }
+    },
+    "dimension_anchors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_class"],
+        "properties": {
+          "value": {"description": "The measured value (number, string, or bool)"},
+          "source_class": {"type": "string", "enum": ["CLASS-A", "CLASS-B", "CLASS-C", "operator-attestation"], "description": "Per sca-v18 convergence model"},
+          "source_uri_or_ref": {"type": "string", "description": "URL, file:line, gh-api endpoint, or operator-sign reference"},
+          "measured_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "description": "Per-dim provenance for cite-anchor discipline (cardinal-rule-6 verify-before-claim). Each dim key (e.g. D04_last_commit_days) maps to its anchor object."
+    },
+    "decision_class_rationale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["install", "pattern_study", "cite_only"],
+      "description": "Per-class free-text rationale for the score. NOT just the scalar — explain what drove the weighting outcome and any hard-filter triggers.",
+      "properties": {
+        "install": {"type": "string", "description": "Why INSTALL score = X. Cite specific hard-filter passes/fails."},
+        "pattern_study": {"type": "string"},
+        "cite_only": {"type": "string"},
+        "monitor": {"type": "string", "description": "Optional — explain MONITOR drift signals if relevant"}
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+      "description": "TOP-LEVEL confidence = MIN over confidence_by_dimension axes (sca-v18 codex r2 G2 carry-forward). HIGH requires: ≥2 CLASS-A sources per required dim + no disagreements + jury_verdict APPROVE."
+    },
+    "confidence_by_dimension": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"]
+      },
+      "description": "Per-dim confidence breakdown (Pareto-frontier-aware). Each dim key maps to its confidence level."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Top-level free-text rationale for tier routing + per-class scores. References specific dim values + cite anchors."
+    },
+    "stars_informational": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inherits sca-v18 stars_informational block. NEVER weighted into INSTALL/PATTERN-STUDY/CITE-ONLY scores. Stars only contribute to MONITOR class (drift detection).",
+      "properties": {
+        "current_count": {"type": "integer"},
+        "fake_stars_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {"type": "string", "enum": ["MALTA", "Kapravelos-ICSE-26", "PkgPulse", "skipped"]},
+            "result": {"type": "string", "enum": ["clean", "suspected-inflated", "verified-organic"]}
+          }
+        },
+        "star_velocity_30d": {"type": "number"}
+      }
+    },
+    "convergence": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inherits sca-v18 convergence model. Multi-MCP class-weighted-counting (CLASS-A raw / CLASS-B LLM-judges / CLASS-C AI-on-repo+academic). INSTALL minimum: ≥1 CLASS-A AND ≥1 CLASS-C.",
+      "required": ["class_a", "class_b", "class_c", "passes_install_minimum"],
+      "properties": {
+        "class_a": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "github_api": {"type": "boolean"},
+            "repomix": {"type": "boolean"},
+            "codegraph": {"type": "boolean"}
+          }
+        },
+        "class_b": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "perplexity": {"type": "boolean"},
+            "exa": {"type": "boolean"},
+            "firecrawl": {"type": "boolean"}
+          }
+        },
+        "class_c": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "deepwiki": {"type": "boolean"},
+            "hf_papers": {"type": "boolean"}
+          }
+        },
+        "passes_install_minimum": {"type": "boolean"}
+      }
+    },
+    "jury_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inherits sca-v18 jury_verdict block. K=4 weighted-by-per-instance-reliability jury (arxiv 2512.01786). Minority-veto n≥2 BLOCK override (arxiv 2510.11822). K=2 minimum for INSTALL tier.",
+      "properties": {
+        "K": {"type": "integer", "minimum": 2, "maximum": 8, "default": 4},
+        "approve_count": {"type": "integer", "minimum": 0},
+        "block_count": {"type": "integer", "minimum": 0},
+        "needs_revision_count": {"type": "integer", "minimum": 0},
+        "minority_veto_triggered": {"type": "boolean", "default": false},
+        "per_juror_reliability": {
+          "type": "array",
+          "items": {"type": "number", "minimum": 0, "maximum": 1}
+        },
+        "jurors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "verdict"],
+            "properties": {
+              "id": {"type": "string"},
+              "verdict": {"type": "string", "enum": ["APPROVE", "NEEDS-REVISION", "BLOCK"]},
+              "findings_count": {"type": "integer", "minimum": 0},
+              "ref": {"type": "string"},
+              "note": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "cardinal_rule_compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cr1_trust_tuple", "cr6_verify_before_claim"],
+      "description": "Inherits sca-v18 cardinal-rule compliance block. CLAUDE.md CR-1 trust-tuple + CR-6 verify-before-claim + CR-9 pinning.",
+      "properties": {
+        "cr1_trust_tuple": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["license_verified", "license_class_verified_via"],
+          "properties": {
+            "license_verified": {"type": "boolean"},
+            "license_class_verified_via": {"type": "string", "enum": ["gh-api-license-spdx", "license-file-read", "operator-attestation"]},
+            "signed_releases": {"type": "boolean"},
+            "slsa_level": {"type": "integer", "minimum": 0, "maximum": 4},
+            "dep_blast_radius_clean": {"type": "boolean"},
+            "maintainer_identity_verified": {"type": "boolean"}
+          }
+        },
+        "cr6_verify_before_claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_verified_via_gh_api": {"type": "boolean"},
+            "license_verified_via_primary_source": {"type": "boolean"},
+            "production_users_verified": {"type": "boolean"},
+            "benchmark_scores_verified_to_source": {"type": "boolean"},
+            "dimensions_anchor_count_meets_3_org_distinct_floor": {"type": "boolean", "description": "Per sca-v13 — at least 3 distinct orgs in dimension_anchors source_uri_or_ref"}
+          }
+        },
+        "cr9_pinning_strategy": {
+          "type": "string",
+          "enum": ["image-digest-sha256", "git-commit-sha", "npm-exact-version", "uvx-exact-version", "not-applicable"]
+        }
+      }
+    },
+    "weights_profile_version": {
+      "type": "string",
+      "default": "v20-initial-2026-05-23",
+      "description": "Version of the §2 weight table used to compute per_class_scores. Enables R-CALIBRATION re-scoring without losing prior verdicts."
+    },
+    "follow_up_streams": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Inherits sca-v18 follow_up_streams. Queued: R-CALIBRATION (empirical weight tuning on 50-repo backtest), R-IMPL (tools/sca-v20-evaluate.mjs CLI), R-DASHBOARD (Pareto-frontier viz), R-CODEX (codex jury on framework), R-MIGRATION (backfill 15 repos)."
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Forward-compat reservation for v21+ additions. Use x_* prefix for custom fields.",
+      "patternProperties": {
+        "^x_": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}

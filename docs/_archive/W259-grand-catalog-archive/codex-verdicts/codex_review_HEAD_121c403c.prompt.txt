@@ -1,0 +1,201 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 121c403c2436b3030b60fe478ef8c88c83469f57
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/_guard_base.py | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+=== git show --format=fuller ===
+commit 121c403c2436b3030b60fe478ef8c88c83469f57
+Author:     42 <42@local>
+AuthorDate: Sat May 9 19:22:52 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 19:22:52 2026 -0400
+
+    fix(t3-tier-b-adversarial-bypass): Bash-equivalent line-continuation deletion in git_verb_matches (Ship K T3 NEEDS-ATTENTION conf=0.86 fix-forward)
+    
+    Wave 130 Fire 3 Ship L — Pattern A fix-forward per codex T3 NEEDS-ATTENTION conf=0.86 verdict on Ship K (sha 9d6f2383). Ship K's `re.sub(r"\\\s*\n\s*", " ", cmd)` line-continuation collapse INSERTED A SPACE which Bash semantics do NOT — adversarial bypass discovered.
+    
+    ==== Adversarial bypass Ship K introduced (codex T3 catch) ====
+    
+    Codex T3 verdict at `.claude/state/codex_review_HEAD_9d6f2383.txt`:
+    > Bash removes an unquoted backslash-newline with no delimiter before tokenization, so commands like `git comm\<newline>it -m msg` or `gi\<newline>t push origin main` execute as `git commit` / `git push`. This preprocessor instead replaces the continuation with a space, turning those same commands into `git comm it` / `gi t push` for `git_verb_matches`, so the helper can return false even though Bash will run the protected git operation. Given this helper is in the shared guard base for commit/push gates, an adversarially formatted command can still bypass gitleaks/codex hook detection.
+    
+    Severity: HIGH (file=`.claude/hooks/scripts/_guard_base.py` line=372). Confidence: 0.86.
+    next_steps: "Change the continuation normalization to preserve Bash concatenation semantics and rerun the git verb matching smoke tests with token-splitting bypass cases."
+    
+    ==== Fix: 1 surgical Edit at _guard_base.py:368 ====
+    
+    ```diff
+    -    cmd = re.sub(r"\\\s*\n\s*", " ", cmd)
+    +    cmd = re.sub(r"\\\r?\n", "", cmd)
+    ```
+    
+    Bash semantic: `\<newline>` is DELETED (not replaced with space). So `git comm\<newline>it` becomes `git commit` (concatenated, no space). Ship L matches Bash exactly.
+    
+    ==== Smoke-test 16/16 PASS (codex-prescribed adversarial regression cases) ====
+    
+    ```
+    PASS: 'git comm\\\nit -m msg' verb=commit = True  ← Ship K BYPASS bug, now fixed
+    PASS: 'gi\\\nt push origin main' verb=push = True  ← split inside 'git'
+    PASS: 'git commit -m\\\nmsg' verb=commit = True  ← split adjacent to flag
+    PASS: 'git add foo &&\\\ngit commit -m msg' verb=commit = True  ← split adjacent to &&
+    PASS: 'git -C path add -- file && \\\ngit -C path commit -F msg' verb=commit = True  ← Ship K case
+    PASS: 'rtk git -C path add && \\\nrtk git -C path commit -F msg' verb=commit = True  ← Ship K + rtk
+    PASS: 'echo foo && \\\necho bar' verb=commit = False  ← negative case
+    PASS: 'gi\\\nt status' verb=commit = False  ← status not commit
+    PASS: 'rtk git -C Z:/claude-sota-installed commit ...' verb=commit = True  ← Ship I regression
+    PASS: 'rtk git -C path add && rtk git -C path commit ...' verb=commit = True  ← compound chain
+    PASS: 'git -C path commit -m msg' verb=commit = True  ← existing behavior
+    PASS: 'git commit -m msg' verb=commit = True  ← existing behavior
+    PASS: 'git push origin main' verb=push = True  ← push verb
+    PASS: 'rtk' verb=commit = False  ← edge: lone token
+    PASS: 'cat foo.txt' verb=commit = False  ← edge: non-git
+    PASS: 'rtk somethingelse' verb=commit = False  ← edge: rtk + non-git
+    ```
+    
+    ALL adversarial bypass cases CLOSED + Ship K + Ship I + existing behavior preserved.
+    
+    ==== Pattern A fix-forward atomic apply (Ship K + Ship L same-fire single-iter) ====
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A: NEEDS-REVISION/NEEDS-ATTENTION verdict at conf 0.86 with prescribed_edits → apply ALL in single fix-forward. Ship L is the canonical Pattern A apply per codex T3 verdict; closes within iter-N+1 boundary (Ship K iter-N → Ship L iter-N+1, NOT iter-N.1→N.2 layered-correction anti-pattern per `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md` cycle-539).
+    
+    ==== Cross-model gate WORKING — proves architecture restoration ====
+    
+    This Ship L sequence (Ship K commits → T3 launches → T3 NEEDS-ATTENTION conf=0.86 → Pattern A fix-forward → Ship L commits) is empirical proof that the cross-model gate restored in Ship H + I + J is OPERATIONALLY VALUABLE. Codex T3 caught a real HIGH-severity adversarial bypass that smoke-test alone would not have surfaced (Ship K's 12/12 smoke focused on legitimate inputs, not adversarial).
+    
+    The architecture is functioning as designed:
+    1. Ship K applied with smoke test 12/12 PASS
+    2. T3 codex review fired on commit → caught real defect
+    3. Pattern A fix-forward apply with codex's prescription
+    4. Ship L smoke test 16/16 PASS (added codex-prescribed regression cases)
+    5. T3 review fires again on Ship L commit → validates the fix
+    
+    ==== Mia pre-apply ladder n=92 → n=93 (catch this fire) ====
+    
+    #93 (this fire pre-apply): Ship K's `re.sub` regex `\\\s*\n\s*` was INTUITIVE (replace continuation with space — looks like text join semantic) but EMPIRICALLY WRONG (Bash semantic is deletion, no space). Mia pre-apply via codex T3 verdict reading caught the false-intuition pre-Ship-L. Forward-only n-counter discipline per `port-note-discipline.md §5 Discipline 4`.
+    
+    ==== CR conformance ====
+    
+    - **CR-1 cite-trail**: TIER-1-DIRECT to codex T3 verdict at `.claude/state/codex_review_HEAD_9d6f2383.txt` (Anthropic-canonical hook output) + Bash POSIX semantic for line-continuation deletion (canonical shell behavior)
+    - **CR-3 cross-model gate**: Pattern A fix-forward per codex T3 NEEDS-ATTENTION verdict — the cross-model gate WORKED. T3 review on this Ship L will validate the fix end-to-end
+    - **CR-5 install-priority**: cite-import-AMBER NOT applicable
+    - **CR-8 full-SOTA-content**: ADAPTED-FROM-SOTA — Bash POSIX line-continuation semantic is canonical
+    - **CR-9 install-risk**: LOW (1-line regex change; ZERO regressions on smoke 16/16)
+    - **CR-11 META-process**: Phase 4 systematic-debugging Implementation per superpowers:systematic-debugging skill + Mia pre-apply n=93 + Pattern A surgical 1-edit apply per codex T3 verdict + cross-model gate operational validation
+    
+    ==== Cross-model gate validation ladder so far (Wave 130 Fire 3) ====
+    
+    | Ship | T3 verdict | Pattern |
+    |---|---|---|
+    | H sha 2b3ff4f | APPROVE (retroactive) | Tier-A widening |
+    | I sha 4a49994 | APPROVE | Tier-B rtk-strip |
+    | J sha fa9b3d4f | APPROVE | Tier-A scope-extension |
+    | K sha 9d6f2383 | NEEDS-ATTENTION conf=0.86 | Tier-B `\<newline>` (BUGGY space-insert) |
+    | L (this commit) | pending | Tier-B `\<newline>` (Bash-equivalent deletion) |
+    
+    5-ship arc — 3-of-3 APPROVE for Tier-A + Ship K caught + Ship L pending validation. The cross-model gate is BOTH operational AND catching real defects.
+    
+    ==== Outstanding queue ====
+    
+    - Task #95 (now closed by Ship L per Pattern A): Tier-B segment splitter
+    - Task #91 still pending: sibling fm17 backport (sibling-context fire)
+    - Task #92 in progress: fm17 multi-file taxonomy split (architect agent dispatched at task `a27ce846`)
+    - Pre-existing #45/#47/#61/#87/#88
+    
+    VERDICT (this commit): Tier-B Bash-equivalent semantic per codex T3 prescription. Closes adversarial bypass class identified by cross-model gate.
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/_guard_base.py b/.claude/hooks/scripts/_guard_base.py
+index 2fa3d9b..6222a28 100644
+--- a/.claude/hooks/scripts/_guard_base.py
++++ b/.claude/hooks/scripts/_guard_base.py
+@@ -366,12 +366,16 @@ def git_verb_matches(cmd: str, verb: str) -> bool:
+     import shlex
+     if not cmd or not isinstance(cmd, str):
+         return False
+-    # Collapse Bash line continuations `\<newline>` to single space (Wave 130 Fire 3
+-    # Tier-B defense-in-depth — `&&` chain with
+
+[prompt truncated]

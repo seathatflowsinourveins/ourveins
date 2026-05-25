@@ -1,0 +1,178 @@
+# .github/workflows/commit-signing.yml
+#
+# W341-Q10 gap-resolution — verify commit signatures + DCO sign-off on PRs.
+#
+# Two complementary checks:
+#   1. DCO (Developer Certificate of Origin) — every commit must have
+#      `Signed-off-by:` trailer per https://developercertificate.org/
+#   2. Verified signatures — GPG/SSH/sigstore-cosign signature exists
+#      (advisory; pre-W341 commits may not be signed)
+#
+# Cite anchors:
+#   - DCO probot/dco: github.com/probot/dco (canonical GitHub DCO check)
+#   - sigstore/gh-action-sigstore-python: github.com/sigstore/gh-action-sigstore-python
+#   - GitHub commit signature verification:
+#     docs.github.com/en/authentication/managing-commit-signature-verification
+#
+# CR-1 compliance: actions pinned to major version; trusted publishers
+# (sigstore, probot, GitHub-owned).
+#
+# CR-6 verify-before-claim: each job exits non-zero on failure with
+# explicit annotation citing the offending commit SHA.
+
+name: commit-signing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read   # READ-ONLY per codex W341-r1 P1; DCO check uses commit history from checkout, not PR API
+
+concurrency:
+  group: commit-signing-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dco-check:
+    name: DCO sign-off (Developer Certificate of Origin)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout PR commits
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          submodules: false   # W340 SB-2 phantom-submodule guard
+          fetch-depth: 0      # need full history to check all PR commits
+          persist-credentials: false
+
+      - name: Verify Signed-off-by trailer on each PR commit
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="$PR_BASE_SHA"
+          head="$PR_HEAD_SHA"
+          echo "Checking commits ${base}..${head}"
+          fail=0
+          # W416 (codex r2 closure) — classify each PR commit; skip ONLY true update-branch noise:
+          #   (a) non-merge  → DCO required.
+          #   (b) noise merge → SKIP. Requires ALL of:
+          #         - EXACTLY 2 parents (codex r2 P1#2 octopus closure).
+          #         - second-parent IS ancestor of origin/main.
+          #         - merge tree == `git merge-tree --write-tree parent1 parent2` (codex r2 P1#1 custom-resolution closure).
+          #   (c) content-bearing merge (any merge failing bucket-b) → DCO required.
+          # Cite: T6 basic-memory `main/learnings/w402-w403-strict-policy-update-branch-lesson-force-rebase-fix`,
+          #       W416 codex r1+r2 BLOCK closure, `docs/architecture/W416-MERGE-COMMIT-FILTER/DESIGN.md`.
+          git fetch --no-tags --quiet origin main:refs/remotes/origin/main 2>/dev/null || true
+          MAIN_REF=$(git rev-parse origin/main 2>/dev/null || echo "")
+          non_merge_count=0
+          for sha in $(git rev-list "${base}..${head}"); do
+            parents="$(git log -1 --format=%P "$sha")"
+            parent_count=$(echo "$parents" | wc -w | tr -d ' ')
+            if [ "$parent_count" -le 1 ]; then
+              non_merge_count=$((non_merge_count + 1))
+            else
+              is_noise=0
+              if [ "$parent_count" -eq 2 ]; then
+                first_parent=$(echo "$parents" | awk '{print $1}')
+                second_parent=$(echo "$parents" | awk '{print $2}')
+                if [ -n "$MAIN_REF" ] && [ -n "$second_parent" ] && git merge-base --is-ancestor "$second_parent" "$MAIN_REF" 2>/dev/null; then
+                  actual_tree=$(git rev-parse "$sha^{tree}" 2>/dev/null || echo "")
+                  default_tree=$(git merge-tree --write-tree "$first_parent" "$second_parent" 2>/dev/null || echo "")
+                  if [ -n "$actual_tree" ] && [ -n "$default_tree" ] && [ "$actual_tree" = "$default_tree" ]; then
+                    is_noise=1
+                  fi
+                fi
+              fi
+              if [ "$is_noise" -eq 1 ]; then
+                echo "SKIP(noise-merge): $sha"
+                continue
+              fi
+              echo "CHECK(content-merge): $sha — DCO still required"
+            fi
+            msg=$(git log -1 --format=%B "$sha")
+            if ! echo "$msg" | grep -qE '^Signed-off-by: '; then
+              echo "::error::Commit $sha missing 'Signed-off-by:' trailer (DCO violation)"
+              echo "  Fix locally: git commit --amend --signoff (then force-push)"
+              fail=1
+            else
+              echo "OK: $sha"
+            fi
+          done
+          # W416 r1-feedback (codex r1 P1#2): require at least 1 non-merge commit per PR.
+          if [ "$non_merge_count" -eq 0 ]; then
+            echo "::error::PR has 0 non-merge commits; every PR MUST have at least 1 reviewed non-merge commit carrying the Signed-off-by trailer (W416 codex r1 P1#2 closure)."
+            fail=1
+          fi
+          exit $fail
+
+  signature-advisory:
+    name: GPG/SSH signature presence (advisory)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    # Advisory only — pre-W341 commits may not be signed; W341+ MUST sign.
+    continue-on-error: true
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with:
+          submodules: false   # W340 SB-2 phantom-submodule guard
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Report unsigned commits (advisory)
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="$PR_BASE_SHA"
+          head="$PR_HEAD_SHA"
+          unsigned=0
+          # W416 (codex r2 closure) — skip ONLY true noise merges (see dco-check job + W416 DESIGN.md §4.2).
+          # Same 3-condition classification as dco-check: 2-parent + 2nd-parent-on-main + tree==default-merge.
+          git fetch --no-tags --quiet origin main:refs/remotes/origin/main 2>/dev/null || true
+          MAIN_REF=$(git rev-parse origin/main 2>/dev/null || echo "")
+          for sha in $(git rev-list "${base}..${head}"); do
+            parents="$(git log -1 --format=%P "$sha")"
+            parent_count=$(echo "$parents" | wc -w | tr -d ' ')
+            if [ "$parent_count" -eq 2 ]; then
+              first_parent=$(echo "$parents" | awk '{print $1}')
+              second_parent=$(echo "$parents" | awk '{print $2}')
+              if [ -n "$MAIN_REF" ] && [ -n "$second_parent" ] && git merge-base --is-ancestor "$second_parent" "$MAIN_REF" 2>/dev/null; then
+                actual_tree=$(git rev-parse "$sha^{tree}" 2>/dev/null || echo "")
+                default_tree=$(git merge-tree --write-tree "$first_parent" "$second_parent" 2>/dev/null || echo "")
+                if [ -n "$actual_tree" ] && [ -n "$default_tree" ] && [ "$actual_tree" = "$default_tree" ]; then
+                  continue  # noise merge — skip signature check
+                fi
+              fi
+            fi
+            sig_status=$(git log -1 --format=%G? "$sha")
+            # G = good signature, U = unknown trust, X = expired, B = bad, N = no signature
+            if [ "$sig_status" = "N" ]; then
+              echo "::warning::Commit $sha is UNSIGNED (advisory; sign with: git commit -S)"
+              unsigned=$((unsigned + 1))
+            fi
+          done
+          if [ "$unsigned" -gt 0 ]; then
+            echo "$unsigned unsigned commit(s) in this PR (advisory — does not block merge)"
+          fi

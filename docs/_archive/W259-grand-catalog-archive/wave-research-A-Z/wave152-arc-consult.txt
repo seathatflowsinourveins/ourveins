@@ -1,0 +1,132 @@
+WAVE 152 ARC — SOTA convergence consensus for 4-item execution plan
+
+User directive 2026-05-11 verbatim: "you need to do them all with sota convergence consensus with gpt5.5, advanced automation, you need to have sota premission, referecnce gap resolute all"
+
+Translation: execute all 4 Forward Top-5 items with REAL GPT-5.5 cross-model gate + 3-agent advanced team per Wave 24-D standing-directive + operator GO granted + TIER-1 cite anchors per CR-1.
+
+You are operating as the REAL GPT-5.5 voice (codex CLI v0.130.0+ via codex exec --ephemeral -p deep-review-exec). Cross-model gate per CR-3 Phase 1 bootstrap exception (codex_t1-t7 hooks NOT-yet-INSTALLED at runtime).
+
+## 4 ITEMS (current Forward Top-5 carry-forward from W150-F2)
+
+🅰 NETSH PORT-EXCLUSION PIN
+- Goal: explicitly pin ports 18317 (CPA) + 19801 (cache-fix-proxy) + (optionally 8079 cpa-usage-keeper) via `netsh add excludedportrange protocol=tcp startport=N numberofports=1 store=persistent`
+- Reason: prevent Hyper-V/WSL dynamic-reservation drift (Wave 149 Fire 3 root cause: range 8255-8354 captured 8317, causing 56h CPA outage)
+- Risk class: LOW (idempotent additions; reversible via `netsh delete excludedportrange`)
+- Constraint: requires Windows admin elevation (UAC prompt OR pre-elevated shell)
+- Current state per PROBE 12 W151-F1: 18317 currently OUTSIDE excluded ranges, between bands 9879-9978 + 50000-50059, but unpinned = vulnerable to dynamic reservation
+
+🅱 ENABLE CPA MANAGEMENT API / cpa-usage-keeper
+- Goal: real-time cache-hit-rate + per-account usage + reset-window visibility
+- Current state per PROBE 7 W151-F1: :8079 NOT REACHABLE
+- Two candidate paths:
+  (a) Discover whether cpa-usage-keeper exists as separate companion service and start it
+  (b) Enable CPA built-in management API via `disable-control-panel: false` in `Z:/claude-sota-installed/.cli-proxy-api/config.yaml` + NSSM EEE-CLIProxyAPI restart
+- Risk class: MEDIUM (NSSM service restart causes ~5-10s CPA :18317 downtime; mitigation: 1 retry on call-side)
+- Constraint: prep-state-dir.ps1 generation logic for config-docker.yaml must carry the same enable forward into Docker cutover OR edits become moot post-cutover
+
+🅳 DOCKER CUTOVER (W150-F3)
+- Goal: replace NSSM EEE-CLIProxyAPI + EEE-CacheFixProxy with Docker compose `eee-cli-proxy-api` + `eee-cache-fix-proxy` per W150-F2 design
+- Files SHIP-READY at `Z:/claude-sota-installed/.local/cpa-fix-services/`:
+  - docker-compose.yml (4.8KB) — SHA256-pinned images + restart:unless-stopped + healthcheck + depends_on:service_healthy + bridge network + json-file log capping
+  - prep-state-dir.ps1 (4.6KB) — Phase 1 idempotent state-outside-repo prep
+  - cutover-nssm-to-docker.ps1 (12KB) — 4-phase: preflight + parallel-deploy + NSSM-stop + optional-deregister; pause-and-confirm gates; -DryRun available
+  - rollback-docker-to-nssm.ps1 (4KB) — <60s emergency rollback
+- Plan doc: `Z:/claude-sota-installed/docs/wave150-docker-migration-plan.md`
+- Risk class: HIGH per launch-discipline.md D1 (supervisor swap; reversible <60s via rollback script; 24-72h monitoring window with NSSM stopped-but-registered)
+- Constraint: ~2-3hr supervised execution per user W150 preference; pause-and-confirm at each phase boundary
+- Convergence-gate evidence per W150-F1: 4-org Axis-1 strict PASS (Docker Inc + Microsoft + Moby + CNCF) + 10 TIER-1 multi-source + CR-12 PROVIDER-COMPLEMENT (Docker covers containerization ecosystem; NSSM covers Windows-SCM niche)
+
+🅲 PATH D ACTIVATION
+- Goal: uncomment `Z:/claude-sota-installed/CLAUDE.local.md` ENV (h) line `$env:CLAUDE_CODE_DISABLE_1M_CONTEXT='1'`
+- Effect: BRIDGE-MODE subagents (gpt5-reviewer, gpt5-archaeologist, codex-rescue) no longer pre-fire on [1m]-parent (FM-17.f mitigation per docs/fm17f-deep-dive-2026-05-09.md)
+- Trade-off: parent session loses 1M ceiling, drops to ~200k effective context; /compact rot-threshold shifts from ~300-400k to ~150-180k
+- Risk class: MED-HIGH (HIGH-risk operator-gated per W148-F3; reversible by re-commenting + eee restart)
+- Constraint: takes effect on eee restart; current session terminates
+
+## AXES (your verdict must address all 6)
+
+AXIS 1 — Execution ordering recommendation
+Consider dependencies, risk progression, session-state effects. Specifically:
+- 🅳 Docker cutover replaces NSSM; if 🅱 edits NSSM-served config.yaml BEFORE cutover, does prep-state-dir.ps1 carry the edit forward into config-docker.yaml? READ prep-state-dir.ps1 to determine.
+- 🅲 Path D terminates current session via eee restart; should be LAST in arc OR triggered via new session.
+- 🅰 netsh requires admin; can be done anytime independently.
+
+AXIS 2 — Per-item SOTA cite-anchors (TIER-1)
+For each item, provide TIER-1 cite anchor at file:line + HEAD SHA per CR-1:
+- 🅰 netsh: Microsoft Learn / Windows networking docs
+- 🅱 CPA mgmt API: seakee/CLIProxyAPI README + config schema
+- 🅳 Docker: docker.com docs (restart-policy + compose + healthcheck) + cnighswonger/claude-code-cache-fix README chained-upstream pattern
+- 🅲 Path D: code.claude.com/docs/en/env-vars + code.claude.com/docs/en/model-config (extended context billing)
+
+AXIS 3 — Cardinal-rule conformance per item (CR-1 through CR-12)
+Map each item to ✅/⚠️/❌/N/A for each cardinal rule. Especially:
+- CR-3 cross-model gate: this consult satisfies for the arc plan; per-item commits also need T1
+- CR-6 official-native-channel: netsh native Windows / CPA mgmt API native upstream / docker compose canonical / env-var native
+- CR-7 Phase 1 bypassPermissions: user has granted GO; verify each action conforms
+- CR-9 install-risk: any @latest pins, pre-cite-import REVERT check, sibling-bleed defense
+- CR-10 research-first: confirm SOTA path per item
+
+AXIS 4 — Rollback strategy per item (per launch-discipline.md D1)
+Specific reversal command + verification probe:
+- 🅰 `netsh delete excludedportrange protocol=tcp startport=N numberofports=1 store=persistent`
+- 🅱 revert config.yaml edit + NSSM restart
+- 🅳 `bash .local/cpa-fix-services/rollback-docker-to-nssm.ps1` (already exists)
+- 🅲 re-comment ENV (h) + eee restart
+
+AXIS 5 — FM-N risk per item (named-failure-modes.md inventory)
+Specifically address:
+- FM-02 b+c: any concurrent-session race risk during item execution
+- FM-15: git CLI grammar (any commits this arc must follow options-before-`--`)
+- FM-17.f: confirms Path D INACTIVE means no BRIDGE-MODE subagent fan-out until 🅲 executes
+- FM-19: any Bash-only/readonly-guard agent ARTIFACT-INLINE risk
+- FM-20: any orchestrator OVERs in this brief that could cascade through to executors
+
+AXIS 6 — Mia pre-apply on this brief (recursive)
+My framing of these 4 items — are any of them an OVER? Specifically:
+- Is 🅱 "enable CPA mgmt API" the correct sub-task, OR is cpa-usage-keeper a separate service I'm misidentifying?
+- Is 🅳 single-jump Docker cutover still the right call OR has W150 evidence shifted?
+- Is 🅲 Path D still the optimal FM-17.f mitigation, OR has W148-F3 framing drifted?
+- Is 🅰 netsh redundant given Wave 149 Fire 3 already migrated to 18317 in safe band?
+Per mia-pre-apply.md n=287+ ladder: ZERO correlation between conf and accuracy. Probe my assumptions.
+
+## OUTPUT FORMAT (JSON-strict at EOF per Pattern D recipe)
+
+After all reasoning text, emit ONE JSON block at the very end of your output:
+
+```json
+{
+  "wave": "152",
+  "verdict_overall": "APPROVE-ARC | NEEDS-REVISION-ARC | REJECT-ARC",
+  "confidence_overall": 0.XX,
+  "verdict_per_item": {
+    "netsh": {
+      "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+      "confidence": 0.XX,
+      "prescribed_edits": ["..."],
+      "risk_class": "LOW | MED | HIGH",
+      "reversible": true,
+      "tier1_cite": "<URL or repo file:line + HEAD SHA>"
+    },
+    "cpa_mgmt": {...},
+    "docker_cutover": {...},
+    "path_d": {...}
+  },
+  "ordering_recommended": ["netsh", "cpa_mgmt", "docker_cutover", "path_d"],
+  "ordering_rationale": "...",
+  "cr_conformance_per_item": {"netsh": {"CR-1": "✅", ...}, ...},
+  "fm_risks_arc_level": ["..."],
+  "mia_overs_in_my_framing": [{"claim": "...", "verdict": "VERIFIED | REFUTED | UNCERTAIN"}, ...],
+  "ready_to_execute_first_item": true|false
+}
+```
+
+EOF discipline: if uncertain, set verdict to NEEDS-REVISION with conf=0.86 + specific prescribed_edits. If user-correction-channel signal present (any 🅰/🅱/🅳/🅲 framing wrong), explicit override.
+
+Budget: 300s wall-clock. JSON-strict EOF expected.
+
+REFERENCE for your reasoning:
+- TIER-1 anchors: code.claude.com/docs/en + Anthropic cwc-long-running-agents + CCBP + OpenAI codex + addyosmani agent-skills
+- TIER-2 sister-rules: cross-model-consensus.md + advanced-agent-team-standing-directive.md + codex-t1-fix-forward-pattern.md §Pattern D + mia-pre-apply.md + fm17-subagent-fleet-depletion.md + launch-discipline.md
+- TIER-3 evidence: W150-F2 commit d60906b + W149-F3 commit b935e4a + docs/wave150-docker-migration-plan.md + .local/cpa-fix-services/ + docs/fm17f-deep-dive-2026-05-09.md
+
+Begin.

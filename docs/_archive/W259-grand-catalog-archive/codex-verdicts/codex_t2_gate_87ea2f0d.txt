@@ -1,0 +1,9 @@
+The tracked documentation addition appears consistent, but the working tree also contains untracked runtime keys and local Claude state that should not be shipped. Those artifacts make the current change unsafe to commit as-is.
+
+Full review comments:
+
+- [P1] Keep daemon pipe keys out of git — Z:\claude-sota-installed\.claude\daemon\pipe.key:1-1
+  If this untracked runtime key is added, every checkout will receive the same daemon IPC/auth token instead of a per-machine generated value. That violates the repo's local-state/secrets policy and makes any daemon that trusts this key shareable from source control; remove it from the change and ignore `.claude/daemon/`.
+
+- [P2] Drop local Claude runtime state from the change — Z:\claude-sota-installed\.claude\settings.local.json:1-1
+  When `settings.local.json` and the other untracked `.claude` runtime artifacts in this change are committed, a clean clone inherits this workstation's local permissions/MCP selections plus generated session/cache/lock data instead of generating its own. These are machine/runtime state, so remove them from the change or add narrow ignore rules before committing.

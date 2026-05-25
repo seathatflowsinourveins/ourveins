@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WinSW v2.12.0 (stable) service definition — LlamaSwap (mostlygeek/llama-swap proxy + swap)
+
+  Migration source: NSSM `LlamaSwap` (`-config Z:\tools\llama-swap\config.yaml -listen :8090`).
+
+  Schema: https://github.com/winsw/winsw/blob/v2.12.0/doc/xmlConfigFile.md
+  Per W301 Stream A §1: TARGET v2.12.0 stable.
+
+  Apply / Rollback: see IkLlamaServer.xml header for full install pattern; per-service rename:
+    Copy-Item Z:\tools\winsw\winsw.exe Z:\tools\winsw\LlamaSwap.exe
+    Copy this XML to Z:\tools\winsw\LlamaSwap.xml
+    Z:\tools\winsw\LlamaSwap.exe install && Z:\tools\winsw\LlamaSwap.exe start
+
+  Pairs with W301-MED-llama-swap-v213 upgrade: after binary is replaced at the same path,
+  WinSW restart will pick up the new binary + new config.yaml `metrics.enabled: true`.
+-->
+<service>
+  <id>LlamaSwap</id>
+  <name>LlamaSwap (mostlygeek/llama-swap multi-model proxy)</name>
+  <description>llama-swap proxy + auto-load/unload supervisor for ik_llama.cpp model slots (gemma4-31b, gemma4-26b, qwen3-embed-0.6b, qwen3-vl-8b, qwen3-reranker-0.6b, qwen3-coder-30b CPU). Serves :8090 with Prometheus /metrics (v212+) and /v1/messages Anthropic-shape API (v213+). qwen36 entry intentionally `_disabled_` — IkLlamaServer holds :8080 standalone.</description>
+
+  <executable>Z:\tools\llama-swap\llama-swap.exe</executable>
+  <arguments>-config Z:\tools\llama-swap\config.yaml -listen :8090</arguments>
+
+  <startmode>Automatic</startmode>
+
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>Z:\claude-sota-installed-state\logs\LlamaSwap</logpath>
+
+  <!-- AboveNormal: llama-swap is a routing proxy (cheap I/O), shouldn't compete with IkLlamaServer's
+       HIGH priority for compute, but should respond to inference requests with minimal queue delay. -->
+  <priority>AboveNormal</priority>
+
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="15 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="300 sec"/>
+
+  <resetfailure>1 hour</resetfailure>
+
+  <stoptimeout>15 sec</stoptimeout>
+  <!-- llama-swap is a Go HTTP server that handles SIGINT gracefully via signal.NotifyContext;
+       stopparentprocessfirst ensures it gets the Ctrl+C signal before any child llama-server it
+       might have spawned (the children are usually managed by IkLlamaServer separately, but
+       v213+ adds llama-swap-managed slots — defense in depth). -->
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+
+  <!-- depend: LlamaSwap waits for IkLlamaServer's Windows service to enter RUNNING before binding :8090.
+       NOTE: <depend> is a service-state gate, NOT a port-readiness gate — IkLlamaServer's WinSW
+       reports RUNNING the moment the child process launches, which is BEFORE :8080 binds and BEFORE
+       the MTP cold-load completes (~30s). The transient routing-storm that llama-swap might see in
+       that 30s window resolves itself via its built-in retry logic (config.yaml `healthCheckTimeout`).
+       For a hard port-readiness gate, the operator would need to add a <prestart> that polls
+       http://127.0.0.1:8080/health before returning; deferred as not strictly necessary. -->
+  <depend>IkLlamaServer</depend>
+
+  <!-- Cardinal-rule-5: empty env block. NSSM source confirmed empty 2026-05-18 (live probe). -->
+</service>

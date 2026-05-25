@@ -1,0 +1,42 @@
+QUICK CODEX T1 VERDICT — Wave 94 Phase 3 of Ship 1T + Ship 1W/1X cron deploy. Real GPT-5.5 BRIDGE-MODE.
+
+CHANGES (2 edits):
+
+EDIT 1 — Phase 3 of Ship 1T (cnighswonger Opus 4.7 advisory):
+  tools/eee.ps1 +12 LOC
+  Added: $env:CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = '1'
+  Cite: Z:/repos/deps/cnighswonger-claude-code-cache-fix/README.md:11 @ HEAD 12cc30a1
+        ("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1 reduces 5h burn ~3.3x")
+  Cite: https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7
+        (35% tokenizer increase documented; ArkNill independent confirmation)
+  Comment in eee.ps1 documents: "may reduce quality on complex tasks
+        (operator can override per-shell with $env:VAR=$null)"
+  PowerShell parser PASS (2545 tokens unchanged)
+
+EDIT 2 — NEW tools/eee_install_cron_tasks.ps1 (~165 LOC):
+  Closes Wave 93 persistence gap: CLIProxyAPI auto-refresh-workers rewrite
+  OAuth files every 14400s (4h) overwriting Ship 1X disabled flag.
+  Solution: Windows Scheduled Tasks for Ship 1W (60s) + Ship 1X (5min).
+  4h refresh interval x 5min plan = 48 re-applies between any single auto-refresh.
+  Modes: -DryRun / -Install / -Uninstall / -Status
+  Cite: Microsoft Learn https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/register-scheduledtask
+  PowerShell parser PASS
+
+DRY-RUN VERIFIED:
+  Wave 94 Ship 1W+1X cron deployment plan:
+  Task 1: EEE-Aperant-Poller (--once every 60s)
+  Task 2: EEE-Rotation-Planner (--once --threshold-pct 80 every 5min)
+  Pre-reqs OK.
+
+LAUNCH-DISCIPLINE D1 INVARIANTS:
+  REVERSIBLE: -Uninstall removes both tasks; tasks call --once mode (single-pass + exit)
+  OBSERVABLE: tasks log to .claude/state/{aperant_poller,eee_rotation_planner}.jsonl
+              -Status command shows registered + last-run + next-run
+  INCREMENTAL: -DryRun preview; -Install registers; safe to test individually
+
+LIVE EFFECT: Once -Install run, persistence gap CLOSED operationally.
+
+QUESTION: Both edits APPROVED to commit?
+
+Output JSON only:
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"findings":[{"id":"F-N","severity":"P0|P1|P2|P3","concern":"...","prescribed_edit":"..."}],"ship_disposition":"PROCEED|FIX-FORWARD-AND-PROCEED|BLOCK","rationale":"..."}

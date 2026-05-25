@@ -1,0 +1,26 @@
+T1 ROUND-2 NARROW — Wave 97 Ship 1G Pattern A fix-forward verification
+
+PRIOR ROUND-1 VERDICT (from .claude/state/codex_consult_wave97_ship1g_max_thinking_OUT.txt):
+{"verdict":"NEEDS-REVISION","confidence":0.86,"rationale":"Do not approve the MAX_THINKING_TOKENS=64000 addition as written because current Anthropic docs state Opus 4.7 uses adaptive thinking with effort and no longer accepts manual budget_tokens, while the repo already records that MAX_THINKING_TOKENS was dropped in favor of alwaysThinkingEnabled:true plus effortLevel:xhigh.","prescribed_edits":["Do not add MAX_THINKING_TOKENS to .claude/settings.json for Opus 4.7.","Keep alwaysThinkingEnabled:true and effortLevel:\"xhigh\" as the default max-thinking pin.","If an env-precedence pin is required, use CLAUDE_CODE_EFFORT_LEVEL=xhigh rather than MAX_THINKING_TOKENS.","Update the comment to cite adaptive thinking / effortLevel as the active max-thinking mechanism and note that manual token ceilings can create 400 errors or cost amplification."]}
+
+PATTERN A FIX-FORWARD APPLIED (single atomic edit):
+1. **DROPPED**: MAX_THINKING_TOKENS env var (per prescribed_edit #1)
+2. **PRESERVED**: existing alwaysThinkingEnabled:true + effortLevel:"xhigh" at L349-350 (already set Wave 82a; per prescribed_edit #2)
+3. **ADDED**: CLAUDE_CODE_EFFORT_LEVEL: "xhigh" env-precedence pin (per prescribed_edit #3 — env takes precedence over /effort + effortLevel setting per CCBP claude-settings.md:857)
+4. **ADDED**: _comment_wave97_ship1g_effort_pin documenting:
+   - User mandate "set up your default thinking effort to max"
+   - CCBP TIER-1-DIRECT cite to claude-settings.md:857 env-precedence
+   - Adaptive-thinking architecture for Opus 4.7 (per prescribed_edit #4)
+   - MAX_THINKING_TOKENS deprecation note + 400-error/cost-amplification warning
+   - Canonical 3-axis max-thinking pin: effortLevel + alwaysThinkingEnabled + CLAUDE_CODE_EFFORT_LEVEL
+
+CURRENT DIFF (post Pattern A; single file: .claude/settings.json):
+- +1 line in env block: "CLAUDE_CODE_EFFORT_LEVEL": "xhigh"
+- +1 _comment_wave97_ship1g_effort_pin documenting all 4 prescribed edits
+
+This is closed-loop arc per closed-loop-recursive-narrowing.md — confidence trajectory expected to decline (Round-1 0.86 → Round-2 should be APPROVE OR confidence-decline NEEDS-REV under Outcome A monotone-decline).
+
+QUESTION: Does the Pattern A fix-forward correctly address ALL 4 Round-1 prescribed_edits?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

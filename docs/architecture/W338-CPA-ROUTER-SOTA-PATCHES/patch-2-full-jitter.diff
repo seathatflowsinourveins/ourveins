@@ -1,0 +1,55 @@
+From: claude-sota-installed W338
+Subject: [PATCH 2/4] conductor: full-jitter on quota backoff (defeats thundering herd)
+
+Current `nextQuotaCooldown` doubles deterministically:
+    cooldown := quotaBackoffBase * time.Duration(1<<prevLevel)
+
+When N clients quota-out simultaneously, they all wake up at exactly the
+same moment N*2^level seconds later and collide on retry — thundering herd
+that can re-trigger the same upstream capacity event.
+
+AWS Marc Brooker (2015) empirically showed full-jitter:
+    cooldown = random(0, base*2^N)
+strictly beats equal-jitter and decorrelated-jitter on collision avoidance.
+
+Refs:
+- https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+- Cited by: cenkalti/backoff, slok/goresilience, hashicorp/go-retryablehttp
+
+---
+ sdk/cliproxy/auth/conductor.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+NOTE: This patch depends on Patch 1 having already added `"math/rand"` to the
+import block. Apply Patch 1 first, then Patch 2.
+
+diff --git a/sdk/cliproxy/auth/conductor.go b/sdk/cliproxy/auth/conductor.go
+--- a/sdk/cliproxy/auth/conductor.go
++++ b/sdk/cliproxy/auth/conductor.go
+@@ -2719,15 +2719,21 @@ func nextQuotaCooldown(prevLevel int, disableCooling bool) (time.Duration, int) {
+ 	if prevLevel < 0 {
+ 		prevLevel = 0
+ 	}
+ 	if disableCooling {
+ 		return 0, prevLevel
+ 	}
+-	cooldown := quotaBackoffBase * time.Duration(1<<prevLevel)
+-	if cooldown < quotaBackoffBase {
+-		cooldown = quotaBackoffBase
++	// Full-jitter exponential backoff per AWS Architecture Blog (Brooker 2015).
++	// Range = [base/4, base*2^N]  — base/4 prevents zero-wait, base*2^N is the
++	// classic exponential ceiling for level N.
++	maxCooldown := quotaBackoffBase * time.Duration(1<<prevLevel)
++	if maxCooldown < quotaBackoffBase {
++		maxCooldown = quotaBackoffBase
+ 	}
+-	if cooldown >= quotaBackoffMax {
++	if maxCooldown >= quotaBackoffMax {
+ 		return quotaBackoffMax, prevLevel
+ 	}
+-	return cooldown, prevLevel + 1
++	// rand.Int63n is goroutine-safe in Go 1.20+ (math/rand/v2).
++	jitterRange := int64(maxCooldown - maxCooldown/4)
++	jittered := time.Duration(rand.Int63n(jitterRange)) + (maxCooldown / 4)
++	return jittered, prevLevel + 1
+ }

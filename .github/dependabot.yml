@@ -1,0 +1,97 @@
+version: 2
+# Dependabot — auto-PR for CR-9 pin refresh + GitHub Actions + Python deps
+# Per https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+updates:
+  # npm — covers package.json if/when added (W333+ may stand one up for codex-companion-wrappers)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "cr-9-pin-refresh"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      mcp-servers:
+        patterns:
+          - "@perplexity-ai/*"
+          - "@playwright/*"
+          - "@ccusage/*"
+          - "chrome-devtools-mcp"
+          - "tavily-mcp"
+          - "exa-mcp-server"
+          - "repomix"
+      anthropic-sdk:
+        patterns:
+          - "@anthropic-ai/*"
+          - "@modelcontextprotocol/*"
+    # W381 Stream D §3 P1: cooldown defeats the auto-merge-compromised-patch attack class
+    # (event-stream/ua-parser-js pattern). 3-5d per GitGuardian/Safeguard.sh 2026.
+    # Schema verified vs docs.github.com dependabot.yml options reference (cooldown.default-days, 2026).
+    cooldown:
+      default-days: 5
+
+  # GitHub Actions — auto-update action SHA pins
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+    # W381 Stream D §3 P1: cooldown (also mitigates the GitGuardian "bot rewrites pinned SHA" vector).
+    cooldown:
+      default-days: 5
+
+  # pip — covers any Python requirements.txt under harness/ or similar
+  - package-ecosystem: "pip"
+    directory: "/harness"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "python"
+    # W381 Stream D §3 P1: cooldown (cool-off / minimum-release-age).
+    cooldown:
+      default-days: 5
+
+  # pip — root-level (for inspect-ai when W333 stands it up)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "python"
+    # W381 Stream D §3 P1: cooldown (cool-off / minimum-release-age).
+    cooldown:
+      default-days: 5
+
+  # pip — agents/requirements.txt (W432-FIX-A 2026-05-24 closure of Stream E D-30)
+  # The CVE-2025-71176 pytest leak (closed by W432-G0 PR #100) reached main because
+  # /agents wasn't in the watchlist. Adding it ensures future pip CVEs surface as
+  # Dependabot PRs before they trip trivy CI exit-1.
+  # Cite: docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+  - package-ecosystem: "pip"
+    directory: "/agents"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "python"
+    cooldown:
+      default-days: 5

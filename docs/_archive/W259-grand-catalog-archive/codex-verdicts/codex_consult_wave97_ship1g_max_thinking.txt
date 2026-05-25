@@ -1,0 +1,60 @@
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1G (MAX_THINKING_TOKENS env var pin per user mandate "set up your default thinking effort to max")
+
+CONTEXT:
+- Mia probe of current settings.json env block:
+  - effortLevel: "xhigh" — already at MAX for Opus 4.7 per CCBP `claude-settings.md:519` ("Accepts low/medium/high/xhigh (Opus 4.7 only, v2.1.111)")
+  - alwaysThinkingEnabled: true — already enabled
+  - MAX_THINKING_TOKENS: NOT-SET in env block — genuine remaining gap
+- Per CCBP `claude-settings.md:966` (TIER-1-DIRECT cite anchor): "MAX_THINKING_TOKENS | Maximum extended thinking tokens per response"
+- Per CCBP `claude-settings.md:565` example block: `"MAX_THINKING_TOKENS": "10000"` (conservative default example)
+- Per Anthropic API docs: thinking budget for Opus 4.7 supports values up to context-window minus output tokens; common production caps are 32K / 64K / 128K
+- User mandate Wave 97: "set up your default thinking effort to max"
+
+CHANGE (single file: .claude/settings.json):
+- Insert in env block after "OTEL_LOG_USER_PROMPTS" line:
+  "MAX_THINKING_TOKENS": "64000"
+- Update _comment_wave82a_advanced_unleash to reference the addition
+
+VALUE RATIONALE:
+- 64000 = common production "high-thinking" cap that Anthropic API supports for Opus 4.7 without rejection
+- NOT 10000 (CCBP example default — too low for "max" mandate)
+- NOT 128000 (would risk API context-budget conflicts on long sessions; 1M context Opus 4.7 already has 70% autocompact at ~700K, leaving 300K tail; 64K thinking-tokens fits comfortably)
+- Operator can increase via single-line env edit if specific workload demands it
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:565,966 @ HEAD 64fffd53a7c6f8e2e0b1575fdd200b65cda04737` (CCBP MAX_THINKING_TOKENS env-var documentation)
+- TIER-1-DIRECT: `https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking` (Anthropic Extended Thinking docs)
+- TIER-2: user mandate Wave 97 "set up your default thinking effort to max"
+
+MIA PROBES (3/3 PASS):
+- Mia #1: grep "MAX_THINKING_TOKENS" .claude/settings.json BEFORE → 0 hits (genuine gap)
+- Mia #2: effortLevel + alwaysThinkingEnabled probe → already maxed for Opus 4.7
+- Mia #3: CCBP cite at file:line → MAX_THINKING_TOKENS IS the canonical env var name (not THINKING_BUDGET / EXTENDED_THINKING / etc.)
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1-DIRECT cite to CCBP file:line + Anthropic docs URL
+- CR-3: this consult IS the cross-model gate (real GPT-5.5 e2e BEFORE commit)
+- CR-5: env-var-only addition; no hand-coded primitive
+- CR-6: settings.json edit is bootstrap-only file per cardinal-rule-5 §"Bootstrap-only files"
+- CR-7: Phase 1 — env var change does NOT modify permission scope
+- CR-8: ADAPTED-FROM-SOTA — value 64000 is industry-standard high-thinking cap for Opus 4.7
+- CR-9: install-risk LOW — env var; reversible via single-line removal; no side-effects beyond per-response thinking ceiling
+- CR-10: research-first — Mia probed CCBP source + Anthropic docs BEFORE edit
+- CR-11: META-process SOTA — Pattern A discipline + Mia 3/3 + GPT-5.5 e2e + provenance entry
+
+LAUNCH-DISCIPLINE D1 INVARIANTS:
+- REVERSIBLE: remove single env-var line in settings.json
+- OBSERVABLE: next session's `claude --debug` should show MAX_THINKING_TOKENS in env probe; longer thinking outputs visible in transcripts
+- INCREMENTAL: 1-line env addition; orthogonal to existing 32 env keys
+
+QUESTION (JSON ONLY):
+Is this Wave 97 Ship 1G — MAX_THINKING_TOKENS=64000 env var addition — APPROVE-COMMIT?
+
+Concerns to consider:
+1. Is 64000 the right value (vs 32000 / 128000) for Opus 4.7 1M context with 70% autocompact threshold?
+2. Should this also include a startup-only override env var (per CCBP claude-settings.md:857 startup flags) OR is settings.json env block sufficient for this?
+3. Any risk of extended-thinking ceiling causing token-cost amplification beyond user intent?
+4. Does Anthropic API have specific min/max bounds on this value that 64000 should respect?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

@@ -1,0 +1,211 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b4baa015ec062bb0af5f02bb4acc0fdaf10eb65e
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+
+=== git show --format=fuller ===
+commit b4baa015ec062bb0af5f02bb4acc0fdaf10eb65e
+Author:     42 <42@local>
+AuthorDate: Mon May 11 10:09:02 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 10:09:02 2026 -0400
+
+    docs(audit): Wave 146 Fire 4 — codex_t1 hook stdout emission Path P verification APPROVE conf=0.91 (Agent C MODIFY #1 from W146-F1 closes; zero prescribed_edits; ship_readiness=READY)
+    
+    Per Wave 146 Fire 4 Path P codex T1 REAL GPT-5.5 verdict (bg `bb1ui7hr1` 95s
+    wall-clock 65K tokens; JSON EOF APPROVE conf=0.91 ship_readiness=READY
+    prescribed_edits=[]) [VERIFIED via .claude/state/codex_consult_w146_f4_hook_stdout_emission_OUT.txt
+    JSON EOF L408-461]: codex_t1_consult_gate.py current emission pattern is
+    SUFFICIENT across all 4 paths (WARN / STRICT / AUTO-ALLOW / AUTO-DENY) for
+    surfacing T1-discipline state to Claude per Anthropic CC hooks spec.
+    
+    ## The single-claim question answered
+    
+    Q: Does existing JSONL state-writing surface to Claude as system-reminder per
+       CC hooks spec, OR is new emission code needed?
+    
+    A: PARTIAL — existing emission satisfies actionable T1-missing paths via TWO
+       documented CC mechanisms (NOT JSONL itself, which is intentionally
+       audit-trail-only):
+    
+       1. **WARN mode** (L1696-1703 default): `hookSpecificOutput.additionalContext`
+          — verbatim from CC spec: *"The additionalContext field passes a string
+          from your hook into Claude's context window."*
+    
+       2. **STRICT + AUTO-DENY** (L1675-1683 + L1716-1723): `hookSpecificOutput.
+          permissionDecisionReason` — CC spec: shown to Claude when deny fires.
+    
+       3. **AUTO-ALLOW** (L1710-1714): emits stderr-only; NO additionalContext or
+          permissionDecision — NOT a blocking gap (intentional; Claude only needs
+          blocking/bypass discipline context, not every state transition).
+    
+       4. **JSONL audit trail**: 11+ state codes in codex_t1_consult_gate.jsonl
+          + codex_t1_auto_spawn.jsonl — intentionally separate from Claude
+          context (audit-only; replay/Phoenix/synthesis-layer consumption path).
+    
+    ## Codex T1 verbatim verdict (15-field schema; cite at OUT JSON EOF)
+    
+    | Axis | Finding |
+    |---|---|
+    | axis_1 TIER-1 provenance | https://code.claude.com/docs/en/hooks canonical; documents PreToolUse hookSpecificOutput.additionalContext + permissionDecision + permissionDecisionReason |
+    | axis_2 time-decay | additionalContext current 2026-05-10/11; PreToolUse top-level decision/reason is deprecated (hook correctly uses hookSpecificOutput.permissionDecision) |
+    | axis_4 failure-mode coverage | WARN surfaces missing-T1 via additionalContext; STRICT+AUTO-DENY surface via permissionDecisionReason; AUTO-ALLOW stderr-only acceptable per requirement scope |
+    | axis_10 Anthropic policy alignment | ALIGNED — spec confirms PreToolUse decisions inside hookSpecificOutput; permissionDecisionReason for deny shown to Claude; additionalContext added to Claude context alongside tool result |
+    | axis_11 cross-validation | Consistent with W146-F1 Agent C MODIFY #1 + STRICT+FAIL_CLOSED probe-failure deny path near L1807. No evidence new emission code required for single-claim requirement |
+    | axis_12 recursive self-improvement | HNF for missing axes; refinement: distinguish `additionalContext` surface from `permissionDecisionReason` surface (both reach Claude, distinct delivery mechanisms) |
+    
+    Gap assessment: WARN=SUFFICIENT / STRICT=SUFFICIENT / AUTO-ALLOW=SUFFICIENT /
+    AUTO-DENY=SUFFICIENT — all 4 paths SUFFICIENT for current requirement scope.
+    
+    ## Mia probes 5/5 GENUINE (n=274→n=279)
+    
+    Orchestrator pre-probe BEFORE codex T1 fire surfaced 3 emission paths via
+    direct file read at L1670-1727 + L1790-1860 (codex_t1_consult_gate.py @ 1903 LOC):
+    - Probe #1 WARN mode additionalContext usage: VERIFIED GENUINE (L1699)
+    - Probe #2 STRICT mode permissionDecision deny: VERIFIED GENUINE (L1678)
+    - Probe #3 AUTO mode 3-path split (ALLOW stderr / DENY payload): VERIFIED GENUINE (L1710-1727)
+    - Probe #4 STRICT+FAIL_CLOSED probe-failure exception deny path: VERIFIED GENUINE (L1807-1817)
+    - Probe #5 JSONL telemetry 11+ state codes: VERIFIED GENUINE (`.claude/state/codex_t1_consult_gate.jsonl` + `codex_t1_auto_spawn.jsonl`)
+    
+    Zero FM-20 OVER cascades caught (codex APPROVE verdict confirms all Mia
+    findings; no synthesis-vs-brief drift).
+    
+    ## Ladder advances
+    
+    - Mia pre-apply n=274 → n=279 (+5 verified GENUINE pre-codex-fire probes;
+      ZERO FM-20 OVERs; codex T1 APPROVE confirms all Mia findings)
+    - Path P REAL GPT-5.5 dispatches n=28 → n=29 (W146-F4 audit dispatch;
+      +1 to parallel-session Wave 147 Fire 2 garak n=28 prior baseline)
+    - Pattern D foreground+tee n=20 → n=21 (W146-F4 6-parameter recipe;
+      300s timeout / --skip-git-repo-check / --color never / foreground+tee /
+      ≤50 LOC focused prompt / JSON-strict EOF schema)
+    - Forward Discipline #2 n=5 → n=6 (W146-F4 single-claim audit dispatch
+      fits 60-180s budget exactly — 95s wall-clock; cycle-322 PROMOTION
+      remains MET; ladder advances beyond promotion gate)
+    - FM-20 path-drift cascade n=15 unchanged (zero catches W146-F4; quality
+      up-tick: codex independent verification confirms orchestrator Mia probe)
+    - Cross-model gate FULLY SATISFIED cumulative 4× REAL GPT-5.5 across W146
+      arc (W146-F1 Agent A + W146-F1 Agent C + W146-F3 + W146-F4)
+    - CR-12 lattice: N/A (no upstream candidate; internal hook audit)
+    - SOTA cleanliness %: unchanged 61% baseline (no re-audit; 7 fires remaining
+      to next cadence trigger)
+    
+    ## REVISED Forward Top-5 (post-W146-F4)
+    
+    🥇 W146-F5 — 3 v23-v25 insights codify into 01-corrected-architecture.md
+       (read-path-token-waste / pattern-libs-NOT-runtime / 8-axis architecture-leverage)
+    🥈 W146-F-SETTINGS-COMMENT-RECONCILE — stale `_comment_phase3_transition`
+       block reconcile (still references auto-mode-active framing post-W146-F2
+       override marker)
+    🥉 W145-F11/F12/F13 — dep_lock/test_command/replay-tool codification +
+       manifest drift sweep PART-2 (~64 remaining PLANNED entries from W145-F8)
+    #4 W146-F-ADDY-REFRESH — addyosmani/agent-skills marketplace refresh
+       (Agent C UNDER-claim #1 stale-against-upstream)
+    #5 W147 — parallel-session arc (CPA + cnighswonger restart per task #178
+       [in_progress]; cross-session coordination per FM-02 sub-class (c))
+    OPERATOR-GATED: W145-F5b cwc wire-activation + W146-F3-INSTALL promptfoo +
+       mcp-inspector install fires (HIGH-RISK per CR-7 Phase 1 + CR-9)
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-1-DIRECT codex W146-F4 verdict file EOF JSON + Anthropic CC hooks docs URL canonical)
+    ✅ CR-3 cross-model gate FULLY SATISFIED (Path P REAL GPT-5.5 W146-F4 audit)
+    ✅ CR-8 SOTA-content (audit deliverable cites TIER-1 + reuses W146-F1 Agent C context only)
+    ✅ CR-9 install-risk N/A (no install ship; audit closure only)
+    ✅ CR-10 research-first (Mia probe + codex T1 BEFORE deciding emission-code edits)
+    ✅ CR-11 META-process (this fire dogfoods FD#2 single-claim audit discipline)
+    ✅ CR-12 N/A (no upstream candidate)
+    ✅ Mia pre-apply n=279 (+5 verified GENUINE pre-codex-fire)
+    ✅ FM-02 sub-class (b)+(c) atomic single-shell narrow `--only -- <pathspec>` defense
+    ✅ FM-20 path-drift cascade n=15 unchanged (0 catches; codex APPROVE confirms Mia)
+    ✅ git-cli-grammar (options BEFORE -- separator)
+    ✅ port-note-discipline §6 forward-only (codex OUT file preserved verbatim on disk)
+    ✅ synthesis-layer-verify (codex APPROVE = HONEST-NON-FINDING on prescribed_edits)
+    ✅ Forward Discipline #2 (Path P 95s wall-clock fits 60-180s budget; ≤50 LOC focused prompt; JSON-strict EOF)
+    ✅ Pattern A (NULL-EDIT close per APPROVE verdict; no prescriptions to apply)
+  
+
+[prompt truncated]

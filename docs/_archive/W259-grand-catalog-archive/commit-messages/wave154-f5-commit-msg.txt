@@ -1,0 +1,109 @@
+feat(launcher): W154 F5 ship eee.ps1 .local/bin de-dup-then-prepend Machine-PATH-precedence defense; 4th RECURSIVE FM-09 catch in W154; cron a83ecd8c iter ~3/N; FM-09 27/27 → 28/28 firm; CR-3 15× → 16× non-Phase-1-bootstrap; cli_path_audit Tier-0 ALL PASS
+
+Wave 154 Fire 5 — eee.ps1 process-scope PATH-fix closes W154 F4 INSTALLED-AMBER (gh installed at Z but cli_path_audit FAIL because Machine PATH C: gh wins fresh-shell composition). F5 = de-dup-then-prepend `Z:/claude-sota-installed/.local/bin` to Process PATH at eee launcher startup, ensuring child processes (claude.exe + spawned subagents) see Z first regardless of inherited Machine PATH ordering.
+
+Per /loop cron `a83ecd8c` iter ~3/N (FM-21.b STATE PROBE confirmed `a83ecd8c` ACTIVE single-instance per FM-21.a).
+
+V2 designer (PID `bt75cxg72` ~50s exit=0) APPROVE conf=0.94 / 126 LOC / 6577 tok / risk_class=LOW / placement_after_L151 / pattern=de-dup-then-prepend / scope=process-scope eee.ps1 launcher only / Q3 placement after rtk block per sister-pattern grouping / Q5 reversibility via git revert eee.ps1 + restart shell discards Process env / Q6 ONE-LOGICAL-UNIT-PER-FIRE: just .local/bin (npm/cargo already handled separately).
+
+V3 ADVERSARIAL (PID `b18wbqvwq` ~70s exit=0 242 LOC 18841 bytes 26498 tok) **F5-NEEDED-LIGHT conf=0.93 / v2_was_overclaimed=PARTIAL / fm09_recursive_catch_triggered=YES (4th RECURSIVE catch in W154)**.
+
+V3 SAVED-SHIP catches (V2 overclaims at synthesis-vs-brief boundary per mia-pre-apply + fm20-path-drift-cascade):
+1. **Trailing-slash normalization missing** — V2 prescribed `-ine $zLocalBin` (case-insensitive exact). V3 caught: trailing-slash variant `Z:\...\.local\bin\` would NOT match `Z:\...\.local\bin` (per W154 F4 lesson — Machine PATH had `C:\Program Files\GitHub CLI\` with trailing backslash). V3 minimum_viable_f5_output explicitly: "filters out entries equal to $localBinDir case-insensitively after trimming trailing slashes". Applied: `($_.TrimEnd('\','/')) -ine $zLocalBin`.
+2. **Multiple-Z-dir scope creep prevention** — V3 explicitly forbids prepending npm/cargo/Python/Git/etc Z dirs (rtk already has separate block; expanding broadens blast radius).
+3. **GitHub-CLI-hardcode prevention** — V3 explicitly: invariant is generic launcher-local bin precedence, NOT special-case for GitHub CLI install location.
+4. **User+Machine PATH mutation prevention** — V3 explicitly: process-scope only; mutating User/Machine = operator-system state change beyond V3 W154 F4 SCOPED-DOWN.
+5. **rtk retrofit DEFER** — V3 a7: rtk currently uses just-prepend-if-absent; works for fresh-install case; changing rtk belongs in separate logical unit per cycle-300.
+
+V3 a4 outcome prediction: "Fixes the eee-shell cli_path_audit gh failure by making Z:/.../.local/bin precede Machine PATH C: entries. It does not and should not change parent-shell or persisted Machine/User PATH ordering."
+
+Pattern A apply per V3 SCOPED-DOWN minimum_viable_f5_output:
+- tools/eee.ps1 — Insert ~17 LOC after rtk block (L152) including 12-line cite/rationale comment + 4-line if-block:
+  ```powershell
+  $zLocalBin = 'Z:\claude-sota-installed\.local\bin'
+  if (Test-Path $zLocalBin) {
+      $entries = $env:PATH -split ';' | Where-Object { $_ -and (($_.TrimEnd('\','/')) -ine $zLocalBin) }
+      $env:PATH = "$zLocalBin;$($entries -join ';')"
+  }
+  ```
+- NO multiple Z dirs (per V3 a6 + cycle-300)
+- NO User/Machine PATH (per V3 a6)
+- NO install-path.ps1 changes (per V3 a6)
+- NO rtk retrofit (per V3 a7 DEFER)
+- NO GitHub-CLI-special-case (per V3 a1 — generic invariant)
+
+VERIFICATION per launch-discipline §1+§2 (D1 6-axis + 3 invariants):
+- **Smoke-probe simulation in current shell** (applies same de-dup-then-prepend logic):
+  - BEFORE: .local/bin idx=47, GitHub CLI idx=37 → C: gh wins
+  - AFTER: .local/bin idx=0, where.exe gh returns Z FIRST then C
+  - Get-Command gh source → `Z:\claude-sota-installed\.local\bin\gh.exe` ✅
+  - cli_path_audit.py: **`Tier-0: 3/3 PASS / 0 FAIL / 0 N/A`** — codex PASS / gh PASS (W154 F4 install + F5 PATH-fix combined) / claude PASS (resolves to Z .local/bin/claude.exe per pre-flight)
+- **Reversibility**: `git revert <SHA>` on eee.ps1 <30s; affects only eee child processes (Process scope discarded on shell exit per V2 + V3 a2)
+- **Observable**: pre/post smoke probes captured; cli_path_audit transition FAIL→PASS logged
+- **Incremental**: ONE if-block + 1 docs append per cycle-300
+
+Cardinal-rule conformance:
+- CR-1 ✅ TIER-1-DIRECT cite chain (V2+V3 verdict files in cite headers + W154 F4 commit `7662cca` lesson reference)
+- CR-3 ✅ FULLY SATISFIED V2+V3 PARALLEL Path P REAL GPT-5.5 (16× non-Phase-1-bootstrap) W153 F1+F2+F5+F7+F8+F9+F10+F11+F12+F13 + W154 F1+F2+F3+F4+F5
+- CR-5 ✅ install-priority closure (W154 F4 install + F5 PATH-fix combined; Tier-0 PATH conformance ACHIEVED — codex + gh + claude all resolve to Z)
+- CR-6 N/A (process-scope mutation; not install/refresh-from-newest-GitHub)
+- CR-7 ✅ REPORT before route-around (V2+V3 verdicts disclosed in commit body + cite headers in eee.ps1)
+- CR-8 ✅ TIER-3-LOCAL-COMPOSITION; constituents=[TIER-1-DIRECT @ V2+V3 Path P verdicts, TIER-3-LOCAL-COMPOSITION @ launcher-scope PATH precedence pattern]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+- CR-9 ✅ LOW risk per V2+V3 (process-scope only; no admin; no User/Machine PATH; no install; reversible <30s git revert)
+- CR-10 ✅ research-first (V2+V3 PARALLEL Path P REAL GPT-5.5 BEFORE eee.ps1 Edit + smoke-probe BEFORE+AFTER simulation)
+- CR-11 ✅ META-process SOTA (codex T1 + Pattern A apply + V3 SCOPED-DOWN consensus + 4th RECURSIVE FM-09 catch in W154)
+- CR-12 N/A (process-scope launcher pattern; no upstream-vs-incumbent classification)
+
+FM defense:
+- FM-02 (b)+(c) ✅ atomic narrow `--only tools/eee.ps1 docs/install-provenance.md` (no bleed into parallel session's many untracked rules/hooks/docs files)
+- **FM-09 V3 ADVERSARIAL 27/27 → 28/28 firm 19th consecutive arc; 4th RECURSIVE catch in W154** (V3 caught V2 trailing-slash normalization gap + multiple V2 prescription scope-creep risks preempted)
+- FM-15 ✅ git CLI grammar option-before-`--` via ship-script wrapper
+- FM-17.f ✅ orchestrator-direct V2+V3 (no subagent fan-out; CR-3 gate FULLY satisfied via REAL GPT-5.5 codex CLI 0.130.0)
+- **FM-20 path-drift cascade defense TRIGGERED 8th in W153/W154 cross-fire** (V3 caught V2 trailing-slash misclaim that would have propagated to eee.ps1 if-block missing -TrimEnd normalization → potential silent duplicate Z entries on shell relaunch)
+- FM-21.a ✅ CronCreate `a83ecd8c` defense (single-instance verified)
+- FM-21.b ✅ STATE PROBE before CronCreate (`a83ecd8c` already active)
+
+Launch-discipline §D1 6-axis pre-launch ✅ all 6:
+- code_quality: well-formed PowerShell (TrimEnd handles backslash + forward-slash; -ine case-insensitive; -split ';' standard idiom; explicit Test-Path guard)
+- security: no secrets; no shell-injection; no PATH mutation outside Process scope; no admin
+- performance: 1 PATH split + 1 filter + 1 join per eee invocation — sub-millisecond
+- infra: Z-portable; no new deps; reversible
+- comms: explicit cite headers in eee.ps1 + commit body + provenance entry; smoke-probe outputs captured
+- OS-state-mutation: ONLY $env:PATH process-scope (NOT User/Machine PATH; NOT registry); discarded on shell exit
+
+Launch-discipline 3 invariants ✅:
+- Reversible: `git revert <SHA>` on eee.ps1 <30s + shell restart discards Process env
+- Observable: pre/post simulation outputs in commit body; cli_path_audit FAIL→PASS transition documented
+- Incremental: ONE if-block + 1 docs append per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE
+
+Risk class LOW per launch-discipline §D1 (process-scope only; no persisted state; reversible <30s; cycle-300 minimum).
+
+Ladders:
+- USER-CORRECTION-ACK n=24 unchanged
+- **Mia n=342 → n=343** (V3-W154-F5 caught V2 trailing-slash normalization gap at synthesis-vs-brief boundary per mia-pre-apply.md + fm20-path-drift-cascade.md)
+- **FM-09 V3 ADVERSARIAL 27/27 → 28/28 firm** (19th consecutive arc; 4th RECURSIVE V3-catches-V2 in W154 — F1 glob-vs-regex / F3 overlap+actionability / F4 Machine-PATH-precedence / F5 trailing-slash normalization)
+- **Path P n=56 → n=58** (V2+V3 PARALLEL via Z-resident codex.ps1 + Get-Content pipeline)
+- **Pattern D n=56 → n=58**
+- **CR-3 non-Phase-1-bootstrap n=15 → n=16**
+- Inline-bash quote-trap n=26 unchanged (PowerShell throughout)
+- Cron `a83ecd8c` iteration ~3/N
+
+Files in atomic ship:
+1. tools/eee.ps1 — Insert ~17 LOC after rtk block (L152): 12-line cite/rationale comment + 4-line if-block
+2. docs/install-provenance.md — append W154 F5 entry (~95 LOC)
+
+Verdict files:
+- .claude/state/codex_consult_w154_f5_path_fix_v2_OUT.txt (V2 APPROVE conf=0.94 / 126 LOC / 7667 bytes / 6577 tok)
+- .claude/state/codex_consult_w154_f5_path_fix_v3_adversarial_OUT.txt (V3 F5-NEEDED-LIGHT conf=0.93 / 242 LOC / 18841 bytes / 26498 tok / fm09_recursive_catch_triggered=YES)
+
+Per cardinal-rule-3 cross-model gate FULLY SATISFIED via V2+V3 PARALLEL Path P (16× non-Phase-1-bootstrap satisfaction in arc).
+
+Per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE: F5 ships PATH-fix ONLY; rtk retrofit DEFERRED per V3 a7; npm/cargo/python migrations are F6+ candidates.
+
+Forward direction (post-F5):
+- F6 candidate: docker desktop / docker CLI native install at Z (per V3 W154 F3 a6 forward direction list)
+- F7+ candidates: node+npm / python+uv migrations
+- Phase 4 lock-discipline: cli_path_audit.py SessionStart hook wire (now feasible — F5 PATH-fix lands; script proves clean schema)
+- F-future: rtk block retrofit to de-dup-then-prepend (per V3 a7 DEFER; only if rtk fresh-install assumption breaks)
+
+W154 ARC closure milestone: F5 achieves first **Tier-0 ALL PASS** (codex + gh + claude all resolve to Z) — closes the W154 arc shape opened by F1 (leak defense) → F2 (codex PATH) → F3 (audit primitive) → F4 (gh install) → F5 (PATH-fix completes Tier-0).

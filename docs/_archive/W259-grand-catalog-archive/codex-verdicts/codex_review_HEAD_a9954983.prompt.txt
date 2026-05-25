@@ -1,0 +1,70 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit a995498310218fb390c81721e30f75873c8a7f99</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.../retired/2026-05-13-aperant-fleet}/aperant_rate_limit_poller.py        | 0
+ .../retired/2026-05-13-aperant-fleet}/eee_account_rotation_planner.py     | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+
+=== git show --format=fuller ===
+commit a995498310218fb390c81721e30f75873c8a7f99
+Author:     42 <42@local>
+AuthorDate: Wed May 13 19:56:25 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Wed May 13 19:56:25 2026 -0400
+
+    chore(tools): retire aperant fleet shims (CR-5/CR-10/CR-12 violations)
+    
+    Move to tmp/retired/2026-05-13-aperant-fleet/:
+    - aperant_rate_limit_poller.py (Ship 1W hand-coded SQLite-sidecar shim)
+    - eee_account_rotation_planner.py (Ship 1X aperant-dependent rotation)
+    
+    Cardinal-rule violations:
+    - CR-5 (install-priority over hand-coding): should have used CLIProxyAPI
+      native primitives, not invented parallel mechanism
+    - CR-10 (research-first-then-install): SOTA path lives at
+      Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/auto_refresh_loop.go:339
+      + conductor.go 12 selector skip points (the rotation planner's own
+      cite chain pointed at the right place)
+    - CR-12 (upstream-install-priority over sibling-cite-import): CLIProxyAPI
+      is the upstream; aperant+rotation-planner are sibling-derived shims
+    
+    Diagnosis context (W183 F1, 2026-05-13):
+    - 8/8 OAuth Claude tokens expired_at 2026-05-08
+    - aperant_poller crashed 2026-05-12 09:35 (exit -1073741510)
+    - 89% subagent zero-work rate today: 1783/2003 calls returned 0
+      tool_uses/0 tokens (.claude/state/subagent_metrics.jsonl)
+    - User correction 2026-05-13: 'we don't suppose to use aperant in the
+      first place'
+    
+    Operator actions (not in this commit — non-tracked artifacts):
+    - schtasks EEE-Aperant-Poller + EEE-Rotation-Planner: terminated + disabled
+    - .claude/state/context_window_sidecar.json: deleted (PermissionError fix;
+      auto-recreate on next statusline write)
+    - CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70 commented out in CLAUDE.local.md
+      (gitignored; effective next eee restart)
+    
+    SOTA recovery path (per CR-12 PRIMARY + CR-6 official-native-channel):
+    - CLIProxyAPI v6 has native --claude-login flag
+      (Z:/repos/deps/CLIProxyAPI/cmd/server/main.go:63,77-79)
+    - CLIProxyAPI auto_refresh_loop active at :18317 (min-heap scheduled refresh
+      per nextRefreshCheckAt at auto_refresh_loop.go:339)
+    - Operator action required: CLIProxyAPI --claude-login per account (browser
+      OAuth flow) since refresh tokens themselves expired
+    
+    Cite anchors (TIER-1-DIRECT):
+    - Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/auto_refresh_loop.go:339
+    - Z:/repos/deps/CLIProxyAPI/cmd/server/main.go:56-79 (claudeLogin flag)
+    - Z:/repos/deps/CLIProxyAPI/internal/cmd/login.go (DoLogin flow)
+
+=== diff ===
+diff --git a/tools/aperant_rate_limit_poller.py b/tmp/retired/2026-05-13-aperant-fleet/aperant_rate_limit_poller.py
+similarity index 100%
+rename from tools/aperant_rate_limit_poller.py
+rename to tmp/retired/2026-05-13-aperant-fleet/aperant_rate_limit_poller.py
+diff --git a/tools/eee_account_rotation_planner.py b/tmp/retired/2026-05-13-aperant-fleet/eee_account_rotation_planner.py
+similarity index 100%
+rename from tools/eee_account_rotation_planner.py
+rename to tmp/retired/2026-05-13-aperant-fleet/eee_account_rotation_planner.py</repository_context>

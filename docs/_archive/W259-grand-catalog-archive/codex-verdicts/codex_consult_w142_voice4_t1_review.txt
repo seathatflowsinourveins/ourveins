@@ -1,0 +1,45 @@
+WAVE 142 FIRE 1 VOICE 4 — CROSS-MODEL CONSENSUS T1 REVIEW (PATH P RECIPE)
+
+ROLE: Adversarial T1 review of Wave 142 Fire 1 consolidated synthesis (V1+V2). Single-claim audit on proposed Ship 1 one-line fix. JSON-at-EOF.
+
+CONTEXT — Wave 142 Fire 1 fired 4-voice fan-out on L3 Graphiti routing-isolation deep-dive (sibling claude-sota + eee runtimes share FalkorDB at port 16379). Voice 3 architect was BLOCKED by FM-17.f n=5 firm (1M-context billing-class) — orchestrator absorbed architect role inline.
+
+VOICE 1 verdict (REAL GPT-5.5 codex CLI Path P): NEEDS-REVISION conf=0.9 selected_option=B
+- File: Z:/claude-sota-installed/.claude/state/codex_consult_w142_graphiti_routing_isolation_OUT.txt
+- Key: factories.py:122-146 drops api_url from CoreLLMConfig + OpenAIClient uses Responses API not Chat Completions + group_id Cypher-filtered (search safe; UUID-delete unsafe)
+
+VOICE 2 verdict (sota-researcher Sonnet stand-in): DONE_WITH_CONCERNS — NEEDS-MITIGATION conf=0.93
+- File: Z:/claude-sota-installed/tmp/wave142-voice2-graphiti-source-deep-dive-2026-05-10.md
+- HFM-3 NEW DISCOVERY: AsyncOpenAI Python SDK reads `OPENAI_BASE_URL` env (NOT `OPENAI_API_URL`)
+- Sibling claude-sota .mcp.json:68 correctly uses OPENAI_BASE_URL; eee .mcp.json:76 uses OPENAI_API_URL
+- Mia OVER caught: my prompt cited mcp_server/README:521-528 (wrong location); actual cite is graphiti ROOT README:521-528
+
+PROPOSED SHIP 1 (operator-side one-line fix per V2 narrowing):
+Edit Z:/claude-sota-installed/.mcp.json graphiti env block:
+- BEFORE: "OPENAI_API_URL": "http://127.0.0.1:11700/v1"
+- AFTER: "OPENAI_BASE_URL": "http://127.0.0.1:11700/v1"
+
+PROPOSED SHIP 2 (smoke probe, post-Ship-1):
+Verify LiteLLM at http://127.0.0.1:11700/v1 supports OpenAI Responses API (`responses.parse`). If unsupported, escalate to upstream Voice 1 P0 prescribed_edit (switch to OpenAIGenericClient).
+
+CLAIM TO AUDIT (single-claim):
+"The OpenAI Python SDK (openai v1+ AsyncOpenAI class) reads ONLY the `OPENAI_BASE_URL` environment variable for default base URL override (no `OPENAI_API_URL`, no `OPENAI_API_BASE` legacy). graphiti's OpenAIClient at graphiti_core/llm_client/openai_client.py instantiates AsyncOpenAI without explicit base_url, relying on env-var auto-detection. Therefore the proposed Ship 1 (rename `OPENAI_API_URL` → `OPENAI_BASE_URL` in eee `.mcp.json`) is NECESSARY AND SUFFICIENT to route LLM calls to LiteLLM at port 11700."
+
+EVIDENCE NEEDED:
+1. Read openai SDK source: which env var(s) does AsyncOpenAI.__init__ read for base_url default?
+   - Probe: Z:/venvs/claude/Lib/site-packages/openai/_client.py OR equivalent
+   - Look for `os.environ.get("OPENAI_BASE_URL")` or `OPENAI_API_BASE` patterns
+2. Verify graphiti OpenAIClient instantiation path:
+   - Read Z:/repos/deps/graphiti/graphiti_core/llm_client/openai_client.py
+   - Check if base_url is set explicitly OR relies on env auto-detection
+3. Check for legacy OPENAI_API_BASE env support in current openai SDK version
+
+THREE OPTIONS for the CLAIM verdict:
+- OPTION A: APPROVE — Ship 1 is necessary AND sufficient. OpenAI SDK reads only `OPENAI_BASE_URL`. Apply atomically + Ship 2 smoke probe.
+- OPTION B: NEEDS-REVISION — Ship 1 is necessary but insufficient (legacy `OPENAI_API_BASE` also works OR factories.py override needed). Prescribe specific edits.
+- OPTION C: REJECT — Ship 1 is wrong (different env var works OR factories.py drops env entirely). Recommend alternative.
+
+RESPONSE FORMAT (JSON-at-EOF, single object, no preamble):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"selected_option":"A|B|C","openai_sdk_env_var_evidence":{"sdk_source_cite":"file:line + verbatim env-var read code","env_var_name_authoritative":"OPENAI_BASE_URL|OPENAI_API_URL|OPENAI_API_BASE|other","legacy_alternatives":"list deprecated names if any","sdk_version":"installed openai pkg version"},"graphiti_openaiclient_instantiation":{"file_cite":"openai_client.py:line","base_url_handling":"explicit|env-auto|other","verbatim_constructor_call":"..."},"ship1_verdict":"NECESSARY_AND_SUFFICIENT|NECESSARY_BUT_INSUFFICIENT|WRONG_FIX","ship2_smoke_probe_design":"specific test command + expected output","prescribed_edits":[{"target":"file:line","change":"...","priority":"P0|P1|P2"}],"hidden_failure_modes":["..."]}
+
+Output JSON object as the LAST printed thing. No commentary after.

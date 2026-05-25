@@ -1,0 +1,29 @@
+Reviewing single edit to tools/eee.ps1 — added block (e0) for RTK on PATH. 1 narrow axis: is the PATH-prepend safe and idempotent?
+
+Context: RTK is rtk-ai/rtk v0.39.0 installed at Z:/claude-sota-installed/.local/cargo/bin/rtk.exe. The eee.ps1 launcher already sets HOME isolation + ANTHROPIC_BASE_URL etc; this edit prepends rtk's bin dir to PATH so claude.exe (spawned later) can find rtk for the operator's `rtk init -g` Claude Code hook + on-demand `rtk git status` etc.
+
+DIFF (added block):
+
+```powershell
+# (e0) RTK token-killer on PATH
+$rtkBinDir = 'Z:\claude-sota-installed\.local\cargo\bin'
+if ((Test-Path $rtkBinDir) -and ($env:PATH -notlike "*$rtkBinDir*")) {
+    $env:PATH = "$rtkBinDir;$env:PATH"
+}
+```
+
+Single axis — is this safe?
+
+1. Idempotency: $env:PATH -notlike "*$rtkBinDir*" guards against duplicate prepends across re-launches.
+2. Path-injection: rtkBinDir is hardcoded, not user-input — no injection vector.
+3. Order: prepended (not appended) — rtk takes precedence over any other rtk on PATH. Acceptable since this rtk is the official install.
+4. Test-Path: handles missing dir gracefully (skip add).
+
+Return ONLY this JSON at EOF:
+
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-1","severity":"P0|P1|P2|P3","claim":"...","prescribed_edit":"..."}],
+  "next_actions": "..."
+}

@@ -1,0 +1,177 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 57fbad8edf9a5c1c034ecda3e1459987206c5a2c
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json                       |  68 +++++++-
+ tests/test_w130_fire5_matcher_boundaries.py | 257 ++++++++++++++++++++++++++++
+ 2 files changed, 317 insertions(+), 8 deletions(-)
+
+=== git show --format=fuller ===
+commit 57fbad8edf9a5c1c034ecda3e1459987206c5a2c
+Author:     42 <42@local>
+AuthorDate: Sat May 9 20:01:09 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 20:01:09 2026 -0400
+
+    fix(t3-tier-a-boundary-preservation): replace 8 leading-wildcard `if:` matchers with 16 explicit boundary-preserved patterns (Ship O Pattern A fix-forward closes Ship H T3 NEEDS-ATTENTION conf=0.82)
+    
+    Wave 130 Fire 5 Ship O — Pattern A fix-forward per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A on codex T3 NEEDS-ATTENTION verdict for Ship H sha `2b3ff4f` at `.claude/state/codex_review_HEAD_2b3ff4fb.txt:1` [VERIFIED 2026-05-09 via direct Read]. Closes Task #96.
+    
+    ==== Codex T3 verdict (verbatim from `.claude/state/codex_review_HEAD_2b3ff4fb.txt:1`) ====
+    
+    **Verdict**: NEEDS-ATTENTION conf=0.82 medium severity
+    **Title**: Leading wildcard matchers can fire commit/push gates for non-git commands
+    **Body** (verbatim): "The new `Bash(*git commit *)` and `Bash(*git push *)` patterns match the token sequence anywhere in the Bash input, not just as an executable command. From the provided context, these entries launch `codex_postcommit_review.py` and `codex_prepush_review.py`, so commands like an `echo`, comment, generated script, heredoc, or test fixture containing `git commit ...` / `git push ...` can trigger review hooks even when no commit or push happened. That can create false review artifacts against the current HEAD, introduce noisy or blocking gates in unrelated operations, and make recovery harder because the trace suggests a real commit/push path was exercised. The RTK case needs support for an optional `rtk ` prefix, but this change removes the command-boundary invariant entirely."
+    
+    **Recommendation** (verbatim): "Use a boundary-preserving matcher instead of an arbitrary leading wildcard, such as explicit patterns for the known rewritten forms (`Bash(rtk git commit *)`, `Bash(rtk git -C * commit *)`, `Bash(rtk git push *)`, `Bash(rtk git -C * push *)`) while retaining the original direct-git patterns, or move the normalization into the Python hook so it validates parsed command segments before dispatching."
+    
+    **Next steps** (verbatim): "Replace substring matchers with explicit direct-git and RTK-prefixed patterns, then add a smoke case proving text-only Bash input containing `git commit` does not dispatch the hooks."
+    
+    ==== 4 surgical Edits applied ====
+    
+    Each of 4 affected scripts changed from 2 leading-wildcard patterns → 4 explicit boundary-preserved patterns:
+    
+    | Script | Old patterns (removed) | New patterns (4 explicit) |
+    |---|---|---|
+    | `gitleaks_pre_commit_gate.py` | `Bash(*git commit *)` + `Bash(*git -C * commit *)` | `Bash(git commit *)` + `Bash(git -C * commit *)` + `Bash(rtk git commit *)` + `Bash(rtk git -C * commit *)` |
+    | `codex_t2_pre_commit_gate.py` | same 2 | same 4 |
+    | `codex_postcommit_review.py` | same 2 | same 4 |
+    | `codex_prepush_review.py` | `Bash(*git push *)` + `Bash(*git -C * push *)` | `Bash(git push *)` + `Bash(git -C * push *)` + `Bash(rtk git push *)` + `Bash(rtk git -C * push *)` |
+    
+    Net: 8 widened patterns → 16 explicit patterns (+8 hook entries). All 16 boundary-preserved (no leading `*` wildcard), covering both direct-git AND rtk-rewritten command forms.
+    
+    ==== Verification ====
+    
+    Python enumeration of `.claude/settings.json` post-Edits:
+    - Total `if:` patterns: **16** ([VERIFIED 2026-05-09 via inline `python -c` enumeration])
+    - Leading-wildcard anti-patterns: **0** (was 8 pre-Ship O)
+    - rtk-prefix patterns: **8** (4 commit + 4 push)
+    - commit-class hooks: **12** (3 scripts × 4 patterns) — gitleaks + codex_t2 + codex_postcommit_review
+    - push-class hooks: **4** (1 script × 4 patterns) — codex_prepush_review
+    
+    JSON validity: PASS via `python -c "import json; json.load(open('.claude/settings.json'))"`.
+    
+    ==== Smoke test added (codex prescription "next_steps") ====
+    
+    `tests/test_w130_fire5_matcher_boundaries.py` — 5 regression tests proxying CC's closed-source `if:` matcher engine via Python `str.startswith()` boundary discipline:
+    
+    1. `test_no_leading_wildcard_anti_pattern`: assert 0 `Bash(*<rest>)` patterns in settings.json
+    2. `test_16_prescribed_patterns_present`: assert 3×4 commit + 1×4 push = 16 hook entries
+    3. `test_positive_cases_match_expected_pattern`: 15 real git/rtk commands MUST match
+    4. `test_negative_cases_match_no_pattern`: 8 text-only Bash inputs (`echo "git commit"`, `cat | grep`, `awk`, `sed`, `jq`, `printf`, `docker run sh -c`) MUST NOT match ANY pattern
+    5. `test_legacy_leading_wildcard_would_match_text_only`: regression-anchor proving the OLD `Bash(*git commit *)` form WOULD have matched the text-only case (demonstrates exactly the bypass codex caught)
+    
+    Result: **5/5 PASS** via pytest discovery (0.04s) + direct `python` invocation. [VERIFIED 2026-05-09]
+    
+    ==== Cross-model gate satisfaction (CR-3 + Phase 1 bootstrap exception) ====
+    
+    This Ship O Pattern A apply derives DIRECTLY from codex T3 NEEDS-ATTENTION verdict `2b3ff4fb` recommendation+next_steps. Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A: "Apply ALL prescriptions in a SINGLE atomic commit per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE". Re-firing T1 on the same prescription would be circular per Pattern A discipline.
+    
+    codex-t1-gate WARN fired 4× during Edit apply ([no_valid_pairs reason; pairs_examined=0]). Per CR-3 Phase 1 bootstrap exception: WARN is non-blocking; STRICT mode would require `CODEX_T1_GATE_STRICT=1` env. The codex T3 verdict at `.claude/state/codex_review_HEAD_2b3ff4fb.txt` IS the cross-model gate satisfaction here — Pattern A apply orchestrates the prescribed edit; T3 will re-fire post-commit and verify boundary-preservation is restored.
+    
+    ==== Anti-pattern caught (closed-loop-recursive-narrowing.md cycle-539 monotone-decline) ====
+    
+    Ship H (sha `2b3ff4f`) shipped with leading-wildcard `Bash(*git commit *)` form to handle the rtk-rewrite case. Codex T3 immediately caught the boundary-removal regression. This Ship O closes the cycle within ONE round (Ship H iter-N → Ship O iter-N+1). No layered correction; no architectural escalation. Severity is medium (not critical) AND now has concrete verification (16-pattern enumeration + 5/5 pytest pass), so per `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md` Outcome A path the prior medium-severity finding is severity-gate satisfied via fix-forward.
+    
+    ==== Mia pre-apply discipline (n=94 → n=95 prospective) ====
+    
+    Pre-apply probes:
+    - Verified codex T3 verdict file content via Bash grep + JSON parse — extracted exact recommendation + next_steps verbatim
+    - Verified current settings.json widened-pattern locations (L177/183/189/195/213/220/227/234) via Read offset=160 limit=90 BEFORE Edit
+    - Enumerated 16 patterns + 0 leading-wildcards + 8 rtk-prefixes via inline Python BEFORE smoke-test
+    - Smoke-test asserts what codex prescribed (boundary preservation) — NOT what's convenient to test
+    
+    No catches this fire — the prescription was unambiguous + applied mechanically.
+    
+    ==== Ship sequence Wave 130 Fire 3+4+5 (full arc context) ====
+    
+    | Ship | SHA | Layer | T3 verdict |
+    |---|---|---|---|
+    | H | 2b3ff4f | Tier-A PostToolUse widening (LEADING WILDCARD bug) | NEEDS-ATTENTION conf=0.82 medium |
+    | I | 4a49994 | Tier-B `_guard_base.py` rtk-strip | APPROVE |
+    | J | fa9b3d4f | Tier-A PreToolUse T2+gitleaks scope-ext (LEADING WILDCARD bug) | APPROVE retro |
+    | K | 9d6f238 | Tier-B `\<newline>` (buggy space-insert) | NEEDS-ATTENTION conf=0.86 high |
+    | L | 121c403 | Pattern A fix-forward closes K bypas
+
+[prompt truncated]

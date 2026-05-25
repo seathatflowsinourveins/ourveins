@@ -1,0 +1,56 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit eec69e21ee37ae2f235016361494842a08013a9b</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/skills/gitnexus/gitnexus-pr-review/SKILL.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit eec69e21ee37ae2f235016361494842a08013a9b
+Author:     42 <42@local>
+AuthorDate: Wed May 13 16:49:50 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Wed May 13 16:49:50 2026 -0400
+
+    fix(skills): pin gitnexus-pr-review analyze cmd + add trust-boundary warning (W177 P0.1 Pattern A FIX-FORWARD)
+    
+    W177 P0.1 Pattern A FIX-FORWARD on T3 NEEDS-ATTENTION conf=0.86 verdict at
+    .claude/state/codex_review_HEAD_81197463.txt — codex flagged unpinned
+    `npx gitnexus analyze` at SKILL.md L29 as supply-chain/execution risk in
+    PR-review workflow scanning untrusted PR-branch code.
+    
+    Codex verbatim recommendation: 'Replace this with a pinned, trusted
+    invocation path, or add an explicit warning to run analysis only from a
+    trusted base checkout with a verified installed GitNexus binary/version.'
+    
+    Applied BOTH mitigations per codex recommendation:
+    (a) Pin: `npx gitnexus@1.6.4-rc.112 analyze` (matches CR-9 version-pin
+        mandate + manifest §7 L186 GitNexus RC-stream pin)
+    (b) Trust-boundary warning: NEVER run analyze against untrusted PR-diff
+        working tree; checkout trusted base (main) first then PR branch for
+        review-only steps.
+    
+    Single atomic fix-forward per codex-t1-fix-forward-pattern.md §Pattern A
+    (NEEDS-REVISION conf 0.86 within 0.88-0.93 sweet spot, single prescription,
+    applies cleanly). Mia n=128 (this fire). T3 expected to APPROVE on re-fire.
+    
+    Disposition: keeps Pattern A monotone-decline trajectory per closed-loop-
+    recursive-narrowing.md §Outcome A (NEEDS-ATTENTION → fix-forward → expect
+    APPROVE round 2). CR-9 install-risk discipline 2-round fix-forward
+    expectation honored (W155 F22+F23+F24 + W164 F38a precedent).
+
+=== diff ===
+diff --git a/.claude/skills/gitnexus/gitnexus-pr-review/SKILL.md b/.claude/skills/gitnexus/gitnexus-pr-review/SKILL.md
+index 0385d4e..3877ff3 100644
+--- a/.claude/skills/gitnexus/gitnexus-pr-review/SKILL.md
++++ b/.claude/skills/gitnexus/gitnexus-pr-review/SKILL.md
+@@ -26,7 +26,7 @@ description: "Use when the user wants to review a pull request, understand what
+ 6. Summarize findings with risk assessment
+ ```
+ 
+-> If "Index is stale" → run `npx gitnexus analyze` in terminal before reviewing.
++> If "Index is stale" → run `npx gitnexus@1.6.4-rc.112 analyze` (pinned version per CR-6 + CR-9 version-pin mandate) from a **trusted base checkout** (NOT the PR branch) in terminal before reviewing. **NEVER run analyze against the untrusted PR-diff working tree** — `npx` resolves local package binaries OR downloads/executes registry packages, which would let PR-controlled code execute in your shell during what should be a read-only review workflow. Checkout `main` (or trusted ref), run analyze, then checkout PR branch for the review-only steps below.
+ 
+ ## Checklist</repository_context>

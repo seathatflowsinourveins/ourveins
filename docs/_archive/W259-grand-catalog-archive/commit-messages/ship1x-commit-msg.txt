@@ -1,0 +1,111 @@
+feat(rotation): Wave 93 Ship 1X — cycle-aware account rotation planner (CLOSES 4-failed-of-6 mystery; APPROVE conf=0.86 PROCEED)
+
+User directive: "good, please continue pending convergence ships, deep
+dive sota repos and full install their features, gap resolute all,
+ship with convergence insights and repos offical docs guide etc, make
+sure they using offical sota methods to install in eee."
+
+Ship 1X consumes Ship 1W populated SQLite + sets OAuth `disabled` field
+on WEEKLY-MAXED accounts → CLIProxyAPI selector skips them entirely.
+Closes today's 4-failed-of-6 calls + 2x 429 mystery: 3 Claude accounts
+were already at 96-100% on seven_day when fill-first kept hitting them.
+
+CROSS-MODEL T1 GATE (real GPT-5.5 e2e BEFORE commit per CR-3):
+  Codex T1 v1 (60s): Pattern B HNF
+  Codex T1 v2 (40s tight): APPROVE conf=0.86 / PROCEED-WITH-SHIP-1X
+  Verbatim rationale: "Dry-run parity, hysteresis, backup/restore,
+                     JSONL observability, and gitignored OAuth runtime
+                     state make a single --once rollout acceptable if
+                     the commit includes only the planner/tooling changes."
+  Verdict-on-file: .claude/state/codex_consult_ship_1x_v2_OUT.txt
+
+LIVE APPLY VERIFIED (2026-05-08T18:12:55 UTC):
+  python3 tools/eee_account_rotation_planner.py --once --threshold-pct 80
+  → fleet_size=8, decisions_made=4, no_data=0, errors=[]
+
+DECISIONS APPLIED (REDACTED account labels per Wave 90 F-1 privacy):
+  KEEP-ENABLED (4): aesthetic9c (18%), mr.euphoria (12%),
+                    nalawowac (5%), zfan7-Codex (25%)
+  DISABLE (4): 739955940fc (100%), avantmanifest (89%),
+               dreamweaverhoudini (100%), zfan7-Claude (96%)
+
+E2E CHAIN VERIFIED post-apply:
+  POST claude-opus-4-7 → 200 OK with selector log:
+    [14:12:55] selector.go:535 cache miss new binding | auth=739955940fc
+    [14:12:56] selector.go:513 auth unavailable, reselected | auth=aesthetic9c
+  Reselect happened mid-bind — CLIProxyAPI's per-request unavailability
+  check rebound to non-disabled lane. Once auto-refresh-workers reload
+  (16 workers per Wave 86 Ship 1Q), MAXED accts skipped at selection-time
+  via auth.Disabled check (conductor.go 12 skip points).
+
+EDITS (2 files atomic; OAuth files gitignored runtime-state):
+  NEW tools/eee_account_rotation_planner.py (~225 LOC):
+    - Reads cpa-usage-keeper SQLite usage_identities (Ship 1W populated)
+    - For 7d_used >= 80%: sets OAuth disabled=true (with backup)
+    - For 7d_used < 75%: sets disabled=false
+    - Hysteresis band 75-79% prevents flap
+    - Modes: --once / --start cron / --restore / --dry-run
+    - Atomic JSON rewrite via tmp+rename
+    - Backups to Z:/claude-sota-installed-state/.cli-proxy-api-rotation-backups/
+  docs/install-provenance.md: +Wave 93 Ship 1X entry (~150 LOC)
+    with full cite chain + live verification + Mia probes + 3-axis
+    launch-discipline invariants
+
+  RUNTIME STATE (gitignored per .gitignore:104):
+    .cli-proxy-api/claude-{739955940fc,avantmanifest,dreamweaverhoudini,
+                          zfan7@sva.edu}.json: disabled false→true
+    .cli-proxy-api-rotation-backups/*.20260508T181255Z.bak (4 backups)
+
+TIER-1 SOTA CITE CHAIN (verified live via grep):
+  Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/types.go:66 @ HEAD ed1458aa
+    (`Disabled bool` json:"disabled" — the field this script writes)
+  Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/auto_refresh_loop.go:339
+    @ HEAD ed1458aa (auth.Disabled skip in refresh loop)
+  Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/conductor.go:1134,1839,
+    2268,2733,2788,2866,2961,3025,3274,3481 @ HEAD ed1458aa
+    (12+ selector skip points using auth.Disabled)
+  Wave 91 Ship 1W tools/aperant_rate_limit_poller.py
+    (consumer of /api/oauth/usage populating SQLite secondary_window_*)
+
+LAUNCH-DISCIPLINE D1 INVARIANTS (3-axis CHECK):
+  ✅ REVERSIBLE: backup before write + --restore + git revert; backups
+                in state-outside-repo
+  ✅ OBSERVABLE: JSONL log per pass to .claude/state/
+                 eee_rotation_planner.jsonl; per-action backup paths
+  ✅ INCREMENTAL: phase 1 internal-operator (this commit);
+                  phase 2 deferred (Task Scheduler 5min cron);
+                  phase 3 deferred (integrate with Ship 1W cron)
+
+MIA PRE-APPLY (3/3 PASS):
+  1. CLIProxyAPI Auth.Disabled field grep VERIFIED at types.go:66 +
+     12 conductor.go skip points
+  2. OAuth files all have `disabled` key pre-apply VERIFIED
+     (Python keys() inspection on all 7 Claude + codex)
+  3. Live --once apply matches dry-run output 100%; matches Wave 90
+     manual analysis 100% (4 disable / 4 keep)
+
+OPERATIONAL IMPACT (closes 4-failed-of-6 today):
+  Pre-1X: reactive try-then-fail-then-reselect on MAXED accts (66% fail)
+  Post-1X: proactive skip via auth.Disabled (0 wasted call attempts on
+           MAXED accts once auto-refresh reloads)
+
+SISTER-RULE INTEGRATION:
+  cross-model-consensus.md T1 — APPROVE conf=0.86 v2 verdict
+  launch-discipline.md D1+D2 — 3 invariants verified
+  kiss-dry-yagni.md Must-Never #4 — no duplicate (different timescale
+                                    than CLIProxyAPI per-request check)
+  mia-pre-apply.md — 3/3 probes PASS
+  synthesis-layer-verify.md — dry-run vs live = 100% parity
+  closed-loop-recursive-narrowing.md — Pattern A admissibility from
+                                       T1 v2 APPROVE direct
+
+CLOSES SHIP 1X DEPENDENCY CHAIN:
+  Wave 89 Ship 1Y (codex unleash multiplier) → 15dad8e
+  Wave 91 Ship 1W (rate-limit poller producer) → 6ebcf08
+  Wave 92 Ship 1T (cnighswonger cache-fix chain) → 861ee43
+  Wave 93 Ship 1X (rotation planner consumer) → THIS COMMIT
+
+The 1W producer + 1X consumer pair completes proactive-rotation pipeline.
+Cron deployment (next-fire P0) wires both at 60s intervals.
+
+Satisfies cardinal-rule-1+3+7+9+10+11.

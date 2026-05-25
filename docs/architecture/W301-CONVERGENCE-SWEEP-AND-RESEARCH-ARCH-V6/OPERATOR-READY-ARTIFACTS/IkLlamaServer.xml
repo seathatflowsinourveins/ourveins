@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WinSW v2.12.0 (stable) service definition — IkLlamaServer (ik_llama.cpp llama-server)
+
+  Migration source: NSSM `IkLlamaServer` (W269-MTP recipe; preserved verbatim except for
+    `--spec-stage` dual-spec restoration per W301-MED-dual-spec-restore).
+
+  Schema: https://github.com/winsw/winsw/blob/v2.12.0/doc/xmlConfigFile.md
+  Per W301 Stream A §1 decision: TARGET v2.12.0 stable (NOT v3-alpha) — Jenkins-canonical,
+    production-stable, retains <stopparentprocessfirst> which v3 removed (PR #487).
+  Runtime requirement: .NET Framework 4.6.1+ (Win11 ships with 4.8 by default).
+
+  Apply:
+    1. Download winsw v2.12.0 stable binary:
+         Invoke-WebRequest https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe -OutFile Z:\tools\winsw\winsw.exe
+    2. Per-service rename (sets WinSW's %BASE% to the renamed-exe's directory):
+         Copy-Item Z:\tools\winsw\winsw.exe Z:\tools\winsw\IkLlamaServer.exe
+    3. Place this XML alongside as Z:\tools\winsw\IkLlamaServer.xml
+    4. Stop existing NSSM service: `nssm stop IkLlamaServer`
+    5. Disable NSSM autostart:   `nssm set IkLlamaServer Start SERVICE_DISABLED`
+       (DO NOT `nssm remove` yet — keep for 30-day rollback per W301 Stream A §6)
+    6. Install WinSW service:    `Z:\tools\winsw\IkLlamaServer.exe install`
+    7. Start WinSW service:      `Z:\tools\winsw\IkLlamaServer.exe start`
+    8. Smoke-test:               `curl http://127.0.0.1:8080/health` (30s grace for MTP cold-load)
+
+  Rollback (per W301 Stream A §5):
+    `Z:\tools\winsw\IkLlamaServer.exe stop`
+    `Z:\tools\winsw\IkLlamaServer.exe uninstall`
+    `nssm set IkLlamaServer Start SERVICE_AUTO_START`
+    `nssm start IkLlamaServer`
+-->
+<service>
+  <id>IkLlamaServer</id>
+  <name>IkLlamaServer (ik_llama.cpp llama-server, qwen36 MTP)</name>
+  <description>ik_llama.cpp llama-server with W269 MTP recipe (Qwen3.6-35B-A3B-MTP UD-IQ4_XS, 65k ctx, mlocked GPU-resident) + W301 dual-spec MTP+ngram-mod restoration. Serves :8080 for hindsight T1 + cognee T3 LLM consumers. Cardinal-rule conformance: R1 upstream binary; R5 no secrets in env-block.</description>
+
+  <executable>Z:\repos\deps\ik_llama.cpp\build-new\bin\Release\llama-server.exe</executable>
+
+  <!-- W301 dual-spec arguments (supersedes W269 single-stage -mtp).
+       W301.G Stream H correction 2026-05-19: ngram-mod MUST be FIRST (self-spec stage required first
+       per ik_llama.cpp build c35189d8 explicit error: "two-stage speculative mode currently requires
+       a self-spec stage first"). Probe v1 with mtp-first FAILED; probe v2 with ngram-mod-first
+       PARSED + loaded 42/42 GPU layers. PR #1789 confirms order: ngram-mod (self-spec) → mtp.
+       PR-measured gain: +80% code t/s with cache (108 vs 60 t/s). -->
+  <arguments>--alias qwen36 --jinja --reasoning-budget 0 --model Z:\models\Qwen3.6-35B-A3B-MTP\Qwen3.6-35B-A3B-UD-IQ4_XS.gguf --port 8080 --host 127.0.0.1 -c 65536 -ngl 999 -fa on -ctk q4_0 -ctv q4_0 --k-cache-hadamard --v-cache-hadamard -b 2048 -ub 1024 --merge-qkv -muge -sas --mlock --ctx-checkpoints 8 --ctx-checkpoints-interval 512 --cache-ram 4096 --parallel 1 --threads 4 --threads-batch 4 --no-context-shift --fit --fit-margin 1024 --spec-stage ngram-mod:n_max=64,n_min=2,spec-ngram-size-n=16 --spec-stage mtp:n_max=3,draft-p-min=0.0 -mtprot iq4_ks</arguments>
+
+  <!-- v2 startmode — Automatic | Manual | Boot | System. Win11 supports Automatic + Manual. -->
+  <startmode>Automatic</startmode>
+
+  <!-- Log to dedicated path (NSSM default was %TEMP%; now Z: with rotation).
+       Mode roll-by-size: rotate when log hits sizeThreshold (KB), keep keepFiles archives. -->
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>Z:\claude-sota-installed-state\logs\IkLlamaServer</logpath>
+
+  <!-- W269 ik_llama.cpp uses CUDA_Host buffers — needs HIGH process priority for KV-cache locality.
+       Per v3a11 docs ("higher than normal has unintended consequences") — HIGH chosen deliberately
+       over RealTime to avoid starving Windows' own interactive UI thread. -->
+  <priority>High</priority>
+
+  <!-- Restart policy: 5 retries with exponential backoff. Per v3a11 docs, the LAST <onfailure>
+       delay repeats for all subsequent failures, so the final 300sec entry acts as the steady-state
+       retry cadence after the initial fast-retry burst. -->
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="300 sec"/>
+
+  <!-- Reset the failure counter if the service runs successfully for 1 hour. -->
+  <resetfailure>1 hour</resetfailure>
+
+  <!-- Graceful stop: llama-server is a console app that handles Ctrl+C to flush KV-cache.
+       stopparentprocessfirst is v2-ONLY (PR #487 removed it in v3); deliberate v2.12 dependency. -->
+  <stoptimeout>30 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+
+  <!-- Cardinal-rule-5 compliance: NO secrets in env block. The NSSM source had an EMPTY env block
+       (verified live 2026-05-18: `nssm get IkLlamaServer AppEnvironmentExtra` returns nothing).
+       This service does NOT need the wrapper-script pattern (CogneeMCP.xml does — that's where SEV-1 lives).
+       <env> intentionally omitted; %BASE% is auto-set by WinSW to Z:\tools\winsw\. -->
+</service>

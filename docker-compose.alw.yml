@@ -1,0 +1,37 @@
+# docker-compose.alw.yml — ALW autonomous research daemon
+# Separate from langfuse docker-compose (already running)
+# GPU services stay on NSSM/Servy native — this is non-GPU only.
+
+services:
+  alw-daemon:
+    build:
+      context: .
+      dockerfile: tools/alw/Dockerfile
+    restart: unless-stopped
+    environment:
+      - ALW_TICK_INTERVAL_MS=21600000
+      - ALW_HEALTH_PORT=9090
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - EXA_API_KEY=${EXA_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./tmp/alw:/app/tmp/alw
+      - ./docs/architecture/W443-SP1-VERDICTS:/app/docs/architecture/W443-SP1-VERDICTS
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:9090/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - alw-net
+
+networks:
+  alw-net:
+    driver: bridge

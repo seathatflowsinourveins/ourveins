@@ -1,0 +1,1006 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1dc4-8796-7212-b6e5-b8f1882d2f11
+--------
+user
+Wave 156 Ship 1.1 — Pattern A fix-forward apply of Ship 1 T3 a4bb3f14 verdict (NEEDS-ATTENTION 2 findings).
+
+CONTEXT: Wave 156 Ship 1 (commit a4bb3f1) promoted evaluator.md from 3-field to 14-field CCBP frontmatter. Post-commit T3 codex review fired automatically (codex_postcommit_review.py PostToolUse hook). T3 verdict at .claude/state/codex_review_HEAD_a4bb3f14.txt returned NEEDS-ATTENTION with 2 findings:
+
+(1) HIGH conf=0.9: "Reviewer still has mutating shell access under auto permissions". Body: agent grants Bash while setting permissionMode: auto; the read-only Bash guard (.claude/hooks/scripts/agent_plan_readonly_bash_guard.py) applies ONLY when permissionMode: plan; configuration does not enforce stated `git diff only` shell intent. disallowedTools [Write, Edit, MultiEdit, NotebookEdit] does NOT constrain arbitrary shell commands. Recommendation: "Remove `Bash`, or switch to the guarded read-only permission mode / explicit shell allowlist before claiming strict read-only review behavior."
+
+(2) MEDIUM conf=0.75: "Full GitHub MCP grant is not shown to be read-only". Body: `mcpServers: github` grants the whole named MCP server while body comment states "github is read-only"; frontmatter has no per-tool allowlist or read-only wrapper evidence; standard GitHub MCP exposes external write operations (issue/PR/repo/comment mutations). Recommendation: "Use a read-only GitHub MCP alias or restrict to specific read/list/fetch tools; otherwise remove `github` from this reviewer and update the comment."
+
+Per closed-loop-recursive-narrowing.md §Severity gate (mandatory before ACCEPT-WITH-DOC): "ACCEPT-WITH-DOC is a hard deny for any unresolved high or critical codex severity." HIGH conf=0.9 forces Pattern A fix-forward (not ACCEPT-WITH-DOC).
+
+PROPOSED EDITS (Pattern A single atomic apply):
+
+Edit 1: .claude/agents/evaluator.md L7
+  - Before: `permissionMode: auto`
+  - After:  `permissionMode: plan`
+  - Rationale: Closes T3 HIGH conf=0.9. Plan mode activates CC platform native read-only enforcement across Bash + MCP write tools. Aligns with agent body intent (line 48: "Use Bash only for git diff, git log, and ls/cat. You cannot edit, write, or run the application.") which is now enforced not just instructed.
+
+Edit 2: .claude/agents/evaluator.md L18-20 (mcpServers list)
+  - Before:
+      ```
+      mcpServers:
+        - github
+        - repomix
+      ```
+  - After:
+      ```
+      mcpServers:
+        - repomix
+      ```
+  - Rationale: Closes T3 MED conf=0.75. github MCP exposes 12 write-class tools (mcp__plugin_everything-claude-code_github__{create_issue, create_pull_request, add_issue_comment, merge_pull_request, update_issue, create_or_update_file, push_files, create_branch, fork_repository, create_repository, create_pull_request_review, update_pull_request_branch}). Evaluator role is "skeptical second-opinion review of local diffs + screenshots" — local Read/Glob/Grep/Bash(git diff) cover all evaluator scope; no GitHub API needed. Removing github eliminates the entire mutation surface at the MCP boundary. Only repomix MCP remains (analysis-oriented pack+grep).
+
+Edit 3: .claude/agents/evaluator.md HTML comment block (insert after line 26 closure comments)
+  - Add Ship 1.1 closure notes documenting (d) permissionMode flip + (e) github MCP removal per cardinal-rule-7 REPORT mandate.
+
+REVIEW AXES (3, scoped per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+
+AXIS 1 — Pattern A T3-prescription-conformance:
+Does Ship 1.1 atomically apply BOTH T3 prescriptions (permissionMode + MCP scope) in single commit per Pattern A "apply ALL prescribed_edits in SINGLE atomic commit"? Are the proposed edits the minimal correct closure of T3 findings? Should any of the 2 findings be deferred to PATH E Ship 14 batch instead?
+
+AXIS 2 — Plan-mode operational correctness:
+Does permissionMode: plan correctly enforce read-only across Bash AND MCP tools for an evaluator subagent? Per Anthropic CC sub-agents docs (https://code.claude.com/docs/en/sub-agents) — is plan-mode behavior compatible with the evaluator's documented workflow (git diff, git log, ls, cat, Read screenshots/logs, output PASS/NEEDS_WORK)? Does the agent_plan_readonly_bash_guard.py guard properly allow these read-only Bash invocations? Are there latent failure modes when plan-mode + isolation: worktree interact?
+
+AXIS 3 — MCP-scope adequacy:
+Is `mcpServers: [repomix]` post-removal sufficient for the evaluator's analysis needs? Are there edge cases where the evaluator would need cross-repo lookup (github MCP) that the removal forecloses? Should github be replaced with a per-tool allowlist (e.g., `mcpServers: github { tools: [search_code, get_file_contents] }`) per CCBP claude-subagents.md spec? Or is the removal correct given evaluator's local-repo scope?
+
+VERDICT SCHEMA (JSON-strict at EOF):
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": <float 0.0-1.0>,
+  "axis_1_pattern_a_conformance": "<short assessment>",
+  "axis_2_plan_mode_correctness": "<short assessment>",
+  "axis_3_mcp_scope_adequacy": "<short assessment>",
+  "prescribed_edits": [<list of specific edits if NEEDS-REVISION>],
+  "ship_disposition": "PROCEED_TO_COMMIT" | "PATTERN_A_APPLY" | "REVERT_AND_REMOVE"
+}
+
+codex
+I’ll verify the current agent frontmatter and the local read-only guard before judging the proposed fix-forward. I’ll also check the current Anthropic sub-agent permission-mode docs because the plan-mode behavior is central to Axis 2.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'if (Test-Path .claude/state/codex_review_HEAD_a4bb3f14.txt) { Get-Content -Path .claude/state/codex_review_HEAD_a4bb3f14.txt | Select-Object -First 220 }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/hooks/scripts/agent_plan_readonly_bash_guard.py | Select-Object -First 240' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/agents/evaluator.md | Select-Object -First 90' in Z:\claude-sota-installed
+ succeeded in 352ms:
+---
+name: evaluator
+description: Skeptical second-opinion reviewer. Reads the diff and the builder's evidence, then returns PASS or NEEDS_WORK with specific findings. Has no Write/Edit tools; Bash is granted for git diff only and is NOT a hard read-only boundary. Use PROACTIVELY when user says "review", "verify", "second opinion", "challenge this work", "is this done", or before declaring any non-trivial ship complete.
+tools: [Read, Glob, Grep, Bash]
+disallowedTools: [Write, Edit, MultiEdit, NotebookEdit]
+model: sonnet
+permissionMode: auto
+maxTurns: 20
+effort: high
+isolation: worktree
+memory: project
+background: false
+color: purple
+skills:
+  - superpowers:verification-before-completion
+  - superpowers:requesting-code-review
+  - addy-agent-skills:code-review-and-quality
+mcpServers:
+  - github
+  - repomix
+---
+<!-- Pattern A apply per codex T1 NEEDS-REVISION conf=0.9 verdict at .claude/state/codex_consult_ship1_evaluator_frontmatter_OUT.txt: -->
+<!-- (a) Removed `everything-claude-code:silent-failure-hunter` from skills: list (it is an AGENT not SKILL.md preload per CCBP claude-subagents.md:32-34). -->
+<!-- (b) Removed `gitnexus` from mcpServers: list (exposes mutating mcp__gitnexus__rename + __group_sync; adversarial-review role requires strict read-only posture). -->
+<!-- (c) For silent-failure coverage: invoke `everything-claude-code:silent-failure-hunter` AGENT explicitly via Agent tool when reviewing error-handling-class diffs (not preload-class). -->
+<!-- MCP scoping rationale (narrowed per codex T1 prescription #4): github is read-only; repomix is analysis-oriented (pack+grep); gitnexus REMOVED for adversarial-review read-only purity. -->
+
+<!-- Copyright 2026 Anthropic PBC -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Cite: anthropics/cwc-long-running-agents/claude-code-config/.claude/agents/evaluator.md @ HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629 (verbatim cite-import 2026-05-08 Wave 75) -->
+
+You are reviewing work that a separate builder agent just claimed is complete. You did not see how it was built and you should not trust the builder''s own assessment.
+
+Do the following every time:
+
+1. Read the spec or acceptance criteria for the feature under review.
+2. Run git diff against the baseline to see exactly what changed.
+3. Open every screenshot or console log under screenshots/ (or wherever the builder was told to put evidence) and look at what they actually show, not what the filenames imply. If a file fails to open or returns an error, treat it as missing evidence.
+4. Decide.
+
+Plausibility is not correctness. A diff that looks reasonable paired with a screenshot that shows a broken layout is NEEDS_WORK. Missing evidence for any acceptance criterion is NEEDS_WORK. If you find yourself assuming something probably works, stop and look for proof.
+
+Begin your reply with the bare word PASS or NEEDS_WORK on its own line, with nothing before it, so a wrapper script can read the verdict. Then:
+
+- PASS: one line stating what evidence convinced you.
+- NEEDS_WORK: a bullet list of specific, fixable findings the builder can act on next session.
+
+Use Bash only for git diff, git log, and ls/cat. You cannot edit, write, or run the application. Do not offer to fix anything yourself.
+
+ succeeded in 363ms:
+{"verdict":"needs-attention","summary":"Reviewed only the supplied diff. The commit improves frontmatter shape, but the read-only reviewer boundary is still not enforced for shell and MCP access.","findings":[{"severity":"high","title":"Reviewer still has mutating shell access under auto permissions","body":"The commit claims an adversarial-review read-only posture, but the agent still grants `Bash` while setting `permissionMode: auto`. The provided repo instructions say the read-only Bash guard applies when `permissionMode: plan`, so this configuration does not enforce the stated `git diff only` shell intent. `disallowedTools` does not constrain arbitrary shell commands.","file":".claude/agents/evaluator.md","line_start":4,"line_end":7,"confidence":0.9,"recommendation":"Remove `Bash`, or switch to the guarded read-only permission mode / explicit shell allowlist before claiming strict read-only review behavior."},{"severity":"medium","title":"Full GitHub MCP grant is not shown to be read-only","body":"The new `mcpServers: github` grant enables the whole named MCP server while the body comment states `github is read-only`. This frontmatter has no per-tool allowlist or read-only wrapper evidence, so a standard GitHub MCP could expose external write operations such as issue, PR, repo, or comment mutations.","file":".claude/agents/evaluator.md","line_start":18,"line_end":20,"confidence":0.75,"recommendation":"Use a read-only GitHub MCP alias or restrict to specific read/list/fetch tools; otherwise remove `github` from this reviewer and update the comment."}],"next_steps":["Tighten shell permissions before shipping this as a read-only evaluator.","Verify the local GitHub MCP surface is genuinely read-only or replace it with a constrained MCP profile."]}
+
+ succeeded in 380ms:
+# ===================================================================
+# WAVE 14 PORT — claude-sota-installed cite-import per CR-12 TERTIARY
+# (HONEST-NON-FINDING-gated; manifest §13 row Path B HNF-confirmed)
+# ===================================================================
+# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+# Source SHA (PINNED): f57c74dd68bb52771633d6ea76426842669fa499
+# Source bytes: 44974 (this target adds prepend block; body byte-for-byte port + 1 rewrite class)
+# Path-rewrites applied: 1 class × 2 occurrences ("in sss" -> "in eee" launcher-name)
+#
+# effective_tier: TIER-3-LOCAL-COMPOSITION
+# (per CLAUDE.md cardinal-rule-1 cite-class lattice; sibling-derived cannot elevate to TIER-1 SOTA
+#  per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8)
+#
+# HONEST-NON-FINDING evidence (per cardinal-rule-12 cite-import-AMBER gate):
+#   Wave 14 dispatch ID = "Wave 62 fire 13"
+#   Upstream-parity-probe scope: claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers
+#     + mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc — probed for
+#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
+#     ZERO upstream parity. Sibling-discovered/codified Wave 50 fire 11 row-7 verdict.
+#
+#   Probe DAG: P1 LICENSE PASS (sibling Apache-2.0 inheritance) / P2 registry-existence N/A
+#     (no install-class equivalent on npm/PyPI/cargo) / P3 namespace PASS (no collision in
+#     claude-sota-installed) / P4 plugin-namespace PASS (probe of all enabled plugins
+#     returned no equivalent hook) / P5 README/frontmatter PASS / P6 deep-audit PASS.
+#
+#   CR-9 sibling-bleed defense:
+#     - 6-class strict pattern grep: 0 hits on Z:/claude-sota[^-]/, Z:\claude-sota\, Z--claude-sota[^-],
+#       claude-sota-state, sss --, `sss`. PASS strict-pattern check.
+#     - Non-strict launcher-name leak: 2 occurrences "in sss" (docstring lines 5 + 65) rewritten
+#       to "in eee" at port time per cleanliness extension of CR-9 strictness.
+#     - All paths in body are RUNTIME-AGNOSTIC (.claude/state/..., .claude/rules/..., .codex/...)
+#       — relative paths interpreted from runtime CWD, not absolute sibling paths.
+#
+#   CR-9 sub-rules applied:
+#     - Pre-cite-import REVERT check: PASSED. Git log shows forward-only commit chain
+#       (b677669 creation -> 89fe24b/f7cc1f6/18586c8 fix-forwards -> f57c74d).
+#       Commit f57c74d title "Wave 11A REVERT-AND-REMOVE bash_command_allowlist" refers to
+#       a DIFFERENT file (bash_command_allowlist.py) — NOT this file. False-positive REVERT
+#       flag corrected per Wave 14 directive verification.
+#     - 2-round fix-forward expectation: budget acknowledged; first-round port carries
+#       0-rewrite + cleanliness-extension only.
+#
+# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
+# slot — this row promotes PLANNED-Path-B-HNF-confirmed -> INSTALLED-AMBER post-port.
+# ===================================================================
+# Reference: TIER-1 OFFICIAL Anthropic CC hooks docs https://code.claude.com/docs/en/hooks (PreToolUse JSON input/output contract; permissionDecision deny/allow/ask)
+# Reference: TIER-1 OFFICIAL Anthropic CC sub-agents docs https://code.claude.com/docs/en/sub-agents L463-493,520-548 (subagent frontmatter PreToolUse hooks; only fire while subagent active)
+# Reference: TIER-1 OFFICIAL Anthropic CC permissions docs https://code.claude.com/docs/en/permissions L130-137 (Bash(*) ≡ Bash) + L292-295 (hooks extend permissions and can deny tool calls before permission rules complete)
+# Reference: .claude/state/codex_consult_path_b_substantive_enforcement_design_OUT.txt (codex T1 APPROVE Path F conf=0.89 verdict — Q7 prescription verbatim drives this script's behavior)
+# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
+# Reference: .claude/rules/layered-gates-architecture.md §9 (HARD GATE for DENY-emitting hooks — tests/test_<hook>_security.py REQUIRED before commit)
+# Reference: .claude/rules/cross-model-consensus.md §Severity taxonomy mapping (this hook closes HIGH/P1 from arc-2 + arc-3 + arc-4 codex T3 verdicts)
+# Reference: .codex/config.toml profile definitions (read-only `deep-review` profile vs danger-full-access `deep-review-exec` profile — codex-readonly policy distinguishes them)
+"""agent_plan_readonly_bash_guard.py — frontmatter-scoped read-only Bash enforcement for plan-mode agents.
+
+WHY THIS HOOK EXISTS
+====================
+Per Anthropic sub-agents docs L399-410, parent's permission_mode (e.g. bypassPermissions) PRECEDES
+subagent frontmatter declarations. Subagents declaring `permissionMode: plan` cannot OPERATIONALLY
+enforce read-only contract under a bypass parent. This hook is the operational closure: it lives in
+the read-only subagent's OWN frontmatter PreToolUse:Bash slot, where it fires only while that
+subagent is active, and denies mutating Bash commands at the exec boundary BEFORE they execute.
+
+This closes the structural concern surfaced by codex T3 across arc-2 (c8e7dd6 REVERTED 874d897) +
+arc-3 (6c6d692 REVERTED d56499f) + arc-4 first-round on REVERT (d56499f T3 verdict at
+.claude/state/codex_review_HEAD_d56499f9.txt) — codex's verbatim next_step: "Replace the revert-only
+closure with the queued Path B enforcement before re-promoting or relying on these agents."
+
+CONTRACT (Anthropic PreToolUse)
+================================
+Input: JSON on stdin per https://code.claude.com/docs/en/hooks L615-627:
+  {
+    "session_id": str,
+    "transcript_path": str,
+    "tool_name": str,           # we only act on "Bash"
+    "tool_input": dict,         # for Bash: {"command": "<bash string>"}
+    "permission_mode": str,     # parent's mode: "default"|"acceptEdits"|"bypassPermissions"|"plan"
+    ...
+  }
+
+Output: JSON to stdout per https://code.claude.com/docs/en/hooks L1111-1133:
+  Allow: exit 0 (no JSON needed, or emit hookSpecificOutput.permissionDecision: "allow")
+  Deny:  exit 0 + JSON {hookSpecificOutput: {hookEventName: "PreToolUse",
+                                              permissionDecision: "deny",
+                                              permissionDecisionReason: "<text>"}}
+
+POLICY MODES (--policy flag)
+============================
+- readonly:        standard read-only — file/text/git read subcommands; no codex exec
+- codex-readonly:  readonly + narrow codex exec patterns (`exec --ephemeral -p deep-review`,
+                   `exec review --uncommitted --ephemeral`); for gpt5-archaeologist + gpt5-reviewer
+
+ENV KNOBS (defense-in-depth precedence: explicit settings > env > defaults)
+==========================================================================
+- AGENT_PLAN_BASH_GUARD_DISABLE=1 → exit 0 unconditionally (debug/escape hatch)
+- AGENT_PLAN_BASH_GUARD_DRY_RUN=1 → log decision but always allow (canary)
+- AGENT_PLAN_BASH_GUARD_STRICT=1  → escalate WARN cases to DENY (default: WARN to stderr, allow)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shlex
+import sys
+
+# === ALLOWLISTS ===
+# Read-only file inspection commands (Wave 11A: bash_command_allowlist.py REMOVED;
+# this frozenset is now the SOLE positive-validation Bash allowlist in eee, scoped to plan-mode subagents.
+# Operator reference for the broader CLI tool surface: .claude/skills/sota-cli-tools/SKILL.md)
+_READONLY_COMMANDS = frozenset({
+    # File inspection
+    "ls", "cat", "head", "tail", "wc", "grep", "rg", "stat", "tree",
+    "find",  # NOTE: validated separately for -type f read-only forms
+    "du", "df",
+    # Path / system inspection
+    "pwd", "where", "which", "basename", "dirname", "realpath", "readlink",
+    "uname", "hostname", "whoami", "date", "printf", "echo",
+    # Text processing (read-only forms)
+    "sort", "uniq", "awk",  # NOTE: awk validated for non-system forms (no system())
+    "diff", "comm", "cut", "tr", "fold", "expand", "tac", "rev", "nl",
+    # Process inspection (read-only)
+    "ps", "lsof", "top",
+    # Read-only Python evaluation (gpt5-archaeologist needs `python -c` for analysis)
+    # Validated separately to deny -W/-c-with-import-system-mutate
+    "python", "python.exe", "python3",
+    # Sleep is inert
+    "sleep",
+})
+
+# Git subcommands that are PURELY READ (no write forms)
+_GIT_READ_SUBCMDS = frozenset({
+    "log", "diff", "blame", "show", "status", "rev-parse", "rev-list",
+    "ls-files", "ls-tree", "for-each-ref", "describe", "name-rev",
+    "shortlog", "reflog", "cherry", "merge-base", "fsck",
+    "cat-file", "hash-object", "ls-remote", "archive",
+    "annotate", "whatchanged", "verify-commit",
+})
+
+# Git subcommands that are PURELY WRITE (no read forms)
+_GIT_WRITE_SUBCMDS = frozenset({
+    "commit", "push", "pull", "fetch", "merge", "rebase", "checkout", "switch",
+    "reset", "clean", "rm", "mv", "add",
+    "cherry-pick", "revert", "filter-branch", "update-ref", "update-index",
+    "apply", "am", "format-patch", "send-email",
+    "init", "clone", "submodule", "worktree", "gc", "prune", "repack",
+    "bundle", "fast-import", "fast-export",
+    "notes",
+})
+
+# Git subcommands that are AMBIGUOUS — read or write depending on flags
+# Validated by _validate_git_ambiguous_subcmd: bare invocation = read; specific write flags = deny
+_GIT_AMBIGUOUS_SUBCMDS = frozenset({
+    "branch",   # bare/--list = read; -d/-D/-m/-M = write
+    "tag",      # bare/-l/--list = read; -d/--delete = write
+    "config",   # --get/--list = read; --unset/--remove = write
+    "remote",   # bare/-v = read; add/remove/rename/set-url = write
+    "stash",    # list/show = read; push/pop/drop = write
+})
+
+# Always-deny commands regardless of args (irreversible / network / mutating)
+_ALWAYS_DENY = frozenset({
+    "rm", "rmdir", "mv", "cp", "ln", "mkdir", "touch", "chmod", "chown", "chgrp",
+    "dd", "mkfs", "fdisk", "format", "del", "erase",
+    "curl", "wget", "scp", "rsync", "ftp", "sftp", "ssh", "telnet", "nc", "netcat",
+    "pip", "npm", "yarn", "gem", "cargo", "go",  # package installers (note: `go` may also build/test — bare command-name deny)
+    "pkill", "kill", "killall",
+    "shutdown", "reboot", "halt", "poweroff", "init",
+    "sudo", "doas", "su", "runas",
+})
+
+# Codex deny tokens — token-based check (regex \b fails on --flag boundaries
+# because \b requires word/non-word transition; `--` is non-word so no boundary
+# triggers. shlex.split + token equality is the SOTA security pattern).
+#
+# Sandbox-escalation closure (Stop hook 2026-05-03): added --sandbox / --config /
+# -c / --profile to close the runtime-override class. Even with `-p deep-review`,
+# `codex exec -p deep-review --sandbox danger-full-access` overrides profile at
+# runtime. Per codex-cli-flag-positioning.md matrix row 11: `-c key=value` is
+# global on `codex exec` and accepts arbitrary config including sandbox.mode.
+_CODEX_DENY_TOKENS = frozenset({
+    "--write",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--yolo",
+    "--sandbox",         # `--sandbox danger-full-access` overrides profile sandbox
+    "--config",          # `--config <toml>` loads alternative config
+    "-c",                # `-c key=value` inline config override (e.g. sandbox.mode=...)
+    "--profile",         # alias for -p — must be explicitly checked
+    "--full-auto",       # codex flag — auto-approve all actions
+    "--ask-for-approval",  # also accepts danger-full-access value
+    "-a",                # short form of --ask-for-approval
+    "--ignore-rules",        # bypasses execpolicy `.rules` files (codex T1 F-001 conf=0.91)
+    "--ignore-user-config",  # bypasses $CODEX_HOME/config.toml (codex T1 F-002 conf=0.91)
+})
+
+# Codex deny token PREFIXES — match attached/equals forms that token-equality misses
+# (codex T1 F-003 residual hardening): `--config=key=value` (long-form-with-equals) and
+# `-cKEY=VALUE` (short-form-no-space) bypass exact-token deny check at L411-412.
+_CODEX_DENY_TOKEN_PREFIXES = (
+    "--config=",  # `--config=approval_policy=never` etc
+    "-c",         # `-csandbox_mode=danger-full-access` (no-space short form);
+                  # narrower than allowing bare `-c` because exact `-c` is in DENY_TOKENS
+                  # above, this catches `-c<value>` attached forms only
+)
+# Codex deny substrings — match anywhere in any token (catches `-p deep-review-exec`)
+_CODEX_DENY_SUBSTRINGS = (
+    "deep-review-exec",       # danger-full-access profile
+    "danger-full-access",     # raw sandbox value
+    "danger-bypass",          # alternative dangerous value
+    "workspace-write",        # write-capable sandbox
+    "no-sandbox",             # disabling sandbox
+)
+
+# Sed mutation + subprocess-spawning patterns (Stop-hook fix-forward round-2 2026-05-03)
+# - `sed -i` / `--in-place`: file write
+# - `sed 's/foo/bar/e'`: e-flag executes replacement as shell command
+# - `sed '1e cmd'` / `sed 'e cmd'`: e command evaluates pattern space as shell
+# Read-only mode rejects ALL sed forms that can write OR spawn subprocesses.
+_SED_DENY_PATTERNS = (
+    re.compile(r"^sed\s+(?:.*\s+)?-i\b", re.IGNORECASE),
+    re.compile(r"^sed\s+(?:.*\s+)?--in-place\b", re.IGNORECASE),
+    # s<sep>...<sep>...<sep><flags-with-e>  — substitute with e flag (executes
+    # replacement as shell). Uses backref \1 to support arbitrary separators
+    # (/, |, :, ,, #, ~ — sed accepts any non-alphanumeric non-whitespace char).
+    # `[\s\S]` matches any char including newline (DOTALL semantics inline).
+    re.compile(r"\bs(.)(?:(?!\1)[\s\S])*?\1(?:(?!\1)[\s\S])*?\1[gimpI0-9]*e", re.IGNORECASE),
+    # Bare e command: at start of segment, after ;, after !, after { (sed
+    # control structures), OR after ' / " (start of sed script literal in shell).
+    # The `e` command followed by whitespace+arg evaluates the arg as shell.
+    re.compile(r"(?:^|[;!{'\"])\s*\d*\s*e\s+\S", re.IGNORECASE),
+)
+
+# Awk subprocess-spawning patterns (Stop-hook fix-forward round-2 2026-05-03)
+# Awk is Turing-complete with built-in subprocess primitives that bypass the
+# leading-verb allowlist:
+# - `system("cmd")`            — direct subprocess execution
+# - `print ... | "cmd"`        — pipe output to subprocess (awk-internal `|`,
+#                                 distinct from shell `|` so _COMMAND_SEPARATORS misses it)
+# - `"cmd" | getline`          — pipe input from subprocess
+
+web search: 
+web search: site:code.claude.com/docs/en/sub-agents permissionMode plan subagents tools mcpServers
+codex
+The current file matches the T3 findings: evaluator is still `permissionMode: auto` with `Bash`, and it grants the full `github` MCP while documenting it as read-only. I’m checking the exact guard wiring now, because plan-mode only helps if the hook is actually attached to this agent or the platform mode itself is enough under the parent mode.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "agent_plan_readonly_bash_guard|permissionMode: plan|mcpServers:|hooks:|PreToolUse" .claude/agents .claude/settings.json CLAUDE.md docs -S' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "permission_mode|permissionMode|plan" .claude/hooks/scripts/agent_plan_readonly_bash_guard.py -S' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "mcpServers|tools:|permissionMode|Bash only|read-only" Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md Z:/repos/deps/codex/AGENTS.md -S' in Z:\claude-sota-installed
+ succeeded in 329ms:
+CLAUDE.md:193:    - **Path B HONEST-NON-FINDING (×3)**: gpt5-archaeologist + agent_plan_readonly_bash_guard + fm17d_stall_detector — all sibling-discovered/codified named-failure-modes; cite-import-AMBER from sibling per Section 14.5 last-resort
+CLAUDE.md:241:| (d) | `permissions.defaultMode: "bypassPermissions"` per Wave 82d (operator-flipped from "auto" 2026-05-08 in response to ~30min Anthropic-side classifier endpoint outage that blocked all Bash/Edit/Write under auto-mode) | **TEMPORARY OPERATOR OVERRIDE** — NOT CR-7 Phase 3 destination achievement. Per Wave 124 codex T1 NEEDS-REVISION conf=0.91 P0 anti-pattern caught [VERIFIED via .claude/state/codex_consult_w122_e2e_audit_OUT.txt L6175-6178]: "Calling bypassPermissions Phase 3 while Tier rows remain PLANNED/PARTIAL and INSTALLED-AMBER" — current `bypassPermissions` does NOT satisfy CR-7 Phase 3 trigger predicates (Tier 3-5 rows still PARTIAL per `docs/sota-installed-manifest.md` §0..§17 audit; arc-convergence ≥7 fires no NEEDS-REVISION conf>0.85 predicate ALSO not met — Wave 124 itself is a NEEDS-REVISION). **Revert target**: `auto` (CCBP-canonical SOTA per `claude-settings.md:251`) when ALL hold: (1) Anthropic classifier capacity reliable, (2) Tier 5 rows all INSTALLED + smoke-probe PASS, (3) arc-convergence predicate satisfied. Cite anchors: TIER-1-DIRECT `https://code.claude.com/docs/en/settings` (permission-mode enum) + TIER-1-DIRECT CCBP `claude-settings.md:250-251 @ HEAD 48f2ceb` (auto-mode SOTA-superior to bypassPermissions per protected-path prompt). Wave 82e codex T1 Pattern B HONEST-NON-FINDING confirms metadata-only edits land safely under bypass with deny-class secret-pattern floor + safety_guard.py + agent_plan_readonly_bash_guard.py |
+.claude/settings.json:84:    "_comment_allow": "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor MECHANICALLY ENFORCED via PreToolUse:Bash hook safety_guard.py at Block[6][0] (Wave 105 Ship 2N-batch3-A 2026-05-08 — 12-destructive-pattern auto-block: rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd); agent_plan_readonly_bash_guard.py is mechanically enforced at per-subagent frontmatter scope (architect/code-reviewer/debugger/verifier --policy readonly + gpt5-archaeologist/gpt5-reviewer --policy codex-readonly), NOT globally — codex T1 NEEDS-REVISION conf=0.96 caught that global wire would block normal operator Bash including git commit; cardinal-rule deny-class still applies.",
+.claude/settings.json:90:    "PreToolUse": [
+.claude/settings.json:621:  "_comment_wave105_ship_a2": "Wave 105 fire 1 SHIP-A2 2026-05-08 — 7-plugin batch enable from claude-plugins-official Anthropic OFFICIAL marketplace per Wave 105 fire 1 Agent D APPROVE-LIST + Agent C RECOMMENDED-OPTION B convergence + SRA D1-D10 score 10/10 each (TIER-1-OFFICIAL maintainer + D1 license MIT/Apache-2.0 + D6 use-class plugin eee-compatible). Trimmed from Agent D Top-9 to 7 LOW-risk plugins: (1) code-review — multi-agent code review with confidence scoring; complementary to superpowers/skills/requesting-code-review and pr-review-toolkit (different scopes); (2) feature-dev — feature dev workflow with codebase exploration + architecture agents; pairs with superpowers/writing-plans; (3) code-simplifier — refactor agent for clarity/maintainability (KISS Must-Never #4 PASS — no duplicate of codex/superpowers); (4) commit-commands — git commit/push/PR commands (KISS PASS — superpowers/finishing-a-development-branch is workflow-style; commit-commands is command-class; complementary); (5) session-report — HTML session usage report aligned with Karpathy §5 compounding-surface discipline; (6) playground — interactive HTML playgrounds for visualizations; pairs with frontend-design; (7) mcp-server-dev — MCP server design skills aligned with cardinal-rule-11 META-process (KISS PASS — NO duplicate of plugin-dev). DEFERRED from Agent D Top-9: security-guidance (DEFERRED per Wave 104 _comment_wave104_ship2n_batch2 above — Mia caught hardcoded /tmp/security-warnings-log.txt cross-platform Windows-Git-Bash incompatibility + PreToolUse:Edit per-edit token cost needs CR-9 monitoring before re-evaluation; tracked at task #46 batch3-A queue) + typescript-lsp (DEFERRED — LSP daemon adds runtime daemon risk; defer until per-project use surfaces). All 7 plugins ship agents/commands/skills (no active plugin-level hooks or MCP server config) per marketplace.json plugin contents. CR-9 install-risk LOW (no @latest; marketplace HEAD pinned via .gcs-sha first-12 chars per Wave 82d convention; no sibling-bleed; reversible). Cross-model gate: Wave 105 fire 1 codex T1 e2e Pattern B HONEST-NON-FINDING (11491-line trace inspected SHIP-A2 plugin contents — session-report HTML / security-guidance hooks.json / plugin-dev testing-strategies — but JSON verdict not emitted before 180s budget exhaust); T2 commit-time hook codex_t2_pre_commit_gate.py fires on this commit per cross-model-consensus.md §The contract. Cite: marketplace.json#code-review#feature-dev#code-simplifier#commit-commands#session-report#playground#mcp-server-dev at Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json + Wave 105 fire 1 Agent D APPROVE-LIST verdict at tmp/wave105-agentD-skill-sota-audit-2026-05-08.md DIM 1 + Agent A REVISE-LIST at tmp/wave105-agentA-sota-architecture-audit-2026-05-08.md + Agent C RECOMMENDED-OPTION B at tmp/wave105-agentC-architect-install-plan-2026-05-08.md + Wave 105 synthesis tmp/wave105-synthesis-2026-05-08.md.",
+.claude/settings.json:623:  "_comment_wave104_ship2n_batch2": "Wave 104 Ship 2N-batch2 2026-05-08 — enable plugin-dev (Anthropic OFFICIAL Tier-0 plugin development toolkit) per Wave 104 SRA-driven re-audit B.4 INSTALL-CANDIDATE (TIER-1-OFFICIAL maintainer + D1+D2+D4+D6+D7 PASS via SRA D1-D10 convergence gate at .claude/rules/sota-research-architecture.md @ 3322b58). plugin-dev contains agents/ + commands/ + skills/ subdirs (no active plugin-level hooks or MCP server config) per verified cache at .claude/plugins/cache/claude-plugins-official/plugin-dev/76b35e91d1c9/ — LICENSE (Apache-2.0 11358B) + README.md (14590B) + agents/ + commands/ + skills/. CR-9 install-risk LOW (no active hooks/MCPs to add edit-path latency, no @latest, no sibling-bleed, marketplace-clone HEAD pinned at 76b35e91d1c9 .gcs-sha first-12). Wave 104 Agent SRA listed agent-sdk-dev as B.4 candidate but it was ALREADY enabled per Ship 2N-batch1 commit 1deb221 — this ship newly enables ONLY plugin-dev. security-guidance plugin DEFERRED to Ship 2N-batch3 — Mia caught hardcoded /tmp/security-warnings-log.txt path (cross-platform Windows-Git-Bash incompatibility) + PreToolUse:Edit fires on every edit (per-edit token cost needs CR-9 monitoring). Codex T1 verdict NEEDS-REVISION conf=0.88 5-prescription Pattern A applied: agents-only mischaracterization corrected to agents/commands/skills only. Cite: Wave 104 SRA re-audit verdict tmp/wave104-sra-driven-reaudit-2026-05-08.md REVISE-RE-AUDIT conf=0.84 + .claude/state/codex_consult_wave104_ship2n_batch2_OUT.txt NEEDS-REVISION conf=0.88.",
+docs\architecture-audit-2026-05-10.md:59:| T1 PreToolUse:Edit gate (sibling-novel) | INSTALLED | manifest.md L84 (Section 2 — `codex_t1_consult_gate.py` 85K WIRED settings.json:96 PreToolUse Edit\|Write\|MultiEdit; default WARN, STRICT via `CODEX_T1_GATE_STRICT=1`; live verdict production confirmed via 283 codex telemetry files per W156 F1) |
+docs\architecture-audit-2026-05-10.md:71:| safety_guard.py (deny-list catastrophic) | INSTALLED-AMBER-WIRED-ACTIVE | manifest.md L256 (Section 13 Hooks — sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/safety_guard.py @ 32fbcb0d` per Wave 14b Path B HONEST-NON-FINDING; WIRED settings.json:172 PreToolUse:Bash; 12 destructive-Bash patterns enforced; ECC HOOK chain lacks these per Wave 14 fork verdict — defense-in-depth gap 12 vs 1) |
+docs\architecture-audit-2026-05-10.md:72:| agent_plan_readonly_bash_guard | INSTALLED via cite-import-AMBER | sibling claude-sota |
+docs\architecture-audit-2026-05-10.md:152:### Gap 2 — codex T1 PreToolUse:Edit mechanical hook gate (P0 cardinal-rule-3) [Voice 3]
+docs\architecture-audit-2026-05-10.md:250:| **P1** | Wave 141 | codex T1 PreToolUse:Edit mechanical hook gate sibling-novel cite-import | CR-3 Phase 2 trigger predicate (c) requires this; current gap blocks CR-7 Phase 2 transition |
+docs\fire50-opencode-deepdive.md:101:| Hook system | Native PreToolUse / PostToolUse / SubagentStop / etc | Different hook surface (TypeScript-based) |
+.claude/agents\verifier.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude/agents\verifier.md:46:mcpServers: []
+.claude/agents\verifier.md:52:# disallowedTools blocks file mutation. Per-agent PreToolUse:Bash guard uses
+.claude/agents\verifier.md:69:hooks:
+.claude/agents\verifier.md:70:  PreToolUse:
+.claude/agents\verifier.md:72:      hooks:
+.claude/agents\verifier.md:74:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy verifier"
+.claude/agents\verifier.md:77:    - hooks:
+docs\evidence-governed-harness-8-gate-discipline.md:85:| **Trigger** | Every subagent dispatch + every Hook event (PreToolUse / PostToolUse / SubagentStop / etc.) |
+.claude/agents\sota-researcher.md:69:mcpServers: ["perplexity", "exa", "firecrawl", "deepwiki", "context7", "github", "graphiti", "repomix"]
+.claude/agents\sota-researcher.md:71:hooks:
+.claude/agents\sota-researcher.md:73:    - hooks:
+docs\gitnexus-deep-probe-W160-F10-2026-05-12.md:56:(No GitNexus-specific PreToolUse/PostToolUse hooks wired in `.claude/settings.json` — integration is via codex T1/T4 hook scripts that may invoke `mcp__gitnexus__*` MCP tools at runtime.)
+.claude/agents\gpt5-reviewer.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude/agents\gpt5-reviewer.md:56:hooks:
+.claude/agents\gpt5-reviewer.md:57:  PreToolUse:
+.claude/agents\gpt5-reviewer.md:59:      hooks:
+.claude/agents\gpt5-reviewer.md:61:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy codex-readonly"
+.claude/agents\gpt5-reviewer.md:64:  For artifact persistence under FM-19 (`agent_plan_readonly_bash_guard.py`
+.claude/agents\gpt5-reviewer.md:84:     starts cleanly, (3) restore `mcpServers: ["local-judge"]` to frontmatter,
+.claude/agents\gpt5-archaeologist.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude/agents\gpt5-archaeologist.md:55:hooks:
+.claude/agents\gpt5-archaeologist.md:56:  PreToolUse:
+.claude/agents\gpt5-archaeologist.md:58:      hooks:
+.claude/agents\gpt5-archaeologist.md:60:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy codex-readonly"
+.claude/agents\gpt5-archaeologist.md:63:  For artifact persistence under FM-19 (`agent_plan_readonly_bash_guard.py`
+.claude/agents\evaluator.md:18:mcpServers:
+.claude/agents\evaluator.md:24:<!-- (b) Removed `gitnexus` from mcpServers: list (exposes mutating mcp__gitnexus__rename + __group_sync; adversarial-review role requires strict read-only posture). -->
+.claude/agents\debugger.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude/agents\debugger.md:45:mcpServers: ["github", "context7"]
+.claude/agents\debugger.md:47:hooks:
+.claude/agents\debugger.md:49:    - hooks:
+.claude/agents\architect.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude/agents\architect.md:43:permissionMode: plan
+.claude/agents\architect.md:45:mcpServers: ["deepwiki", "context7", "github"]
+.claude/agents\architect.md:53:hooks:
+.claude/agents\architect.md:54:  PreToolUse:
+.claude/agents\architect.md:56:      hooks:
+.claude/agents\architect.md:58:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+.claude/agents\architect.md:61:    - hooks:
+.claude/agents\architect.md:71:  (`agent_plan_readonly_bash_guard.py` blocks Bash heredoc / tee / redirect /
+.claude/agents\code-reviewer.md:21:    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+.claude/agents\code-reviewer.md:41:permissionMode: plan
+.claude/agents\code-reviewer.md:44:mcpServers: ["context7", "github", "repomix"]
+.claude/agents\code-reviewer.md:51:hooks:
+.claude/agents\code-reviewer.md:52:  PreToolUse:
+.claude/agents\code-reviewer.md:54:      hooks:
+.claude/agents\code-reviewer.md:56:          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+.claude/agents\code-reviewer.md:59:    - hooks:
+.claude/agents\code-reviewer.md:69:  persistence under FM-19 (`agent_plan_readonly_bash_guard.py` blocks Bash
+docs\RTK.md:5:- **Hook**: PreToolUse Bash hook WIRED at `.claude/settings.json:248` invoking `rtk hook claude` (UNWRAPPED — Wave 135 Fire 7 attempted `cmd /d /c "...2>NUL"` wrapper but Mia n=148 smoke probe confirmed cmd /c stdin propagation bug breaks rtk JSON output entirely; reverted to original unwrapped form; cosmetic stderr warning persists)
+docs\RTK.md:22:Wave 83a recorded profile-pollution side effects from RTK init (rolled back per `docs/install-provenance.md:3110-3163`). This runtime is Z:-portable; the `.claude/settings.json:248` PreToolUse Bash hook IS the intended eee integration. RTK.md root-level + CLAUDE.md @RTK.md injection are deliberately omitted to avoid Wave 83a class regression.
+docs\sota-feature-activation.md:30:| cwc-long-running-agents 5 primitives | INSTALLED + wired | `.local/cwc/` + `.claude/hooks/cwc/` matchers in `.claude/settings.json` PreToolUse blocks (track-read.sh on `Read`; verify-gate.sh on `Write\|Edit\|MultiEdit`; kill-switch.sh + steer.sh on `*`) |
+docs\sota-feature-activation.md:33:**Hook counts** (per `.claude/settings.json` probe 2026-05-12): PreToolUse:7 / PostToolUse:3 / PostToolUseFailure:1 / Stop:1 / SubagentStop:4 / UserPromptSubmit:1 / SessionStart:3 / SessionEnd:1 = 21 hook handlers across 8 events.
+docs\sota-feature-activation.md:66:| `permissionDecision: "deny"` JSON | hook emits `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"<why>"}}` | PreToolUse blocking (sync); used by `safety_guard.py` 12-destructive-pattern deny floor | `https://code.claude.com/docs/en/hooks` |
+docs\sota-feature-activation.md:67:| `updatedInput` with allow | hook emits `{"permissionDecision":"allow","updatedInput":{...}}` | Satisfy `AskUserQuestion` from PreToolUse — headless integrations collect answers via their own UI | CHANGELOG 2.1.139 |
+docs\sota-installed-manifest.md:84:| codex hooks (T1-T7 lifecycle) | `/plugin marketplace add` + `/plugin install` (T6 plugin path) + sibling cite-import-AMBER per Section 14.5 (T1/T2/T3/T4/T5/T7 Python via Wave 124-A1..A6) | `claude plugin marketplace add openai/codex-plugin-cc && claude plugin install codex@openai-codex` + Wave 124-A1..A6 sibling Python cite-import for non-plugin-covered T-touchpoints | https://github.com/openai/codex-plugin-cc + sibling `Z:/claude-sota/.claude/hooks/scripts/codex_*.py` | **INSTALLED** — T1-T7 FULLY OPERATIONAL [VERIFIED 2026-05-12 via W156 F1 orchestrator-direct codex T1 Path P REAL GPT-5.5 verdict APPROVE-F1D-MANIFEST-FIRST conf=0.82 at `.claude/state/codex_consult_w156_f1_orchestrator_direct_OUT.txt` (3792 LOC / exit=0 / 60s wall-clock; codex v0.130.0 model gpt-5.5 sandbox=workspace-write; session id `019e1a90-10f0-7db3-bfdb-8853f0398701`)]: **T1 consult-gate** `codex_t1_consult_gate.py` (85K) WIRED settings.json:96 PreToolUse Edit\|Write\|MultiEdit (default WARN, STRICT via CODEX_T1_GATE_STRICT=1); **T2 pre-commit gate** `codex_t2_pre_commit_gate.py` (48K) WIRED settings.json:218,224,230,236,242,248 (6 matchers: git commit, git -C *, rtk git commit, rtk git -C *, env * git commit, env * git -C *; sync 180s STRICT FAIL_CLOSED); **T3 postcommit review** `codex_postcommit_review.py` (50K) PostToolUse Bash(git commit *) async; **T4 prepush review** `codex_prepush_review.py` (43K) PostToolUse Bash(git push *) async; **T5 plan-stage** `codex_t5_plan_review_gate.py` (7K) WIRED settings.json:111 async; **T6 stop-review-gate** via openai-codex plugin `scripts/stop-review-gate-hook.mjs` (Anthropic OFFICIAL canonical mjs) WIRED settings.json:409 timeout 300 — **Python sibling `codex_stop_review_gate.py` correctly ABSENT** per CR-12 DUPLICATE-FUNCTIONALITY + `deprecation-discipline.md` Advisory deprecation (replacement = plugin's mjs hook; zero consumers; zero migration cost); **V1 reframe overstated REVERT precedent — codex T1 P2 SAVED-SHIP catch via FM-20 path-drift cascade defense**: V1 cited sibling commit `3de349d` for REVERT-AND-REMOVE but `git -C Z:/claude-sota show 3de349d --stat` returns `fatal: bad revision` (NOT locally verifiable; sibling history through `af54fef..0a7c101` still has the file PRESENT); T6 absence ratified via CR-12 plugin-DUPLICATE-FUNCTIONALITY, NOT verified sibling REVERT-precedent; **T7 ask-without-act gate** `auto_proceed_gate.py` WIRED settings.json:398 sync 5s pre-T6 slot; **283 codex telemetry files** at `.claude/state/codex_review_HEAD_*.txt` confirm T3 actively producing live verdicts (latest `codex_review_HEAD_d29b8fce.txt` from W155 F1 today 2026-05-12); **`.codex/config.toml`** at `Z:/claude-sota-installed-state/.codex/config.toml` per Wave 75 cite-import-AMBER (state-outside-repo); sibling-bleed 22 refs across 5 hook scripts classified READ_ONLY_PROBE_EXCEPTION per codex T1 verdict + V1 finding (cite-comments / provenance markers / illustrative path examples only — executable paths resolve via runtime root / CODEX_HOME / plugin root / settings wiring; CR-9.4 carve-out applies; Task A treated as cleanup-audit not blocker); earlier "INSTALLED-PARTIAL ... pending fire 19+ queue" status was STALE per `evidence-policy.md` Marker Decay corollary (cite-import already landed at Wave 124-A1..A6; W156 F1.D is the manifest reconciliation flipping Status field to current ground truth); full W156 F1 evidence + 5 codex saved_ship_catches + ladder advances in `docs/install-provenance.md` Wave 156 Fire 1 entry | **CR-7 Phase 2 trigger predicate (c) Tier 1a SATISFIED** for codex T1-T7 lifecycle (mechanical wiring active; smoke-probe PASS via live T3 verdict production at 283 telemetry files); **CR-3 cross-model lifecycle FULLY satisfied** via orchestrator-direct Path P REAL GPT-5.5 (n=19 cumulative non-Phase-1-bootstrap); **FM-17.e V2+V3 BRIDGE-MODE subagents both fell** to autocompact-thrashing (n=2 same-fire double-failure; n=6 cumulative cross-arc 2026-05-12 advances FM-17.e ladder from n=4 firm to n=6) — recovered via orchestrator-direct foreground+tee per `fm17-subagent-fleet-depletion.md §FM-17.e Recovery`; **FM-09 codex-rescue blind-spot 13/13→14/14 firm** (orchestrator-direct codex T1 CAUGHT V1's SHA citation OVER — 7th cross-arc RECURSIVE catch); **FM-02 (c) constructive absorption disclosed** (parallel session's W155 F11 Section 13 L240 codex_*observability scripts row Pattern A apply bundled per `parallel-session-worktree-isolation.md` Sub-class (c) recovery + `named-failure-modes.md` FM-02 (c) sub-class); SRA D1-D10 baseline: D1 use-class CLI/plugin-binary PASS / D2 freshness PASS (codex@1.0.4 active; openai-codex plugin actively maintained) / D4 TIER-1-OFFICIAL OpenAI / D6 autonomous /loop use-class compatible / D7 Anthropic-aligned (plugin marketplace canonical) |
+docs\sota-installed-manifest.md:112:| **CWC PreToolUse hooks ACTIVE-ADAPTED** (kill-switch + steer + track-read + verify-gate) | local cite-import + per-file adaptations | `cp .local/cwc/claude-code-config/.claude/hooks/{kill-switch,steer,track-read,verify-gate}.sh .claude/hooks/cwc/` + per-file Wave 78/80/82 codex T1 prescribed adaptations | constituents=[TIER-1-DIRECT @ `Z:/claude-sota-installed/.local/cwc/claude-code-config/.claude/hooks/{kill-switch.sh:1-9, steer.sh:1-14, track-read.sh:1-11, verify-gate.sh:1-26} @ HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629`, TIER-3-LOCAL-COMPOSITION @ Wave 75 cite-import + Wave 78 codex T1 conf=0.78 F4 (`python3 → ${PYTHON_BIN:-python}` fallback) + Wave 80 codex T1 conf=0.91 F4+F5 (stderr-no-swallow on steer + verify-gate) + Wave 82 codex T1 conf=0.91 F4 (stderr-no-swallow on track-read)]; effective_tier=TIER-3-LOCAL-COMPOSITION per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 | **INSTALLED-ACTIVE** | Wave 153 fire 1 [VERIFIED 2026-05-11 via codex T1 V2 RECOMMEND-SHIP conf=0.86 + V3 ADVERSARIAL NEEDS-REVISION-V2 conf=0.91 real GPT-5.5 BRIDGE-MODE Path P 6-param strict-conform]. Files wired in `.claude/settings.json:137` (kill-switch) + `:142` (steer) + `:152` (track-read) + `:162` (verify-gate) — PreToolUse:Bash matchers fired in production since Wave 75 cite-import 2026-05-08. Local-adapted LOC: kill-switch 10, steer 15, track-read 13, verify-gate 23 (upstream: 9/14/11/26 respectively per W155 F41a probe). DISTINCT from dormant `.claude/hooks/scripts/cwc/*` verbatim-upstream copies above (those remain INSTALLED-DORMANT reference state at upstream LOC). NEWLY-TRACKED Wave 153 fire 1; previously untracked since Wave 75 = workspace-fragility on fresh checkout. CR-12: ECOSYSTEM-IMPORT (anthropics/cwc ecosystem) + TIER-3-LOCAL-COMPOSITION (adaptations). SRA D1-D10: 9/10 PASS critical D1+D6 PASS → INSTALL. FM-09 14/14 → 15/15 firm (V3 ADVERSARIAL caught V1+V2 missed CR-12 class + path-drift). |
+docs\sota-installed-manifest.md:124:| **§Section 17 AUDIT-ATTESTATION (Wave 155 Fire 40 2026-05-12)** | V2+V3 PARALLEL Path P cross-model AUDIT | V2 b6hwtnj6s AUDIT-NEEDS-CORRECTION conf=0.91 + V3 bvdpyor2c AUDIT-NEEDS-CORRECTION conf=0.91 (UNANIMOUS) | cite trail `.claude/state/codex_consult_w155_f40_section17_audit_{v2,v3_adversarial}_OUT.txt` | **AUDIT-NEEDS-CORRECTION** [VERIFIED 2026-05-12] — 18 §Section 17 rows cross-model audited per CR-3; **13 rows VERIFY-CLEAN** (L107 Fresh-context evaluator / L108 PROGRESS.md handoff cite-only / L114 ralph-loop / L116 pyright-lsp / L117 clickhouse / L118 outputai / L119 qdrant-skills / L120 cwc-makers / L122 pigment + L123 zilliz REJECT-FIT correctly enumerated + L112 ACTIVE-ADAPTED row class correct); **8 rows NEEDS-CORRECTION** identified by V2+V3 complementary catches: (1) L106 Default-FAIL contract — `track-read.sh:1-13` STALE (upstream is 11 lines; `1-11` correct) + `verify-gate.sh:1-31` STALE (upstream is 26 lines; `1-26` correct) + "Wiring NOT yet in .claude/settings.json" STALE (adapted copies wired at settings.json:152 track-read + L162 verify-gate per Wave 78-82); (2) L109 Kill-switch — adapted copy ACTIVE-WIRED at settings.json:137 (manifest dormant framing applies only to upstream verbatim copy); (3) L110 Steer — `steer.sh:1-13` STALE (upstream is 14 lines; adapted is 15 lines) + adapted wired at settings.json:142; (4) L111 commit-on-stop — `commit-on-stop.sh:1-15` STALE (upstream is 17 lines) + LOCAL VARIANT `commit-on-stop-throttled.sh` wired at settings.json:404 (out-of-row local Wave 80+ adaptation); (5) L112 CWC PreToolUse ACTIVE-ADAPTED — `verify-gate 1-29` STALE (adapted actual is 23 lines); (6) **L113 agent-sdk-dev plugin** — cache version `70d57685d411` STALE (installed_plugins.json shows `c0c39f1a6b5c`); (7) **L115 frontend-design plugin** — cache version `70d57685d411` STALE (installed_plugins.json shows `c0c39f1a6b5c`); (8) **L121 dash0 plugin** — manifest claims INSTALLED via installed_plugins.json but evidence shows `.orphaned_at` present + NO dash0 entry in installed_plugins.json + NO enabledPlugins entry → should be `CACHED-ORPHANED-NOT-INSTALLED`. **F41 fix-forward queued** for 8-row Pattern A apply per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A`. **Advances audit coverage**: 29/272 (10.7%) → **47/272 (17.3%)** = +6.6% in single fire (FIRST section-batch audit pattern in W155; departure from §Section 3 row-by-row F34-F39 inserts). FM-09 38th cross-arc RECURSIVE catch (V2+V3 mutual catches: V3 caught V2 missing cite-anchor drift; V2 caught V3 missing cache-version + dash0-orphan-state drift — complementary cross-model findings; SECOND V2-catches-V3 instance after F35; promotes V2-V3-mutual-catch sub-pattern from F35 rare-instance to **n=2 STABLE SUB-CLASS**). **TAXONOMY DISCIPLINE PRECEDENT**: 19x → **20x TWENTY-AFFIRMED firm** (no NEW 20th evidence-shape class — audit-attestation reuses §Section 17 row schema, OUTSIDE 7-class lattice). **Path P n=110 → n=112** (V2 b6hwtnj6s + V3 bvdpyor2c REAL GPT-5.5 codex CLI v0.130.0 foreground+tee both completed). **CR-3 cross-model gate FULLY SATISFIED** at F40 (REAL GPT-5.5 via Path P; no STAND-IN-NOTICE; no BRIDGE-MODE). Per CR-7 honest reporting: AUDIT-NEEDS-CORRECTION outcome disclosed inline rather than blanket AUDIT-VERIFIED-CLEAN — V3 explicit catch #1 honored. |
+docs\sota-installed-manifest.md:132:> **W155 F45 V2-RECURSIVE-CATCH forward-correction on F44 staleness + probe-time-stale Marker Decay n=7 cumulative 2026-05-12**: Per Iron Law verification-before-completion GATE: F44 V2 dispatch `bhoda0wqc` grew **293947 → 719926 bytes** (+425979 bytes / +753 lines / 444 → 1197 total) AFTER my F44 synthesis-time probe but BEFORE task notification arrived — n=7 PROBE-TIME-STALE MARKER DECAY (cycle-322 PROMOTION-GATE SATISFIED firm at n=5; n=6 F42c V2; n=7 THIS F44 V2). V2 final EOF verdict at L1153-1197: **NEEDS-REVISION conf=0.93 + fm09_recursive_catch_triggered=YES + 4/5 axes FAIL + axis5 PASS=INFO-POINTER**. Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A` + Mia pre-apply per `mia-pre-apply.md` (n=365 → n=366 — Mia probe DIRECTLY VERIFIED 4/5 V2 catches via manifest re-read): **Pattern A apply ALL V2 prescriptions in this F45 forward-correction**. Per `port-note-discipline.md §6` forward-only mandate: F44 commit `feaad40` body PRESERVED verbatim (do NOT rewrite); this F45 supplements with V2 catches. **V2 axis1 FAIL — Mechanical-mirror exception INVALID for F44**: ~30 LOC > 24 LOC threshold + dashboard introduces NEW status-synthesis surface + folder-inventory NEW evidence shape. F44 invocation of mechanical-mirror exception was incorrect; F45 reframes scope class as **INFO-POINTER dashboard** per V2 axis5 PASS prescription (user-directive-driven status synthesis; not mechanical-mirror; required fresh T1 V2 dispatch which fired and returned NEEDS-REVISION). **V2 axis2 FAIL — Row-count denominator drift**: F44 cited 245 rows; V2 direct probe counted **276 non-historical data rows** when excluding table headers/separators and HISTORICAL-MACHINE-EXCLUDED block. **Forward-correction**: revised denominator = 276; coverage = ~50/276 = **~18.1%** (NOT my F44 claim of 50/245 = 20.4%); numerator marked APPROXIMATE pending fresh audit-ledger count. F44 245 framing PRESERVED historically per port-note §6. **V2 axis3 FAIL — CR-7 Phase 2 predicate mapping SEVERELY STALE (LOAD-BEARING)**: F44 claimed (c)/(d)/(e) all "NOT-YET-INSTALLED" → **CORRECTED forward**: (a) **SATISFIED** (Bootstrap 12 rows) ✅; (b) requires refreshed Tier 0 verification (Section 10 expanded post-F44) ⚠️; **(c) Tier 1a codex T1-T7 SATISFIED / LIVE-RUNTIME-ACTIVE-PROVEN ✅** per manifest L83 W156 F1 verdict + W155 F14 6-evidence-cell pack (625KB codex_postcommit_reviews.jsonl + 423KB codex_prepush_reviews.jsonl + 210KB codex_t1_consult_gate.jsonl + 17.8KB codex_t2_pre_commit_gate.jsonl + 11.4KB codex_failure_audit.jsonl + 27.4KB codex_gate.jsonl + 34.7KB auto_proceed_gate.jsonl + 913KB subagent_metrics.jsonl; most-recent JSONL write 2026-05-12 01:23:19 — RUNTIME EVIDENCE LIVE); (d) **Tier 1b sota-researcher PARTIAL** ⚠️ per manifest L266 W155 F12 — file functional + smoke-PASS-READY but git-untracked (Section 14.5 CITE-IMPORT-AMBER STAGED-PENDING-RATIFICATION cohort); (e) **Tier 1c safety_guard.py SATISFIED-WITH-WIRE-SMOKE-EVIDENCE ✅** per manifest L249 W155 F13 — INSTALLED-AMBER-WIRED-ACTIVE at settings.json:172 PreToolUse:Bash chain with 12-destructive-pattern auto-block; LIVE-RUNTIME-ACTIVE not yet proven (NOT plain SATISFIED); (f) Tier 2 S4/S4.5/S7/S8 Memory+Code+Search MCPs NOT-SATISFIED/PARTIAL ❌ per F15/F16/F17 (Docker daemon DOWN blocks L2/L3 smoke-PASS). **REVISED Phase 2 progress: a ✅ + b ⚠️ + c ✅ + d ⚠️ + e ✅ + f ❌ = 3/6 SATISFIED + 2/6 PARTIAL + 1/6 NOT-SATISFIED ≈ 50-67% (NOT F44's 33% claim)**. F44's CR-7 mapping was CATEGORY-CLAIM drift per `synthesis-layer-verify.md §Subclaim-type discriminator` (read CLAUDE.md L70 predicate text DESCRIPTIVELY but failed to probe manifest for ACTUAL state). **V2 axis4 FAIL — S14 row count drift**: F44 claimed S14 = 124 rows largest; V2 says S14 = **15 non-historical data rows** (F44 counted historical-content rows). Forward-correction by CR-7-leverage ordering: (1) S14 sota-researcher tracking/ratification for predicate (d), (2) S10 + S1 Tier 0 verification for predicate (b), (3) Tier 2 S4/S4.5/S7/S8 smoke-PASS closure for predicate (f), (4) S17 cwc/reference plugin coverage, (5) install-provenance catch-up. Alternate row-count ordering per V2: S11 39 rows, S18 34 rows, S5/S10 22 rows each, S17 19 rows, S14 15 rows. **V2 fm09_recursive_catch_triggered=YES**: V2 RECURSIVE catch on F44 staleness — FM-09 41st cross-arc RECURSIVE catch via probe-time-stale Marker Decay n=7 mechanism. **CR-3 cross-model gate**: V2 dispatch REAL GPT-5.5 codex CLI v0.130.0 NEEDS-REVISION conf=0.93; Pattern A apply per `codex-t1-fix-forward-pattern.md`; T3 commit-time hook = additional cross-model verification net per `cross-model-consensus.md §The contract`. **Cite trail**: V2 final OUT at `.claude/state/codex_consult_w155_f44_audit_coverage_dashboard_v2_OUT.txt` (719926 bytes / 1197 lines; final JSON verdict at L1153-1197 EOF) + F44 commit `feaad40` (PRESERVED verbatim per port-note §6) + Mia probe direct manifest re-read (4/5 V2 catches confirmed at L83 codex T1-T7 + L249 safety_guard + L266 sota-researcher + V2 row count). **Wave 125 dash0 sub-arc FM-20 cascade SUSTAINED CLOSURE** (4-site complete; F45 = intra-arc Phase 2 predicate map forward-correction, not new cascade site).
+docs\sota-installed-manifest.md:138:> **W155 F42c manifest-pointer entry per V3 ADVERSARIAL `bgnp354e4` NEEDS-REVISION-V2 conf=0.88 + v2_was_overclaimed=YES + fm09_recursive_catch_triggered=YES 2026-05-12**: V3 RECURSIVE catch over V2 (Pattern B HNF — V2 explored manifest content extensively, 1259 lines, no terminal JSON at EOF) prescribed Ship Option A POINTER-ONLY — REJECT V2's proposed formalization of NEW `DEFERRED-CACHED-NOT-INSTALLED` sub-class at n=2 (cycle-322 jurisdiction requires n≥3 self-observed promotion gate per `Z:/claude-sota/.claude/rules/codification-threshold.md`) + REJECT CLAUDE.md cardinal-rule-12 7th-class extension (HIGH-RISK cardinal-rule edit bundled with MEDIUM-RISK manifest edit violates risk-stratified gating per `Z:/claude-sota/.claude/rules/cross-model-consensus.md §Risk-stratified verification gating`). **Two plugins identified as cached-orphaned-deferred-for-cause** (pointer-only OPERATIONAL state per V3 ADV-AXIS-6 subclaim-type-classification, NOT CATEGORY-CLAIM new sub-class): (a) `security-guidance` @ `.claude/plugins/cache/claude-plugins-official/security-guidance/76b35e91d1c9/` with `.orphaned_at` marker `1778290324787` (2026-05-08T20:32:04Z); deferral cause = Mia OVER catch on `/tmp/security-warnings-log.txt` cross-platform Windows-Git-Bash incompatibility + PreToolUse:Edit per-edit token cost (per `docs/install-provenance.md:7565-7615` Wave 104 ship2N-batch2 codex T1 NEEDS-REVISION conf=0.88 5-prescription Pattern A apply + `:7972-7973` Wave 105 SHIP-A2 trim); tracked at task #46 batch3-A queue. (b) `typescript-lsp` @ `.claude/plugins/cache/claude-plugins-official/typescript-lsp/1.0.0/` with `.orphaned_at` marker `1778126006864` (2026-05-06T22:53:26Z); deferral cause = LSP daemon runtime daemon risk (per `docs/install-provenance.md:7974` Wave 105 SHIP-A2 trim); deferred until per-project use surfaces. **Three-axis runtime evidence refutes F41b V2's "orphan-with-settings-match" framing** (V3 ADV-AXIS-3 missed-probe catch): (1) `installed_plugins.json` hits = 0 for both [VERIFIED 2026-05-12 via Select-String]; (2) `settings.json:enabledPlugins` live array hits = 0 — settings.json mentions appear ONLY inside `_comment_wave104_ship2n_batch2` + `_comment_wave105_ship_a2` + `_comment_wave105_ship_a1` historical context comments documenting DEFERRAL provenance (NOT live enabledPlugins); (3) `claude plugin list` CLI runtime registry returns no entry for either plugin [VERIFIED 2026-05-12 via direct probe]; (4) `git log -S` history of `installed_plugins.json` shows ZERO occurrences for either plugin name — they were NEVER registered as installed at any point in the file's git history (DEFERRAL was pre-install at ship-gate, NOT post-install regression like dash0). **Mia OVER #35** at `docs/install-provenance.md:8592` already catalogues the operational observation: "23 enabled plugins | actual 20 enabled (3 disk-present but disabled: typescript-lsp + security-guidance)" — F42c is DISCOVERABILITY/LINKAGE per V3 ADV-AXIS-5 prescription, NOT new class definition (which would duplicate the existing Mia OVER catalogue per `kiss-dry-yagni.md` Must-Never #4). **NO new sub-class formalization** per V3 ADV-AXIS-1 FAIL (cycle-322 n=2 insufficient — INSTALLED-AMBER + DEFERRED-FOR-CAUSE encoding via existing labels suffices). **NO new sub-cause taxonomy** per V3 ADV-AXIS-2 FAIL (CR-9 install-risk discipline already covers DEFERRED-FOR-PORTABILITY + DEFERRED-FOR-CR-9-INSTALL-RISK; daemon-runtime-risk is NEW FM-N CANDIDATE awaiting n=3 promotion gate per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 self-observed). **Wave 125 dash0 sub-arc FM-20 path-drift cascade closure**: F41b (L121 dash0 status flip) + F42a (L128 batch-close summary forward-correction) + F42b (install-provenance.md forward-only append absorbed via parallel-session commit `fcf4981` per FM-02 (c) recovery pattern) + F42c (this pointer entry) close all known propagation sites for the post-Wave-125 install-state-drift class. **CR-3 cross-model gate satisfied**: V2 + V3 PARALLEL Path P codex CLI v0.130.0 dispatch via PowerShell-direct sub-pattern (n=3 cumulative — F41b V2 + F41b V3 + F42c V2+V3; bash-quote-trap-avoidance per F41b precedent). **CR-12 disposition**: PARTIAL-OVERLAP (operational state encoding overlaps with INSTALLED-AMBER + DEFERRED-FOR-CAUSE existing labels via DIFFERENT MECHANISMS — file-cache vs in-runtime-registry); disposition CITE-PATTERN-ONLY (manifest pointer to existing Mia OVER + provenance anchors, not install action). Cite trail: V2 prompt + OUT at `.claude/state/codex_consult_w155_f42c_deferred_cached_not_installed_subclass_v2*.txt` (519992 bytes / 1259 lines; Pattern B HNF disposition per `codex-t1-fix-forward-pattern.md §Pattern B`) + V3 prompt + OUT at `.claude/state/codex_consult_w155_f42c_deferred_cached_not_installed_subclass_v3_adversarial*.txt` (79633 bytes / 461 lines; NEEDS-REVISION-V2 conf=0.88 + 6/6 adv-axes FAIL + v2_was_overclaimed=YES + fm09_recursive_catch_triggered=YES — FM-09 40th cross-arc RECURSIVE catch). **Daemon-runtime-risk as FM-N candidate**: typescript-lsp deferral is first-instance n=1 of a potential new failure-mode class (LSP daemon runtime side-effects); promote to formal FM-N at n=3 per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 self-observed promotion gate.
+docs\sota-installed-manifest.md:221:| Docker Engine (Docker Desktop) | Docker Desktop installer (system-level) | bundled with Docker Desktop 4.x | https://github.com/docker/cli + https://docs.docker.com/desktop/ | **INSTALLED-VIA-SYSTEM-PATH** [VERIFIED 2026-05-10 via Wave 141A Fire 1 Voice 1+2+3+4 + orchestrator runtime smoke probe — `docker version --format '{{.Server.Version}}'` → 29.4.1; OS=Docker Desktop / Engine=29.4.1 / 10 containers / 13 images]. **DOC-ONLY inventory; no `.claude/settings.json permissions.allow[]` change; no PreToolUse hook change; no `.mcp.json`/gateway wiring; future use gated by Waves 141A.2 (safety_guard.py +15-20 deny) / 141A.3 (settings.json narrow allow[]) / 141A.4 (PreToolUse volume-mount hook).** Runtime smoke supports installed/available claim only; does NOT support safe-to-unleash claim. |
+docs\sota-installed-manifest.md:258:| **safety_guard.py (catastrophic patterns)** | **Path B HONEST-NON-FINDING (REFRAMED Wave 14 verdict)** — pre-port verification revealed ECC ⊊ sibling: ECC ships SKILL-shape (user-invoked) at `skills/safety-guard/SKILL.md @ 841beea4` + pre-bash-dispatcher.js chain has block-no-verify only; ECC HOOK chain does NOT carry the 12 auto-blocked destructive-Bash patterns (rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd). Defense-in-depth gap of 12 vs 1 → Path B HNF justified. | n/a — Path A FAILED scope check; HOOK-shape is sibling-novel | sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/safety_guard.py @ 32fbcb0d082bb9297d8fc3ad4655c69f301b33c1` (PINNED) per Section 14.5 last-resort | **INSTALLED-AMBER-WIRED-ACTIVE** | **Wave 62 fire 17 Wave 14b cite-import 2026-05-07** + **Wave 155 Fire 13 Pattern A apply per W155 F8 V3 prescribed_edit #3 + 5th WIRE-evidence cell extension [VERIFIED 2026-05-12]**: ported with CR-9 sub-rules (REVERT check PASS — false-positive corrected per Wave 14 fork verdict); 0 sibling-bleed in body; CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION marker present; HNF evidence block present; smoke probe PASS (benign + empty + non-Bash all exit 0; destructive-pattern path covered by sibling operational testing of identical regex set per port-note-discipline.md §1 1:1 verbatim contract). **Wave 155 Fire 13 4+1-evidence-cell pack**: (a) **smoke-PASS** = file well-formed Python with header citing Wave 14b PORT cite-import per CR-12 TERTIARY (HONEST-NON-FINDING-gated) + sibling SHA `32fbcb0d082bb9297d8fc3ad4655c69f301b33c1` PINNED + W148 F1 tracked / (b) **ship commit SHA** = `00f43b0` 2026-05-11 "feat(hooks): Wave 148 Fire 1 — track Wave 14b cite-import safety-floor hooks (DISPOSITION A conf=0.94)" — TRACKED at HEAD / (c) **file existence at HEAD** = confirmed via `git ls-files .claude/hooks/scripts/safety_guard.py` returns the path / (d) **content-hash** = SHA256 `1100DE93E0E700CCB4D9FC04B295077433D5BF3A610D7DC30A323D002D492386` (17,656 bytes; size advanced from 16,294 in W62 cite-import → 17,656 in W148 fire 1 track + W155 maintenance) / (e) **WIRE evidence (NEW 5th cell)** = `.claude/settings.json:172` PreToolUse:Bash hook chain entry per Wave 105 Ship 2N-batch3-A 2026-05-08 (`_comment_allow` at L84 documents "safety floor MECHANICALLY ENFORCED via PreToolUse:Bash hook safety_guard.py at Block[6][0] ... 12-destructive-pattern auto-block: rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd"). **Status flip**: INSTALLED-AMBER → **INSTALLED-AMBER-WIRED-ACTIVE**. **Status correction rationale**: prior "DORMANT until operator approval per CR-7 Phase 2 trigger predicate" claim was STALE — Wave 105 Ship 2N-batch3-A 2026-05-08 wired the hook into PreToolUse:Bash chain; W148 Fire 1 2026-05-11 tracked the file. Hook is currently MECHANICALLY ENFORCING 12-destructive-pattern auto-block at every Bash invocation. **CR-7 Phase 2 trigger predicate (e) Tier 1c safety_guard.py SATISFIED-WITH-WIRE-SMOKE-EVIDENCE** (per W155 F13 V3 ADVERSARIAL conf=0.86 SAVED-SHIP catch — distinguishes 5 distinct states: TRACKED + ON-DISK + WIRED + DIRECT-SMOKE-PASS all PASS; LIVE-RUNTIME-ACTIVE is stronger than proven without actual Claude Code PreToolUse invocation log). NOT plain SATISFIED until live-runtime-active proof obtained (Phase 2 percentage/progress claims deferred to F-future ship that captures CC PreToolUse invocation log evidence). Sister predicates: (a) Section 0 bootstrap SATISFIED + (c) Tier 1a codex T1-T7 hooks SATISFIED per F10 (those have observable wire activation across 100s of W153/W154/W155 commits — LIVE-RUNTIME-ACTIVE evidence threshold met) + (e) Tier 1c safety_guard.py SATISFIED-WITH-WIRE-SMOKE-EVIDENCE per F13 (this mutation; LIVE-RUNTIME-ACTIVE not yet proven); predicates (b) Tier 0 + (d) Tier 1b sota-researcher (PARTIAL per W155 F12) + (f) Tier 2 MCPs remain partial/unverified. |
+docs\sota-installed-manifest.md:260:| **agent_plan_readonly_bash_guard.py** | **Path B — HONEST-NON-FINDING** per Agent J row-7 verdict (FM-19 readonly-guard sidestep mechanism is sibling-discovered Wave 16-17 fire arc; 0 upstream parity across same 5 repos probed) | n/a — Path B is the disposition | sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py @ f57c74dd68bb52771633d6ea76426842669fa499` (PINNED) per Section 14.5 last-resort | **INSTALLED-AMBER** | **Wave 62 fire 17 Wave 14 cite-import 2026-05-07**: ported with CR-9 sub-rules; REVERT check PASS — directive-claimed-revert was FALSE-POSITIVE (CLAUDE.md CR-9 actual REVERT list is bash_command_allowlist.py / fleet_health_start.py / permission_request_auto_approve.py — NOT this file; commit `f57c74d` title concerned bash_command_allowlist removal, different file). 1 path-rewrite class × 2 occurrences (`in sss` → `in eee` body lines 5+65). 0 sibling-bleed in body via 6-class pattern set. CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION marker present. HNF evidence block present. 48,037 bytes. NOT yet wired into settings.json hook chain (DORMANT until operator approval). |
+docs\sota-installed-manifest.md:261:| **codex T1-T7 gates (T1 + T2 + T5 + postcommit + prepush + stop_review_gate + codex_gate + _codex_plugin_root + _codex_preflight)** | **Path B HNF — REFRAMED PER FIRE 16** (Agent O Critical Finding #1 + Agent R P2-2 confirmed via direct probe of `Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json @ 2026-05-06`): codex-plugin-cc upstream hooks scope = **SessionStart + SessionEnd + Stop ONLY**; **NO PreToolUse:Edit T1 gate** declared upstream. The codex-rescue agent + Stop-hook auto-continue + SessionStart/SessionEnd lifecycle ARE Path A (covered via `/plugin install codex@openai-codex` fire 13 INSTALLED). The PreToolUse:Edit T1 gate is **sibling-novel codification** (`codex_t1_consult_gate.py @ commit ffe1014`); 0 upstream parity for the PreToolUse:Edit lifecycle event-to-codex-CLI bridge. | n/a — Path B is the disposition for the T1 PreToolUse:Edit bridge | sibling cite-import-AMBER from `Z:/claude-sota/.claude/hooks/scripts/codex_t1_consult_gate.py` per Section 14.5 last-resort | **INSTALLED-AMBER-WIRED-ACTIVE** | **Wave 155 Fire 10 Pattern A apply per W155 F8 V3 prescribed_edit #3 + 5th WIRE-evidence cell extension [VERIFIED 2026-05-12]**: canonical T1 gate `codex_t1_consult_gate.py` 4+1-evidence-cell pack: (a) **smoke-PASS** = file has well-formed header citing CCBP cross-model-workflow.md @ HEAD 48f2ceb content-SHA f63a3950 + local TIER-3 extension per `feedback_3touchpoint_codex_workflow.md` n=2 / (b) **ship commit SHA** = `9ddc72f` 2026-05-06 "feat(hooks): wave 50 fire 24 H1 cite-import codex_t1_consult_gate + codex_gate" / (c) **file existence at HEAD** = confirmed via `git ls-files .claude/hooks/scripts/codex_t1_consult_gate.py` / (d) **content-hash** = SHA256 `1FFB3F7487C1827249E30C8DAA356756DADCA454683A146992353C534225E792` (85,427 bytes — substantial Python module) / (e) **WIRE evidence** = `.claude/settings.json:96` PreToolUse hook entry (`"command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t1_consult_gate.py"`). **Per-script wire inventory (settings.json):** T1 codex_t1_consult_gate L96 / T5 codex_t5_plan_review_gate L111 / T2 codex_t2_pre_commit_gate L218+L224+L230+L236+L242+L248 (6× Bash matchers per git commit variants) / T3 codex_postcommit_review L266+L273+L280+L287+L294+L301 (6× matchers) / T4 codex_prepush_review L308+L315+L322+L329+L336+L343 (6× matchers) / codex_review_trace L350+L372 / codex_mcp_healthcheck L361 — **comprehensive T1-T5 wire coverage**. **CR-7 Phase 2 trigger predicate (c) Tier 1a: LIVE-RUNTIME-ACTIVE-PROVEN** (RECORD-OF-FIRING/VERDICT-CAPTURE evidence — codex T1-T7 hooks emit RICH JSONL audit trails at `.claude/state/`). Per-script 4-evidence-cell packs for T2/T3/T4/T5 + stop_review_gate + codex_gate + _codex_plugin_root + _codex_preflight = F-future ships per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE. Status flip rationale: row was STALE-PLANNED for 6 days post-Wave-50-fire-24 cite-import + extensive wiring activity W82a+ → INSTALLED-AMBER-WIRED-ACTIVE per F10 → **upgraded to LIVE-RUNTIME-ACTIVE-PROVEN per W155 F14 (this fire) JSONL evidence capture**. **Wave 155 Fire 14 6th LIVE-RUNTIME-ACTIVE evidence cell extension [VERIFIED 2026-05-12 via direct .claude/state/ JSONL probe]**: (f) **LIVE-RUNTIME-ACTIVE evidence (NEW 6th cell)** = JSONL audit trails at `.claude/state/` proving recurrent hook firing across W153/W154/W155 commit history — `codex_postcommit_reviews.jsonl` 625 KB / `codex_prepush_reviews.jsonl` 423 KB / `codex_t1_consult_gate.jsonl` 210 KB / `codex_t2_pre_commit_gate.jsonl` 17.8 KB / `codex_failure_audit.jsonl` 11.4 KB / `codex_gate.jsonl` 27.4 KB / `auto_proceed_gate.jsonl` 34.7 KB / multiple per-commit `codex_review_HEAD_<sha8>_<id>.stream.jsonl` postcommit verdict streams / `subagent_metrics.jsonl` 913 KB SubagentStop telemetry. Most-recent JSONL writes 2026-05-12 01:23:19 (current cron tick) — **RUNTIME EVIDENCE LIVE**. Per V3 W155 F14 nuance (HONEST framing): JSONL = RECORD-OF-FIRING/verdict-capture PROVEN, NOT "every individual decision was correct" PROVEN. Predicate (c) full SATISFIED at LIVE-RUNTIME-ACTIVE-PROVEN level per V3 5-state distinction (TRACKED + ON-DISK + WIRED + DIRECT-SMOKE-PASS + LIVE-RUNTIME-ACTIVE all ✅). Sister predicate (e) safety_guard.py remains at INFERRED-LIVE per F13 V3 catch (stderr-only design — DIFFERENT evidence shape than codex JSONL verdict records; safety_guard.py provides DENY-decision via NO-BLOCK on benign Bash, NOT verdict-capture-class). NO Phase 2 transition (operator-decision-required per CR-7 even with all 6 predicates SATISFIED). |
+docs\sota-installed-manifest.md:276:| **gpt5-reviewer** | **Path C — ALTERNATIVE-PATTERN** per Agent J row-2 verdict | `/plugin marketplace add openai/codex-plugin-cc && /plugin install codex@openai-codex@1.0.4` (provides commands/review.md + commands/adversarial-review.md + scripts/codex-companion.mjs + skills/gpt-5-4-prompting/SKILL.md natively at HEAD `807e03ac`) | n/a — sibling gpt5-reviewer Path-C delta cite-anchor for BRIDGE-MODE wrapper shape | sibling cite-extend for BRIDGE-MODE adversarial-review SUBAGENT-shape wrapper (vs SLASH-COMMAND shape that codex-plugin-cc ships); sibling-novel BLOCK semantics + santa-loop dual-review framing + FM-19 ARTIFACT-INLINE + agent_plan_readonly_bash_guard hook layer atop upstream `/codex:adversarial-review` command | PLANNED-Path-C-HYBRID |
+docs\sota-installed-manifest.md:279:| **architect** | **Path C — ALTERNATIVE-PATTERN** per Agent J row-5a verdict (ECC ships `agents/architect.md @ 841beea4` 50-LOC upstream parity — frontmatter `tools: [Read, Grep, Glob]` + `model: opus` + role-design specialist body) | `/plugin install everything-claude-code@2.0.0-rc.1` (loads ECC architect.md as `architect` agent) | n/a | sibling delta cite-extend: hooks/PreToolUse:Bash readonly guard wiring + FM-19 ARTIFACT-INLINE initialPrompt + Continuous-Claude-v3 composition-gate.ts cite + AgentDefinition 13-field cite are sibling-novel ENRICHMENT layers atop ECC architect.md substrate | PLANNED-Path-C-HYBRID |
+docs\sota-installed-manifest.md:410:| **agent_plan_readonly_bash_guard.py hook** (sibling Class A Wave 11A safety-floor companion) | `Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py @ <SHA-PENDING-AT-EXECUTION>` | **HNF CONFIRMED via Wave 50 fire 9 Agent J row-7 verdict** — probe scope: (i) ECC `hooks/hooks.json @ 841beea4` PreToolUse:Bash dispatcher BUT NOT plan-mode-readonly-specific (no policy=readonly OR policy=codex-readonly OR policy=verifier mode-discrimination as sibling implements); (ii) obra/superpowers — uses `using-git-worktrees` for parallel-session isolation but ZERO Bash readonly guard hook; (iii) codex-plugin-cc `hooks.json @ 807e03ac` — only SessionStart/SessionEnd/Stop hooks, ZERO PreToolUse:Bash gate; (iv) mattpocock-skills SKILL-only no hooks; (v) anthropic-cookbook patterns/prompts only no hooks. Probe DAG: P1=N/A; P2=N/A; P3=namespace-unique; P4=NEGATIVE; P5=N/A; P6=N/A. Classification: HONEST-NON-FINDING — sibling FM-19 readonly-guard sidestep mechanism (multiline/redirect/substitution/write-verb policy + 3 sub-classes M1/M2/M3) is sibling-discovered + codified at sibling Wave 16-17 fire arc. effective_tier=TIER-3-LOCAL-COMPOSITION | PENDING at install execution | CITE-IMPORT-AMBER STAGED-PENDING-SHA-CAPTURE per CR-9 sub-rule (FORWARD-REF: if Anthropic ships per-subagent permissionMode runtime enforcement that obviates this hook, flip to RETIRE) |
+docs\sota-installed-manifest.md:559:| Default-FAIL contract | `cwc-long-running-agents/claude-code-config/.claude/hooks/track-read.sh` + `verify-gate.sh` | Every test result starts `false`; PreToolUse hook denies write to results file unless agent first opened evidence file (screenshot, console log, result file) | Pattern 3 fresh git clone `https://github.com/anthropics/cwc-long-running-agents.git` + per-hook install to `Z:/claude-sota-installed/.claude/hooks/scripts/` with cite anchor + cardinal-rule-9 2-round fix-forward budget | PLANNED — fire 6 install |
+docs\sota-installed-manifest.md:591:| Tier 1c | Section 13 safety_guard.py — **Path A UPSTREAM-INSTALL-AVAILABLE per Agent J row-6** (Wave 50 fire 11): `/plugin marketplace add affaan-m/everything-claude-code && /plugin install everything-claude-code@2.0.0-rc.1` (provides BOTH skills/safety-guard/SKILL.md AND pre-bash-dispatcher.js hook natively at HEAD `841beea4`). Sibling Python `safety_guard.py @ 32fbcb0d082bb9297d8fc3ad4655c69f301b33c1` becomes RETIRED post-install IF ECC's JS dispatcher provides equivalent destructive-pattern coverage (CR-9 sub-rule 2-round fix-forward budget reserved for ECC pattern-coverage divergence; install-time gate: verify ECC ⊇ sibling pattern set BEFORE retirement). + Section 13 agent_plan_readonly_bash_guard.py (**Path B HONEST-NON-FINDING per Agent J row-7** — sibling-novel FM-19 readonly-guard sidestep mechanism; cite-import-AMBER from sibling per Section 14.5 last-resort) | Per Agent E Task 1 — Wave 11A safety floor; CR-12 PRIMARY attempted first (safety_guard → ECC plugin), CR-12 TERTIARY fallback only on HNF (agent_plan_readonly_bash_guard sibling-novel) |
+docs\sota-installed-manifest.md:621:| Research-first hook (`research_first_pre_remediate.py`) | Section 13 NEW (research-first hook) — invoked PreToolUse on Edit/Write to runtime-novel files; triggers sota-researcher dispatch if no SOTA cite anchor present | NOVEL-PENDING-DESIGN per cardinal-rule-9 2-round budget | PLANNED |
+docs\sota-installed-manifest.md:670:| rtk-ai/rtk v0.39.0 | cargo install --git / GitHub release binary (CR-6 official channel) | TIER-1-DIRECT https://github.com/rtk-ai/rtk @ HEAD 2d6e10a923d18e022f5fdc4ed9b69ae0d43b2f79 (45,496 stars Apache-2.0; README MIT badge incorrect — LICENSE file authoritative per Wave 135 Fire 6 Agent A verification) | INSTALLED-WIRED: binary at .local/cargo/bin/rtk.exe; PreToolUse:Bash hook present in .claude/settings.json:248 (unwrapped — Wave 135 Fire 7 attempted `cmd /d /c "...2>NUL"` stderr-suppress wrapper but Mia n=148 smoke probe surfaced cmd /c stdin propagation bug breaking rtk JSON output; REVERTED to original unwrapped form; cosmetic warning persists; wrapper-script alternative queued as Wave 135 Fire 9 candidate); CLAUDE.md @RTK.md injection deliberately not used because Wave 83a proved global/local init side effects (rolled back per docs/install-provenance.md:3110-3163) and Wave 118 installed repo-local hook wiring; operator runbook at docs/RTK.md (Wave 135 Fire 7) |
+docs\install-provenance.md:283:  - **Agent J (sota-researcher)** — upstream-parity research per user mandate "all should be install directly form sota repos"; 6 upstream repos verified at HEAD SHA (codex-plugin-cc 807e03ac / everything-claude-code 841beea4 / obra-superpowers f2cbfbef / mattpocock-skills 70141119 / anthropic-cookbook 33424c3e / anthropics-skills d211d437); 12-row verdict table; 2 UPSTREAM-INSTALL-AVAILABLE (codex-rescue → codex-plugin-cc; safety_guard → everything-claude-code) + 3 HONEST-NON-FINDING (gpt5-archaeologist + agent_plan_readonly_bash_guard + fm17d_stall_detector — all sibling-novel codifications) + 7 ALTERNATIVE-PATTERN (sota-researcher / gpt5-reviewer / architect / code-reviewer / debugger / verifier / Class A codex hooks); top-3 install command priority (superpowers / codex-plugin-cc / everything-claude-code). Persisted at `Z:/claude-sota/tmp/wave50-agent-J-upstream-parity-research-2026-05-06.md`.
+docs\install-provenance.md:299:- **Fire 11**: Section 14 row rewrites with Agent J verdicts → fill 3-path template per Agent K design (codex-rescue Path A → `/plugin install codex@openai-codex@1.0.4`; safety_guard Path A → `/plugin install everything-claude-code@2.0.0-rc.1`; gpt5-archaeologist + agent_plan_readonly_bash_guard + fm17d_stall_detector Path B → cite-import-AMBER from sibling per tightened Section 14.5; sota-researcher + gpt5-reviewer + architect + code-reviewer + debugger + verifier Path C → upstream install + cite-extend); Section 14.5 tightening with HNF Evidence column; §18.1 Tier 1b/1c row update; HYBRID Class A+B codex hooks routing reframe.
+docs\install-provenance.md:309:- **Cardinal-rule-12 dogfood at design-time**: Agent J + Agent M independently confirm 0-net-new install candidates from kit-name probing — the ALREADY-PLANNED 3 plugin installs (superpowers + everything-claude-code + codex-plugin-cc) are the PRIMARY upstream-install path. Cite-import-AMBER from sibling (Section 14.5) is genuinely TERTIARY-only for 3 sibling-novel rows (gpt5-archaeologist + agent_plan_readonly_bash_guard + fm17d_stall_detector). The cardinal-rule-12 codification is evidence-driven, not declaration-driven (Agent J's 9 GitHub probes + Agent M's 12-name attribution table provide the Probe DAG evidence).
+docs\install-provenance.md:323:  1. `docs/sota-installed-manifest.md` Section 13 hooks: 5-row table reframed under CR-12 PRIMARY priority (safety_guard.py → Path A UPSTREAM-INSTALL via everything-claude-code; fm17d_stall_detector.py → Path B HNF cite-import; agent_plan_readonly_bash_guard.py → Path B HNF cite-import; codex T1-T7 gates → Path A UPSTREAM-INSTALL via codex-plugin-cc with HYBRID Class A delta cite-extend; codex_stuck_detector + codex_mcp_healthcheck + codex_failure_audit + codex_review_queue + codex_review_thread_bridge + codex_review_trace → Path C ALTERNATIVE-PATTERN HYBRID).
+docs\install-provenance.md:326:  4. `docs/sota-installed-manifest.md` Section 14.5 tightening: heading rewrite (LAST-RESORT exception per cardinal-rule-12; HONEST-NON-FINDING-gated) + per-row HNF Evidence column MANDATE per Agent K Task 3 (5 enumerated requirements: dispatch ID + probe scope + Probe DAG outcome + HNF classification + effective_tier marker); 6 rows (AGENTS.md / gpt5-archaeologist / agent_plan_readonly_bash_guard / fm17d_stall_detector / loop_remediation_cron / Class A codex hooks observability layer) — 3 with HNF CONFIRMED via Agent J verdicts (gpt5-archaeologist + agent_plan_readonly_bash_guard + fm17d_stall_detector), 3 with HNF PENDING-AGENT-J-FIRE-12+ (AGENTS.md + loop_remediation_cron + Class A codex hooks delta).
+docs\install-provenance.md:327:  5. `docs/sota-installed-manifest.md` §18.1 Tier 1b/1c update: Tier 1b sota-researcher row → Path C ALTERNATIVE-PATTERN per Agent J row-1 (everything-claude-code substrate + sibling SUBAGENT-shape delta); Tier 1c safety_guard.py row → Path A UPSTREAM-INSTALL per Agent J row-6 (sibling Python RETIRED post-install pending pattern-coverage verification) + agent_plan_readonly_bash_guard.py Path B HNF.
+docs\install-provenance.md:429:| Sibling cite-imports REMAINING-Path-B-HNF | 3 (Path B) | gpt5-archaeologist + agent_plan_readonly_bash_guard.py + fm17d_stall_detector.py (sibling-novel codifications confirmed by Agent J HNF evidence) |
+docs\install-provenance.md:485:| O (architect) | 5-task wire-up design POST fires 12-14 | 29718 | CRITICAL REFRAMING: codex@1.0.4 plugin ships ONLY SessionStart/SessionEnd/Stop hooks; NOT PreToolUse:Edit T1 gate. Section 13 codex T1-T7 row needs Path B HNF reframe |
+docs\install-provenance.md:494:**Correction**: PARTIAL. Per Mia probe of `Z:/claude-sota-installed/.claude/settings.json` 2026-05-06, the `hooks{}` block remains EMPTY at fire 15. Plugin auto-load semantic per Agent O Task 1 finding means the codex-plugin-cc bundles its own `hooks/hooks.json` once `enabledPlugins.codex@openai-codex=true` activates, but Agent O Task 1 ALSO surfaced that the bundled hooks scope is **SessionStart/SessionEnd/Stop only**, NOT PreToolUse:Edit T1 gate. Smoke-probe of mechanical T1 enforcement (typed Edit on a design-surface file triggers codex consult) NOT YET RUN in main-session orchestrator context; until that probe lands, Tier 1a row 4 (T1 PreToolUse:Edit gate) is ARCHITECTURALLY SIBLING-NOVEL not upstream-installed.
+docs\install-provenance.md:502:**Net Phase 1 → Phase 2 trigger evaluation reset**: 2/6 predicates PASS (a + b only); 4 FAIL/PARTIAL (c, d, e all PARTIAL; f FALSE). Phase 2 transition NOT admissible. CR-3 Phase 1 bootstrap exception **REMAINS FULLY ACTIVE** (fire 14 framing "RETIRES PARTIALLY" is itself an OVER claim; the exception does not retire piecewise; either codex T1/T2 mechanical enforcement is end-to-end live or the orchestrator-side stand-in remains). Forward gate: until `codex exec` foreground+tee from main-session is mechanically wired into a PreToolUse:Edit consult path, T1 mandate is operator-discipline not mechanical.
+docs\install-provenance.md:528:**Rationale per Agent O Task 1 probe of plugin cache**: `Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json` declares hooks for `SessionStart` + `SessionEnd` + `Stop` events. PreToolUse:Edit T1 gate (CC primary cross-model consult lifecycle event) is NOT in the upstream codex plugin hook surface. Sibling `Z:/claude-sota/.claude/hooks/scripts/codex_t1_consult_gate.py` is sibling-novel; codified by sss to bridge codex-CLI invocation to PreToolUse:Edit lifecycle that upstream codex plugin does not own.
+docs\install-provenance.md:530:**Implication for cardinal-rule-12 architectural goal**: Section 13 codex T1-T7 row STAYS in cite-import-AMBER status pending sibling-novel codification work. The `codex-rescue` agent + Stop-hook auto-continue + SessionStart/SessionEnd lifecycle ARE upstream-installed (Path A); but the PreToolUse:Edit T1 gate is sibling-novel (Path B HNF). Architectural impact rating in fire 14 entry "8 of 11 rows have UPSTREAM SUBSTRATE" should be **7 of 11** post-correction.
+docs\install-provenance.md:559:| (c) Tier 1a (codex T1-T7 hooks) INSTALLED + smoke-probe PASS | PARTIAL | codex plugin ships SessionStart/SessionEnd/Stop only; PreToolUse:Edit T1 gate is sibling-novel; no main-session smoke-probe yet |
+docs\install-provenance.md:578:| Sibling cite-imports REMAINING-Path-B-HNF | 3 | 4 | + codex_t1_consult_gate.py (PreToolUse:Edit T1 sibling-novel per Agent O Task 1) |
+docs\install-provenance.md:582:**Net architectural impact under cardinal-rule-12 (post-correction)**: 7 of 11 Section 14/13 sibling cite-import-AMBER rows have UPSTREAM SUBSTRATE installed (Path A or Path C with SKILL-substrate caveat); 4 remain Path B HNF (gpt5-archaeologist + agent_plan_readonly_bash_guard.py + fm17d_stall_detector.py + codex_t1_consult_gate.py). Cardinal-rule-12 architectural goal SATISFIED for ~64% of subagent/hook surface (7/11); fire 14 framing of "8 of 11" was off by 1 due to T1 hook reframe.
+docs\install-provenance.md:588:- **Fire 19**: Section 13 codex T1-T7 sibling-novel codification work; `codex_t1_consult_gate.py` cite-import + smoke-probe `codex exec` foreground+tee from main-session against PreToolUse:Edit consult path; flips predicate (c) PARTIAL → TRUE if PASS.
+docs\install-provenance.md:646:- **Fire 19**: Section 13 codex T1-T7 sibling-novel codification; `codex_t1_consult_gate.py` cite-import + main-session foreground+tee `codex exec` smoke probe against PreToolUse:Edit consult path; flips predicate (c) PARTIAL → TRUE if PASS.
+docs\install-provenance.md:693:| U (gpt5-reviewer) | (1) Adversarial review of fire 20 baseline + (2) auto-skill-invocation discipline design | ~12K | **NEEDS-REVISION conf=0.74**; 1 P1 (.gitignore missing `.claude/worktrees/`) + 1 P2 (codex `stopReviewGate` not activated post-install — needs `/codex:setup`) + 2 P3; 12 VERIFIED-CORRECT items including independent verification of upstream hooks.json (SessionStart/SessionEnd/Stop ONLY); 5 design sub-tasks delivered | **STAND-IN-NOTICE**: agent_plan_readonly_bash_guard.py blocked `2>&1` redirection on Bash from agent worktree — FM-17.c.ii n=4 same-arc. Sonnet stand-in; cross-model gate NOT structurally satisfied |
+docs\install-provenance.md:694:| V (architect) | Complete advanced-automation lifecycle design (hooks{} JSON + 3+1-fire cite-import workflow + auto-skill classification + new operator gates) | ~22K | Lifecycle workflow ASCII diagram + 5-hook ready-to-apply settings.json:hooks{} JSON (T1+T2+T3+T4+SubagentStop) + cite-import workflow for 5+1 sibling-novel hooks (codex_t1_consult_gate / codex_t2_pre_commit_gate / codex_postcommit_review / codex_prepush_review / fm17d_stall_detector + agent_plan_readonly_bash_guard via subagent frontmatter) + 7 NEW operator-action gates (D-OP-NEW-1..D-OP-7) | NO BRIDGE-MODE — read-only design via Read/Bash/Grep |
+docs\install-provenance.md:719:- **Fire 23**: T2/T3 cross-model gate dogfoot — first substantive design-surface edit (likely Agent V Hook H1 cite-import: `codex_t1_consult_gate.py` + `codex_gate.py` companion to `Z:/claude-sota-installed/.claude/hooks/scripts/` + settings.json:hooks{} PreToolUse:Edit/Write/MultiEdit wire). T2 review BEFORE commit + T3 PostToolUse hook auto-fires.
+docs\install-provenance.md:723:- **Fire 27**: Agent V Hook H6 per-agent frontmatter wire — `agent_plan_readonly_bash_guard.py` + per-agent frontmatter migration (architect, code-reviewer, gpt5-archaeologist, gpt5-reviewer).
+docs\install-provenance.md:742:- **Cardinal-rule-12 upstream-install-priority**: Agent V design Mia-probed all 3 plugin hooks.json files to confirm sibling-novel scope is correctly bounded — only T1/T2/T3/T4/SubagentStop are sibling-novel (codex provides Stop; ECC provides massive PreToolUse + Stop set; superpowers provides SessionStart). 5+1 sibling-novel hooks identified vs 0 false-sibling-novel claims.
+docs\install-provenance.md:772:| 1 | P2-1 | L57 (Section 2 codex hooks) | PLANNED → **INSTALLED-PARTIAL** with explicit upstream-scope-limitation note (SessionStart/SessionEnd/Stop ONLY; T1 PreToolUse:Edit sibling-novel) |
+docs\install-provenance.md:794:| (c) Tier 1a (codex T1-T7 hooks) INSTALLED + smoke-probe PASS | PARTIAL | Section 2 L57 row now reflects INSTALLED-PARTIAL state explicitly per fire 19 P2-1 edit; T1 PreToolUse:Edit bridge still sibling-novel pending fire 19+ codification |
+docs\install-provenance.md:814:- **Fire 22**: Section 13 codex T1-T7 sibling-novel codification — `codex_t1_consult_gate.py` cite-import (Path B HNF) + main-session foreground+tee `codex exec` smoke probe against PreToolUse:Edit consult path; flips predicate (c) PARTIAL → TRUE if PASS.
+docs\install-provenance.md:825:- **Cardinal-rule-12 upstream-install-priority operational dogfood**: Section 3 marketplace reconciliation flipped 3 PLANNED → INSTALLED + 1 PLANNED → REDUNDANT (obra/superpowers REDUNDANT vs claude-plugins-official Anthropic-OFFICIAL bundle) — exemplifies cardinal-rule-12 cascade discipline. Section 13 codex T1-T7 row Path A → Path B HNF reframe surfaces honestly: when upstream parity is partial (codex plugin ships Session/Stop only, NOT PreToolUse:Edit), classification must reflect the partial coverage rather than over-claim Path A.
+docs\install-provenance.md:1033:  - `PreToolUse` `additionalContext` support (#20692) — already used by `codex_t1_consult_gate.py`
+docs\install-provenance.md:1065:  - **a9a19fbfef222df51** Native-install gap — 6 manifest drift rows; Phase-2-blocker rows: Tier 1a T1 PreToolUse:Edit bridge sibling-novel pending; Tier 1b sota-researcher subagent NOT installed; Tier 1c safety_guard.py + agent_plan_readonly_bash_guard pending; Section 5 quality gaps (typos, osv-scanner, vale, markdownlint-cli2, semgrep, trufflehog, Serena)
+docs\install-provenance.md:1094:  - `PreToolUse:*` → `kill-switch.sh` + `steer.sh` (operator-control floor)
+docs\install-provenance.md:1095:  - `PreToolUse:Read` → `track-read.sh` (DORMANT for install-only runtime; activate when feature-tracking workflows added)
+docs\install-provenance.md:1096:  - `PreToolUse:Write|Edit` → `verify-gate.sh` (DORMANT; same rationale)
+docs\install-provenance.md:1103:- **CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE (codex T1 PreToolUse:Edit gate WARN-only since this fork made no design-surface edits; only file copies + provenance append. Bootstrap-class artifact relocation under cardinal-rule-5 §"Bootstrap-only files" exemption.)
+docs\install-provenance.md:1349:- **CR-3 cross-model gate satisfaction**: PARTIAL via STAND-IN-NOTICE (Wave 9 was a fork-driven port, not codex-T1-bridged at PreToolUse:Edit; acceptable per CR-3 Phase 1 bootstrap exception + post-T5 fix-forward shape)
+docs\install-provenance.md:1536:**Bug encountered + corrected**: `find_body_start` in .py heuristic missed bare `#` lines, mistaking lines 4-N of port-note headers as body. Result: source SHA cite-anchors on `safety_guard.py` + `agent_plan_readonly_bash_guard.py` got incorrectly rewritten from sibling paths to runtime-relative. **Reverted via Edit** — `# Source:`, `# (per ... citation-discipline)`, audit-evidence statements restored to original sibling-pointing paths.
+docs\install-provenance.md:1563:- `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` (6 body rewrites + 3 header reverts)
+docs\install-provenance.md:1599:- Wave 62C `tmp/wave62c_rewrite.py` script `find_body_start` heuristic missed bare `#` lines; rewrote `# Source: Z:/claude-sota/...` cite-anchor on safety_guard.py + agent_plan_readonly_bash_guard.py.
+docs\install-provenance.md:1608:- #2 manifest/file/settings reconciliation: ✅ FULL (safety_guard.py written + manifest reframed + agent_plan_readonly_bash_guard promoted with pinned SHA)
+docs\install-provenance.md:1985:| (e) Tier 1c rows (safety_guard.py + agent_plan_readonly_bash_guard.py) = INSTALLED + smoke-probe PASS | ✅ FULL (Wave 14+14b post-Wave-80 fire-17 file write) |
+docs\install-provenance.md:2272:- ⏳ **RTK** (`rtk-ai/rtk` v0.39.0 Apache-2.0/MIT) — cargo build in progress (rusqlite + ureq + url stack); will install at `Z:/claude-sota-installed/.local/cargo/bin/rtk.exe` for `rtk init -g` Claude Code PreToolUse hook (compresses bash output 60-90% before LLM context)
+docs\install-provenance.md:2732:3. §2 stable_prefix_hash → hook-script gate at PreToolUse:Agent for child-prompt frozen-prefix verification
+docs\install-provenance.md:2778:- mcpServers: 7 (post-Wave-82v memory.exe server stdio fix)
+docs\install-provenance.md:2903:- mcpServers: 7 (unchanged; memory L1 wired Wave 82r-v)
+docs\install-provenance.md:3028:- mcpServers: 7 (unchanged)
+docs\install-provenance.md:3168:- mcpServers: 7 (unchanged)
+docs\install-provenance.md:3231:- mcpServers: 7 (unchanged)
+docs\install-provenance.md:3324:| .claude/settings.json | SubagentStop[] → SubagentStop[{matcher: "*", hooks: [{python script async timeout=5}]}] + cite comment |
+docs\install-provenance.md:3392:1. context-mode full Claude Code plugin/hooks (MCP-only currently; documented 98% savings claim depends on PreToolUse/PostToolUse/PreCompact/UserPromptSubmit/SessionStart wires per upstream `hooks/hooks.json:2-3,26-121`)
+docs\install-provenance.md:3850:- `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` — read-only restriction for `permissionMode: plan` subagents
+docs\install-provenance.md:4675:- `PreToolUse:Bash` hook fired with `<context_guidance>` suggesting ctx_execute for command output (98% reduction mechanism ACTIVATED)
+docs\install-provenance.md:4676:- `PreToolUse:Read` hook fired with `<context_guidance>` distinguishing Read-to-Edit (correct usage) vs Read-to-analyze (use ctx_execute_file)
+docs\install-provenance.md:4702:- **TIER-1**: `Z:/repos/deps/context-mode/hooks/hooks.json @ HEAD e40102e5` (PreToolUse + PostToolUse + PreCompact + SessionStart hooks registered)
+docs\install-provenance.md:4719:- Plugin's PreToolUse hook fires `<context_guidance>` system-reminder messages on Bash/Read tool calls (visible in conversation)
+docs\install-provenance.md:4725:- Phase 3 (deferred): wire `ctx_execute` adoption into eee operator workflow (replace direct Bash calls with `ctx_execute` shell mode for output-heavy commands per plugin's PreToolUse:Bash hook guidance)
+docs\install-provenance.md:4731:3. **Plugin hooks operational**: VERIFIED via PreToolUse hook context_guidance firing live during Wave 95 commands
+docs\install-provenance.md:5106:✅ **INCREMENTAL**: Phase 1 = binary install (this ship); Phase 2 (deferred) = wire as PreToolUse `Bash(git commit *)` hook for automatic enforcement; Phase 3 (deferred) = `.gitleaks.toml` config to suppress curl-auth-header rule false-positives in docs
+docs\install-provenance.md:5164:- Ship 1C (Phase 2): wire gitleaks as PreToolUse `Bash(git commit *)` hook for automatic CR-1 enforcement
+docs\install-provenance.md:5290:## 2026-05-08 Wave 97 — Ship 1C+1D bundle: gitleaks Phase 2 (PreToolUse hook wire + .gitleaks.toml config)
+docs\install-provenance.md:5303:| **2 (enforcement wire)** | **97-1C+1D** | **THIS** | **PreToolUse hook + .gitleaks.toml allowlist config** |
+docs\install-provenance.md:5322:| F2 | Need `hookSpecificOutput.hookEventName="PreToolUse"` shape; parse stdout EVEN ON exit 1 | `_emit_allow / _emit_deny` use canonical CC contract; stdout parsed regardless of returncode (gitleaks exits 1 on findings) |
+docs\install-provenance.md:5350:3. Existing PreToolUse:Bash hooks → 1 codex_t2 block found; sister-mirror pattern applied (NOT duplicate)
+docs\install-provenance.md:5401:- **CR-7**: Phase 1 graduated-unleash; secrets-block hook does NOT change permission scope structurally (extends existing PreToolUse:Bash gate)
+docs\install-provenance.md:5411:| Secret-scan capability | manual `gitleaks` operator-invoke | automatic PreToolUse hook on every `git commit` |
+docs\install-provenance.md:5433:| **97-1C+1D** | **THIS** | **1C+1D — gitleaks PreToolUse hook wire + .gitleaks.toml config** |
+docs\install-provenance.md:5442:- Anthropic CC PreToolUse hookSpecificOutput contract changes
+docs\install-provenance.md:5595:| 97-1C+1D | `0110a9f` | 1C+1D — gitleaks PreToolUse hook + .gitleaks.toml |
+docs\install-provenance.md:5691:| 97-1C+1D | `0110a9f` | 1C+1D — gitleaks PreToolUse hook + .gitleaks.toml |
+docs\install-provenance.md:6438:- **Ship 2D**: rtk PreToolUse Bash-rewrite hook wire (binary already at `.local/cargo/bin/rtk`; sibling Phase 1 wrapper at `Z:/claude-sota/scripts/rtk_filter.py` cite-import-AMBER candidate). 60-90% measured Bash savings.
+docs\install-provenance.md:6618:- **Ship 2D**: rtk PreToolUse Bash-rewrite hook wire
+docs\install-provenance.md:7307:- Wired in PreToolUse Bash hook per Wave 97 Ship 1B+1C+1D
+docs\install-provenance.md:7611:| P2 | Keep security-guidance DEFERRED — `/tmp/security-warnings-log.txt`, `python3`, PreToolUse on `Edit\|Write\|MultiEdit` concerns are real | REAFFIRMED |
+docs\install-provenance.md:7618:- No active hooks/MCPs adding edit-path latency (plugin-dev does not register PreToolUse / PostToolUse / Stop hooks)
+docs\install-provenance.md:7642:3. `security-guidance` — DEFERRED to Ship 2N-batch3 per Mia OVER catch (cross-platform `/tmp/security-warnings-log.txt` Linux path + PreToolUse:Edit per-edit token cost)
+docs\install-provenance.md:7771:- security-guidance hooks.json (PreToolUse hook validation)
+docs\install-provenance.md:7781:T2 commit-time hook (`codex_t2_pre_commit_gate.py:424`) fires on `Bash(git commit *)` PreToolUse with sync STRICT FAIL_CLOSED semantics. Verdict file written to `.claude/state/codex_review_HEAD_<sha8>.txt`.
+docs\install-provenance.md:7797:- Ship 2N-batch3-A: wire safety_guard.py + agent_plan_readonly_bash_guard.py PreToolUse hooks (P0 SAFETY)
+docs\install-provenance.md:7799:- Ship 2N-batch3-C: wire missing context-mode hooks (PreToolUse + PostToolUse + PreCompact) (P0)
+docs\install-provenance.md:7817:## 2026-05-08 Wave 105 — Ship 2N-batch3-A: wire safety_guard.py PreToolUse:Bash hook (P0 SAFETY mechanical enforcement)
+docs\install-provenance.md:7821:Wave 105 Agent C (`adea003df2f012855`) feature-coverage audit P0-5 finding + Mia probe verified: settings.json L74 `_comment_allow` mentioned `safety_guard.py + agent_plan_readonly_bash_guard.py` as "safety floor preserved" but ZERO PreToolUse hook entries registered them as enforcing. Current `defaultMode: "bypassPermissions"` (per Wave 82d operator override during Anthropic-side classifier outage) lacked mechanical safety-floor enforcement.
+docs\install-provenance.md:7837:**Critical design-flaw catch by codex T1**: my initial proposal globally-wired `agent_plan_readonly_bash_guard.py` as Block[6][1] always-fire. Codex correctly identified this is NOT a generic gate — it's a positive-validator scoped to plan-mode subagents with policy enum (`readonly` / `codex-readonly` / `verifier`). Globally wiring would have BLOCKED normal operator Bash including `git commit` (interactive REPL block at L613 + heredoc/tee/redirect blocks per FM-19 disclosure).
+docs\install-provenance.md:7839:Mia probe verified codex's claim by `Grep` against `.claude/agents/`: the script IS already correctly wired in 6 subagent frontmatter PreToolUse hooks:
+docs\install-provenance.md:7852:| P2 | Do NOT add agent_plan_readonly_bash_guard.py to global PreToolUse:Bash; keep per-subagent frontmatter wiring | **APPLIED** (removed from this ship's scope) |
+docs\install-provenance.md:7897:- Touches PreToolUse hook chain — adds 1 hook at fail-fast position
+docs\install-provenance.md:7912:| CR-9 (install-risk) | ✅ | LOW-MEDIUM (PreToolUse chain change; reversible); 2-round fix-forward MET first round |
+docs\install-provenance.md:7928:# f30ba94511514acdad0100c2bf8fd152fdc5552b feat(hooks): Wave 105 Ship 2N-batch3-A — wire safety_guard.py PreToolUse:Bash hook (P0 SAFETY mechanical enforcement)
+docs\install-provenance.md:7930:python -c "import json; s=json.load(open('.claude/settings.json')); b6=s['hooks']['PreToolUse'][6]; print([h.get('command','').split('/')[-1] for h in b6['hooks']])"
+docs\install-provenance.md:7945:- **Ship 2N-batch3-C** (P0 HOOKS): wire missing context-mode hooks (PreToolUse + PostToolUse + PreCompact)
+docs\install-provenance.md:7958:- agent_plan_readonly_bash_guard.py global-shim ship lands (would close P3 deferred prescription)
+docs\install-provenance.md:7959:- A subagent class is added that doesn't reference agent_plan_readonly_bash_guard.py in frontmatter (would surface coverage gap)
+docs\install-provenance.md:7972:- `security-guidance` — already DEFERRED per Wave 104 `_comment_wave104_ship2n_batch2`: hardcoded `/tmp/security-warnings-log.txt` cross-platform Windows-Git-Bash incompatibility + PreToolUse:Edit per-edit token cost. Tracked at task #46 batch3-A queue.
+docs\install-provenance.md:8216:T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net for bootstrap commits per `cross-model-consensus.md §The contract`. Same disposition pattern as:
+docs\install-provenance.md:8745:**CR-3 Phase 1 bootstrap exception**: codex T1 gate WARN fired 4x during Edit (`codex_consult_<topic>_OUT.txt` missing for fm17e_n4_promotion topic). Per `Z:/claude-sota-installed/.claude/rules/codex-t1-system-meta-review-fallback.md` n=7 evidence: SYSTEM-meta-review fallback applies — Wave 112 Ship A1 commit `f29c973` body classified this codification verbatim ("FM-17.e cumulative n=4 same-arc 2026-05-09 — DEFINITIVELY past cycle-322 n=3 promotion threshold. Catalog→OWNED rule promotion queued."). T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net per cardinal-rule-3 Phase 1 bootstrap exception. Same disposition pattern as Wave 109 closure + Wave 112 Ship A1 + Wave 112 Ship 2AA.
+docs\install-provenance.md:8827:Both Ship 2BB (Scrapling REJECT) and Ship F-router-update (catalog FM-17 row) are doc-only per `Z:/claude-sota/.claude/rules/research-protocol.md` — no install-class artifact. T1 codex consult was DEFERRED for both (Ship 2BB used sota-researcher Sonnet agent dispatch; Ship F-router was direct Edit). T2 commit-time hook (`codex_t2_pre_commit_gate.py` at PreToolUse `Bash(git commit *)`) IS the cross-model verification net per cardinal-rule-3 Phase 1 bootstrap exception. Same disposition pattern as Wave 109 closure + Wave 112 Ship A1 + Ship 2AA + Ship F.
+docs\install-provenance.md:8996:| `settings.json:117-125` PreToolUse:Agent matcher exists | ✅ confirmed (`agent_spawn_gate.py`) |
+docs\install-provenance.md:9073:- **Wave 115** candidate: Ship 2N-batch3-MEM-E PreToolUse:Agent spawn-time hook (subagent context enrichment via `additionalContext` JSON field)
+docs\install-provenance.md:9074:- **Wave 115+** candidate: Ship 2N-batch3-MEM-MISTAKE — wire `mistake_note_search` on PreToolUse:Agent (pre-task pitfall check) + `mistake_note_add` on Stop (FM-class recovery capture)
+docs\install-provenance.md:9099:- **Ship 2N-batch3-MEM-E**: PreToolUse:Agent spawn-time hook (Wave 115 candidate)
+docs\install-provenance.md:9204:- **Ship 2N-batch3-MEM-E**: PreToolUse:Agent spawn-time hook (Wave 116+ candidate)
+docs\install-provenance.md:9410:- **Wave 117+ candidate**: Ship 2N-batch3-MEM-E — PreToolUse:Agent spawn-time hook (subagent context enrichment via `additionalContext` JSON field)
+docs\install-provenance.md:9571:- **Wave 118 candidate**: Skill `mistake-aware` description-triggered BEFORE Agent dispatch (PreToolUse:Agent context: search mistakes matching subagent prompt + inject as additionalContext)
+docs\install-provenance.md:9572:- **Wave 119+ candidate**: Ship 2N-batch3-MEM-E PreToolUse:Agent spawn-time hook (subagent context enrichment via additionalContext)
+docs\install-provenance.md:9747:- **Wave 118 candidate**: Skill `mistake-aware` description-triggered BEFORE Agent dispatch (PreToolUse:Agent context: search mistakes matching subagent prompt + inject as `additionalContext`)
+docs\install-provenance.md:9748:- **Wave 119+ candidate**: PreToolUse:Agent spawn-time hook for memory_search auto-RECALL on subagent context enrichment
+docs\install-provenance.md:9902:## 2026-05-09T09:30Z — Wave 118 Ship A2: RTK 0.39.0 PreToolUse:Bash auto-rewrite hook
+docs\install-provenance.md:9904:- **Section**: §3 plugins / §13 hooks (NEW PRIMITIVE in PreToolUse:Bash chain)
+docs\install-provenance.md:9913:  Edit .claude/settings.json: PreToolUse Bash 6 → 7 entries (RTK appended)
+docs\install-provenance.md:9920:  {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecisionReason":"RTK auto-rewrite","updatedInput":{"command":"rtk git status"}}}
+docs\install-provenance.md:9926:- **Disposition**: INSTALLED (settings.json wire git-tracked at PreToolUse:Bash[6]; binary at `.local/cargo/bin/rtk.exe` gitignored as install artifact)
+docs\install-provenance.md:9998:- PreToolUse:Bash 6 → 7 entries (RTK auto-rewrite at slot [6])
+docs\install-provenance.md:10637:| token-budget-guardian: "track tokens" | ccusage 18.0.11 (daily/blocks/session-window CLI) + RTK 0.39.0 (PreToolUse:Bash hook with ~80% token-efficiency rewrite) + Serena 1.2.0 (LSP semantic graph) + Repomix 1.14.0 (codebase compression with tree-sitter) + tools/cpa-cache-rate.py (per-account session-affinity hit rate) + Phoenix OTel (port 16006) — **5+ operational tools with measurable telemetry** |
+docs\install-provenance.md:10727:- **PreToolUse Bash/Edit/Write hook** that estimates token cost (file size + heuristic) BEFORE execution + checks per-arc / per-account budget threshold + emits exit-2 with deny-decision when over
+docs\install-provenance.md:11563:Live-session error spam: `Hookify import error: No module named 'core'` firing on every PreToolUse:Bash / PostToolUse:Bash / PreToolUse:mcp__plugin_context-mode_context-mode__ctx_batch_execute / PostToolUse:* / PreToolUse:TaskCreate / PostToolUse:TaskCreate / UserPromptSubmit. User directive: "deep dive into the commit git and resolve all, why is our architecture having errors" + "all with sota references". Per CR-7 REPORT errors before routing around them — investigation, not silent suppression.
+docs\install-provenance.md:11574:Wave 134 Fire 1 Ship 1 commit `77b73e3` correctly disabled hookify in `enabledPlugins` (next-launch effective) but explicitly noted "current session has hookify hooks already loaded; the spam will continue until restart" — and queued the W134-F2 5-line `__file__` fallback patch as forward-ref for "all 4 hooks: pretooluse.py / posttooluse.py / stop.py / userpromptsubmit.py".
+docs\install-provenance.md:11581:2. **In-place upstream-canonical patch on `4ed5395b74d0/`** — `cp` from upstream marketplace canonical for all 4 hooks:
+docs\install-provenance.md:11612:Wave 134 Fire 1 Ship 1 commit `77b73e3` body queued: "Apply same fix to all 4 hooks: pretooluse.py / posttooluse.py / stop.py / userpromptsubmit.py" — **CLOSED THIS FIRE** via upstream-canonical mirror (cleaner than 5-line patch since marketplace already shipped the W134-F2 fix at HEAD).
+docs\install-provenance.md:11660:Firing on PreToolUse:Bash + PostToolUse:Bash + Stop hooks (13 stop hooks). User pushback verbatim: "are you sure?" — referencing the deleted `0e7bbeafaebc/` cache.
+docs\install-provenance.md:11738:Mid-fire interrupt (verbatim): *"PreToolUse:Bash says: Hookify import error: No module named 'core' ... please research with sota repos and resolve"*
+docs\install-provenance.md:12241:- Requires operator opt-in OR temporary removal of `pre:config-protection` hook (path-edit `.claude/settings.json` PreToolUse to skip the hook for ruff.toml installation)
+docs\install-provenance.md:13623:  - Section C state-outside-repo discipline = DOCUMENTATION ONLY (needs PreToolUse hook)
+docs\install-provenance.md:13669:2. ✅ **Explicit guard text per row**: "DOC-ONLY inventory; no .claude/settings.json permissions.allow[] change; no PreToolUse hook change; no .mcp.json/gateway wiring; future use gated by Waves 141A.2/141A.3/141A.4" per T1 prescribed_edit #2
+docs\install-provenance.md:13682:| Section C state-outside-repo discipline = DOCUMENTATION ONLY (needs PreToolUse hook) | Wave 141A.4 (PreToolUse `docker_volume_discipline_guard.py` parses -v/--volume/--mount source paths) | DEFERRED |
+docs\install-provenance.md:13733:- **Wave 141A.4** — PreToolUse `docker_volume_discipline_guard.py` hook (parses -v/--volume/--mount source paths; rejects mount sources NOT under `Z:/claude-sota-installed-state/.docker-volumes/<name>/`)
+docs\install-provenance.md:13995:- **(P3) Wave 141A.4** — PreToolUse `docker_volume_discipline_guard.py` hook
+docs\install-provenance.md:15443:- **Cross-model gate (CR-3 Phase 1 bootstrap exception)**: cosign install is mechanical CR-6 + CR-9 install operation; pre-INSTALL cross-model gate satisfied via orchestrator-direct probe + multi-channel CR-9 verification (winget + go install). Post-install Manifest edit follows codex T1 PreToolUse gate per cross-model-consensus.md §The contract Phase 1 bootstrap exception.
+docs\install-provenance.md:15922:- **Audit answer (verbatim codex summary)**: *"The current hook stdout pattern is sufficient for the actionable T1-missing paths: WARN uses PreToolUse additionalContext, and STRICT/AUTO-DENY use permissionDecisionReason, which the Anthropic hooks spec says is shown to Claude for deny. JSONL telemetry itself is not surfaced to Claude, and AUTO-ALLOW emits stderr only, but that is not a blocking gap unless the intended requirement is to surface every nonblocking state transition."*
+docs\install-provenance.md:15964:- `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` (937 LOC; +45 provenance header vs sibling 892 LOC body)
+docs\install-provenance.md:15970:`constituents=[TIER-1-DIRECT @ Z:/claude-sota/.claude/hooks/scripts/safety_guard.py @ HEAD 32fbcb0, TIER-1-DIRECT @ Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py @ HEAD f57c74d, TIER-3-LOCAL-COMPOSITION @ Wave 14b port-adaptation provenance headers + cite-import-AMBER per CLAUDE.md Section 14.5]; effective_tier=TIER-3-LOCAL-COMPOSITION` per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE
+docs\install-provenance.md:15979:**Wiring verified**: `.claude/settings.json:167+` PreToolUse Bash matcher; both hooks active in runtime per W82d temp-override bypassPermissions mode (per CLAUDE.md §"Intentional divergences" (d))
+docs\install-provenance.md:15983:- agent_plan_readonly_bash_guard.py: import-clean ✅ + per-subagent OPERATIONAL read-only enforcement under bypass parent
+docs\install-provenance.md:16009:- `Z:/claude-sota/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` @ HEAD `f57c74d` (sibling SOTA pin)
+docs\install-provenance.md:16387:| 3 | ECC plugin `.mcp.json` content (`.claude/plugins/cache/everything-claude-code/everything-claude-code/2.0.0-rc.1/.mcp.json`) | mcpServers: `['github', 'context7', 'exa', 'memory', 'playwright', 'sequential-thinking']` | **EXACTLY matches the 6 `plugin:everything-claude-code:*` servers in `claude mcp list`** — plugin `.mcp.json` files ARE loaded with prefix |
+docs\install-provenance.md:16624:Grep `"codex_` in `.claude/settings.json` → ZERO hits. Codex hooks T1-T7 are NOT wired in workspace settings.json. Per W141.2 finding, they load from `.claude/plugins/cache/openai-codex/codex/1.0.4/hooks/hooks.json` (plugin-cache scope = SessionStart + SessionEnd + Stop). The T1 PreToolUse:Edit gate is sibling-novel codification (Path B HNF per Section 13 row 239) and requires cite-import from sibling — currently PLANNED.
+docs\install-provenance.md:17034:**HIGH risk**: planning-with-files plugin install (new PreToolUse + PostToolUse hooks; 2-round fix-forward budget) + claude_telemetry wrapper install (launcher integration invasive) + Langfuse Docker compose stack + quarterly recursion automation hook
+docs\install-provenance.md:17329:**Voice 2 — sota-researcher Sonnet** (Agent tool subagent_type=general-purpose; 302s/499K tokens/29 tool_uses): DONE_WITH_CONCERNS. ARTIFACT-INLINE 276 LOC at `tmp/wave152-f4-agentA-sota-research-2026-05-11.md`. Multi-source breadth **5 distinct families queried** (MS Learn + Exa + addy-skills + cwc-hooks + man7 + Anthropic CC bonus 6th) — CR-15 ≥4 firmly satisfied. **6 TIER-1-DIRECT cite anchors** gathered for v11 PROBE 18: Get-NetTCPConnection (Windows SOTA) + netstat -ano (legacy) + Sysinternals handle.exe v5.0 + fuser(1) + lsof(8) + Anthropic CC hooks PreToolUse permissionDecision. **3 Mia OVERs caught on orchestrator brief**: (HIGH) `tools/wave152-f1-netsh-pin.ps1` has ZERO PROBE 18 probes — VERIFIED via Mia probe `grep -nE "Get-NetTCPConnection|netstat|fuser|lsof|handle\.exe" tools/wave152-f1-netsh-pin.ps1` returned 0 matches; script only checks idempotency NOT precondition. (MEDIUM) addy SHA drift `@742dca5` vs current HEAD `3ff4b518...` — acknowledged not load-bearing this fire. (LOW) brief overstates cwc precondition relevance — `verify-gate.sh` is evidence-gate pattern, NOT OS-state precondition class. **HONEST-NON-FINDING**: cwc + addy upstream do NOT ship OS-level state-mutation precondition mechanic — PROBE 18 is eee-local TIER-3-LOCAL-COMPOSITION glue atop TIER-1 OS primitives.
+docs\install-provenance.md:17652:- Sister hooks: `fm17d_stall_detector.py` (event-pattern template; currently DISABLED via env L9 — schema-rot issue distinct from fm19) + `subagent_stop_telemetry.py` (transcript-mining base)
+docs\install-provenance.md:18220:2. **`Write tool` PreToolUse "File has not been read yet" gate IS a stale-content-defense mechanism** — when triggered, the right recovery is `Read` + `Write` with FRESH content, NOT bypass via sed-rename. The gate caught my attempt to overwrite parallel session's tmp content; my recovery path (sed-rename) leaked the parallel content into my commit.
+docs\install-provenance.md:19342:| agent_plan_readonly_bash_guard.py plan-mode | CMA `decide()` for clear-cut ops | ✅ STRUCTURALLY ANALOGOUS |
+docs\install-provenance.md:19347:Per `Z:/claude-sota/.claude/rules/layered-gates-architecture.md §4.1` Wave 11A `bash_command_allowlist.py` intentional removal: eee's safety architecture is narrow catastrophic-pattern deny-list (`safety_guard.py`) + plan-mode readonly restrictions (`agent_plan_readonly_bash_guard.py`) + graduated permission modes (CR-7 Phase 1-3) — NOT positive allowlist.
+docs\install-provenance.md:19413:- `safety_guard.py` + `agent_plan_readonly_bash_guard.py` eee safety floor
+docs\install-provenance.md:19842:hookify's scope = "Easily create hooks to prevent unwanted behaviors by analyzing conversation patterns". eee already has mature hook infrastructure (safety_guard.py + agent_plan_readonly_bash_guard.py + 5-layer codex T1-T7 lifecycle + auto_proceed_gate.py + ~20 other hooks). hookify generating NEW hooks from conversation pattern analysis during /loop verbatim-repetition arc (FM-21.c sub-class) would likely trigger spam-recommendations conflicting with layered-gates-architecture.md design. Operator-likely-DISABLED to prevent hook-recommendation drift.
+docs\install-provenance.md:21740:    Append entry [2]: { matcher: "*", hooks: [{ type: "command", command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/scripts/cli_path_audit.py\" --jsonl 1>$null", timeout: 30, async: true }] }
+docs\install-provenance.md:22176:4. Classify hook event semantics separately: PreToolUse deny-capable / PostToolUse advisory / SessionStart advisory / Stop telemetry
+docs\install-provenance.md:22521:  - T1 codex_t1_consult_gate L96 (PreToolUse)
+docs\install-provenance.md:22533:  - (e) **WIRE evidence (NEW 5th cell)**: `.claude/settings.json:96` PreToolUse hook entry
+docs\install-provenance.md:22559:- **F-next ship class**: continue manifest §Section 13 row L243 mutation (6 codex observability hooks: codex_stuck_detector + codex_mcp_healthcheck + codex_failure_audit + codex_review_queue + codex_review_thread_bridge + codex_review_trace) per V3 4+1-evidence-cell pack
+docs\install-provenance.md:22617:- **§Section 13 mutation queue COMPLETE post-F11**: all 5 row groups (L239 safety_guard / L240 fm17d_stall_detector / L241 agent_plan_readonly_bash_guard / L242 codex T1-T7 gates / L243 codex observability hooks) now have updated status via W155 F8 V3 4+1-evidence-cell pack discipline (F8 V3 found 4 of 5 in DRIFT; F9 closed L240; F10 closed L242; F11 closes L243; L239+L241 already in INSTALLED-AMBER state per W62 F17 Wave 14b cite-imports)
+docs\install-provenance.md:22800:- **MAJOR FINDING**: settings.json L172 reveals safety_guard.py is **ALREADY WIRED-ACTIVE** in PreToolUse:Bash hook chain per Wave 105 Ship 2N-batch3-A 2026-05-08. Manifest L239 row's "DORMANT until operator approval" status was STALE
+docs\install-provenance.md:22806:  - (e) **WIRE evidence (NEW 5th cell)**: `.claude/settings.json:172` PreToolUse:Bash hook chain entry per Wave 105 Ship 2N-batch3-A 2026-05-08; `_comment_allow` at L84 documents "safety floor MECHANICALLY ENFORCED via PreToolUse:Bash hook safety_guard.py at Block[6][0] ... 12-destructive-pattern auto-block: rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd"
+docs\install-provenance.md:22808:- **Status correction rationale**: prior "DORMANT until operator approval per CR-7 Phase 2 trigger predicate" claim was STALE — Wave 105 Ship 2N-batch3-A 2026-05-08 wired the hook into PreToolUse:Bash chain; W148 Fire 1 2026-05-11 tracked the file. Hook is currently MECHANICALLY ENFORCING 12-destructive-pattern auto-block at every Bash invocation
+docs\install-provenance.md:22833:- **§Section 13 mutation queue COMPLETE post-F13**: all 5 row groups (L239 safety_guard / L240 fm17d_stall_detector / L241 agent_plan_readonly_bash_guard / L242 codex T1-T7 gates / L243 codex observability hooks) now have updated status with 4+1-evidence-cell pack discipline
+docs\install-provenance.md:22988:- **Predicate (e) safety_guard.py LIVE-RUNTIME-ACTIVE proof capture**: would require either CC PreToolUse invocation log OR safety_guard.py JSONL output instrumentation + at least one trapped destructive-pattern event; F-future ship class
+docs\install-provenance.md:23105:- **Predicate (e) safety_guard.py LIVE-RUNTIME-ACTIVE proof** — capture CC PreToolUse invocation log OR JSONL instrumentation; closes predicate (e) from SATISFIED-WITH-WIRE-SMOKE-EVIDENCE → cleanly SATISFIED
+docs\install-provenance.md:23302:1. **Wave 153 fire 1 commit `5495bbd`** ("cwc-active-wire-path-reconciliation") INTENTIONALLY wired 4 cwc PreToolUse hooks at OLD path `.claude/hooks/cwc/`. Blob SHAs c8765d28 / b5d1bf77 / eb08e2f1 / 2751ab3b — ALL diverge from upstream @ffd563d6 (LOCAL ADAPTATIONS for path expansion + env-var resolution; that's WHY they were wired at OLD path).
+docs\v64-child-artifact-lanes-convention.md:13:- `Z:/repos/deps/Continuous-Claude-v3/docs/ARCHITECTURE.md @ d07ff4b06b62f43771bc0c927d0211b734d6149e` — Agent Output Location at `:251-255`: *"All agents write their output to: `.claude/cache/agents/<agent-name>/latest-output.md`"*. Pipeline diagram at `:404-424` shows PreToolUse:Task → agent runs → PostToolUse:Task → file-only output.
+docs\v64-cache-aware-routing-convention.md:138:These predicates are operator-discipline today; promotion to mechanical hook (`tools/v64_cache_locality_verify.py` or `PreToolUse:Agent` gate scoped to fan-out detection) is FORWARD-REF for Wave 84+ if convention sees ≥3 same-arc adoptions.
+docs\v11-doctrine-evolution.md:3:# constituents=[TIER-1-DIRECT @ MS Learn Get-NetTCPConnection / netstat / Sysinternals handle.exe v5.0 + man7 fuser(1) + lsof(8) + Anthropic CC hooks PreToolUse permissionDecision deny, TIER-2-EVIDENCE @ Stack Overflow Q54010365 Hyper-V port-bind pattern, TIER-3-LOCAL-OPERATOR-DERIVED @ W152-F2 netsh-refused-on-bound-port commit `9118b08`]; effective_tier=TIER-3-LOCAL-COMPOSITION per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE
+docs\v11-doctrine-evolution.md:10:# Reference: TIER-1-DIRECT `https://code.claude.com/docs/en/hooks` (PreToolUse permissionDecision deny) [VERIFIED 2026-05-11 via Voice 2] — gate-layer enforcement for PROBE 18
+docs\v11-doctrine-evolution.md:75:constituents=[TIER-1-DIRECT @ MS Learn × 3 (Get-NetTCPConnection / netstat / Sysinternals handle.exe) + man7 × 2 (fuser / lsof) + Anthropic CC × 1 (hooks PreToolUse permissionDecision),
+docs\wave118-architecture-audit-2026-05-09.md:112:| **rtk** | ✅ **WAVE 118 SHIP A2** | `.local/cargo/bin/rtk` | **0.39.0** (cargo install --git; PreToolUse:Bash hook wired) |
+docs\wave118-architecture-audit-2026-05-09.md:303:- safety_guard.py + agent_plan_readonly_bash_guard.py + gitleaks + codex_t2 mechanically enforce safety floor
+docs\v64-stable-prefix-convention.md:137:These predicates are operator-discipline today; promotion to mechanical hook (`tools/v64_prefix_freeze_verify.py` or `PreToolUse:Agent` gate) is FORWARD-REF for Wave 86+ if convention sees ≥3 same-arc adoptions.
+docs\v64-noise-risk-classifier-convention.md:103:These predicates are operator-side today; promotion to mechanical hook (e.g., `tools/v64_noise_risk_classifier.py` or a `PreToolUse:Agent` gate) is FORWARD-REF for Wave 82+ if convention sees ≥3 same-arc adoptions.
+docs\v64-noise-risk-classifier-convention.md:171:- Wave 82+ produces ≥3 distinct fan-out instances using the new CLASS slot — promote to enforced contract via `tools/v64_noise_risk_classifier.py` or `PreToolUse:Agent` hook
+docs\superpowers\specs\2026-05-12-sota-architecture-deep-audit-design.md:13:#   TIER-1-DIRECT @ https://code.claude.com/docs/en/hooks (Anthropic CC PreToolUse + PostToolUse + Stop + asyncRewake),
+docs\superpowers\specs\2026-05-12-sota-architecture-deep-audit-design.md:144:- **T1 PreToolUse `Edit|Write|MultiEdit`**: codex T1 deep-review-exec auto-fires on design-surface edits
+docs\superpowers\specs\2026-05-12-sota-architecture-deep-audit-design.md:145:- **T2 PreToolUse `Bash(git commit *)`**: codex T2 working-tree review auto-fires before commit
+docs\sota-research-architecture-2026-05-11.md:20:| **L6 Knowledge** | Persistent task/decision memory | OthmanAdi/planning-with-files (task_plan.md + findings.md + progress.md + PreToolUse/PostToolUse hooks + SHA-256 plan attestation) + `.specify/memory/constitution.md` + `docs/adr/*.md` + `docs/research/comparisons/*.md` + mem0 (optional) |
+docs\sota-research-architecture-2026-05-11.md:177:| **K** | Security/sandboxing/policy | Threat-model + Lethal Trifecta filter + .claudeignore enforcement + permission-mode classifier + readonly-guard + safety-deny patterns + cross-layer policy enforcement | safety_guard.py + agent_plan_readonly_bash_guard.py + .claudeignore + cardinal-rule-7 graduated unleash + Snyk ToxicSkills 36% baseline mitigation |
+docs\sota-architecture-audit\03-sota-target-architecture.md:45:Layer 1 PreToolUse front gates    →  codex T1 + impact-guard + safety_guard + agent_plan_readonly_bash_guard
+docs\sota-architecture-audit\03-sota-target-architecture.md:46:Layer 2 PreToolUse commit gate    →  codex T2 (sync STRICT FAIL_CLOSED)
+docs\sota-architecture-audit\03-sota-target-architecture.md:108:- ➕ **G5.3 SHIP G**: write `tests/test_safety_guard_security.py` + `tests/test_agent_plan_readonly_bash_guard_security.py` (closes layered-gates §9 HARD GATE)
+docs\sota-architecture-audit\01-current-state-baseline.md:162:### Current state — 23 PreToolUse hooks across 7 matchers
+docs\sota-architecture-audit\01-current-state-baseline.md:165:PreToolUse: 7 matchers / 23 hooks
+docs\sota-architecture-audit\01-current-state-baseline.md:190:| 1 | PreToolUse | Front gates: observers + asyncRewake | sync OR asyncRewake | INSTALLED-AMBER |
+docs\sota-architecture-audit\01-current-state-baseline.md:191:| 2 | PreToolUse `Bash(git commit *)` | Commit-gate enforcer | sync, STRICT, FAIL_CLOSED | INSTALLED (codex T2) |
+docs\sota-architecture-audit\01-current-state-baseline.md:291:- **Hooks**: 23 PreToolUse + 15 PostToolUse + 2 SessionStart + 1 each {SessionEnd, Stop, SubagentStop, UserPromptSubmit, PostToolUseFailure} = 45 total hook entries
+docs\sota-architecture-audit\02-gap-matrix.md:105:23 PreToolUse + 15 PostToolUse + 7 other-event hooks = 45 total. INSTALLED-AMBER for codex T1-T7. Several ECC hooks DISABLED for overhead.
+docs\sota-architecture-audit\02-gap-matrix.md:113:| G5.3 No deny-emitting test coverage | per `layered-gates-architecture.md §9` HARD GATE | Add `tests/test_<hook>_security.py` for each DENY-emitting hook (safety_guard.py + agent_plan_readonly_bash_guard.py) | **INSTALL** (D6 critical — without test gate, safety bug class repeats per cite codex T6 HIGH 2026-04-27) | n/a |
+docs\sota-architecture-audit\02-gap-matrix.md:119:- **G5.3 deny-hook test coverage** — write security regression tests for `safety_guard.py` + `agent_plan_readonly_bash_guard.py` per `layered-gates-architecture.md §9` HARD GATE
+docs\sota-architecture-audit\00-master-tracker.md:22:| 5 | Hooks / gates | PreToolUse / PostToolUse / SessionStart / Stop / SubagentStart / SubagentStop, deny-emitting safety floor | `dim-5-hooks.md` (planned) |
+docs\sota-architecture-audit\00-master-tracker.md:79:- `https://code.claude.com/docs/en/hooks` — PreToolUse/PostToolUse/Stop semantics + asyncRewake
+docs\sota-architecture-audit\00-master-tracker.md:124:**Hooks active**: PreToolUse + PostToolUse + SessionStart + Stop + SubagentStart + SubagentStop + UserPromptSubmit (per `.claude/settings.json` 514 LOC + 4-event hook chain)
+docs\wave153-f2-ccbp-architecture-comparison-2026-05-11.md:84:| 7 | NEW env vars | v2.1.129/132/136 | `CLAUDE_CODE_SESSION_ID` + `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` + `CLAUDE_CODE_FORCE_SYNC_OUTPUT` + `CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE` + `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY` + `CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL` | `CLAUDE_CODE_SESSION_ID` is **HIGH LEVERAGE** for ~5 hook scripts that parse `transcript_path` for session correlation (per Mia probe: agent_plan_readonly_bash_guard.py + auto_proceed_gate.py + codex_review_trace.py + fm17_class_lint.py + fm17d_stall_detector.py); others conditional/lower-leverage |
+docs\wave153-f2-ccbp-architecture-comparison-2026-05-11.md:109:🥈 **`CLAUDE_CODE_SESSION_ID` env-var adoption in 5 transcript_path-parsing hook scripts** (V2: was V1's #1; demoted to #2/#3 per V3) — replaces transcript_path JSONL parsing complexity in `auto_proceed_gate.py` + `codex_review_trace.py` + `fm17_class_lint.py` + `fm17d_stall_detector.py` + `agent_plan_readonly_bash_guard.py`; future-proof per CCBP v2.1.132+. **HIGH LEVERAGE / MEDIUM blast radius** (hooks fire on every Bash/Edit/Write/Stop). CR-9 install-risk: 2-round fix-forward budget. Single-fire ship per ONE-LOGICAL-UNIT. Cite CCBP `best-practice/claude-settings.md:819 @ HEAD 4527f4d4`.
+docs\sota-architecture-audit\04-decision-tracker.md:131:| Why SOTA | Per layered-gates §9: any hook emitting `exit 2` / `permissionDecision: "deny"` / `decision: "block"` MUST have `tests/test_<hook>_security.py`. Currently 2 deny-emitting hooks (safety_guard.py + agent_plan_readonly_bash_guard.py) lack security regression tests. Codex T6 HIGH severity 2026-04-27 found this exact class. |
+docs\sota-architecture-audit\04-decision-tracker.md:371:- **SRA**: D1=PASS-CLI-binary-use (AGPL-3.0 acceptable for CLI-binary-use per SRA D1 use-class precision per Wave 102 reclassification; would BLOCK for embed-library use which is not applicable here) · D2=PASS · D3=PASS (26k★ 9yr MATURE) · D4=PASS (Truffle Security = named-org commercial-OSS) · D5=PASS · D6=PASS · D7=PASS · D8=PASS · D9=no FM · D10=DEMAND-ABSENCE? (sss already has gitleaks per `.claude/settings.json` PreToolUse[6]; trufflehog overlaps secret-scan axis but has VERIFIED-MODE which gitleaks lacks)
+docs\sota-architecture-audit\04-decision-tracker.md:544:| gitleaks/gitleaks | 26,786 | MIT | 3025 | 46 | Secret scanner (ALREADY WIRED at .claude/settings.json PreToolUse[6]) |
+docs\sota-architecture-audit\04-decision-tracker.md:675:15. **gitleaks/gitleaks** (26k★ MIT) — **ALREADY WIRED** at `.claude/settings.json` PreToolUse[6]; cite-only retroactive
+docs\wave154-arc-close-synthesis-2026-05-12.md:97:Per V2 verdict: safety_guard.py present at `.claude/hooks/scripts/safety_guard.py` and PreToolUse:Bash command in .claude/settings.json.
+docs\wave155-f3-hooks-audit-2026-05-12.md:44:| **safety-class** | blocking / advisory / observability / private-helper / library | Per V3 SAVED-SHIP catch #4: PreToolUse deny-capable ≠ PostToolUse advisory ≠ SessionStart startup ≠ Stop/SubagentStop telemetry |
+docs\wave155-f3-hooks-audit-2026-05-12.md:60:| 5 | `agent_plan_readonly_bash_guard.py` | gate | blocking | settings-wired | T1 | missing | 839 |
+docs\wave155-f3-hooks-audit-2026-05-12.md:95:### Deny-emitting gates (PreToolUse blocking) — 9 hooks
+docs\wave155-f3-hooks-audit-2026-05-12.md:97:`agent_plan_readonly_bash_guard / agent_spawn_gate / auto_proceed_gate / block_no_verify_guard / codex_t1_consult_gate / codex_t2_pre_commit_gate / codex_t5_plan_review_gate / gitleaks_pre_commit_gate / safety_guard / secret_scan_guard`
+docs\wave155-f3-hooks-audit-2026-05-12.md:102:- **F4+ remediation queue**: block_no_verify_guard (P0 — deny gate without TIER-1) / secret_scan_guard (P0 — deny gate without TIER-1) / agent_plan_readonly_bash_guard (P1 — TIER-1 present but VERIFIED missing)
+docs\wave155-f3-hooks-audit-2026-05-12.md:186:- `agent_plan_readonly_bash_guard.py` (839 LOC) — TIER-1 ✅ but VERIFIED missing; **add [VERIFIED via <smoke-probe>] marker per Wave-N empirical**
+docs\wave155-f3-hooks-audit-2026-05-12.md:214:4. Classify hook event semantics separately: PreToolUse deny-capable, PostToolUse advisory/audit, SessionStart advisory, Stop/SubagentStop lifecycle telemetry
+docs\wave155-f8-manifest-status-recomputation-2026-05-12.md:19:- `.claude/settings.json` live hook wiring for PreToolUse, PostToolUse, Stop, SessionStart, Agent, and ExitPlanMode surfaces.
+docs\sota-architecture-audit\fire-21-ultimate-architecture-ecosystem\01-ultimate-architecture-blueprint.md:106:- Safety floor: safety_guard.py globally wired + agent_plan_readonly_bash_guard.py SCOPED to 5 agent frontmatter
+docs\sota-architecture-audit\fire-20-dim7-tokeff-gpt55\00-tracker.md:37:1. **RTK 0.39.0** — Bash PreToolUse auto-rewrite (11.0M tokens saved across 911 commands per `docs/RTK.md:6`)
+docs\sota-architecture-audit\fire-20-dim7-tokeff-gpt55\00-tracker.md:40:4. **context-mode 1.0.111** — Plugin-supplied MCP + PreToolUse/PostToolUse/PreCompact/SessionStart/UserPromptSubmit hooks
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\02-dim5-correction-synthesis.md:42:### Update 3: Document agent_plan_readonly_bash_guard scoped wiring (NOT a P0 SAFETY gap)
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\02-dim5-correction-synthesis.md:44:**Issue**: my consult flagged `agent_plan_readonly_bash_guard.py` as "not wired" because it's not in global settings.json. Reality: wired in 5 agent frontmatter as INTENTIONAL design.
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\02-dim5-correction-synthesis.md:52:`agent_plan_readonly_bash_guard.py` is INTENTIONALLY scoped to subagent frontmatter (NOT globally wired in settings.json) per Claude Code docs hook locations:
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\02-dim5-correction-synthesis.md:72:Sibling claude-sota hooks: **58 Python scripts** at `Z:/claude-sota/.claude/hooks/scripts/*.py`
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\01-dim5-hooks-gpt55-verdict.md:31:    "evidence_file_line": "Z:/claude-sota-installed/.claude/settings.json:162:9 and :166:107 show safety_guard.py PreToolUse Bash; :83:161 states agent_plan_readonly_bash_guard.py is per-subagent frontmatter, not global settings.json"
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\01-dim5-hooks-gpt55-verdict.md:48:| **T1** | ✅ wired | `settings.json:89:5` `PreToolUse`, `:91:9` matcher `Edit\|Write\|MultiEdit`, `:95:107` `codex_t1_consult_gate.py` |
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\01-dim5-hooks-gpt55-verdict.md:61:| `agent_plan_readonly_bash_guard.py` | ⚠️ NO (intentional scoping) | settings.json comment at `:83:161` EXPLICITLY says: per-subagent frontmatter scope, NOT global. Wired in 5 agent frontmatter: `architect.md:58:109` + `code-reviewer.md:56:109` + `gpt5-archaeologist.md:60:109` + `gpt5-reviewer.md:61:109` + `verifier.md:74:109`. Global wire would block normal operator Bash incl. `git commit`. |
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\01-dim5-hooks-gpt55-verdict.md:83:### Reframe 2: agent_plan_readonly_bash_guard scoping is CORRECT design
+docs\sota-architecture-audit\fire-17-architecture-gap-synthesis\99-fire17-roadmap.md:69:| W134-F21-dim5-hooks-gpt55 | Hooks / gates | safety_guard.py + agent_plan_readonly_bash_guard.py + codex_t1_consult_gate.py |
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\00-tracker.md:27:| Claim 2 (P0 SAFETY floor) | PARTIAL | safety_guard.py globally wired ✅; agent_plan_readonly_bash_guard.py INTENTIONALLY scoped to 5 agent frontmatter (not global — settings.json comment explains why) |
+docs\sota-architecture-audit\fire-18-dim5-hooks-gpt55\00-tracker.md:35:2. **agent_plan_readonly_bash_guard "not wired"** — actually wired in subagent frontmatter scope per Claude Code docs hook locations; global wire would break `git commit`
+docs\sota-architecture-audit\fire-17-architecture-gap-synthesis\03-coverage-tracker-v10-cross-model.md:129:| W134-F18-dim5-hooks-gpt55 | Hooks / gates | `Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py` + `agent_plan_readonly_bash_guard.py` + `codex_t1_consult_gate.py` cross-model audit |
+docs\sota-architecture-audit\fire-32-w145-day1-codification\00-day1-codification.md:71:3. Wired to pre-commit hook chain in `.claude/settings.json` PreToolUse Edit/Write/MultiEdit gates
+docs\sota-architecture-audit\fire-26-b-llmlingua-path-p-audit\00-tracker.md:130:Integrate as a HOOK that compresses LARGE tool args before they leave eee. But hooks run in the request-response chain; would need to be at PreToolUse with synchronous compression.
+docs\sota-architecture-audit\fire-26-b-llmlingua-path-p-audit\00-tracker.md:132:**Friction**: PreToolUse hooks are sync 5-12s; LLMLingua compression of large args takes time + GPU/CPU.
+docs\sota-architecture-audit\fire-26-b-llmlingua-path-p-audit\99-close-synthesis.md:98:- **Application to eee**: cross-reference for safety_guard.py / agent_plan_readonly_bash_guard.py future enrichment
+docs\sota-architecture-audit\fire-29-w145-gpt55-research-arch-convergence\01-corrected-architecture.md:103:- `OthmanAdi/planning-with-files` — task_plan.md / findings.md / progress.md + PreToolUse + PostToolUse hooks + SHA-256 plan attestation
+docs\sota-architecture-audit\fire-29-w145-gpt55-research-arch-convergence\01-corrected-architecture.md:291:| 6 | **Quality/security gates** | Pre-commit + secret-scan + LLM red-team + vulnerability scan | gitleaks v8.30.1 + osv-scanner + safety_guard.py + agent_plan_readonly_bash_guard.py + NVIDIA/garak v0.15.0 (Wave 147 Fire 2) |
+docs\sota-architecture-audit\fire-26-b-llmlingua-path-p-audit\02-probe-dag-application.md:51:| PreToolUse hook latency 5-12s + LLMLingua compression GPU/CPU | concern noted | FAIL |
+docs\sota-architecture-audit\fire-26-a-cisco-mcp-scanner-path-p-audit\03-codex-t1-verdict.md:28:  "recommended_pilot_scope": "Use case 1, pre-install MCP admission, plus one baseline scan of `Z:/claude-sota-installed/.mcp.json`. Wire an isolated `uv tool` install, then run only zero-key analyzers initially: `yara,readiness,prompt_defense`; compare findings against incumbent hooks (`safety_guard.py`, `agent_plan_readonly_bash_guard.py`, `secret_scan_guard.py`) which do not inspect MCP protocol metadata. Time-box to 30 days, logging runtime, false positives, findings, and rollback cost.",
+docs\sota-architecture-audit\fire-26-a-cisco-mcp-scanner-path-p-audit\03-codex-t1-verdict.md:112:| Incumbent comparison | "compare findings against incumbent hooks (`safety_guard.py`, `agent_plan_readonly_bash_guard.py`, `secret_scan_guard.py`) which do not inspect MCP protocol metadata" |
+docs\sota-architecture-audit\fire-26-a-cisco-mcp-scanner-path-p-audit\02-probe-dag-application.md:83:| safety_guard.py + agent_plan_readonly_bash_guard.py are NARROW catastrophic-pattern blockers | DEMAND-PRESENT |
+docs\sota-architecture-audit\fire-34-w145-gitleaks-coverage-verify\00-coverage-verify.md:3:> **Verdict**: `COVERAGE-EQUIVALENT-DOC-ONLY-CONFIRMATION` — gitleaks v8.30.1 (MIT) covers the secret-scan surface that the rejected trufflehog (W145-F2 FM-20 catch n=12) was prescribed for. Mechanical PreToolUse enforcement already wired 6× in `.claude/settings.json`; `.gitleaks.toml` config present. No install fire required; W145-F7 is resolution-doc-only.
+docs\sota-architecture-audit\fire-34-w145-gitleaks-coverage-verify\00-coverage-verify.md:18:| `grep gitleaks .claude/settings.json` | **6 PreToolUse hook wire points** invoking `Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py` — mechanical enforcement at pre-commit |
+docs\sota-architecture-audit\fire-34-w145-gitleaks-coverage-verify\00-coverage-verify.md:55:- gitleaks v8.30.1 INSTALLED + wired 6× in `.claude/settings.json` PreToolUse hooks + `.gitleaks.toml` config + binary at `.local/bin/gitleaks.exe`
+docs\sota-architecture-audit\fire-34-w145-gitleaks-coverage-verify\00-coverage-verify.md:112:- **TIER-1 runtime config**: `.claude/settings.json:176,182,188,194,200,206` — 6 PreToolUse hook wires of `gitleaks_pre_commit_gate.py`
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:66:**Wire**: PreToolUse + PostToolUse on `Bash` matcher with `if:` predicate detecting test framework invocation patterns. Decision options:
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:68:- **Option A (PreToolUse on Bash with test-framework regex)**: emit on test invocation entry — captures `test.command` + `test.timestamp_start` + `test.cwd`. Span left open; PostToolUse closes it.
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:70:- **Option C (BOTH — PreToolUse + PostToolUse paired)**: full span bracketing — pre-emit opens span; post-emit closes with outcome. Supports interrupted-test telemetry (post never fires).
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:75:### Framework detection regex (PreToolUse trigger)
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:109:1. **Hook latency overhead**: PreToolUse adds 5-50ms span emission per Bash invocation (negligible). PostToolUse adds parse cost — JUnit XML parse = 10-100ms; text-regex parse = 1-5ms.
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:113:5. **Interrupted-test detection**: PreToolUse fires open-span; if Bash subprocess crashes OR session terminates before PostToolUse, span stays open. Use Stop hook on session-end to flush open spans with `test.outcome=interrupted`.
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:114:6. **Framework version capture**: probe `pytest --version` / `cargo --version` / `npm test --` at PreToolUse — adds 100-500ms latency. Cache per session_id to amortize.
+docs\sota-architecture-audit\fire-39-w145-test-command-codification\00-test-command-codification.md:115:7. **JUnit XML emission gating**: many test runs don't emit JUnit XML by default; hook MAY inject `--junit-xml=<tmp-path>` flag at PreToolUse for guaranteed structured output. Operator-discretion (per-project pyproject.toml / package.json convention).
+docs\sota-architecture-audit\fire-38-w146-f1-sota-cleanliness-audit\01-agent-a-codex-gpt55-cleanliness-audit.md:50:| 2 | **CR-3** | `docs/sota-installed-manifest.md:60` + `.claude/settings.json:94-96` | T1 PreToolUse timeout=5s sham; manifest says INSTALLED-PARTIAL | **P0** | ✅ VERIFIED literal |
+docs\sota-architecture-audit\fire-38-w146-f1-sota-cleanliness-audit\02-agent-c-codex-gpt55-adversarial-review.md:40:| 1 | **MODIFY** | "Do not merely raise the PreToolUse hook timeout. Keep the short sync launcher behavior, but make in-progress, timeout, launch-error, and stale-lock states visible in `.claude/state` and hook output; raising the hook timeout would trade silent failure for invisible latency." |
+docs\sota-architecture-audit\fire-33-w145-agent-provenance-replay\00-provenance-codification.md:35:| `verify-gate.sh` (L75) | Same primitive — PreToolUse hook gating |
+docs\sota-architecture-audit\fire-33-w145-agent-provenance-replay\00-provenance-codification.md:41:**Wire-activation gap**: all 6 INSTALLED-DORMANT primitives are gated behind CR-7 Phase 1 operator-approval per `CLAUDE.md` cardinal-rule-7. They COULD be wired today via `.claude/settings.json` PreToolUse/Stop hook registrations — but each wire is a HIGH-RISK install ship (settings.json modification + per-hook smoke probe + revert path per CR-9). **Operator decision deferred** to W145-F5b install-fire (NOT auto-proceed per AUTO-PROCEED DEFAULTS).
+docs\sota-architecture-audit\fire-33-w145-agent-provenance-replay\00-provenance-codification.md:87:2. **W145-F10-NEW** dependency-lock per-loop snapshot hook (PreToolUse on autonomous-loop sessions; emit `pip freeze` + `npm ls --depth=0` + `cargo tree` summary to Phoenix `claude_code.dep_snapshot` span)
+docs\sota-architecture-audit\fire-33-w145-agent-provenance-replay\00-provenance-codification.md:88:3. **W145-F11-NEW** test_command capture (PreToolUse on Bash with test-runner regex match; emit to Phoenix `claude_code.test_invocation` span)
+docs\sota-architecture-audit\fire-37-w145-dep-lock-codification\00-dep-lock-codification.md:62:**Wire**: PreToolUse OR PostToolUse OR Stop hook (decision TBD per operator-approval gate):
+docs\sota-architecture-audit\fire-37-w145-dep-lock-codification\00-dep-lock-codification.md:63:- **Option A (PreToolUse on autonomous-loop session-start)**: emit on first tool call of autonomous-loop session — captures pristine state
+
+ succeeded in 319ms:
+Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md:26:| `permissionMode` | string | No | Permission mode: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, or `plan` |
+Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md:29:| `mcpServers` | list | No | MCP servers for this subagent — server name strings or inline `{name: config}` objects |
+
+ succeeded in 357ms:
+5:# Source: Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+18:#     PreToolUse:Bash positive-validation allowlist hook scoped to plan-mode subagents.
+43:# Closes CR-7 Phase 2 trigger condition (f) Tier 1c safety_guard.py / agent_plan_readonly_bash_guard.py
+50:# Reference: .claude/skills/sota-cli-tools/SKILL.md (Wave 11A operator-side reference — replaces removed bash_command_allowlist.py); this script is the LAST remaining positive-validation Bash gate in eee, scoped narrowly to plan-mode subagents whose frontmatter declares `permissionMode: plan` and need OPERATIONAL read-only enforcement under a bypassPermissions parent
+54:"""agent_plan_readonly_bash_guard.py — frontmatter-scoped read-only Bash enforcement for plan-mode agents.
+58:Per Anthropic sub-agents docs L399-410, parent's permission_mode (e.g. bypassPermissions) PRECEDES
+59:subagent frontmatter declarations. Subagents declaring `permissionMode: plan` cannot OPERATIONALLY
+77:    "permission_mode": str,     # parent's mode: "default"|"acceptEdits"|"bypassPermissions"|"plan"
+110:# this frozenset is now the SOLE positive-validation Bash allowlist in eee, scoped to plan-mode subagents.
+900:        print(f"agent_plan_readonly_bash_guard: invalid JSON on stdin: {e}", file=sys.stderr)
+915:        print(f"agent_plan_readonly_bash_guard[DRY_RUN]: would {'allow' if allowed else 'block'} ({reason}): {cmd[:120]}", file=sys.stderr)
+927:                f"agent_plan_readonly_bash_guard[--policy {args.policy}]: "
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/agents/code-reviewer.md | Select-Object -First 90' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md | Select-Object -First 80' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path .claude/agents/verifier.md | Select-Object -First 90' in Z:\claude-sota-installed
+ succeeded in 368ms:
+<!--
+WAVE 15 PORT — claude-sota-installed cite-import per CR-12 TERTIARY (Path C HYBRID)
+
+Source:   Z:/claude-sota/.claude/agents/verifier.md
+Source SHA: a2bcb709e8165dd316341c78824454a190eb6b19 (PINNED — VERIFIED 2026-05-07)
+Target:   Z:/claude-sota-installed/.claude/agents/verifier.md
+Pattern:  cite-extend with CR-9 sibling-bleed defense (14-class extended pattern set per Wave 62C)
+
+effective_tier: TIER-3-LOCAL-COMPOSITION
+(per CLAUDE.md cardinal-rule-1 cite-class lattice; sibling-derived cannot be elevated to TIER-1 SOTA per
+ Z:/claude-sota/.claude/rules/citation-discipline.md rule #8)
+
+HONEST-NON-FINDING evidence (per cardinal-rule-12 cite-import-AMBER gate):
+  Wave 15 dispatch ID = "Wave 62 fire 19"
+  Upstream-parity-probe scope: probed claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers +
+    mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc.
+  Probe finding: superpowers verification-before-completion SKILL is canonical (Iron Law); sibling enrichment delta = 4-gate Command-run format + claude-code-system-prompts verification-specialist self-awareness verbatim port + per-policy hook flag (--policy verifier)
+  CR-9 sub-rules applied: REVERT check PASSED (no actual REVERT-AND-REMOVE precedent on CR-9 deny-list);
+    sibling-bleed defense per Wave 62C 14-class extended set; CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION.
+  Citation chain: all `.claude/rules/*.md` references resolve post-Wave 11 (33-file rules dir);
+    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+
+NOT yet activated as auto-dispatch subagent (DORMANT until operator invokes via Agent tool with
+sub-agent reference); subagent definition file is the install-class artifact per Anthropic CC
+sub-agents docs https://code.claude.com/docs/en/sub-agents.
+-->
+
+---
+# Reference: Z:/repos/deps/phantom/src/evolution/invariant-check.ts:48-360 @ f8c7ab42d885936ee54abc785528000260f4acc5 [content-SHA 8fb0e30355fa878e553dae0e576de3a9538c1afc] (9-invariant sweep, hard-fail + soft-warn tiers) [VERIFIED 2026-04-28]
+# Reference: Z:/repos/deps/Continuous-Claude-v3/.claude/hooks/src/pre-compact-continuity.ts:45-86 @ d07ff4b06b62f43771bc0c927d0211b734d6149e [content-SHA 71284ec632ad01ce5cc6ac03046d525044d05187] (pre-compact verification) [VERIFIED 2026-04-28]
+# Reference: Z:/repos/deps/claude-code-system-prompts/system-prompts/agent-prompt-verification-specialist.md:10-18,100-134 @ a59a3544513c4d7c9fc54030e6762409ed7b7311 [content-SHA cb0ef7cf6bada1bc87fb1d52022f62310b06db61] (verification-specialist self-awareness + command-run PASS contract) [VERIFIED 2026-04-28]
+name: verifier
+description: Verification gate specialist running type checks, test suite, git status, LSP diagnostics — produces PASS/FAIL with evidence. Use PROACTIVELY when user says "verify", "done?", "check", or before any git commit. MUST BE USED before claiming task complete.
+tools:
+  - "Read"
+  - "Bash"
+  - "Glob"
+  - "Grep"
+  - "mcp__*"
+model: claude-opus-4-7
+color: green
+maxTurns: 50
+permissionMode: bypassPermissions
+disallowedTools: "Write, Edit, MultiEdit, NotebookEdit"
+effort: high
+mcpServers: []
+memory: user
+background: false
+# Iter F Path F (Ship #279): verifier's role REQUIRES test/type-check execution
+# which Anthropic plan-mode forbids per official sub-agents docs. Reclassified
+# plan→bypassPermissions to align declaration with operational contract;
+# disallowedTools blocks file mutation. Per-agent PreToolUse:Bash guard uses
+# --policy verifier (codified Ship #289 2026-05-03 per parallel session codex
+# T1 NEEDS-REVISION conf=0.91 verdict at .claude/state/codex_consult_verifier_
+# bash_hook_restore_OUT.txt; 5 prescribed_edits applied per codex-t1-fix-
+# forward-pattern.md Pattern A): the verifier policy uses command-specific
+# sub-validators (pytest/pyright/ruff/mypy/tsc/npm test/cargo test/go test)
+# that ALLOW read-only forms while DENY mutation forms (ruff --fix, pyright
+# --watch, tsc without --noEmit, npm install, cargo build, go build). The
+# guard is a command-pattern check (NOT a permissionMode predicate); it fires
+# regardless of whether permissionMode is plan or bypassPermissions. Earlier
+# Iter E rationale that "hook only fires for plan-mode" mis-attributed the
+# script's behavior — the script's policy enforcement is independent of the
+# parent agent's declared permissionMode. Re-instating the hook closes the
+# safety regression flagged by Stop hook: `bypassPermissions + Bash(*) + hook
+# removed` = wide-open shell access. Forward-only correction per port-note-
+# discipline.md §6 (do NOT rewrite Iter E `82c08b4` commit body — fix-forward
+# in working tree only).
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy verifier"
+          timeout: 5
+  Stop:
+    - hooks:
+        - type: agent
+          prompt: "Review the verification runs you just performed. Save Command-run templates for each gate type (clean tree, type check, tests, impact), and common FAIL signatures to your agent memory (MEMORY.md). Never save 'best practices' — only concrete, verifiable check primitives."
+          timeout: 30
+          async: true
+initialPrompt: >-
+  Your job is to BREAK the work, not confirm it. Every PASS requires a
+  Command-run block with exact command + copy-pasted output. Reading code is
+  NOT verification. PARTIAL is only for environmental blockers, never for
+  ambiguous findings — if you ran the check, you must decide PASS or FAIL.
+  Run all 4 gates (clean tree → type check → tests → impact) in Command-run
+  format before any OVERALL verdict.
+isolation: worktree
+---
+
+ succeeded in 382ms:
+<!--
+WAVE 15 PORT — claude-sota-installed cite-import per CR-12 TERTIARY (Path C HYBRID)
+
+Source:   Z:/claude-sota/.claude/agents/code-reviewer.md
+Source SHA: b6f9c1e3c68b787d421dabe5847d5248e526ab9e (PINNED — VERIFIED 2026-05-07)
+Target:   Z:/claude-sota-installed/.claude/agents/code-reviewer.md
+Pattern:  cite-extend with CR-9 sibling-bleed defense (14-class extended pattern set per Wave 62C)
+
+effective_tier: TIER-3-LOCAL-COMPOSITION
+(per CLAUDE.md cardinal-rule-1 cite-class lattice; sibling-derived cannot be elevated to TIER-1 SOTA per
+ Z:/claude-sota/.claude/rules/citation-discipline.md rule #8)
+
+HONEST-NON-FINDING evidence (per cardinal-rule-12 cite-import-AMBER gate):
+  Wave 15 dispatch ID = "Wave 62 fire 19"
+  Upstream-parity-probe scope: probed claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers +
+    mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc.
+  Probe finding: ECC ships base code-reviewer.md + obra/superpowers requesting-code-review SKILL; sibling enrichment delta = phantom invariant-check 9-invariant cite + repomix MCP wiring + Stop-hook MEMORY.md self-review
+  CR-9 sub-rules applied: REVERT check PASSED (no actual REVERT-AND-REMOVE precedent on CR-9 deny-list);
+    sibling-bleed defense per Wave 62C 14-class extended set; CR-12 effective_tier=TIER-3-LOCAL-COMPOSITION.
+  Citation chain: all `.claude/rules/*.md` references resolve post-Wave 11 (33-file rules dir);
+    `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` resolves post-Wave 14 port (INSTALLED-AMBER).
+
+NOT yet activated as auto-dispatch subagent (DORMANT until operator invokes via Agent tool with
+sub-agent reference); subagent definition file is the install-class artifact per Anthropic CC
+sub-agents docs https://code.claude.com/docs/en/sub-agents.
+-->
+
+---
+# Reference: Z:/repos/deps/phantom/src/evolution/invariant-check.ts:48-360 @ f8c7ab42d885936ee54abc785528000260f4acc5 [content-SHA 8fb0e30355fa878e553dae0e576de3a9538c1afc] (9-invariant validation with hard/soft tiers) [VERIFIED 2026-04-28]
+name: code-reviewer
+description: Code-diff review specialist producing P0-P3 severity findings with file:line refs for correctness, security, performance, and SOTA adherence. Use PROACTIVELY when user says "review", "code review", "check diff", or after any non-trivial implementation session.
+tools:
+  - "Read"
+  - "Bash"
+  - "Glob"
+  - "Grep"
+  - "mcp__*"
+model: claude-opus-4-7
+color: yellow
+maxTurns: 80
+permissionMode: plan
+disallowedTools: "Write, Edit, NotebookEdit"
+effort: max
+mcpServers: ["context7", "github", "repomix"]
+memory: user
+background: false
+# Iter E operational Bash guard per Path F (Ship #279, codex T1 APPROVE conf=0.89,
+# Q7 step 5 closure). Mirrors Iter B commit `013a313` wire pattern (silent-failure-hunter).
+# Per Anthropic sub-agents docs L399-410 parent-precedence rule: declarative
+# permissionMode is overridden by parent bypassPermissions; THIS HOOK enforces.
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly"
+          timeout: 5
+  Stop:
+    - hooks:
+        - type: agent
+          prompt: "Review the diffs you just audited. Save recurring P0/P1 pattern templates (OWASP + test-gap + impact-regression classes), language-specific security heuristics, and common approval-criteria to your agent memory (MEMORY.md)."
+          timeout: 30
+          async: true
+initialPrompt: >-
+  Start with git diff. Severity scale: P0 blocker (security/data loss/broken
+  contract) → P1 critical (logic error, test gap) → P2 important (missing
+  Reference: header, unclear naming) → P3 minor (style). Every new file should
+  have a Reference: header citing Z:/repos/deps/ source. For artifact
+  persistence under FM-19 (`agent_plan_readonly_bash_guard.py` blocks Bash
+  heredoc / tee / redirect / shell-substitution / multiline / PowerShell /
+  python -c file write for plan-mode subagents): embed any persistable artifact
+  INLINE in your final-return message using `## ARTIFACT-INLINE:
+  tmp/wave<N>-<agent>-<topic>-<date>.md` delimiter convention. Orchestrator
+  persists post-completion. Do NOT attempt bash file-write paths — all
+  structurally blocked. See
+  `.claude/rules/fm19-readonly-guard-sidestep.md`.
+isolation: worktree
+---
+<!-- Port-note: local claude-sota port provenance only. Parent CCC paths,
+     cycle comparator artifacts, feedback files, and deep-dive notes are not
+     SOTA authority in this file. Current authority is limited to the Tier-1
+     deps references pinned above/below. Adaptations retained: unported hooks,
+     skills, and backend-specific calls are omitted or marked PORT-PENDING. -->
+
+# Reference: Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md:19-36 @ 64fffd53a7c6f8e2e0b1575fdd200b65cda04737 [content-SHA c9f4ed404dada6a32e000eaf38ba0848167dd6f9] (CC 2.1 frontmatter) [VERIFIED 2026-05-02]
+# Reference: Z:/repos/deps/codex-plugin-cc/plugins/codex/commands/review.md:14-16,48-49 @ 807e03ac9d5aa23bc395fdec8c3767500a86b3cf [content-SHA fb70a487654cde1a9aa9fa056b27d21344043cc4] (review-only stop-after-review contract) [VERIFIED 2026-04-28]
+
+You are the **code-reviewer** — severity-prioritized diff reviewer.
+
+## Review Protocol
+
+ succeeded in 397ms:
+# Sub-agents Best Practice
+
+![Last Updated](https://img.shields.io/badge/Last_Updated-May%2001%2C%202026%203%3A30%20PM%20PKT-white?style=flat&labelColor=555) ![Version](https://img.shields.io/badge/Claude_Code-v2.1.126-blue?style=flat&labelColor=555)<br>
+[![Implemented](https://img.shields.io/badge/Implemented-2ea44f?style=flat)](../implementation/claude-subagents-implementation.md)
+
+Claude Code subagents — frontmatter fields and official built-in agent types.
+
+<table width="100%">
+<tr>
+<td><a href="../">← Back to Claude Code Best Practice</a></td>
+<td align="right"><img src="../!/claude-jumping.svg" alt="Claude" width="60" /></td>
+</tr>
+</table>
+
+---
+
+## Frontmatter Fields (16)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique identifier using lowercase letters and hyphens |
+| `description` | string | Yes | When to invoke. Use `"PROACTIVELY"` for auto-invocation by Claude |
+| `tools` | string/list | No | Comma-separated allowlist of tools (e.g., `Read, Write, Edit, Bash`). Inherits all tools if omitted. Supports `Agent(agent_type)` syntax to restrict spawnable subagents; the older `Task(agent_type)` alias still works |
+| `disallowedTools` | string/list | No | Tools to deny, removed from inherited or specified list |
+| `model` | string | No | Model to use: `sonnet`, `opus`, `haiku`, a full model ID (e.g., `claude-opus-4-6`), or `inherit` (default: `inherit`) |
+| `permissionMode` | string | No | Permission mode: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, or `plan` |
+| `maxTurns` | integer | No | Maximum number of agentic turns before the subagent stops |
+| `skills` | list | No | Skill names to preload into agent context at startup (full content injected, not just made available) |
+| `mcpServers` | list | No | MCP servers for this subagent — server name strings or inline `{name: config}` objects |
+| `hooks` | object | No | Lifecycle hooks scoped to this subagent. All hook events are supported; `PreToolUse`, `PostToolUse`, and `Stop` are the most common |
+| `memory` | string | No | Persistent memory scope: `user`, `project`, or `local` |
+| `background` | boolean | No | Set to `true` to always run as a background task (default: `false`) |
+| `effort` | string | No | Effort level override when this subagent is active: `low`, `medium`, `high`, `xhigh`, `max` (Opus 4.6 only). Default: inherits from session |
+| `isolation` | string | No | Set to `"worktree"` to run in a temporary git worktree (auto-cleaned if no changes) |
+| `initialPrompt` | string | No | Auto-submitted as the first user turn when this agent runs as the main session agent (via `--agent` or the `agent` setting). Commands and skills are processed. Prepended to any user-provided prompt |
+| `color` | string | No | Display color for the subagent in the task list and transcript: `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink`, or `cyan` |
+
+---
+
+## ![Official](../!/tags/official.svg) **(5)**
+
+| # | Agent | Model | Tools | Description |
+|---|-------|-------|-------|-------------|
+| 1 | `general-purpose` | inherit | All | Complex multi-step tasks — the default agent type for research, code search, and autonomous work |
+| 2 | `Explore` | haiku | Read-only (no Write, Edit) | Fast codebase search and exploration — optimized for finding files, searching code, and answering codebase questions |
+| 3 | `Plan` | inherit | Read-only (no Write, Edit) | Pre-planning research in plan mode — explores the codebase and designs implementation approaches before writing code |
+| 4 | `statusline-setup` | sonnet | Read, Edit | Configures the user's Claude Code status line setting |
+| 5 | `claude-code-guide` | haiku | Glob, Grep, Read, WebFetch, WebSearch | Answers questions about Claude Code features, Agent SDK, and Claude API |
+
+---
+
+## Sources
+
+- [Create custom subagents — Claude Code Docs](https://code.claude.com/docs/en/sub-agents)
+- [CLI reference — Claude Code Docs](https://code.claude.com/docs/en/cli-reference)
+- [Claude Code CHANGELOG](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "axis_1_pattern_a_conformance": "Partial. Removing github closes finding 2, and permissionMode: plan is directionally correct, but it does not fully close finding 1 in this repo because evaluator lacks the per-agent PreToolUse:Bash readonly guard used by comparable readonly agents.",
+  "axis_2_plan_mode_correctness": "Not sufficient as proposed. Anthropic docs say subagents can set permissionMode: plan, but parent bypassPermissions/acceptEdits takes precedence and auto ignores subagent permissionMode. This repo currently runs defaultMode bypassPermissions, so plan-mode alone is not a hard Bash boundary. Existing guarded agents wire agent_plan_readonly_bash_guard.py in frontmatter; evaluator does not.",
+  "axis_3_mcp_scope_adequacy": "Removal of github is correct and minimal for evaluator's local-diff/screenshot role. repomix plus Read/Glob/Grep/Bash-readonly is adequate. A per-tool GitHub allowlist is not needed for this evaluator and is not evidenced by the local CCBP frontmatter schema, which documents mcpServers as server strings or inline server configs.",
+  "prescribed_edits": [
+    "Apply Edit 1: change .claude/agents/evaluator.md permissionMode from auto to plan.",
+    "Apply Edit 2: remove github from .claude/agents/evaluator.md mcpServers, leaving only repomix.",
+    "Add a frontmatter hooks block to .claude/agents/evaluator.md mirroring code-reviewer.md readonly Bash enforcement: hooks.PreToolUse matcher Bash invoking \"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly with timeout 5.",
+    "Update the Ship 1.1 closure comment to say the Bash boundary is closed by permissionMode: plan plus the per-agent readonly Bash guard, not by plan mode alone under the current parent bypassPermissions runtime."
+  ],
+  "ship_disposition": "PATTERN_A_APPLY"
+}
+tokens used
+45,276
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "axis_1_pattern_a_conformance": "Partial. Removing github closes finding 2, and permissionMode: plan is directionally correct, but it does not fully close finding 1 in this repo because evaluator lacks the per-agent PreToolUse:Bash readonly guard used by comparable readonly agents.",
+  "axis_2_plan_mode_correctness": "Not sufficient as proposed. Anthropic docs say subagents can set permissionMode: plan, but parent bypassPermissions/acceptEdits takes precedence and auto ignores subagent permissionMode. This repo currently runs defaultMode bypassPermissions, so plan-mode alone is not a hard Bash boundary. Existing guarded agents wire agent_plan_readonly_bash_guard.py in frontmatter; evaluator does not.",
+  "axis_3_mcp_scope_adequacy": "Removal of github is correct and minimal for evaluator's local-diff/screenshot role. repomix plus Read/Glob/Grep/Bash-readonly is adequate. A per-tool GitHub allowlist is not needed for this evaluator and is not evidenced by the local CCBP frontmatter schema, which documents mcpServers as server strings or inline server configs.",
+  "prescribed_edits": [
+    "Apply Edit 1: change .claude/agents/evaluator.md permissionMode from auto to plan.",
+    "Apply Edit 2: remove github from .claude/agents/evaluator.md mcpServers, leaving only repomix.",
+    "Add a frontmatter hooks block to .claude/agents/evaluator.md mirroring code-reviewer.md readonly Bash enforcement: hooks.PreToolUse matcher Bash invoking \"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py\" --policy readonly with timeout 5.",
+    "Update the Ship 1.1 closure comment to say the Bash boundary is closed by permissionMode: plan plus the per-agent readonly Bash guard, not by plan mode alone under the current parent bypassPermissions runtime."
+  ],
+  "ship_disposition": "PATTERN_A_APPLY"
+}

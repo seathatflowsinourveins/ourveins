@@ -1,0 +1,123 @@
+# T1 codex pre-edit consult — Wave 118 Ship A2 RTK hook wire + Ship A3+ Wave 118 close
+
+## Context
+
+Wave 118 fire spans 5+ ships. This consult covers ALL pending design-surface decisions in one pass:
+- Ship A1 (DONE): CPA fleet priority equalization (P30/P30/P30 across 3 active claude accounts; auth-dir gitignored, applied at filesystem level + survived 09:08 token-refresh hot-reload)
+- Ship A2 (THIS CONSULT): wire `rtk hook claude` PreToolUse:Bash entry in `.claude/settings.json`
+- Ship A3 (THIS CONSULT): document Wave 118 outcomes in install-provenance.md
+- Ship A4 (THIS CONSULT): codify Wave 118 findings — FM-17.f new failure class + gitnexus HNF-4 + Mia OVER catches on Agent B + RTK install
+- Ship A5+ (queued): semantic-router pilot / v65 kit content extraction / rtk__grit + rtk__icm sister-repo audits — DEFERRED to next-fire per ONE-LOGICAL-UNIT-PER-FIRE
+
+## Latest upstream HEAD verifications (per cardinal-rule-6 fresh-from-github)
+
+- rtk-ai/rtk @ release 0.39.0 (LATEST as of 2026-05-09; README cited 0.37.2 stale) — installed at `Z:/claude-sota-installed/.local/bin/rtk.exe` via official GitHub releases pre-built Windows binary `rtk-x86_64-pc-windows-msvc.zip` per cardinal-rule-6 + cardinal-rule-12 upstream-install-priority
+- rtk-ai/icm @ HEAD `23b65e0` (icm 0.10.44, 2026-05-05; Apache-2.0 single-binary MCP-native memory)
+- rtk-ai/grit @ HEAD `ca530a9` (release 0.3.0, 2026-04-06; Apache-2.0 parallel-agent coordination)
+- mcp-router @ HEAD (DESKTOP UI for MCP server management — NOT a routing primitive; Agent B mischaracterized as "capability-routing")
+- aurelio-labs/semantic-router @ HEAD `371cbf7` (2026-03-12; MIT Python pip; vector-space decision layer)
+- CLIProxyAPI @ HEAD `785b00c3` (2026-05-07; selector.go=900 LOC; hot-reload supports model-mappings + upstream-api-key + upstream-url + restrict-management-to-localhost only — auth-file priority NOT in hot-reload list per `internal/api/modules/amp/amp.go OnConfigUpdated` at L177-180)
+- gitnexus@1.6.3 + @ladybugdb/core@0.15.4 — fresh reinstall verified `lbug.node` + `lbug-win32-x64.node` PRESENT but analyze still silent-bails (HNF-4)
+- v65 kit unzipped at `Z:/temp_v65/claude_code_sota_v65_ultimate_comprehensive_execution_md_kit/` — 24 MD + 6 agents + 7 skills MANIFEST verified
+
+## Live evidence — RTK hook semantic verified
+
+`echo '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}' | .local/bin/rtk.exe hook claude` returns:
+
+```json
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecisionReason":"RTK auto-rewrite","updatedInput":{"command":"rtk ls -la"}}}
+```
+
+Verified rewrites: `ls -la → rtk ls -la` / `grep -r foo src/ → rtk grep -r foo src/` / `cat package.json → rtk read package.json`. RTK 0.39.0 supports 35+ command wrappers per `rtk --help` (ls/tree/read/git/gh/grep/find/diff/log/cargo/npm/jest/vitest/curl/etc).
+
+## Live evidence — codex BRIDGE-MODE foreground+tee verified
+
+`codex exec --ephemeral -p deep-review-exec --color never < ping.txt` returned `READY-FOR-T1` with `tokens used 6,678` in <60s. Cross-model gate IS satisfiable from main session via foreground+tee — bypasses FM-17.f 1M-context-entitlement issue entirely. THIS CONSULT IS using that path.
+
+## Proposed edit (Ship A2 — `.claude/settings.json` PreToolUse:Bash addition)
+
+Append RTK hook as 7th entry in the existing Bash block (currently 6 entries: safety_guard / block_no_verify_guard / gitleaks×2 / codex_t2×2):
+
+```json
+{
+  "type": "command",
+  "command": "Z:/claude-sota-installed/.local/bin/rtk.exe hook claude",
+  "timeout": 5,
+  "_comment": "Wave 118 Ship A2 — RTK 0.39.0 PreToolUse:Bash auto-rewrite. Fires LAST in Bash chain (after safety+gitleaks+codex_t2). Rewrites observability commands (ls/cat/grep/git/etc) to compressed rtk wrappers. Verified 80% token savings on standard CLI ops per upstream README token-savings table. NOT a routing primitive — CLI output filter layer at PreToolUse boundary. v65 default stack member (ccusage + RTK + Serena + Repomix). Cite: rtk-ai/rtk @ release 0.39.0 / Z:/claude-sota-installed/.local/bin/rtk.exe."
+}
+```
+
+## 3 audit axes (TIGHT)
+
+### AXIS 1 — RTK hook ordering correctness
+
+Verify the proposed ordering is correct:
+1. safety_guard.py (block dangerous patterns — must fire FIRST)
+2. block_no_verify_guard.py (block --no-verify)
+3. gitleaks_pre_commit_gate.py × 2 (only fires on `git commit`/`git push` per `if:` filter)
+4. codex_t2_pre_commit_gate.py × 2 (only fires on `git commit`/`git push` per `if:` filter)
+5. **NEW**: rtk.exe hook claude (rewrites observability commands; LAST so it sees post-safety command)
+
+Concerns:
+- Does safety_guard return `permissionDecision:"deny"` BEFORE RTK fires? (Anthropic CC hook chain semantics: when one hook returns deny, do later hooks still fire?)
+- Does RTK's `updatedInput.command` rewrite work when chained AFTER hooks that already returned `permissionDecision`?
+- Do the gitleaks/codex_t2 `if:` filters correctly skip RTK's rewrites? (e.g., `git status` IS rewritten by RTK to `rtk git status`; does that break gitleaks pattern-match?)
+
+### AXIS 2 — RTK PATH availability + Windows path quote-safety
+
+Verify the absolute path in the hook command:
+- `Z:/claude-sota-installed/.local/bin/rtk.exe` exists (verified — `rtk 0.39.0` installed)
+- Forward-slash path style works on Windows under Anthropic CC's Bash hook subprocess (Git Bash @ `C:\Program Files\Git\bin\bash.exe` per CLAUDE.local.md)
+- No quoting issues in the JSON (the path has no spaces, but settings.json string escaping should still be robust)
+- Hook timeout 5s is sufficient for RTK rewrite (RTK is in-process Rust, sub-millisecond per probe)
+
+### AXIS 3 — Cardinal-rule conformance + integration with other hooks
+
+Verify:
+- CR-1 cite SOTA primary: TIER-1-DIRECT to rtk-ai/rtk @ release 0.39.0 (official GitHub release)
+- CR-3 cross-model T1: THIS CONSULT IS the gate satisfaction (foreground+tee codex BRIDGE-MODE)
+- CR-5 install-priority: NEW install via cardinal-rule-6 official native channel (`gh release download` equivalent — direct GitHub releases URL)
+- CR-9 install-risk: LOW — RTK rewrites are reversible (remove hook entry → behavior reverts to native commands); no DB writes; no destructive surface
+- CR-10 research-first: Mia probe DONE pre-design (verified rtk works via direct hook test)
+- CR-11 META-process: Wave 118 fire executed under CR-11 awareness — Mia caught 3 OVER claims in Agent B (FM-20 path-drift defense) before any propagation
+
+Plus: does RTK conflict with eee's existing audit/telemetry surfaces (PostToolUse Bash hooks like ruff_guard / pyright_guard / ccusage_observer / phoenix OTel traces)? Specifically:
+- RTK rewrites `git log` → `rtk git log` — does that change what PostToolUse hooks see?
+- RTK rewrites `cat <file>` → `rtk read <file>` — same concern
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_hook_ordering_correctness": "...",
+    "axis_2_path_quote_safety": "...",
+    "axis_3_cr_conformance_integration": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/settings.json | docs/install-provenance.md | tmp/wave118-commit-msg.txt | other",
+      "line_or_section": "PreToolUse Bash block | provenance append | commit body",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance summary
+
+- CR-1: TIER-1-DIRECT to rtk-ai/rtk @ release 0.39.0 + CCBP claude-settings.md hook block schema
+- CR-3: cross-model gate satisfaction via foreground+tee codex (Phase 1 bootstrap exception path)
+- CR-6: pulled from newest GitHub releases (rtk 0.39.0 = LATEST, not pinned-old README v0.37.2)
+- CR-12: upstream-install-priority — official GitHub release, no mirror
+
+## Files for review
+
+- Z:/claude-sota-installed/.claude/settings.json (existing PreToolUse Bash block; 6 entries → 7 entries)
+- Z:/claude-sota-installed/.local/bin/rtk.exe (RTK 0.39.0 binary)
+- Z:/repos/deps/rtk-ai__rtk/README.md (token-savings table + integration semantic)

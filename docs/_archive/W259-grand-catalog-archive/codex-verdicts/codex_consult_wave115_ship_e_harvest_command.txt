@@ -1,0 +1,99 @@
+# T1 codex pre-commit consult — Wave 115 Ship 2N-batch3-MEM-CAPTURE /harvest slash command
+
+## Context
+
+Wave 113 codex T1 e2e on /recall slash command surfaced full mcp-memory-service v10.51.3 runtime tool surface (10+ tools advertised) including `memory_harvest` — "Extract learnings from Claude Code session transcripts". Wave 113 close-synthesis at `docs/install-provenance.md:9119-9224` queued Ship 2N-batch3-MEM-CAPTURE as Wave 115 candidate; this fire ships it.
+
+Per Wave 113 close-synthesis + cardinal-rule-12 upstream-install-priority: NO new install needed; `mcp__memory__memory_harvest` MCP tool ALREADY advertised in runtime per `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` Tool definition. Plus full `harvest/` Python pipeline (SessionHarvester + TranscriptParser + PatternExtractor + HarvestClassifier + HarvestCandidate/Result/Config models).
+
+Symmetric to Wave 113 `/recall` slash command D — `/harvest` is the CAPTURE companion (operator-invoked CAPTURE surface).
+
+## Proposed edit (NEW file at `.claude/commands/harvest.md`)
+
+The file content is the slash command spec. ~120 LOC. Already written via Write tool (T1-WARN gate noted but proceeding per CR-3 Phase 1 bootstrap exception with this explicit foreground T1).
+
+Key design choices (mirrors Wave 113 /recall Pattern A-corrected template):
+1. Frontmatter: `description` + `argument-hint` + `disable-model-invocation: true` + `allowed-tools: [mcp__memory__memory_harvest]`
+2. Operator-invoked only (Probe 5 PASS for eee single-user /loop autonomous)
+3. SAFETY DEFAULT: `dry_run: true` — preview only; operator MUST pass `--apply` for actual DB writes
+4. Anti-pattern note: "DO NOT invoke /harvest --apply from inside autonomous /loop ticks"
+5. Companion ships queued (skill C / hook E for Wave 116-117)
+
+## 3 audit axes (TIGHT per codex-t1-fix-forward-pattern.md Pattern A)
+
+### AXIS 1 — Anthropic CC slash command spec compliance
+
+The file lives at `.claude/commands/harvest.md`. Verify the frontmatter shape against the canonical Anthropic CC spec at `https://code.claude.com/docs/en/slash-commands` + `https://code.claude.com/docs/en/agent-sdk/slash-commands`:
+
+- Mirrors Wave 113 /recall frontmatter (Pattern A-corrected): `description` + `argument-hint` + `disable-model-invocation: true` + `allowed-tools` as YAML list
+- Single tool in allowed-tools: `mcp__memory__memory_harvest`
+- Body uses `$ARGUMENTS` placeholder convention in prose (no required `## $ARGUMENTS` heading)
+
+Are there frontmatter fields I should add OR drop? Is `disable-model-invocation: true` the right choice for an operator-only CAPTURE surface (vs operator-only RECALL where /recall used same)? Any difference for CAPTURE vs RECALL surfaces?
+
+### AXIS 2 — memory_harvest MCP integration semantic correctness
+
+The slash command instructs Claude to invoke `mcp__memory__memory_harvest` with parsed args. Verify against runtime spec at `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057`:
+
+- Tool name `memory_harvest` (CC tool ref `mcp__memory__memory_harvest`) — confirmed via my earlier probe
+- Param shape: `sessions` (int default 1) / `session_ids` (array<string>) / `types` (array<enum decision/bug/convention/learning/context>) / `min_confidence` (number default 0.6) / `dry_run` (bool default TRUE) / `project_path` (string) / `use_llm` (bool default false; requires GROQ_API_KEY)
+- Slash command param mapping correctness:
+  - `--sessions N` → `sessions: <N>`
+  - `--session-ids <id1,id2>` → `session_ids: ["<id1>", "<id2>"]`
+  - `--types decision,bug` → `types: ["decision", "bug"]` filtered to enum
+  - `--min-confidence 0.7` → `min_confidence: 0.7`
+  - `--apply` → `dry_run: false` (overrides default TRUE)
+  - `--project-path <path>` → `project_path: "<path>"`
+- DELIBERATELY OMITTED: `use_llm: true` per "do NOT pass without GROQ_API_KEY" — eee has no Groq key set; default false honored
+
+Is the `--apply` semantic (override `dry_run: true` → `dry_run: false`) clear enough? Does the safety default match upstream intent? Any param mapping I got wrong?
+
+### AXIS 3 — Probe 5 mode-harness-shape verdict for eee + symmetric to /recall
+
+eee is single-user /loop autonomous. Cron `5e0c7efb` `*/15 * * * *` re-enters with same prompt context. Wave 113 /recall slash command shipped operator-invoked-only + `disable-model-invocation: true` per Probe 5 PASS.
+
+For /harvest specifically:
+- `dry_run: true` default vs `dry_run: false` opt-in via `--apply` — is this the right safety shape?
+- Risk: if /loop tick prompt CONTAINS the literal `/harvest --apply` (e.g., when documenting the design in commit body OR provenance OR when the cron prompt mentions "harvest"), would this accidentally fire?
+- Per Wave 113 codex T1 finding: "Anthropic commands are only recognized at the start of a message, so inline prose or commit-body mentions of `/harvest` should not dispatch. A `/loop` tick whose prompt starts with `/recall` could still explicitly invoke the command; no frontmatter field mechanically blocks user/SDK slash-command dispatch at message start."
+- For /harvest with `--apply` (destructive — writes to memory DB), is the operator-discipline anti-pattern note SUFFICIENT, OR should the slash command have additional safety (e.g., require an explicit confirmation token like `--apply-confirmed`)?
+- Companion ships queued: skill `mem-harvest` (Wave 116) + Stop hook auto-harvest (Wave 117) — should the slash command's design ANTICIPATE these (e.g., shared param-parsing helper) OR keep them strictly separate?
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_cc_spec_compliance": "...",
+    "axis_2_mcp_integration_correctness": "...",
+    "axis_3_probe_5_mode_harness": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".claude/commands/harvest.md",
+      "line_or_section": "frontmatter | body | both",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance + cite trail
+
+- CR-1 cite SOTA primary: TIER-1-DIRECT to Anthropic CC slash command spec + mcp_memory_service runtime tool surface at server_impl.py:1979-2057
+- CR-3 cross-model T1: this consult IS the gate satisfaction (T1-WARN already fired; explicit foreground+tee codex e2e per Phase 1 bootstrap exception)
+- CR-5 install-priority: NEW slash command file (NOT new install — uses EXISTING `mcp__memory__memory_harvest` advertised in v10.51.3 runtime)
+- CR-9 install-risk: LOW-RISK reversible (operator-invoked + dry_run TRUE default + --apply opt-in)
+- CR-12 upstream-install-priority: HONEST-NON-FINDING per Wave 113 Plan agent — no upstream Anthropic-OFFICIAL `/harvest` skill exists; sibling-novel composition over TIER-1 substrates per `citation-discipline.md` rule #8
+
+## Files for review
+
+- `.claude/commands/harvest.md` (NEW, ~120 LOC) — verbatim content via Read tool from absolute path
+- Companion: `.claude/commands/recall.md` (Wave 113 Pattern A-corrected; symmetric design pattern)
+- Upstream cite: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py:1979-2057` for `memory_harvest` Tool spec
+- Upstream pipeline: `Z:/venvs/claude/Lib/site-packages/mcp_memory_service/harvest/` for SessionHarvester + 5-type extraction modules

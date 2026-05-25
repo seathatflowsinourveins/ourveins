@@ -1,0 +1,72 @@
+## W154 F3 V2 — Designer audit of cli_path_audit hook (Phase 4 lock-discipline)
+
+### Operator standing /loop cron `cc8c59a9` (verbatim)
+"5m full deep dive ... make sure you as run time using all the sota command seamlessly, cli tools, docker command, coding language, terminal command and more ... continue enhance, native install, optimize your architecture"
+
+### Context (DIAGNOSIS — facts only)
+- W154 F1 SHIPPED `6ea25b4` (gitignore leak-defense + codex Z install)
+- W154 F2 SHIPPED `d89d9c4` (install-path.ps1 Probe 6 codex Z-shadow PATH-fix)
+- W154 F2 V3 ADVERSARIAL deferred: scripts/cli_path_audit.py Phase 4 lock-discipline
+- F3 baseline probe: 22 CLIs on C: (gh, codex(symlink), gitnexus, lefthook, node, npm, bun, cargo, rustc, python, uv, uvx, pipx, docker, rg, jq, fd, bat, eza, delta, fzf, ast-grep) vs 7 CLIs at Z (claude-sibling, semgrep, gitleaks, mise, typos, osv-scanner, pre-commit) — 76% non-Z violation of CR-5/6 + operator "all native install indisk z"
+- Existing audit-script primitives in .claude/hooks/scripts/:
+  - `fm20_path_drift_lint.py` (124 LOC; PreToolUse:Agent; uses `_observation_writer.append_observation`; emits to `observations.jsonl`)
+  - `codex_failure_audit.py` (81 LOC; PostToolUseFailure; uses `utils.log_swallow`; emits to `codex_failure_audit.jsonl`; cite-import-AMBER from sibling)
+  - `process_hygiene_audit.py` (sister; emits `process_hygiene_audit.jsonl`)
+- NO existing `cli_path_audit.py` or `path-conformance` audit primitive
+- Sister disciplines: `audit-action-loop.md` Wire/Surface/Close/Re-fire 4-stage + `Z:/claude-sota/.claude/rules/layered-gates-architecture.md §6 Layer 3` (PostToolUse audit-trail + fail-open + async)
+
+### Audit dimensions (5 — JSON-strict verdict at EOF; no narrative essay)
+
+**Q1 (KISS-DRY-YAGNI Must-Never #4)**: Is `cli_path_audit.py` a duplicate of any existing primitive? List the CLOSEST sibling that already does this OR confirm no overlap.
+
+**Q2 (HOOK EVENT)**: Which CC hook event(s) should trigger this audit?
+- Option A: `SessionStart` only — runs once per session (cheap; surfaces at session boot)
+- Option B: `PostToolUse Bash(install* OR npm install OR cargo install)` only — runs after install events (catches drift at the moment it's introduced)
+- Option C: BOTH — SessionStart for state baseline + PostToolUse for drift detection (most comprehensive; risk of duplication)
+- Option D: `Stop` hook — runs at session end (captures end-state)
+- Option E: another approach
+
+**Q3 (SCHEMA)**: What's the minimum-viable JSONL record schema? Recommend fields:
+- Required: ts, cli_name, resolved_path, scope (Z|C|N), cr5_6_status (PASS|FAIL|N/A)
+- Optional: tier (A=load-bearing, B=build, C=utility, D=python, E=docker), expected_path, drift_class
+- What's the `any_drift: true` predicate (per audit-action-loop discipline)?
+
+**Q4 (CLI INVENTORY SCOPE)**: How many CLIs to audit?
+- Tight (8): only load-bearing (codex, gh, lefthook, gitnexus, claude, node, python, docker)
+- Medium (15): load-bearing + build tools (add npm, bun, cargo, rustc, uv, uvx, pipx)
+- Wide (29): all currently-tracked CLIs (load-bearing + build + utilities + python + docker)
+- Operator recommendation?
+
+**Q5 (CYCLE-300 ATOMIC SHIP)**: For F3 specifically, what is the SMALLEST atomic ship?
+- Ship-1: script only (no hook wire; manual invocation)
+- Ship-2: script + SessionStart wire only (additionalContext display)
+- Ship-3: script + PostToolUse wire only (drift detection at install events)
+- Ship-4: script + BOTH hooks
+- Ship-5: HONEST-NON-FINDING / DEFER (existing primitives suffice; no script needed)
+
+### Cite anchors (TIER-1-DIRECT or constituents-form per CR-1 rule #8 lattice)
+- Sister script style: `.claude/hooks/scripts/codex_failure_audit.py` + `.claude/hooks/scripts/fm20_path_drift_lint.py`
+- audit-action-loop discipline: `Z:/claude-sota/.claude/rules/audit-action-loop.md` (cite-import-AMBER per CLAUDE.md Section 14.5)
+- Layer 3 PostToolUse: `Z:/claude-sota/.claude/rules/layered-gates-architecture.md §6` (cite-import-AMBER)
+- CC hook events: `https://code.claude.com/docs/en/hooks` (TIER-1 OFFICIAL)
+
+### JSON-STRICT VERDICT SCHEMA (emit at EOF — no extra prose)
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT | PAUSE-FOR-ROOT-CAUSE",
+  "confidence": 0.85,
+  "q1_kiss_dry_yagni_check": "PASS | FAIL",
+  "q1_closest_sibling": "<path or NONE>",
+  "q2_hook_event": "A | B | C | D | E",
+  "q2_rationale": "<one-sentence>",
+  "q3_schema_required_fields": ["ts", "cli_name", "..."],
+  "q3_drift_predicate": "<one-line>",
+  "q4_inventory_scope": "TIGHT-8 | MEDIUM-15 | WIDE-29",
+  "q5_atomic_ship": "Ship-1 | Ship-2 | Ship-3 | Ship-4 | Ship-5",
+  "prescribed_edits": [
+    {"file": "<path>", "loc_delta": "+/-N", "summary": "<≤80 chars>"}
+  ],
+  "operator_recommendation": "<one-line>",
+  "fm_class_risks": ["FM-XX: <risk>"]
+}
+```

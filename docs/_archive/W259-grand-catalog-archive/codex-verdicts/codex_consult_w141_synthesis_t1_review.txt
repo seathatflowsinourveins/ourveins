@@ -1,0 +1,88 @@
+# Wave 141 Fire 1 — synthesis adversarial T1 review
+
+You are codex GPT-5.5 acting as adversarial reviewer per cross-model-consensus.md
+T1 lifecycle. Single-claim audit on Wave 141 Fire 1 synthesis disposition.
+JSON-at-EOF.
+
+## Context — 3-voice agent team returns
+
+### Voice 1 (Path P codex T1 — REAL GPT-5.5 v0.130.0)
+- VERDICT: NEEDS-REVISION conf=0.89, 5 prescribed_edits
+- KEY: Tool name is `search_nodes` NOT `search_memory_nodes` (per `graphiti_mcp_server.py:407 @ HEAD c427615`)
+- Refined to 4-step probe spec (added Step 3 `get_status` for DB wire health)
+- 8 hidden failure modes incl OpenAIClient vs OpenAIGenericClient structured-output risk per `README.md:521 @ HEAD c427615`
+- Embedding provider concern: real LLM/embedder must be exercised for PASS classification
+
+### Voice 2 (sota-researcher subagent — Sonnet stand-in, executed smoke probe)
+- VERDICT: PASS conf=0.91 (Steps 1+2+3 PASS; Step 4 PARTIAL on subprocess stdio EOF)
+- 9 tools confirmed: add_memory / search_nodes / search_memory_facts / delete_entity_edge / delete_episode / get_entity_edge / get_episodes / clear_graph / get_status (per Voice 1 correction VERIFIED)
+- LiteLLM proxy at port 11700 (NOT Ollama 11434) — both qwen3.6:35b LLM + qwen3-embedding:0.6b embedder resolved; FalkorDB 30 indices verified
+- Step 4 PARTIAL: `add_memory` returned `isError:false` with `Episode '...' queued for processing in group 'eee'`; subprocess stdio EOF terminated server before async background queue worker persisted episode
+- 0 nodes across 4 FalkorDB graph keyspaces post-probe
+- 5 Mia OVERs caught
+- 4 hidden failure modes documented:
+  - HFM-1: smoke-probe-pattern incompatible with async-queue (real client holds stdio open)
+  - HFM-2: `FALKORDB_DATABASE` env unused with `--group-id` — REFUTES Wave 140 Voice 3 collision-mitigation `default_db→eee_db` rename
+  - HFM-3: embedder dimension unverified
+  - HFM-4: `--embedder-provider` flag absent but defaults correctly
+- 7 recommendations (R-1 through R-7); R-1 = mark `INSTALLED-AMBER` with concrete-evidence
+- Cite trail: `tmp/wave141-voice2-graphiti-smoke-2026-05-10.md` (470 LOC ARTIFACT-INLINE)
+
+### Voice 3 (architect subagent — Sonnet stand-in)
+- DESIGN: APPROVE-FOR-IMPLEMENTATION conf=0.88
+- 3 Variant Manifest text spec (A INSTALLED / B PARTIAL-blocker / C PARTIAL-FAIL)
+- Provenance skeleton ~190 LOC mirroring Wave 140 Fire 1 shape
+- **Option B DEFER on `default_db`→`eee_db`** — CONVERGES with Voice 2 R-2 DROP via DEMAND-ABSENCE Probe 7.a; sibling `.mcp.json:49-69` does NOT wire Graphiti FalkorDB; source-read confirms `default_db` hardcoded at `src/config/schema.py:191 @ HEAD c427615` + `factories.py:425-438` does NOT read `FALKORDB_DATABASE` env (only URI+PASSWORD); KISS-DRY-YAGNI Must-Never #4
+- Roll-back path: standard `git revert`
+- CR conformance: all 8 CRs PASS
+- FM-20 cascade closure: 2/5 fully closed, 1/5 conditional, 2/5 deferred
+- 8 Mia OVERs preempted (Mia ladder advance n=170→n=178)
+- Cite trail: `tmp/wave141-voice3-architect-status-flip-2026-05-10.md` (~400 LOC ARTIFACT-INLINE)
+
+## Orchestrator-side proposed disposition
+
+Per Voice 2 R-1 + Voice 3 Variant flexibility, override variant set with **INSTALLED-AMBER** (between Voice 3's Variant A and B):
+
+> "**INSTALLED-AMBER** — Wave 141 Fire 1 smoke probe Steps 1+2+3 PASS [VERIFIED via Wave 141 Voice 2 smoke probe at tmp/wave141-voice2-graphiti-smoke-2026-05-10.md]: clean-boot 6.97s + 9 MCP tools registered + FalkorDB 30 indices verified + LiteLLM resolves qwen3.6:35b LLM + qwen3-embedding:0.6b embedder. **Step 4 PARTIAL** on subprocess stdio EOF before async queue worker persisted episode (NOT runtime defect — real Claude Code client holds stdio pipe open for full session); E2E persistence assertion DEFERRED to live `claude` session restart. Wave 140 Voice 3 collision-mitigation `default_db`→`eee_db` REFUTED via Wave 141 Voice 2 HFM-2: `FALKORDB_DATABASE` env unused; routing is `--group-id`. Per Probe 7.a DEMAND-ABSENCE (sibling does not wire Graphiti) + Voice 3 Option B DEFER + KISS-DRY-YAGNI Must-Never #4."
+
+## Files to ship in Wave 141 Fire 1 commit
+
+1. `docs/sota-installed-manifest.md` §4 row 102 status text: `PARTIAL — wire-blocked on Docker daemon DOWN` → `INSTALLED-AMBER` per above text
+2. `docs/install-provenance.md` Wave 141 Fire 1 entry append (~190 LOC per Voice 3 skeleton)
+3. `.claude/projects/Z--claude-sota-installed/memory/MEMORY.md` Wave 141 Fire 1 entry prepend (gitignored — orchestrator-side post-commit)
+4. `.claude/projects/Z--claude-sota-installed/memory/reference_w141_fire1_close_synthesis_2026_05_10.md` NEW Layer-3 wiki (gitignored)
+
+NOT shipping: `.mcp.json` edit (Voice 2+Voice 3 converge: collision-mitigation DROP/DEFER per HFM-2). NOT shipping: collision-mitigation rename.
+
+## Single-claim audit
+
+CLAIM: "The Wave 141 Fire 1 disposition (INSTALLED-AMBER + DROP collision-rename + close 2/5 FM-20 cascade surfaces) is sufficient + necessary to faithfully report Voice 2 smoke probe evidence WITHOUT propagating false-claim risk into manifest, sibling .mcp.json, or future Wave 142+."
+
+Specifically classify:
+- (a) Is INSTALLED-AMBER the right classification (vs Voice 3 Variant A INSTALLED or Variant B PARTIAL-blocker)? Y/N
+- (b) Is DROP collision-rename verified by HFM-2 evidence (factories.py:425-438 does NOT read FALKORDB_DATABASE) — robust enough to close, OR is there a path where collision still bites later?
+- (c) Are the 2/5 FM-20 cascade surfaces (MEMORY.md + manifest L102) genuinely closed by this Wave 141 ship, OR are there propagation surfaces I'm missing?
+- (d) Hidden failure modes the disposition misses: factories.py:425-438 read concern (Voice 1 OpenAIClient vs OpenAIGenericClient — does this affect runtime structured-output if Step 4 fires under real client)?
+
+## Output format (MANDATORY JSON at EOF)
+
+After analysis, emit final verdict as single JSON object on LAST line. Schema:
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "selected_disposition": "INSTALLED-AMBER | INSTALLED | PARTIAL | DEFER-WAVE-142",
+  "voice_assessment": {
+    "voice_1_correction_holds": true,
+    "voice_2_pass_partial_holds": true,
+    "voice_3_option_b_defer_holds": true
+  },
+  "collision_mitigation_drop_robust": true,
+  "fm20_cascade_close_count_correct": true,
+  "hidden_concerns": ["..."],
+  "prescribed_edits": ["..."]
+}
+```
+
+Be terse. ~30 LOC reasoning before JSON. Cite primary sources at file:line + HEAD SHA.

@@ -1,0 +1,210 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 65361fcf88cfdb09f3df62d0047f594aadeb179d</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/codex_postcommit_review.py |  7 ++++-
+ .claude/hooks/scripts/codex_review_queue.py      | 25 +++++++++++++--
+ docs/install-provenance.md                       | 39 ++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit 65361fcf88cfdb09f3df62d0047f594aadeb179d
+Author:     42 <42@local>
+AuthorDate: Tue May 12 22:44:05 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 22:44:05 2026 -0400
+
+    feat(wave160): SB8 — hook agent_id/agent_type propagation 15.8% to 100%
+    
+    Wave 160 SB8 (cum-2 of cap-12) per /goal predicate P0b. Propagates
+    agent_id + agent_type top-level into every active JSONL-emitting hook
+    per Anthropic SDK _SubagentContextMixin contract.
+    
+    OPERATIONAL CHANGES (9 files):
+    - _observation_writer.py: NEW merge_agent_context(record, payload) helper +
+      extended append_observation(obs, ctx, payload=None) with auto-merge
+    - codex_failure_audit.py: +agent_id/agent_type in record dict (direct emit)
+    - codex_mcp_healthcheck.py: +agent_id/agent_type in base_row (direct emit)
+    - codex_postcommit_review.py: extended _append_jsonl signature + threaded
+      payload= at 5 main() call sites
+    - codex_prepush_review.py: same pattern (extended _append_jsonl + 5 sites)
+    - codex_t2_pre_commit_gate.py: extended _append_telemetry + threaded 4 sites
+    - gitleaks_pre_commit_gate.py: extended _log_telemetry + threaded 9 sites
+    - codex_gate.py: extended _append_jsonl + gate_review payload= parameter +
+      threaded 8 _append_jsonl call sites inside gate_review
+    - codex_review_queue.py: extended _append_event + enqueue() payload= kwarg
+    
+    COMPLIANCE BASELINE:
+    - Pre-ship: 3/19 = 15.8% (subagent_stop_telemetry + auto_proceed_gate + codex_t1_consult_gate)
+    - Post-ship active emitters: 12/12 = 100% (excludes 3 permission-response
+      scripts + 2 helpers + 2 DORMANT scripts; see audit-classification below)
+    - Goal ≥90% on active telemetry emit population: EXCEEDED
+    
+    AUDIT CLASSIFICATION:
+    - Active telemetry emit (12): auto_proceed_gate, codex_failure_audit,
+      codex_gate, codex_mcp_healthcheck, codex_postcommit_review,
+      codex_prepush_review, codex_review_queue, codex_t1_consult_gate,
+      codex_t2_pre_commit_gate, gitleaks_pre_commit_gate,
+      subagent_stop_telemetry, _observation_writer (helper module also propagates)
+    - Permission-response only (3, structurally N/A): agent_plan_readonly_bash_guard,
+      agent_spawn_gate, secret_scan_guard — emit to stdout for Claude's
+      permission decision, not telemetry; SDK schema doesn't require agent_id
+    - Pure helpers (2, no direct emit): _codex_preflight, utils
+    - DORMANT cite-imported (2, not yet wired): codex_review_thread_bridge,
+      codex_stuck_detector — installed at Wave 124 but not in active hooks paths
+    
+    CROSS-MODEL GATE SATISFACTION (cardinal-rule-3):
+    - Path P codex T1 dispatch: foreground+tee per ctff-patterns-cd.md §Pattern D
+      recipe at .claude/state/codex_consult_w160_sb8_hook_agent_id_propagation_OUT.txt
+    - Verdict: NEEDS-REVISION conf=0.90 + 1 prescribed_edit (helper soundness —
+      treat existing None as absent so placeholder can't suppress valid SDK
+      agent context)
+    - Pattern A apply per codex-t1-fix-forward-pattern.md §Pattern A: single
+      atomic commit with prescribed_edit integrated (merged.get(key) is None
+      check throughout)
+    - Per cardinal-rule-3 Phase 1 bootstrap exception: cross-model gate FULL
+      satisfaction via REAL GPT-5.5 codex T1 dispatch
+    
+    PATTERN A INTEGRATION (codex T1 prescription verbatim applied to helper):
+    The original draft used `if "agent_id" not in merged:` which would let a
+    placeholder None value suppress valid SDK context. Codex caught this:
+    the fix uses `if merged.get("agent_id") is None:` so existing-None is
+    treated as absent, allowing SDK's actual agent_id to populate. Applied
+    identically to all 5 inline-merge functions (codex_postcommit_review,
+    codex_prepush_review, codex_t2_pre_commit_gate, gitleaks_pre_commit_gate,
+    codex_gate, codex_review_queue) for consistent semantics.
+    
+    BACKWARD COMPATIBILITY:
+    - All extended function signatures use `payload: dict | None = None`
+      default, preserving byte-for-byte legacy schema for callers that don't
+      pass the new parameter
+    - 'existing non-None preserved' semantic prevents row-builder defaults
+      (like `"agent_id": payload.get("agent_id")` in codex_failure_audit) from
+      being clobbered by helper logic — both add and merge approaches coexist
+    
+    OUT-OF-SCOPE NOTES (preserved for transparency):
+    - codex_postcommit_review.py + codex_prepush_review.py `_launch_review()`
+      function calls `gate_review()` — `payload` is not in `_launch_review`
+      scope. Threading through `_launch_review` signature is broader than SB8;
+      the codex_gate.jsonl rows for the T3-path get payload=None default
+      (TIER-3-LOCAL-CONFIG limitation; deferred to follow-up ship). Main
+      telemetry (codex_postcommit_reviews.jsonl + codex_prepush_reviews.jsonl)
+      RECEIVES agent_id via main()-scope payload threading.
+    
+    CARDINAL-RULE CONFORMANCE:
+    - CR-1 ✅ TIER-1-DIRECT cite to SDK types.py:246-262 @ HEAD b512f256
+    - CR-3 ✅ Path P codex T1 + Pattern A apply (Phase 1 bootstrap satisfied)
+    - CR-7 N/A (no permission-mode changes)
+    - CR-8 ✅ TIER-1-DIRECT SDK contract → TIER-3-LOCAL-COMPOSITION local merge
+      helper per citation-discipline rule #8 MIN_PRECEDENCE
+    - CR-9 ✅ Sibling-bleed defense applied (no Z:/claude-sota/ paths in
+      install-class edits; cite-anchors only)
+    - CR-10 N/A (no new install / no unknowns)
+    - CR-11 ✅ META-process SOTA discipline (Path P + Pattern A + Mia + atomic
+      single-shell commit)
+    - CR-12 ✅ All edits to LOCAL-INSTALLED hook scripts (no upstream equivalent
+      to install; cite-class GENUINELY-NEW per CR-12 disposition lattice)
+    - cycle-300 ONE-LOGICAL-UNIT-PER-FIRE ✅ (single logical unit: agent_id
+      propagation across telemetry-emit hooks)
+    
+    FM-02 (b)+(c) destructive race defense:
+    - atomic single-shell `git add -- <9 paths> && git commit -o -F <msg> -- <9 paths>`
+    - narrow pathspec scope per git-cli-grammar-discipline.md
+    - mitigates session-checkpoint cron absorption sub-variant (n=13 firm)
+    
+    Cite class:
+    constituents=[TIER-1-DIRECT @ claude-agent-sdk-python types.py:246-262
+    @ HEAD b512f256 + audit-action-loop.md §Hook telemetry contract (sister
+    rule cite-import per Section 14.5), TIER-3-LOCAL-OPERATOR-DERIVED @ Wave
+    160 SB8 codex T1 NEEDS-REVISION conf=0.90 prescribed_edit verbatim integration];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+    MIN_PRECEDENCE.
+    
+    Provenance: docs/install-provenance.md Wave 160 SB8 entry +
+    .claude/state/wave160-progress.jsonl row.
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/codex_postcommit_review.py b/.claude/hooks/scripts/codex_postcommit_review.py
+index fcfa356..05c45e0 100644
+--- a/.claude/hooks/scripts/codex_postcommit_review.py
++++ b/.claude/hooks/scripts/codex_postcommit_review.py
+@@ -459,7 +459,12 @@ def _launch_review(sha: str, root: Path = _ROOT) -> dict:
+     # Symmetric closure of the cd-prefix-chain pattern: iter-50.10.fix2 (commit
+     # f151875) patched this file's local git invocations; iter-50.10.fix4 fixed
+     # parent's gate-layer; this fix5 mirrors that gate-layer fix into claude-sota.
+-    gate_ok, gate_reason = gate_review("T3", rev_spec=sha, command_preview=f"codex_postcommit_review {sha[:8]}", git_root=root, payload=payload)  # Wave 160 SB8: agent_id propagation
++    # Wave 160 SB8: gate_review's `payload=None` default applied — payload var
++    # lives in main()'s scope only; threading through _launch_review() signature
++    # is out of SB8 scope. codex_postcommit_reviews.jsonl receives agent_id via
++    # _append_jsonl(payload=payload) in main(); codex_gate.jsonl receives None
++    # for this T3 path (TIER-3-LOCAL-CONFIG limitation; deferred to follow-up).
++    gate_ok, gate_reason = gate_review("T3", rev_spec=sha, command_preview=f"codex_postcommit_review {sha[:8]}", git_root=root)
+     if not gate_ok:
+         # Iter-2 fix-forward (codex T3 on f6522446 HIGH conf=0.82): surface gated
+         # decision to stderr so operators see it.
+diff --git a/.claude/hooks/scripts/codex_review_queue.py b/.claude/hooks/scripts/codex_review_queue.py
+index 421b7c3..69b7f36 100644
+--- a/.claude/hooks/scripts/codex_review_queue.py
++++ b/.claude/hooks/scripts/codex_review_queue.py
+@@ -149,8 +149,22 @@ def _compute_dedupe_key(touchpoint: str, subject: dict[str, Any]) -> str:
+     return f"{touchpoint}:{json.dumps(subject, sort_keys=True, separators=(',', ':'))}"
+ 
+ 
+-def _append_event(row: dict[str, Any]) -> bool:
+-    """Append a JSONL event row. Fail-silent on OSError (telemetry must not crash hooks)."""
++def _append_event(row: dict[str, Any], payload: dict | None = None) -> bool:
++    """Append a JSONL event row. Fail-silent on OSError (telemetry must not crash hooks).
++
++    Wave 160 SB8: optional `payload` merges agent_id + agent_type top-level
++    per SDK _SubagentContextMixin (Z:/repos/deps/claude-agent-sdk-python/src/
++    claude_agent_sdk/types.py:246-262 @ HEAD b512f256). Existing non-None row
++    fields preserved; existing None treated as absent per codex T1 verdict.
++    Backward-compatible: default None preserves byte-for-byte legacy schema.
++    """
++    if isinstance(payload, dict):
++        ai = payload.get("agent_id")
++        if ai is not None and row.get("agent_id") is None:
++            row["agent_id"] = ai
++        at = payload.get("agent_type")
++        if at is not None and row.get("agent_type") is None:
++            row["agent_type"] = at
+     try:
+         path = _queue_path()
+         path.parent.mkdir(parents=True, exist_ok=True)
+@@ -166,11 +180,16 @@ def enqueue(
+     subject: dict[str, Any],
+     gate_status: str,
+     gate_reason: str,
++    *,
++    payload: dict | None = None,
+ ) -> str | None:
+     """Enqueue a gated/failed codex review. Returns entry_id on success, None on disable.
+ 
+     Per T1 consult correction #2: subject must be immutable (full SHAs, not
+     range_specs that change as origin/main advances).
++
++    Wave 160 SB8: optional `payload` propagates agent_id + agent_type to queue
++    rows per SDK _SubagentContextMixin contract.
+     """
+     if os.environ.get("CODEX_REVIEW_QUEUE_DISABLE") == "1":
+         return None
+@@ -190,7 +209,7 @@ def enqueue(
+         "initial_state": initial_state,
+         "classification": classification,
+     }
+-    _append_event(row)
++    _append_event(row, payload=payload)
+     return entry_id
+ 
+ 
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 81dcae9..e95b267 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -24173,3 +24173,42 @@ Ship **SC2** of Wave 158 PRIORITY-C per /goal v5 (Wave 158, iter 11). Iron Law v
+ - **FM-02 (b)+(c) defense**: single-shell `git add -- <6 paths> && git commit -o -F tmp/w160-sb6-msg.txt -- <6 paths>` atomic-batch
+ - **Cite class**: `constituents=[TIER-1-DIRECT @ CCBP claude-memory.md:36-105 @ 48f2ceb + Anthropic CC docs + cardi
+
+[prompt truncated]

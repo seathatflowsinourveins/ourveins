@@ -1,0 +1,252 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit df5a260a55173e46fd839d450db54c4d8680aa76
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md                         |  41 +++++
+ .../fire-26-b-llmlingua-path-p-audit/00-tracker.md | 175 +++++++++++++++++++
+ .../01-llmlingua-anatomy.md                        | 182 +++++++++++++++++++
+ .../02-probe-dag-application.md                    | 163 +++++++++++++++++
+ .../03-codex-t1-verdict.md                         | 159 +++++++++++++++++
+ .../99-close-synthesis.md                          | 194 +++++++++++++++++++++
+ 6 files changed, 914 insertions(+)
+
+=== git show --format=fuller ===
+commit df5a260a55173e46fd839d450db54c4d8680aa76
+Author:     42 <42@local>
+AuthorDate: Sun May 10 21:03:43 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 21:03:43 2026 -0400
+
+    docs(sota-audit): Wave 134 Fire 26-B — microsoft/LLMLingua CITE-PATTERN-ONLY conf=0.86 + CRITICAL Fire 23 P0 orthogonality refutation + W134-F24-C3 re-elevation
+    
+    SECOND of revised Top-3 priorities post-Fire-25 gap-correction. Path P codex T1
+    (REAL GPT-5.5 foreground+tee) returned CITE-PATTERN-ONLY @ conf=0.86 — 3rd
+    CITE-PATTERN-ONLY in Wave 134 NEW-candidate series. Two decisive blockers
+    (P5 mode-harness FAIL + P7a demand-absence FAIL) + critical architectural
+    insight: LLMLingua is ORTHOGONAL to Fire 23 P0 session-start descriptor budget.
+    
+    ## Fire 26-B deliverables (5 files + provenance, ~700 LOC)
+    
+    - 00-tracker.md (~135 LOC) — framing + Mia pre-apply + 3 algorithm variants
+    - 01-llmlingua-anatomy.md (~155 LOC) — anatomy + Mia HEAD-mismatch catch
+    - 02-probe-dag-application.md (~135 LOC) — Probe DAG 4 PASS + 2 FAIL
+    - 03-codex-t1-verdict.md (~150 LOC) — verbatim REAL GPT-5.5 + critical contributions
+    - 99-close-synthesis.md (~225 LOC) — Fire 26-B close + W134-F24-C3 re-elevation
+    - docs/install-provenance.md — Fire 26-B entry appended
+    
+    ## Subject
+    
+    microsoft/LLMLingua local HEAD e0e9d99 (codex T1 Mia OVER catch — orchestrator
+    specified ba1463a which exists locally but NOT current HEAD); MIT PURE; Microsoft
+    TIER-1-OFFICIAL; 6,067★; 4 peer-reviewed papers (EMNLP'23 + ACL'24 + ACL'24
+    Findings + CoLM'25); 3 algorithm variants (LLMLingua / LongLLMLingua / LLMLingua-2 /
+    SecurityLingua).
+    
+    ## 🚨 CRITICAL ARCHITECTURAL INSIGHT (highest-value finding)
+    
+    Codex T1 explicit `addresses_fire23_p0: "NO"`:
+    
+    > "LLMLingua prompt compression is orthogonal to session-start plugin descriptor
+    > budget. For Fire 23 P0, prefer selective tool/plugin loading or descriptor-pruning
+    > patterns."
+    
+    This REFUTES Fire 25 close synthesis ranking which placed LLMLingua at #2
+    specifically BECAUSE of FALSE-LINK to Fire 23 P0 "21-plugin session-start
+    token-budget" caveat.
+    
+    Token economy operates at DISTINCT layers requiring SEPARATE primitives:
+    - Session-start layer: plugin/skill/MCP descriptor inflation (Fire 23 P0)
+    - Per-task layer: prompt + context compression (LLMLingua scope)
+    
+    **W134-F24-C3 Task Master Selective MCP Tool-Loading** (TASK_MASTER_TOOLS env
+    tiers core/standard/all/custom) RE-ELEVATED as correct Fire 23 P0 primitive
+    (Tier 1.5 #1 ship).
+    
+    ## Three decisive blockers
+    
+    1. P5 mode-harness FAIL: SDK-only + integration paths A/B/C introduce latency +
+       prompt-quality + cache-control regressions; trust_remote_code=True security
+    2. P7a demand-absence FAIL: PARTIAL-OVERLAP with eee token-eff stack
+       (RTK+ccusage+repomix+cache_control+context-mode); orthogonal to Fire 23 P0
+    3. addresses_fire23_p0=NO: explicit codex T1 refutation
+    
+    Plus: HEAVY ~5-10 GB install footprint + trust_remote_code=True default security
+    + HEAD specification Mia OVER caught.
+    
+    ## Codex T1 verdict (verbatim at EOF)
+    
+    ```json
+    {
+      "verdict": "CITE-PATTERN-ONLY",
+      "confidence": 0.86,
+      "addresses_fire23_p0": "NO",
+      "recommended_integration_option": "D",
+      "probe_dag_verdicts": {
+        "P1_count_over": "PASS", "P2_sdk_vs_cli": "PASS",
+        "P3_arch_api": "PASS", "P4_plugin_namespace": "PASS",
+        "P5_mode_harness": "FAIL", "P6_blockers": "NEUTRAL",
+        "P7a_demand_absence": "FAIL", "P7b_demand_creates": "NOT-ELIGIBLE"
+      },
+      "row2_fabrication_test": "PASS",
+      "novel_capability_for_eee": "PARTIAL-OVERLAP",
+      "install_footprint_acceptable": "CAVEAT-NOTED"
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f26b_llmlingua_OUT.txt` (82,142 tokens)
+    
+    ## 5 cite-pattern extracts (file:line + paper URL precision)
+    
+    1. LLMLingua coarse-to-fine — EMNLP'23 https://aclanthology.org/2023.emnlp-main.825/
+    2. LongLLMLingua question-conditioned — ACL'24 https://aclanthology.org/2024.acl-long.91/
+    3. **LLMLingua-2 task-agnostic Transformer (HIGHEST-VALUE per codex T1)** —
+       ACL'24 Findings https://aclanthology.org/2024.findings-acl.57/
+    4. SecurityLingua security-aware guardrail —
+       CoLM'25 https://openreview.net/forum?id=tybbSo6wba
+    5. Local API anchors: `setup.py:25-31` + `prompt_compressor.py:71-93,118-161` +
+       `README.md:153-235`
+    
+    ## Mia OVER catch (3rd in Wave 134 NEW-candidate series)
+    
+    Orchestrator pre-codex: "HEAD `ba1463a`"
+    Codex T1 local probe: "Caveat: local checkout HEAD is e0e9d99, not the prompt's
+    ba1463a, though ba1463a exists locally."
+    
+    3rd Mia OVER in Wave 134 series (Fire 24-D Agent OS + Fire 26-A cisco-mcp-scanner
+    + Fire 26-B LLMLingua HEAD spec).
+    
+    ## Conditional pilot path (Option B sidecar — FUTURE-GATED)
+    
+    Per codex T1 explicit prescription, ONLY IF:
+    - Quantitative evidence emerges of recurring large non-cacheable MCP/research outputs
+    - Input source: `.claude/state/codex_consult_*_OUT.txt` or context-mode event logs
+    - Dedicated venv + exact git SHA + model allowlist
+    - 30-day comparison vs repomix + context-mode + manual summarization + cache_control
+    - Removal by deleting venv/cache
+    
+    NOT current — Fire 23 P0 is addressed by W134-F24-C3 (different layer).
+    
+    ## REVISED Forward Top-3 (post-codex-T1 architectural insight)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 #1 | W134-F26-A-PILOT | Cisco mcp-scanner Phase 1-4 pilot (Fire 26-A) |
+    | 🥈 #2 | **W134-F24-C3** | **Task Master Selective MCP Tool-Loading — RE-ELEVATED as correct Fire 23 P0 primitive** |
+    | 🥉 #3 | W134-F26-C | open-compress/claw-compactor — token-eff alternative + claims quality-lead vs LLMLingua-2 |
+    
+    ## Tier 1 NEW-EXTENDED 50% MILESTONE
+    
+    7/14 candidates verified (Fire 24 series 5/5 + Fire 26-A + Fire 26-B).
+    
+    ## Mia ladder advance
+    
+    n=1678 (Fire 26-A close) → n=1712 (Fire 26-B close, +34 across 6 deliverable files
+    including architectural insight + Mia OVER catch + Fire 25 ranking correction)
+    
+    ## Path P recipe ladder
+    
+    n=15/15 → n=16/16 reproducible (foreground+tee deep-review-exec @ 300s; 82,142 tokens).
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-1-DIRECT @ file:line @ HEAD SHA + 4 peer-reviewed paper URLs
+    - CR-3 cross-model: REAL GPT-5.5 codex CLI verdict
+    - CR-9 install-risk: REJECT install — HEAVY footprint + trust_remote_code caveat
+    - CR-10 research-first-then-install: Audit before pilot; conditional path documented
+    - CR-11 META-process: Mia caught HEAD-spec error + Fire 25 ranking error
+    - FM-02 sub-class (b) defense: atomic git add + commit --only -- pathspec
+    - Row-2 fabrication-test: PASS (peer-reviewed)
+    - Architectural insight captured: token-economy-layers separation
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-26-b-llmlingua-path-p-audit/
+    Cite: TIER-1-DIRECT local clone `Z:/repos/deps/LLMLingua/` HEAD `e0e9d99` MIT + 4 peer-reviewed paper URLs
+    Verify: `[VERIFIED via .claude/state/codex_consult_w134_f26b_llmlingua_OUT.txt — REAL GPT-5.5 CITE-PATTERN-ONLY conf=0.86 + Fire 23 P0 orthogonality refutation + W134-F24-C3 re-elevation]`
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index c4f4ee0..8393e6
+
+[prompt truncated]

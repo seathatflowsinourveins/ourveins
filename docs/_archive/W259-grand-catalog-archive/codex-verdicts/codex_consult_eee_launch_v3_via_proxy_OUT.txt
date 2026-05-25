@@ -1,0 +1,55 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: detailed
+session id: 019e0609-ea0a-7d83-bcd8-2948def5ffcd
+--------
+user
+You are reviewing the eee launch design at Z:/claude-sota-installed/docs/eee-launch-design-cliproxyapi.md (24 sections, ~1340 LOC).
+
+CONTEXT
+- CLIProxyAPI install pin: HEAD 785b00c3 = v6.10.9 (2026-05-07). Source at Z:/repos/deps/CLIProxyAPI.
+- Anthropic 2026-05-06 announcement (https://www.anthropic.com/news/higher-limits-spacex): Claude Code 5h rate limits DOUBLED for Pro/Max/Team/Enterprise; peak-hours throttle REMOVED for Pro/Max.
+- Operator goal: 8 OAuth Claude accounts behind CLIProxyAPI proxy → eee.ps1 launches Claude Code with ANTHROPIC_BASE_URL=http://127.0.0.1:8317.
+- Prior codex T1 fired 2026-05-08 with deep-review-exec profile, hit FM-17.d compact_remote service_tier rejection at 309K tokens, no terminal verdict.
+- Compensating orchestrator-side Mia 5/5 PASSED on critical cite anchors.
+
+REVIEW AXES (only 2 — narrow, fits 240s budget)
+
+AXIS-A — Operational soundness for 8-account intensive fan-out
+1. Routing strategy choice §2 + §5: design picks routing.strategy: fill-first over round-robin for 5h-rolling-window staggering. Does fill-first hold up under a 5-parallel-subagent burst? Failure mode: if 5 parallel agents all hit account-1 simultaneously due to fill-first determinism, does the per-cred concurrency saturate? Verify against scheduler.go pickReadyAtPriorityLocked + conductor.go executeMixedOnce.
+2. Session-affinity §2 + §5.4: design enables session-affinity: true + 1h TTL. Edge case: if a sticky account hits per-account quota mid-session, does failover preserve cache continuity OR break it? Verify selector.go SessionAffinitySelector failover logic at L513.
+3. Throughput math §1 + §24.1: post-2026-05-06 announcement projects 24,000 messages/5h raw at 8-accounts × 3000 messages/account. Audit for double-counting.
+4. Cardinal-rule-9 install-risk: design pins to v6.10.9 / 785b00c3 via gh release download. Are there missing risk classes (binary signing, supply-chain, GitHub compromise)?
+
+AXIS-B — Anthropic 529 gap analysis (§22 + §24.2)
+5. Verify the gap claim: conductor.go:2160-2169 default branch sets state.NextRetryAfter = time.Time{} for 529 — confirms no automatic cooldown. Read this file at HEAD 785b00c3. Is the default-branch claim verbatim accurate?
+6. Mitigation taxonomy §22.2-§22.7: 6 mitigations enumerated. Are any structurally wrong now that peak-hours throttle is REMOVED for Pro/Max (§24.2 reprioritization)?
+7. Recommended layered defense §24.2: post-2026-05-06, design recommends activating §22.4 (circuit-breaker) + §22.6 (exponential backoff) FIRST and deprioritizing §22.2 (per-credential proxy-url). Is this prioritization optimal?
+
+OUTPUT REQUIREMENT — MUST emit at EOF (after any investigation):
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "axis_findings": {
+    "AXIS-A": [{"finding_id": "F-A.1", "severity": "P0-P3", "claim": "...", "evidence_cite": "file:line @ 785b00c3", "prescribed_edit": "..."}],
+    "AXIS-B": [...]
+  },
+  "next_actions": "single sentence"
+}
+```
+
+CRITICAL — EMIT THE JSON VERDICT BLOCK AT EOF EVEN IF INVESTIGATION INCOMPLETE. If you cannot verify a cite, mark severity=P1 + label [UNVERIFIABLE]. Use rg/grep, NOT pwsh — pwsh-mode reads were rejected in prior fire. Read files directly via cat/sed/rg.
+
+deprecated: `[features].codex_hooks` is deprecated. Use `[features].hooks` instead.
+Enable it with `--enable hooks` or `[features].hooks` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.
+ERROR: Quota exceeded. Check your plan and billing details.
+ERROR: Quota exceeded. Check your plan and billing details.

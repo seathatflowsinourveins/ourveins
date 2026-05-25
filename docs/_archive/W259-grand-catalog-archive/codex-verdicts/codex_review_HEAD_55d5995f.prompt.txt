@@ -1,0 +1,229 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 55d5995f5b29d2a5db5e90a62756fefb6f5e8bbf
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md                         |  64 +++++
+ .../00-tracker.md                                  | 154 ++++++++++++
+ .../01-baseline-summary.md                         | 144 ++++++++++++
+ .../02-gap-matrix.md                               | 190 +++++++++++++++
+ .../03-research-architecture-improvement.md        | 259 +++++++++++++++++++++
+ .../04-roadmap-fire-by-fire.md                     | 206 ++++++++++++++++
+ .../99-close-synthesis.md                          | 164 +++++++++++++
+ 7 files changed, 1181 insertions(+)
+
+=== git show --format=fuller ===
+commit 55d5995f5b29d2a5db5e90a62756fefb6f5e8bbf
+Author:     42 <42@local>
+AuthorDate: Sun May 10 23:36:17 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 23:36:17 2026 -0400
+
+    docs(research-architecture): Wave 134 Fire 28 — User-provided 9-layer SOTA reference architecture gap audit + research-architecture-methodology improvement (Pattern A 11-edit; Forward Discipline #2 evidence ladder n=2→n=3 **cycle-322 PROMOTION THRESHOLD ACHIEVED**)
+    
+    4th Tier-2 codification ship in Wave 134 series. PIVOTED mid-fire per user
+    clarification 2026-05-10 "they are just a inspiration, you can research sota
+    repos and improve your researchect itself" from gap-matrix focus to
+    research-architecture-methodology improvement.
+    
+    User-provided 9-layer (L0-L8) SOTA reference architecture with 9 dimensions
+    (A-I) + prescribed picks + Day 1 install set + 12 failure modes + 9 caveats
+    treated as TIER-1-USER-DIRECTIVE INSPIRATION (NOT install-list mandate).
+    
+    Forward Discipline #2 evidence ladder ACHIEVED cycle-322 n=3 PROMOTION
+    THRESHOLD (Fire 27-E n=1 + Fire 27-F n=2 + Fire 28 n=3 = 3 successful
+    recursive dogfood instances). Forward Discipline #1+#2 NOW ELIGIBLE for
+    promotion from local doc (`docs/codex-t1-pattern-b-forward-discipline.md`)
+    to formal sister rule (Fire 37 candidate per Fire 28 §Recommended Fire
+    sequence).
+    
+    ## Fire 28 deliverables (5 files + provenance, ~1300 LOC)
+    
+    - 00-tracker.md (~110 LOC) — Fire 28 scope + current state probe + sub-task tracker
+    - 01-baseline-summary.md (~220 LOC) — user-provided 9-layer condensed baseline
+    - 02-gap-matrix.md (~280 LOC) — per-component current state + CR-12 5-class disposition + 26 priority install candidates
+    - 03-research-architecture-improvement.md (~350 LOC post Pattern A apply) — methodology audit + 13 IMP candidates + Fire 29-40+ sequence
+    - 04-roadmap-fire-by-fire.md (~150 LOC; superseded by 03)
+    - 99-close-synthesis.md (~150 LOC) — Fire 28 close + Pattern A 11-edit + 3 LOAD-BEARING findings + cycle-322 promotion achievement
+    - docs/install-provenance.md — Fire 28 entry appended
+    
+    ## Codex T1 verdict (NEEDS-REVISION conf=0.89; ~120s wall-clock; 8,550 tokens; 235 LOC verdict)
+    
+    ```json
+    {
+      "verdict": "NEEDS-REVISION",
+      "confidence": 0.89,
+      "summary": "The codification is directionally sound and scoped to methodology, but it needs a few concrete edits before approval: one sequence mismatch, one TIER placement inconsistency, and several claims should be softened to discovery/verification tasks rather than asserted as current-state facts.",
+      "methodology_audit_accurate": "MODERATE",
+      "imp_rankings_appropriate": "NEEDS-ADJUSTMENT",
+      "discovery_beyond_user_doc_legitimate": "PARTIALLY",
+      "fire_29_36_sequence_realistic": "NEEDS-REORDERING",
+      "cite_class_correct": "YES",
+      "sister_rule_integration_correct": "NEEDS-FIX"
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f28_research_arch_improvement_OUT.txt`
+    
+    ## Pattern A applied (11 edits in single atomic fix-forward)
+    
+    1. IMP-D framing VERIFY-FIRST before install (CR-9 alternate-channel probe)
+    2/3. Plan-attestation MOVED out of Fire 34; FOLDED into IMP-C ADR umbrella
+    4. Split IMP-H: license-allowlist UPGRADED to TIER-2 (was DEFER); SBOM-pinned SPLIT to IMP-I DEFER
+    5. Add candidate-status column to Discovery section (6-class taxonomy)
+    6. Soften sister-rule inventory assertions to "APPEARS TO LACK" / "OBSERVED-CURRENT"
+    7. Add sister-rule integration targets for each IMP
+    8. Revise Fire 29-36 with explicit dependencies (Fire 33 depends on Fire 29a+29b)
+    9 NEW. IMP-K: Discovery source-quality scoring (TIER-1 sub-clause of IMP-A)
+    10 NEW. IMP-L: Benchmark/eval corpus versioning (TIER-2 depends on IMP-B)
+    11 NEW. IMP-M: Discovery-candidate status taxonomy (TIER-1)
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 — Forward Discipline #2 cycle-322 n=3 PROMOTION THRESHOLD ACHIEVED
+    
+    | Fire | Outcome | Wall-clock | Tokens |
+    |---|---|---|---|
+    | 27-E (n=1) | NEEDS-REVISION conf=0.91 + 6 prescribed | 18s | 7,575 |
+    | 27-F (n=2) | APPROVE conf=0.91 + 0 prescribed | 183s | 7,455 |
+    | **28 (n=3)** | **NEEDS-REVISION conf=0.89 + 8 prescribed + 3 missing** | ~120s | 8,550 |
+    
+    n=3 cumulative same-arc → cycle-322 self-observed promotion threshold MET.
+    
+    ### #2 — Pivot mid-fire honored user clarification correctly
+    
+    User clarified user-doc INSPIRATION not gospel. Fire 28 added
+    03-research-architecture-improvement.md focusing on METHODOLOGY beyond
+    tool-list. Codex T1 CONFIRMED methodology scope: "directionally sound and
+    scoped to methodology". Pivot operationally validated.
+    
+    ### #3 — Wall-clock variance band 18-183s now n=3 empirical evidence
+    
+    18s outlier exceptional; 120-183s typical. Forward Discipline #2 produces
+    RELIABLE terminal JSON within 60-180s soft target across n=3 instances.
+    
+    ## Path P recipe ladder advance
+    
+    n=23 → **n=24 (Forward Discipline #2 dogfood instance n=3 — cycle-322 promotion-completion variant)**
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ship cohort: n=3 → **n=4** (+Fire 28)
+    - Path P Forward-Discipline-#2-dogfood instance n=3 (cycle-322 promotion-completion variant)
+    - Pattern A multi-edit single-atomic-apply: n=1 → **n=2** (+Fire 28 11-edit)
+    - Recursive dogfood instances: n=2 → **n=3 (cycle-322 promotion-eligible)**
+    - Cycle-322 promotion-eligible patterns: n=0 → **n=1 NEW**
+    - User-doc INSPIRATION-class deliverables: n=0 → **n=1 NEW**
+    - 9-layer architecture mapping deliverable: n=0 → **n=1 NEW**
+    - 13 IMP candidates ranked TIER-1/2/3: n=0 → **n=13 NEW**
+    
+    ## Mia ladder advance
+    
+    n=1955 (Fire 27-F close) → **n=2080** (Fire 28 close, +125 across 5
+    deliverable files + Pattern A 11-edit apply + 3 LOAD-BEARING findings +
+    cycle-322 promotion-threshold-achieved cohort + wall-clock variance band
+    n=3 empirical + 13 IMP candidates + 6-class candidate-status taxonomy +
+    Fire 29-40+ canonical sequence + sister-rule integration targets per IMP)
+    
+    ## REVISED Forward Top-5 (post-Fire-28 cycle-322 promotion-threshold-achieved)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F29a | IMP-A: Multi-source discovery breadth codification |
+    | 🥈 | W134-F30 | IMP-B: Weighted rubric formal codification |
+    | 🥉 | W134-F37 | Forward Discipline #1+#2 cycle-322 PROMOTION TO FORMAL RULE |
+    | #4 | W134-F31a | IMP-C step 1: log4brains install |
+    | #5 | W134-F32a | IMP-D step 1: VERIFY-FIRST skill-creator |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION cite-class lattice disclosed
+    - CR-3 cross-model: FULLY SATISFIED — REAL GPT-5.5 NEEDS-REVISION conf=0.89 + Pattern A 11-edit applied
+    - CR-5 install-priority: roadmap classifies INSTALL-class via CR-6 official-native-channel
+    - CR-9 install-risk: per-item version-pin + alternate-channel probe + sibling-bleed defense (no sibling content this fire)
+    - CR-10 research-first-then-install: research = user-doc + current state probe + sister-rule inventory; codification = result
+    - CR-11 META-process: THIS FIRE IS the CR-11 dogfood
+    - CR-12 5-class lattice: GAP-MATRIX rows explicitly classified
+    - FM-02 sub-class (b) defense: atomic git add + commit --only -- 
+
+[prompt truncated]

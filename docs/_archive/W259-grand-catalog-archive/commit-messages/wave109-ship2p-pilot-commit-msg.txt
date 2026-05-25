@@ -1,0 +1,90 @@
+feat(otel): Wave 109 Ship 2P-pilot-REVISED — wire eee OTel TRACES to existing Phoenix container (Phoenix-first; openlit install REJECTED via stack-duplication audit)
+
+Closes operator-decision Ship 2P observability pilot per Wave 109 research-backed audit + Mia OVER #30 catch on prior framing.
+
+DECISION PIVOT (audit-driven):
+  Wave 109 Agent E (ace8e15ff78f66318) originally proposed openlit install (pinned
+  v1.20.0 + py-1.42.0). Mia probe via `docker ps` revealed eee already runs:
+    - langfuse-web/worker/clickhouse/postgres/redis/minio (6 containers, langfuse 3.170.0)
+    - phoenix arizephoenix/phoenix:13.15.0 (port 14317 OTLP gRPC + 16006 UI)
+    - grafana 12.4.1 (port 3001)
+    - prometheus v3.10.0 (port 19090)
+    - qdrant v1.17.0 (existing memory backend)
+    - falkordb (existing graphiti backend)
+
+  openlit install REJECTED as 4th duplicate observability stack — kiss-dry-yagni
+  Must-Never #4 violation. Phoenix-first chosen (no auth; OTLP gRPC ready;
+  lowest impedance to existing OTEL_LOG_TOOL_DETAILS=1 + OTEL_LOG_USER_PROMPTS=1
+  signal from Wave 82a).
+
+CHANGES (1 file / +7 / 0 LOC):
+  .claude/settings.json:env — added 7 keys for Phoenix OTel TRACES wire:
+    CLAUDE_CODE_ENABLE_TELEMETRY=1            (CC telemetry gate per docs)
+    CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1     (traces beta-gated per CC docs)
+    OTEL_TRACES_EXPORTER=otlp                 (trace-specific exporter)
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:14317  (Phoenix OTLP gRPC)
+    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc   (Phoenix accepts gRPC)
+    OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=eee  (Phoenix project grouping)
+    _comment_otel_phoenix_wire (full audit + decision rationale + PII note)
+
+CRITICAL — Codex T1 NEEDS-REVISION conf=0.93 with 9 prescriptions (Pattern A applied):
+
+  P1: Phoenix-first; defer Langfuse pending keys/Collector fan-out — APPLIED
+  P2: Add CLAUDE_CODE_ENABLE_TELEMETRY=1 + ENHANCED_TELEMETRY_BETA=1 — APPLIED
+  P3: Use trace-specific OTLP envs (NOT generic OTEL_EXPORTER_OTLP_*) — APPLIED
+  P4: DROP OTEL_LOGS_EXPORTER + OTEL_METRICS_EXPORTER (Phoenix accepts traces only) — APPLIED
+  P5: Use OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=eee for Phoenix grouping
+      (do NOT override CC's documented service.name=claude-code via OTEL_SERVICE_NAME) — APPLIED
+  P6: No Phoenix pre-config required — confirmed
+  P7: Provenance entry documenting openlit-rejected + Phoenix-trace-pilot + deferrals — APPLIED in this commit + provenance addendum next commit
+  P8: Keep retirement audit OUT of this ship; run deprecation 5-question gate separately — RESPECTED
+  P9: CR-9 LOW with PII note (OTEL_LOG_USER_PROMPTS=1 persists prompt text in Phoenix) — APPLIED in _comment
+
+DEFERRED FROM SHIP (per scope-narrow discipline):
+  - Langfuse parallel-sink wire (needs LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY OR
+    OTel Collector fan-out architecture; codex T1 P1)
+  - OTEL_LOGS/METRICS_EXPORTER (Phoenix is trace-only on :4317; would need separate
+    sink design; codex T1 P4)
+  - Retirement audit of unwired containers (qdrant + grafana + prometheus) per
+    deprecation-discipline.md §The deprecation decision 5-question gate (codex T1 P8)
+  - Ship 2N-batch3-G skillOverrides study-pilot (now UNBLOCKED — measurement infra
+    available once Phoenix traces flow + verified)
+
+WHAT THIS UNLOCKS (post next eee restart):
+  - eee OTel TRACES flow to Phoenix UI at http://127.0.0.1:16006
+  - LLM request spans visible (model / token usage / cost / effort attributes)
+  - Tool-result events tracked (gated by OTEL_LOG_TOOL_DETAILS=1)
+  - User prompt content captured (gated by OTEL_LOG_USER_PROMPTS=1; PII-local-only)
+  - Foundation for Ship 2N-batch3-G skillOverrides token-cost measurement
+
+PII LOCAL-ONLY DISCIPLINE:
+  OTEL_LOG_USER_PROMPTS=1 emits full prompt text. Phoenix at 127.0.0.1:14317 is
+  local-only (not exposed to network); prompt content stays on operator machine.
+  Operator must NOT enable network-exposed Phoenix or remote sink without removing
+  OTEL_LOG_USER_PROMPTS first (per Wave 82a comment + codex T1 P9).
+
+CR-3 SATISFIED (cross-model consensus):
+  Codex T1 e2e fired BEFORE this commit per Ship 2X SRA cross-model T1 mandate +
+  Wave 100 Ship 2P fully-unleashed discipline (no --sandbox=read-only; danger-full-access).
+  Verdict: NEEDS-REVISION conf=0.93. Pattern A apply integrating all 9 prescriptions.
+
+CR COMPLIANCE:
+  CR-1 (cite SOTA primary): TIER-1-DIRECT Z:/repos/deps/claude-code/CHANGELOG.md
+                            @ HEAD L45+L157+L308+L568+L909 (CC OTel env support) +
+                            https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+                            (OTel SDK trace-specific env spec)
+  CR-3 (cross-model T1):    codex T1 NEEDS-REVISION conf=0.93 Pattern A applied (9 prescriptions)
+  CR-5 (install-priority):  Phoenix already deployed (no new install); env-wire only
+  CR-6 (fresh-from-github): N/A (no install)
+  CR-7 (graduated unleash): Phase 3 destination preserved; env-additive
+  CR-8 (full-SOTA-content): ADAPTED-FROM-SOTA (Phoenix Apache-2.0 OTel-native)
+  CR-9 (install-risk):      LOW (env var additive; reversible via revert; Phoenix
+                            container ALREADY running; no new container deployment risk;
+                            PII note: prompts persist in local Phoenix only)
+  CR-10 (research-first):   Wave 109 Agent E + Mia probe via docker ps drove this pivot
+  CR-11 (META-process):     openlit install proposal → Mia OVER #30 catch (stack
+                            duplication) → research-backed pivot to Phoenix-wire →
+                            codex T1 e2e → 9-prescription Pattern A apply
+  CR-12 (upstream-install): N/A (no new install; wiring existing upstream container)
+
+Wave 109 — Ship 2P-pilot-REVISED (34th commit in this session arc).

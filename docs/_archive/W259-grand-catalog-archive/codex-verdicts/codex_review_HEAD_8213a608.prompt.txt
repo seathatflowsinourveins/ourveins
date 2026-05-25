@@ -1,0 +1,220 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 8213a60852333d8d8997e030bce4b11ee78f013e
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/wave152-f16-cite-only-pattern-extraction.md | 152 +++++++++++++++++++++++
+ 1 file changed, 152 insertions(+)
+
+=== git show --format=fuller ===
+commit 8213a60852333d8d8997e030bce4b11ee78f013e
+Author:     42 <42@local>
+AuthorDate: Mon May 11 17:15:12 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 17:15:12 2026 -0400
+
+    docs(catalog): Wave 152 Fire 16-CITE-ONLY — 10-pattern catalog consolidation from W152 F10+F11 V1 ARTIFACTs (FM-02 (c) commit-layer absorption n=18→n=19 firm + commit-message-drift sub-class; install-provenance F16-CITE-ONLY entry absorbed into parallel `36b42b2` along with parallel's F16-FM-21.c entry; doc file ships standalone here)
+    
+    Consolidates pattern catalogs from W152 Fire 10 (openai-agents-python 3-voice ENRICHMENT-AUDIT)
+    + W152 Fire 11 (specify-cli/spec-kit V3 SAVED-SHIP) V1 sota-researcher ARTIFACTs into a single
+    queryable doc surface for CITE-ONLY adoption per CR-12 disposition lattice.
+    
+    ## FM-02 (c) commit-layer absorption + commit-message-drift sub-class n=18→n=19 firm
+    
+    This fire was prepared with TWO uncommitted changes:
+    - Edit to `docs/install-provenance.md` appending W152 F16-CITE-ONLY entry (~67 LOC)
+    - NEW file `docs/wave152-f16-cite-only-pattern-extraction.md` (~14.5KB; 10-pattern catalog)
+    
+    Parallel session then committed W152 Fire 16 FM-21.c sub-class evidence ladder advance at
+    `36b42b2` — atomic single-shell commit picked up working-tree state at that point, which
+    INCLUDED my install-provenance.md F16-CITE-ONLY edit. Result: parallel's commit `36b42b2`
+    silently absorbed my F16-CITE-ONLY provenance entry alongside their F16-FM-21.c entry.
+    Commit message says only "FM-21.c sub-class n=1→n=2 same-wave evidence advance" — does NOT
+    mention the absorbed F16-CITE-ONLY content.
+    
+    This matches the FM-02 (c) commit-message-drift sub-class observed at `fc5e4ae` (W152 F11
+    FM-21 OWNED promotion commit msg drifted from content). The two entries are recoverable via
+    `grep -n 'Wave 152 Fire 16' docs/install-provenance.md` returning both at L18501 + L18570.
+    
+    Per port-note-discipline.md §6 forward-only convention: no retroactive correction of `36b42b2`
+    commit body; this commit body documents the absorption authoritatively.
+    
+    ## Dual W152 F16 fire-slot per cooperative-multi-session etiquette
+    
+    - F16-CITE-ONLY (this commit, mine): pattern catalog consolidation doc
+    - F16-FM-21.c (`36b42b2`, parallel): FM-21.c sub-class evidence ladder n=2 advance
+    
+    Both ships are unique-content contributions; fire-number coordination preserved via explicit
+    lineage in this commit message.
+    
+    ## CR-12 5-class lattice classifications
+    
+    - Patterns #1-#9 (openai-agents-python @ tag v0.17.1): PROVIDER-COMPLEMENT class 4 per W134
+      Fire 27-A precedent — parallel API surface to incumbent anthropics/claude-agent-sdk-python
+      ==0.1.81 PRIMARY-CANONICAL (W152 F6 `45e376b`)
+    - Pattern #10 (github/spec-kit @ v0.8.7 commit 81f772c): PARTIAL-OVERLAP class 3 per W152 F11
+      V3 ADVERSARIAL synthesis — SAME-SCOPE-DIFFERENT-MECHANISM
+    - All 10: CITE-ONLY scope; install-class verdict intentionally-DEFERRED per V3 SAVED-SHIP
+      catches
+    
+    ## SRA D1-D10 aggregate verdict
+    
+    9/10 PASS + D1+D6 critical PASS per Z:/claude-sota/.claude/rules/sota-research-architecture.md
+    Convergence Verdict Decision Lattice → STUDY-PILOT-PATTERN-EXTRACT verdict confirmed.
+    
+    ## Cross-model gate satisfaction (CR-3 Phase 1 bootstrap exception, doc-only carve-out)
+    
+    F16-CITE-ONLY is doc-only consolidation per port-note-discipline.md §6 forward-only APPEND
+    — no install ripple, no behavioral change, no fresh SRA D1-D10 INSTALL-class verdict, no
+    CR-12 ADOPT-NOW. Per Pattern A admissibility filter at codex-t1-fix-forward-pattern.md:
+    CITE-ONLY ≠ design-surface edit per `codex_t1_consult_gate.py:23-28,104-108,235`
+    _UNIVERSAL_EXCLUSIONS scope.
+    
+    Cross-model gate satisfied via accumulated 6× REAL GPT-5.5 codex T1 dispatches in W152
+    source ships (F6 V2+V3 / F10 V2+V3 / F11 V2+V3) — all strict-conform Pattern D 6-parameter
+    recipe + Path P foreground+tee.
+    
+    ## Arc-saturation HNF context (per parallel W152 F15 + F16 declarations)
+    
+    FM-21.b STATE PROBE clause-level smoke applied (the discipline parallel session promoted at
+    `fc5e4ae`):
+    - Sub-claim A (F16-CITE-ONLY value): STILL-CURRENT — V1 ARTIFACTs are gitignored + pattern
+      discovery requires grep across 40KB+ context; consolidation reduces future-operator
+      decision cost
+    - Sub-claim B (NOT-duplicate kiss-dry-yagni Must-Never #4): VERIFIED — V1 ARTIFACTs are
+      AUDIT-class buried; F16-CITE-ONLY is CATALOG-class with SRA verdict + CR-12 disposition;
+      different layer
+    - Sub-claim C (deprecation-discipline.md applies?): NO — F16-CITE-ONLY is ADDITION not
+      DEPRECATION; 5-question gate inverse confirms admissibility
+    - Sub-claim D (arc-saturation HNF overrides ship?): NO — arc-saturation declares "no fresh
+      ADOPT-NOW candidate" per Inverse-FM-09 n=2 HNF at `ca856cb`; CITE-ONLY ≠ ADOPT-NOW;
+      F16-CITE-ONLY admissible
+    
+    ## Mia pre-apply self-probes (4 catches, all VERIFIED-GENUINE)
+    
+    - Mia A: F10 V1 ARTIFACT exists at cited path + 28KB — VERIFIED via direct `ls -la`
+    - Mia B: F11 V1 ARTIFACT exists at cited path + 12.6KB — VERIFIED via direct `ls -la`
+    - Mia C: 9 patterns enumerated correctly per F10 V1 ARTIFACT L301 — VERIFIED via Grep
+    - Mia D: parallel F16-FM-21.c actually shipped at `36b42b2` (not orchestrator-side phantom)
+      — VERIFIED via `git log --grep 'Wave 152 Fire 16' --oneline` returning `36b42b2`
+    
+    ## Cumulative cascade ladder advances
+    
+    - Mia pre-apply: n=316 → n=320 (+4 — A/B/C/D this fire)
+    - FM-02 (c) parallel-session-collision ACCEPT-ABSORPTION: n=17 → n=18 → **n=19 firm**
+      (+2 cumulative — F14 fire-slot absorption W152 F16-CITE-ONLY reframe + commit-message-
+      drift sub-class at `36b42b2` install-provenance absorption)
+    - CR-12 5-class lattice: PROVIDER-COMPLEMENT class 4 + PARTIAL-OVERLAP class 3 both
+      re-exercised (lattice 5/5 cumulative preserved)
+    - W134 F27-A STUDY-PILOT-PATTERN-EXTRACT precedent: 3rd consolidated ratification
+    - arc-saturation HNF: HONORED — F16-CITE-ONLY acknowledges parallel F15 declaration in ship
+      doc + Forward Top-5 reflects operator-gated state
+    - USER-CORRECTION-ACK: n=10 unchanged (parallel F16-FM-21.c advanced; no fresh
+      user-correction this fire from my side)
+    - FM-09 firm 14/14 / FM-17.f firm n=6 / Pattern D n=28 / Path P n=28: all unchanged this fire
+      (doc-only carve-out)
+    
+    ## Files (atomic single-shell narrow `--only` per FM-02 (b)+(c))
+    
+    - `docs/wave152-f16-cite-only-pattern-extraction.md` (NEW ~14.5KB doc; 10-pattern catalog
+      with SRA verdict + CR-12 disposition + re-eligibility map + arc-saturation context)
+    
+    ## NOT committed (already absorbed OR gitignored)
+    
+    - `docs/install-provenance.md` W152 F16-CITE-ONLY entry — ALREADY ABSORBED into `36b42b2`
+      via FM-02 (c) commit-layer absorption (see L18501-L18568 of current HEAD's file content)
+    - `.claude/projects/Z--claude-sota-installed/memory/MEMORY.md` (gitignored)
+    - `tmp/wave152-f16-cite-only-commit-msg.txt` (this commit message; tmp file)
+    - Various .claude/* + .specify/ + .ccs/ etc untracked drift (1290+ files; Ship 15 untracked
+      CR-1 hygiene deferred to operator scoping)
+    
+    ## Refs
+    
+    - F16-CITE-ONLY doc (this commit): `docs/wave152-f16-cite-only-pattern-extraction.md`
+    - F16-FM-21.c parallel commit: `36b42b2` (absorbs my F16-CITE-ONLY install-provenance Edit)
+    - F10 V1 ARTIFACT: `tmp/wave152-f7-v1-sota-researcher-openai-agents-2026-05-11.md`
+    - F11 V1 ARTIFACT: `tmp/wave152-f11-v1-sota-researcher-spec-kit-2026-05-11.md`
+    - W134 F27-A: `Z:/claude-sota/.claude/state/codex_consult_w134_f27a_openai_agents_python_OUT.txt`
+      (cite-import-AMBER per CLAUDE.md §
+
+[prompt truncated]

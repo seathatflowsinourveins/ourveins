@@ -1,0 +1,12 @@
+There are no staged code diffs, but the current untracked set includes generated build output and runtime inbox/config backup artifacts that should not ship. These should be removed or ignored before committing.
+
+Full review comments:
+
+- [P2] Drop generated CLIProxyAPI build output — Z:\claude-sota-installed\accounts\repos\CLIProxyAPI\.codex-build\bundle12-defer-loading-cache-control-skip-20260430.patch:1-1
+  The submodule is dirty because `.codex-build` is untracked, and that directory currently contains generated Go caches plus a build binary (~12,773 files / ~1.1 GB). If this is staged in the submodule, clones will pull build artifacts and normal build output will keep the repo dirty; remove it or ignore `.codex-build/` in CLIProxyAPI.
+
+- [P2] Keep unread team inbox state out of source — Z:\claude-sota-installed\.claude\teams\claude-sota-installed\inboxes\orchestrator.json:6-6
+  These inbox files are runtime state, not source: the entries are historical task assignments still marked `read: false`. If committed, a fresh checkout or resumed team process can treat old Wave 197 assignments as new work, and `.pre-commit-config.yaml` excludes `.claude/teams/**` from scans; keep this directory ignored/out of the commit.
+
+- [P3] Remove the duplicate settings backup — Z:\claude-sota-installed\.claude\settings.json.bak:1-1
+  `.claude/settings.json.bak` is byte-for-byte identical to the tracked `.claude/settings.json`. If this backup is versioned, future settings changes will have two apparent sources of truth and the backup can silently go stale; delete it or ignore backup files instead.

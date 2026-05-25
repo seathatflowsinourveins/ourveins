@@ -1,0 +1,44 @@
+fix(hooks): session-keyed lookup in userpromptsubmit_compact_threshold (W174 P0b)
+
+P0b follow-up to commit 02f72fd. Prior Strategy 3 iterated `data.values()`
+and returned the first non-zero `total_input_tokens` — for a multi-session
+sidecar that picks the alphabetically-first key under sort_keys=True.
+
+Telemetry confirmed cross-session leak: sessions 70bd13e6, b2a9dc5b, and
+cd57ff20 all reported at 658,019 — that's session 1aeadaf1's real number.
+
+Root cause: canonical sidecar shape is session-keyed, NOT flat. The 02f72fd
+docstring's "flat shape (canonical)" premise was incorrect.
+
+- Writer:  .claude/hooks/scripts/context_window_statusline.sh:54-65
+           does `data[session_id] = row` (session-keyed insert).
+- Reader A: .claude/hooks/scripts/context_window_guard.py:40-49
+           does `data.get(session_id)` (correct).
+- Reader B: .claude/hooks/scripts/precompact_guard.py:33-46
+           does `data.get(session_id)` (correct).
+- Reader C: this hook — was the only one wrong, now matches A+B.
+
+Smoke (live sidecar, 3/3 PASS):
+- b2a9dc5b (this session): 446067 tokens   -> returns OWN row
+- 1aeadaf1 (other session): 658019 tokens  -> returns OWN row
+- missing session ffffffff-...: None       -> fail-open per cardinal-rule 7
+
+SOTA refs (TIER-1-DIRECT, in hook docstring):
+- UserPromptSubmit payload session_id field:
+  https://code.claude.com/docs/en/hooks:743-757 [VERIFIED 2026-05-13]
+- Sibling lookup pattern (in-repo authoritative):
+  .claude/hooks/scripts/context_window_guard.py:40-49 @ HEAD 02f72fd9
+- Sidecar writer (session-keyed shape source-of-truth):
+  .claude/hooks/scripts/context_window_statusline.sh:54-65 @ HEAD 02f72fd9
+
+Cross-model gate: T3 codex_postcommit_review.py auto-fires per
+cross-model-consensus.md §The contract.
+
+Sister-hook audit (31/34 SOTA-cited / 91.2%): 3 NO-CITE candidates
+(safety_guard.py / fm17_class_lint.py / agent_plan_readonly_bash_guard.py)
+queued for follow-up.
+
+FM-02.b defense applied: `git commit --only -- <file>` form to avoid
+staging-index race with parallel session.
+FM-20 row 7 reinforcement: bug was stale-belief-propagation about sidecar
+shape (P0a author assumed flat; sibling readers proved session-keyed).

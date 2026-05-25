@@ -1,0 +1,370 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e1e9a-0e9c-7421-af11-7fa3c5d72575
+--------
+user
+SYSTEM: META-process codification fire — review proposed .mcp.json schema-conformance restructuring. claude-sota-installed runtime hits CC v2.1.140 /doctor parse errors: 6 `_comment_*` keys inside `mcpServers` object treated as invalid MCP server configs ('expected object received string'). Target budget: 60-120s. JSON-strict verdict at EOF.
+
+CONTEXT: `.mcp.json` has 17 keys in `mcpServers`:
+  - 11 valid server configs (github / context7 / deepwiki / playwright / chrome-devtools / repomix / serena / memory / graphiti / phoenix / gitnexus) — each is an object with `type` + `command`/`url`/`args`
+  - 6 `_comment_*` keys (strings, NOT objects):
+    1. `_comment_playwright_pin` (Wave 124 fire 1 — playwright pinning provenance)
+    2. `_comment_w155_f13_native_node` (W155 F13 — native node migration provenance)
+    3. `_comment_chrome_devtools` (Wave 134 Fire 5 — DEP-ONLY install provenance)
+    4. `_comment_serena_pin` (Wave 124 fire 1 — serena SHA pinning provenance)
+    5. `_comment_context_mode_removed` (Wave 95 Ship 1M — standalone removal provenance)
+    6. `_comment_gitnexus` (Wave 132 Fire 3 — gitnexus RC upgrade provenance)
+  - Plus top-level `_comment` (singular) at L2 — currently parses cleanly outside `mcpServers`
+
+PROPOSED FIX (option B per /goal v7 D1): Move all 6 `_comment_*` keys + the existing L2 `_comment` to a top-level `_comments` OBJECT structure:
+
+BEFORE:
+{
+  "_comment": "Wave 75 ... gitnexus comment text ...",
+  "mcpServers": {
+    "github": {...},
+    ...
+    "_comment_playwright_pin": "Wave 124 fire 1 ...",
+    "playwright": {...},
+    "_comment_w155_f13_native_node": "W155 F13 ...",
+    ... etc ...
+  }
+}
+
+AFTER:
+{
+  "_comments": {
+    "header": "Wave 75 ... gitnexus comment text ...",
+    "playwright_pin": "Wave 124 fire 1 ...",
+    "w155_f13_native_node": "W155 F13 ...",
+    "chrome_devtools": "Wave 134 Fire 5 ...",
+    "serena_pin": "Wave 124 fire 1 ...",
+    "context_mode_removed": "Wave 95 Ship 1M ...",
+    "gitnexus": "Wave 132 Fire 3 ..."
+  },
+  "mcpServers": {
+    "github": {...},
+    ...
+    "playwright": {...},
+    ... (only valid MCP server objects) ...
+  }
+}
+
+Rationale:
+- Anthropic CC `.mcp.json` schema per `https://code.claude.com/docs/en/mcp` validates EVERY key in `mcpServers` as an MCP server config object (must have `type` field).
+- Strings as values trigger 'Invalid MCP server config: expected object received string' parse error in CC v2.1.140.
+- Moving to top-level `_comments` object preserves provenance audit trail (cardinal-rule-1 + audit-action-loop.md compliance) while removing schema violation.
+- Top-level keys outside `mcpServers` are NOT validated against MCP server schema (lenient per the L2 `_comment` working precedent).
+- 6 _comment_* relocation + 1 _comment promotion = net 14-line restructure; preserves all 7 provenance strings verbatim.
+
+LOAD-BEARING PRESERVATION: ALL 7 comment string values MUST be preserved VERBATIM (not summarized / paraphrased / shortened). They contain TIER-1 cite anchors at file:line + HEAD SHA depth + cardinal-rule conformance markers per cardinal-rule-1 + cardinal-rule-8. Audit trail integrity is non-negotiable.
+
+AUDIT DIMENSIONS REQUESTED:
+1. Schema-conformance: does moving _comment_* keys to top-level `_comments` object satisfy CC v2.1.140 `.mcp.json` schema? Confirm via Anthropic CC docs at `https://code.claude.com/docs/en/mcp` if reachable.
+2. Top-level key safety: does CC v2.1.140 reject UNKNOWN top-level keys (e.g., `_comments` object)? Or does it pass-through unknown keys? The existing L2 `_comment` singular at top level currently works — suggests pass-through.
+3. Audit-trail preservation: is verbatim preservation of all 7 strings sufficient for cardinal-rule-1 cite-trail conformance? Or should the relocation include a forwarding marker (e.g., `_comments_moved_from_mcpServers: true` to flag the migration in audit JSONL)?
+4. JSON validity: post-edit JSON syntax cleanly parses via `python -c "import json; json.load(open('.mcp.json'))"` — yes/no?
+5. Sister-rule integration: does this conflict with `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 source-class lattice for the embedded provenance cites? Each _comment value cites TIER-1-DIRECT sources (e.g., Wave 134 Fire 5 cites `Z:/repos/deps/awesome-claude-plugins/README.md @ HEAD 765d795e` + `Z:/repos/deps/chrome-devtools-mcp/README.md @ HEAD 88e543f5`); the comments themselves are TIER-3-LOCAL-OPERATOR-DERIVED audit trail. Restructuring should not change cite class.
+
+OUTPUT_BUDGET: 300 LOC max for verdict body.
+
+VERDICT JSON SHAPE (emit at EOF):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"prescribed_edits":[{"file":"path","old":"...","new":"...","reason":"..."}],"axis_findings":{"schema_conformance":"PASS|REVISE","top_level_key_safety":"PASS|REVISE","audit_trail_preservation":"PASS|REVISE","json_validity":"PASS|REVISE","sister_rule_integration":"PASS|REVISE"},"summary":"..."}
+
+codex
+I’ll verify the current `.mcp.json` shape locally, check Anthropic’s MCP docs for the expected structure, then return a review verdict with the requested JSON as the final thing in the response.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .mcp.json' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "if (Test-Path Z:\\claude-sota\\.claude\\rules\\citation-discipline.md) { Select-String -Path Z:\\claude-sota\\.claude\\rules\\citation-discipline.md -Pattern 'source-class|TIER|Rule #8|rule #8|lattice' -Context 3,6 }" in Z:\claude-sota-installed
+ succeeded in 390ms:
+{
+  "_comment": "Wave 75 2026-05-08 — Tier-2A HTTP MCPs (github + context7 + deepwiki) + kits-convergence stdio MCPs (playwright + serena) per fleet-kits-convergence-2026-05-08.md §5. Wave 79 2026-05-08 — added context-mode MCP per Ship 1A token-opt: V64:72 + 3-agent unanimous TIER-A + GPT-5.5 e2e APPROVE-SHIP-1 conf=0.78 verdict at .claude/state/codex_consult_token_opt_synthesis_review_OUT.txt. ELv2 license noted (CR-9 risk MED — source-available, not pure FOSS). Wave 106 Ship 2N-batch3-E 2026-05-08 — added repomix MCP (yamadashy/repomix v1.14.0 MIT) for automated Pack→Grep→Skill pipeline per `Z:/claude-sota/.claude/rules/research-protocol.md §Repomix Pack→Grep→Skill sub-rule`; ~70% tree-sitter compression on packed output. Cite: Z:/repos/deps/repomix/README.md @ HEAD MCP integration section + npx -y repomix@1.14.0 --mcp invocation pattern. Version-pinned 1.14.0 per CR-9 explicit acknowledgment (codex T1 APPROVE conf=0.86 optional hardening prescription #3) — converts @latest D6 today-release-auto-upgrade risk to deterministic startup. Verdict at .claude/state/codex_consult_wave106_ship2n_batch3e_repomix_mcp_OUT.txt.",
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/readonly",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "deepwiki": {
+      "type": "http",
+      "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "_comment_playwright_pin": "Wave 124 fire 1 2026-05-09 — playwright pinned per codex T1 NEEDS-REVISION conf=0.91 P0 prescription (CR-9 fix). Was @latest (D6 today-release-auto-upgrade risk); now @0.0.75 (npm published 2026-05; HEAD 8116437ffcfee1309cebc07dd30cee37720d2d19). Cite: codex T1 verdict at .claude/state/codex_consult_w122_e2e_audit_OUT.txt L6158-6160 + Wave 122 Mia probe confirmed 0.0.75 already in npm-global registry. Per CR-6 official-native-channel + CR-12 PRIMARY upstream-install. Microsoft OFFICIAL MCP repo.",
+    "_comment_w155_f13_native_node": "W155 F13 2026-05-12 — TERMINAL-SPAWN-CHURN FIX: replaced `npx -y` chains with direct `node <abs-path>/cli.js` for 4 MCP servers (playwright + chrome-devtools + repomix + phoenix). All 4 packages installed natively via `npm install -g` in 19.9s (171 packages added) per cardinal-rule-6 official-native-channel. Eliminates `bash → cmd /c → npx → npm-registry-resolve → node` chain on every MCP start/reconnect. Sister fix to W155 F12 ccstatusline native-node migration (validated 67% bash + 44% conhost spawn reduction). Cite: TIER-1-DIRECT https://code.claude.com/docs/en/mcp (stdio command field) + W155 F12 empirical measurement. Cross-model gate per CR-3 Phase 1 bootstrap exception: codex-rescue dispatch hit FM-17.e autocompact-thrash (n=5 ladder advance); retroactive Path P codex T1 satisfaction queued.",
+    "playwright": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:/Users/42/AppData/Roaming/npm/node_modules/@playwright/mcp/cli.js"]
+    },
+    "_comment_chrome_devtools": "Wave 134 Fire 5 DEP-ONLY operationalization — added ChromeDevTools/chrome-devtools-mcp as highest-value awesome-claude-plugins MCP candidate not already in .mcp.json. Source audit: Z:/repos/deps/awesome-claude-plugins/README.md top-100 row #21 @ HEAD 765d795e76b3912c07e7b98c5f07824b75cfcf75 + Z:/repos/deps/chrome-devtools-mcp/README.md install examples and CHANGELOG v0.25.0 @ HEAD 88e543f53e2aeb3fbf74d56963718daa55fe6b00. Pinned 0.25.0; --no-usage-statistics disables telemetry. Complements Playwright with live Chrome inspection.",
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:/Users/42/AppData/Roaming/npm/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js", "--no-usage-statistics"]
+    },
+    "repomix": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:/Users/42/AppData/Roaming/npm/node_modules/repomix/bin/repomix.cjs", "--mcp"]
+    },
+    "_comment_serena_pin": "Wave 124 fire 1 2026-05-09 — serena pinned per codex T1 NEEDS-REVISION conf=0.91 P0 prescription (CR-9 fix). Was unpinned git+https://github.com/oraios/serena (D6 risk on next pull); now SHA-pinned at HEAD 249f6b07f9ccac259b0ff95e06c9a40629748e17 (last commit verified 2026-05-09 per Wave 122 Agent C HEAD-update audit). Cite: codex T1 verdict at .claude/state/codex_consult_w122_e2e_audit_OUT.txt L6163-6166 + Agent C frontier discovery. Per CR-6 + CR-12.",
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena@249f6b07f9ccac259b0ff95e06c9a40629748e17", "serena", "start-mcp-server", "--context", "claude-code"]
+    },
+    "_comment_context_mode_removed": "Wave 95 Ship 1M 2026-05-08 — standalone context-mode MCP removed; replaced by plugin-supplied MCP via /plugin install context-mode@context-mode (mksglu/context-mode marketplace). Plugin contributes 4 hooks (PreToolUse/PostToolUse/PreCompact/SessionStart) + 6 sandbox tools + 5 meta-tools per plugin's hooks/hooks.json. Anthropic CC plugin-supplied MCPs take precedence per code.claude.com/docs/en/mcp. Cite: Z:/repos/deps/context-mode/.claude-plugin/plugin.json @ HEAD e40102e5. ctx_doctor verifies 5/6 PASS (FTS5/SQLite + hooks + version + runtimes + perf); ctx_stats shows live telemetry + persistent memory.",
+    "memory": {
+      "type": "stdio",
+      "command": "Z:/venvs/claude/Scripts/memory.exe",
+      "args": ["server"],
+      "env": {
+        "MCP_MEMORY_STORAGE_BACKEND": "sqlite_vec",
+        "MCP_MEMORY_SQLITE_PATH": "Z:/claude-sota-installed-state/.mcp-memory/memory.db"
+      }
+    },
+    "graphiti": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--isolated",
+        "--directory",
+        "Z:/claude-sota-installed/.local/graphiti/mcp_server",
+        "--project",
+        ".",
+        "main.py",
+        "--transport",
+        "stdio",
+        "--database-provider",
+        "falkordb",
+        "--model",
+        "qwen3.6:35b",
+        "--embedder-model",
+        "qwen3-embedding:0.6b",
+        "--group-id",
+        "eee"
+      ],
+      "env": {
+        "FALKORDB_URI": "redis://127.0.0.1:16379",
+        "FALKORDB_PASSWORD": "",
+        "FALKORDB_DATABASE": "default_db",
+        "OPENAI_API_KEY": "ollama",
+        "OPENAI_API_URL": "http://127.0.0.1:11700/v1",
+        "OPENAI_BASE_URL": "http://127.0.0.1:11700/v1",
+        "GRAPHITI_GROUP_ID": "eee",
+        "EMBEDDER__DIMENSIONS": "1024",
+        "EMBEDDING_DIM": "1024",
+        "SEMAPHORE_LIMIT": "3"
+      }
+    },
+    "phoenix": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:/Users/42/AppData/Roaming/npm/node_modules/@arizeai/phoenix-mcp/build/index.js", "--baseUrl", "http://127.0.0.1:16006"]
+    },
+    "_comment_gitnexus": "Wave 132 Fire 3 RC-UPGRADE 2026-05-10 (supersedes Wave 132 Fire 2 RETAIN-AT-1.6.3) — UPGRADED gitnexus@1.6.3 → @1.6.4-rc.112 per HNF-4 fix-forward 5-commit multi-layered fix (commits 6f42253 analyze invariant + b792787 hook canonical-root + 3732fa1 storage canonical-name + 3f0c74f @ladybugdb/core 0.15.2→0.16.0 native segfault + c08564ab @ladybugdb/core 0.16.0→0.16.1 wasm Windows paths) [Wave 133 Fire 2 fix-forward per Agent C OVER #129 catch on attribution-conflation: 3f0c74f bumps to 0.16.0 NOT 0.16.1; final 0.16.1 lands via separate c08564ab]. Empirical Wave 132 Fire 3 evidence: 1.6.3 BROKEN on Windows (silent meta.json + ~/.gitnexus/registry.json write failure post-DB-write; exit 0 masks); 1.6.4-rc.112 FULLY WORKS (24 nodes/25 edges indexed; meta.json 732B + registry.json 441B both written; status ✅ up-to-date). Multi-voice verdict per cardinal-rule-3 Phase 1 bootstrap exception (2-voice CONVERGENT structured + 1 mined-trace SUPPORTING per Wave 133 Fire 2 fix-forward — original 'Triple-voice CONVERGENT' framing IMPRECISE per synthesis-layer-verify.md §Reporting categories OVER discrimination: Path P contributes mined-trace evidence not structured verdict): Path P codex bg `brorqawb0` REAL GPT-5.5 (Pattern B HONEST-NON-FINDING-LOSS — mined trace yields RC viable + @ladybugdb/core issue #452 OPEN segfault on ~60K-node graphs OUT OF SCOPE for typical eee use) + Agent B sota-researcher PASS-UPGRADE conf=0.86 (RC-channel 7.2 RCs/day + WSL2 #1431 forward-looking-only + DeusData STABLE-BURN-IN gate fails until 2026-06-27 + 1.6.4 stable imminent 7-14d) + Agent C archaeology SAFE-UPGRADE conf=0.92 (147 commits / 0 BREAKING / 50% fix burst / MCP tools UNCHANGED at 13 / +3 new CLI subcommands). License: PolyForm Noncommercial 1.0.0 (RETAIN-WITH-DOWNGRADE-DEEP-DIVE-VERIFIED per SRA D1 use-class lattice — eee local-runtime non-commercial use OK; NOT for SaaS-resale, commercial distribution, local commercial/internal business use, or paid-client-work; PolyForm Noncommercial forbids commercial use entirely outside the grant per https://polyformproject.org/licenses/noncommercial/1.0.0). Maintainer: abhigyanpatwari + 105 active contributors (Wave 132 Fire 2 Round-3 archaeology RECLASSIFIED TIER-3-NAMED-ORG from prior TIER-4-NAMED-INDIVIDUAL per Mia OVER #127 catch; npm publishing single-user; multi-contributor repo work; 314 commits/30d; Akon Labs enterprise framing per README). Pre-flight verified: node v22.22.0 (engines.node 20→22 bump in RC). Version-pinned 1.6.4-rc.112 per CR-9 mandate (NOT @latest; D6 RC-stream ack; 7.2 RCs/day cadence acknowledged; rollback `npm install -g gitnexus@1.6.3` <30s). Install via official native channel: npm install -g gitnexus@1.6.4-rc.112 per cardinal-rule-12 PRIMARY upstream-install. CLI commands (20 verified via gitnexus --help 2026-05-10 post-upgrade): setup/analyze/index/serve/mcp/list/status/doctor/clean/remove/wiki/augment/publish/query/context/impact/cypher/detect-changes/eval-server/group (added index+publish+doctor in 1.6.4-rc.112; Mia OVER #128 caught Agent C undercount of +2 actual is +3). MCP tools (13 UNCHANGED per gitnexus/src/mcp/tools.ts blob a85298c0): list_repos/query/cypher/context/detect_changes/rename/impact/route_map/tool_map/shape_check/api_impact/group_list/group_sync (additive optional params for cross-repo group + monorepo service prefix; backward-compatible). Cite: TIER-1-DIRECT https://github.com/abhigyanpatwari/GitNexus/releases/tag/v1.6.4-rc.112 (commit 54f53eb0c7458acec875c34dd237a1b37de634de; source main 262ad8b8) + Z:/repos/deps/gitnexus/LICENSE @ HEAD 98addbd6c4e7aff77b5c33242d08155afe94ed35. Wave 132 Fire 3 verdict files: .claude/state/codex_consult_w132fire3_rc_upgrade_decision_OUT.txt (1020 lines Pattern B trace) + tmp/wave132-fire3-agentB-rc-channel-audit-2026-05-10.md + tmp/wave132-fire3-agentC-commit-archaeology-2026-05-10.md. Mia ladder n=127 → n=128 (1 catch: Agent C CLI subcommand undercount +2 actual +3). FM-17.f cumulative remains n=4 (Path P satisfies cross-model gate via foreground+tee orchestrator-side; Agent C dispatched as Sonnet stand-in to AVOID FM-17.f BRIDGE-MODE risk). DEFERRED to Wave 132 Fire 4: stable 1.6.4 bump auto-fire on `npm view gitnexus dist-tags.latest` change detection (best-median 7-14d window per Agent B Axis 4). Closes Wave 132 Fire 2 RETAIN-deferred HNF-4 verification + ratifies Fire 2 with empirical fix-forward.",
+    "gitnexus": {
+      "type": "stdio",
+      "command": "gitnexus",
+      "args": ["mcp"]
+    }
+  }
+}
+
+
+ succeeded in 501ms:
+
+  Z:\claude-sota\.claude\rules\citation-discipline.md:30:3. **Star count does NOT indicate quality** — read the 
+source, verify the claim
+  Z:\claude-sota\.claude\rules\citation-discipline.md:31:4. **Verify before trust** — the cited file must still exist 
+AND still say what you cite (labels decay)
+  Z:\claude-sota\.claude\rules\citation-discipline.md:32:5. **Silent fallback = violation** — if expected output 
+doesn't appear (e.g., `embeddings: 0` after `--embeddings`), that's a STOP, not a footnote (parent 
+`feedback_reference_first_hard_rule.md` — PARENT-ATTRIBUTION pending sss memory port)
+> Z:\claude-sota\.claude\rules\citation-discipline.md:33:6. **[7mTIER[0m-1-NAMED-AUTHOR-QUOTE [0m[7m[0mclass [0m[7m[0mfor [0m[7m[0minherited [0m[7m[0mpatterns** [0m
+[7m[0m— [0m[7m[0mwhen [0m[7m[0ma [0m[7m[0mSOTA [0m[7m[0mpattern [0m[7m[0mis [0m[7m[0mderived [0m[7m[0mfrom [0m[7m[0ma [0m[7m[0mnamed [0m[7m[0mauthor's [0m[7m[0mpublished [0m[7m[0mwork [0m[7m[0m(book [0m[7m[0m/ [0m[7m[0mpeer-reviewed [0m[7m[0mpaper [0m[7m[0m/ [0m[7m[0mconference [0m[7m[0mtalk), [0m
+[7m[0mcite [0m[7m[0mverbatim-quote [0m[7m[0m+ [0m[7m[0mauthor-name [0m[7m[0m+ [0m[7m[0mpublication [0m[7m[0minline. [0m[7m[0mThe [0m[7m[0mnamed-author [0m[7m[0mcite [0m[7m[0mis [0m[7m[0mTIER-1 [0m[7m[0mprimary-source [0m[7m[0mfor [0m[7m[0mthe [0m[7m[0mPATTERN [0m
+[7m[0m(not [0m[7m[0mthe [0m[7m[0mimplementing [0m[7m[0mrepo); [0m[7m[0muse [0m[7m[0malongside [0m[7m[0mrepo [0m[7m[0mfile:line [0m[7m[0mcites [0m[7m[0mfor [0m[7m[0mfull [0m[7m[0mprovenance. [0m[7m[0mExemplar: [0m
+[7m[0m`Z:/repos/deps/mattpocock/skills/README.md` [0m[7m[0m(48,857★, [0m[7m[0mMIT, [0m[7m[0m[VERIFIED [0m[7m[0m2026-04-30 [0m[7m[0mPM [0m[7m[0mvia [0m[7m[0mcurl [0m[7m[0mraw [0m[7m[0mGitHub]) [0m[7m[0mquotes [0m
+[7m[0mPragmatic [0m[7m[0mProgrammer [0m[7m[0m(Thomas [0m[7m[0m& [0m[7m[0mHunt) [0m[7m[0mfor [0m[7m[0m"rate [0m[7m[0mof [0m[7m[0mfeedback [0m[7m[0mis [0m[7m[0myour [0m[7m[0mspeed [0m[7m[0mlimit" [0m[7m[0m(failure-mode [0m[7m[0m#3 [0m[7m[0mframing), [0m
+[7m[0mDomain-Driven-Design [0m[7m[0m(Eric [0m[7m[0mEvans) [0m[7m[0mfor [0m[7m[0mubiquitous-language [0m[7m[0mpattern [0m[7m[0m(#2 [0m[7m[0mframing), [0m[7m[0mand [0m[7m[0mExtreme [0m[7m[0mProgramming [0m[7m[0mExplained [0m
+[7m[0m(Kent [0m[7m[0mBeck) [0m[7m[0mfor [0m[7m[0m"invest [0m[7m[0min [0m[7m[0mdesign [0m[7m[0mevery [0m[7m[0mday" [0m[7m[0m(#4 [0m[7m[0mframing). [0m[7m[0mPer [0m
+[7m[0m`.claude/projects/Z--claude-sota/memory/reference_mattpocock_skills_pattern_extract_2026_04_30.md` [0m[7m[0mfor [0m[7m[0mthe [0m[7m[0mfull [0m[7m[0mmining [0m
+[7m[0mtrace [0m[7m[0m+ [0m[7m[0madoption-candidate [0m[7m[0mranking. [0m[7m[0m**TIER-1-NAMED-AUTHOR-QUOTE [0m[7m[0mPROVISIONAL-EXCEPTION** [0m[7m[0m*(round-3 [0m[7m[0mframing [0m[7m[0mper [0m[7m[0mT3 [0m
+[7m[0mround-2 [0m[7m[0mconf=0.88 [0m[7m[0mESCALATING [0m[7m[0mfinding [0m[7m[0mon [0m[7m[0mcommit [0m[7m[0m`d4df352`; [0m[7m[0msupersedes [0m[7m[0mround-1 [0m[7m[0m"full [0m[7m[0mcardinal-rule-1 [0m[7m[0msatisfaction" [0m
+[7m[0mframing [0m[7m[0m— [0m[7m[0mphysical-only [0m[7m[0msources [0m[7m[0mdo [0m[7m[0mNOT [0m[7m[0mfully [0m[7m[0msatisfy [0m[7m[0mcommitted-tree [0m[7m[0minspectability)*: [0m[7m[0mphysical-only [0m
+[7m[0mprinted-book/journal/conference-publication [0m[7m[0mprimary [0m[7m[0manchor [0m[7m[0m(ISBN [0m[7m[0m+ [0m[7m[0mpage [0m[7m[0m+ [0m[7m[0mverbatim-quote) [0m[7m[0mis [0m[7m[0ma [0m[7m[0mPROVISIONAL-EXCEPTION [0m
+[7m[0mto [0m[7m[0mcardinal-rule-1 [0m[7m[0m(CLAUDE.md [0m[7m[0mL7), [0m[7m[0mNOT [0m[7m[0mfull [0m[7m[0msatisfaction. [0m[7m[0mCite [0m[7m[0mclass [0m[7m[0mdowngraded [0m[7m[0mto [0m
+[7m[0mTIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL [0m[7m[0mwith [0m[7m[0mREQUIRED [0m[7m[0mmetadata: [0m[7m[0m(a) [0m[7m[0mISBN/DOI [0m[7m[0m+ [0m[7m[0mpage [0m[7m[0m+ [0m[7m[0mverbatim-quote [0m[7m[0minline; [0m[7m[0m(b) [0m
+[7m[0mverifier-identity [0m[7m[0mdisclosure [0m[7m[0m(who-verified-when, [0m[7m[0me.g., [0m[7m[0m`[VERIFIED [0m[7m[0m2026-05-04 [0m[7m[0mby [0m[7m[0morchestrator [0m[7m[0magainst [0m[7m[0mbook [0m[7m[0mTip [0m[7m[0m#15 [0m
+[7m[0mverbatim [0m[7m[0mtext]`); [0m[7m[0m(c) [0m[7m[0mexplicit [0m[7m[0m`non-automatable: [0m[7m[0mtrue` [0m[7m[0mmarker [0m[7m[0mso [0m[7m[0mreview [0m[7m[0mhooks [0m[7m[0mknow [0m[7m[0mto [0m[7m[0mdefer [0m[7m[0mto [0m[7m[0mhuman [0m[7m[0msign-off; [0m[7m[0m(d) [0m
+[7m[0m**HARD-GATE [0m[7m[0mELIGIBILITY [0m[7m[0mTEST** [0m[7m[0m*(Round-3 [0m[7m[0mamendment [0m[7m[0ma [0m[7m[0mper [0m[7m[0mT3 [0m[7m[0mR3 [0m[7m[0mNEEDS-ATTENTION [0m[7m[0mconf=0.82 [0m[7m[0msame-class [0m[7m[0mfinding [0m[7m[0mon [0m[7m[0mcommit [0m
+[7m[0m`1b87a6e`; [0m[7m[0msupersedes [0m[7m[0mround-2 [0m[7m[0m"MUST [0m[7m[0mprefer" [0m[7m[0msoft [0m[7m[0mpreference [0m[7m[0mframing [0m[7m[0m— [0m[7m[0mpreference [0m[7m[0mis [0m[7m[0mnot [0m[7m[0mgateable; [0m[7m[0meligibility [0m[7m[0mis)*: [0m
+[7m[0mPROVISIONAL [0m[7m[0madmission [0m[7m[0mis [0m[7m[0madmissible [0m[7m[0mONLY [0m[7m[0mwhen [0m[7m[0mDOI [0m[7m[0mlanding [0m[7m[0mpage [0m[7m[0m+ [0m[7m[0maccessible [0m[7m[0mPDF [0m[7m[0m/ [0m[7m[0mpublisher [0m[7m[0mexcerpt [0m[7m[0m/ [0m[7m[0marchived [0m[7m[0mscan [0m
+[7m[0m(license-permitting) [0m[7m[0mwas [0m[7m[0mSEARCHED [0m[7m[0mAND [0m[7m[0mUNAVAILABLE. [0m[7m[0mThe [0m[7m[0mcommit [0m[7m[0mbody [0m[7m[0mMUST [0m[7m[0mdocument [0m[7m[0mthe [0m[7m[0msearch [0m[7m[0m(which [0m
+[7m[0mDOI/publisher/archive [0m[7m[0mwas [0m[7m[0mqueried [0m[7m[0m+ [0m[7m[0mreturn [0m[7m[0mshape [0m[7m[0m— [0m[7m[0me.g., [0m[7m[0m"searched [0m[7m[0mACM [0m[7m[0mDOI [0m[7m[0m10.1145/<doi> [0m[7m[0m2026-05-05 [0m[7m[0m— [0m[7m[0mpaywall-only, [0m[7m[0mno [0m
+[7m[0mexcerpt [0m[7m[0mfound; [0m[7m[0msearched [0m[7m[0mInternet [0m[7m[0mArchive [0m[7m[0m— [0m[7m[0mno [0m[7m[0mscan; [0m[7m[0msearched [0m[7m[0mpublisher [0m[7m[0mexcerpt [0m[7m[0mpage [0m[7m[0m— [0m[7m[0mnone"). [0m[7m[0mMere [0m[7m[0mpreference [0m[7m[0mis [0m
+[7m[0mINSUFFICIENT [0m[7m[0m— [0m[7m[0mif [0m[7m[0many [0m[7m[0mauditable [0m[7m[0msurrogate [0m[7m[0mexists [0m[7m[0m(DOI/PDF/excerpt/scan), [0m[7m[0muse [0m[7m[0mit [0m[7m[0mas [0m[7m[0mthe [0m[7m[0mnormative [0m[7m[0msource [0m[7m[0minstead [0m[7m[0mof [0m[7m[0mthe [0m
+[7m[0mphysical-only [0m[7m[0mbook [0m[7m[0mcite. [0m[7m[0me.g., [0m[7m[0mACM [0m[7m[0mDOI [0m[7m[0m`https://dl.acm.org/doi/10.1145/<doi>` [0m[7m[0mfor [0m[7m[0mACM [0m[7m[0mpapers [0m[7m[0mIS [0m[7m[0mauditable [0m[7m[0mwhen [0m
+[7m[0mpaywall-free. [0m[7m[0mSecondary [0m[7m[0maggregator [0m[7m[0mURLs [0m[7m[0m(Wikipedia, [0m[7m[0m`https://pragprog.com/tips/`, [0m
+[7m[0m`https://martinfowler.com/bliki/<topic>.html`, [0m[7m[0m`c2.com/cgi/wiki`) [0m[7m[0mare [0m[7m[0mVERIFICATION [0m[7m[0mPROXIES [0m[7m[0monly [0m[7m[0m— [0m[7m[0mthey [0m[7m[0mhelp [0m[7m[0mre-verify [0m
+[7m[0mthe [0m[7m[0mprimary [0m[7m[0mquote [0m[7m[0mwithout [0m[7m[0mowning [0m[7m[0mthe [0m[7m[0mbook [0m[7m[0mphysically, [0m[7m[0mbut [0m[7m[0mare [0m[7m[0mNOT [0m[7m[0mcited [0m[7m[0mas [0m[7m[0mnormative [0m[7m[0msource. [0m[7m[0m**Independent [0m
+[7m[0mnamed-reviewer [0m[7m[0msign-off [0m[7m[0mmandate** [0m[7m[0m*(Round-3 [0m[7m[0mamendment [0m[7m[0mb [0m[7m[0mper [0m[7m[0mT3 [0m[7m[0mR3 [0m[7m[0mNEEDS-ATTENTION [0m[7m[0mconf=0.82 [0m[7m[0msame-class [0m[7m[0mfinding [0m[7m[0mon [0m
+[7m[0mcommit [0m[7m[0m`1b87a6e`; [0m[7m[0msupersedes [0m[7m[0mround-2 [0m[7m[0m"Lower-confidence [0m[7m[0mreviewer-sign-off [0m[7m[0mmandate" [0m[7m[0msole-orchestrator [0m[7m[0mframing [0m[7m[0m— [0m
+[7m[0msole-orchestrator [0m[7m[0mverification [0m[7m[0mis [0m[7m[0mno [0m[7m[0mlonger [0m[7m[0madmissible)*: [0m[7m[0mrule [0m[7m[0medits [0m[7m[0mciting [0m[7m[0mTIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL [0m[7m[0mMUST [0m
+[7m[0mcite [0m[7m[0ma [0m[7m[0mSECOND [0m[7m[0mverifier-identity [0m[7m[0mBEYOND [0m[7m[0mthe [0m[7m[0morchestrator [0m[7m[0mwho [0m[7m[0mreplayed [0m[7m[0mthe [0m[7m[0mverbatim [0m[7m[0mquote [0m[7m[0magainst [0m[7m[0mthe [0m[7m[0msource [0m[7m[0m— [0m[7m[0mcommit [0m
+[7m[0mbody [0m[7m[0mMUST [0m[7m[0membed [0m[7m[0mBOTH [0m[7m[0mverifier-identity-1 [0m[7m[0m(the [0m[7m[0morchestrator, [0m[7m[0me.g., [0m[7m[0m`[VERIFIED [0m[7m[0m2026-05-05 [0m[7m[0mby [0m[7m[0morchestrator [0m[7m[0magainst [0m[7m[0mbook [0m
+[7m[0mTip [0m[7m[0m#15 [0m[7m[0mverbatim [0m[7m[0mtext]`) [0m[7m[0mAND [0m[7m[0mverifier-identity-2 [0m[7m[0m(the [0m[7m[0mindependent [0m[7m[0mnamed [0m[7m[0mreviewer, [0m[7m[0me.g., [0m[7m[0m`[VERIFIED [0m[7m[0m2026-05-05 [0m[7m[0mby [0m
+[7m[0m<human-name> [0m[7m[0magainst [0m[7m[0msame [0m[7m[0mbook [0m[7m[0m+ [0m[7m[0msame [0m[7m[0mpage [0m[7m[0m+ [0m[7m[0msame [0m[7m[0mquote]`) [0m[7m[0mwith [0m[7m[0mexplicit [0m[7m[0m`[VERIFIED [0m[7m[0myyyy-mm-dd [0m[7m[0mby [0m[7m[0m<name> [0m[7m[0magainst [0m
+[7m[0m<source>]` [0m[7m[0mmarkers [0m[7m[0mfor [0m[7m[0meach. [0m[7m[0mThe [0m[7m[0m2-verifier [0m[7m[0mrequirement [0m[7m[0mcloses [0m[7m[0mthe [0m[7m[0m"self-attestation [0m[7m[0monly" [0m[7m[0mgap [0m[7m[0mthat [0m[7m[0mround-2 [0m[7m[0mleft [0m[7m[0mopen. [0m
+[7m[0m**`non-automatable: [0m[7m[0mtrue` [0m[7m[0moperator-discipline [0m[7m[0mmandate [0m[7m[0m(manual-only; [0m[7m[0mno [0m[7m[0mhook [0m[7m[0menforcement [0m[7m[0mYET)** [0m[7m[0m*(Round-4 [0m[7m[0mamendment [0m[7m[0mper [0m
+[7m[0mT3 [0m[7m[0mround-4 [0m[7m[0mNEEDS-ATTENTION [0m[7m[0mconf=0.82 [0m[7m[0mSAME-CLASS [0m[7m[0mfinding [0m[7m[0mon [0m[7m[0mcommit [0m[7m[0m`d07ac71`; [0m[7m[0msupersedes [0m[7m[0mRound-3 [0m[7m[0mamendment [0m[7m[0mc [0m[7m[0m"BLOCKING [0m
+[7m[0min [0m[7m[0mT3/T4/T6 [0m[7m[0mverdict-shape" [0m[7m[0mclaim [0m[7m[0mthat [0m[7m[0mwas [0m[7m[0mprose-only [0m[7m[0mwithout [0m[7m[0mhook [0m[7m[0mimplementation [0m[7m[0m— [0m[7m[0mcodex [0m[7m[0mGPT-5.5 [0m[7m[0mBRIDGE-MODE [0m[7m[0mcaught [0m
+[7m[0mthe [0m[7m[0mpolicy/enforcement [0m[7m[0mdrift: [0m[7m[0mrule [0m[7m[0mtext [0m[7m[0mclaimed [0m[7m[0mautomated [0m[7m[0mBLOCKING [0m[7m[0mbut [0m[7m[0mno [0m[7m[0mT3/T4/T6 [0m[7m[0mhook, [0m[7m[0mverdict [0m[7m[0mparser, [0m[7m[0mschema, [0m[7m[0mor [0m
+[7m[0mtest [0m[7m[0mchanged. [0m[7m[0mPer [0m[7m[0mclosed-loop-recursive-narrowing.md [0m[7m[0m§Outcome [0m[7m[0mA [0m[7m[0mmonotone-decline [0m[7m[0mpath, [0m[7m[0mdowngraded [0m[7m[0mprose [0m[7m[0mcloses [0m[7m[0mthe [0m
+[7m[0mdrift [0m[7m[0mwhile [0m[7m[0mthe [0m[7m[0menforcement-hook [0m[7m[0mship [0m[7m[0mis [0m[7m[0mqueued [0m[7m[0mseparately)*: [0m[7m[0mwhen [0m[7m[0ma [0m[7m[0mTIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL [0m[7m[0mcite [0m[7m[0mis [0m
+[7m[0mshipped, [0m[7m[0mthe [0m[7m[0moperator [0m[7m[0mMUST: [0m[7m[0m(i) [0m[7m[0membed [0m[7m[0m`non-automatable: [0m[7m[0mtrue` [0m[7m[0mmarker [0m[7m[0minline; [0m[7m[0m(ii) [0m[7m[0membed [0m[7m[0mexplicit [0m[7m[0m"no [0m[7m[0mautomated [0m
+[7m[0menforcement, [0m[7m[0mhuman [0m[7m[0mgate [0m[7m[0monly" [0m[7m[0mdisclosure [0m[7m[0min [0m[7m[0mcommit [0m[7m[0mbody [0m[7m[0macknowledging [0m[7m[0mthat [0m[7m[0mautomated [0m[7m[0mre-verification [0m[7m[0mis [0m[7m[0mimpossible [0m[7m[0mAND [0m
+[7m[0mnaming [0m[7m[0mboth [0m[7m[0mverifier-identities [0m[7m[0m(per [0m[7m[0mamendment [0m[7m[0mb); [0m[7m[0m(iii) [0m[7m[0maccept [0m[7m[0mresidual [0m[7m[0mprovenance [0m[7m[0mgap [0m[7m[0mexplicitly. [0m[7m[0mThe [0m[7m[0mdiscipline [0m[7m[0mis [0m
+[7m[0mOPERATOR-MANUAL [0m[7m[0m— [0m[7m[0mNO [0m[7m[0mT3/T4/T6 [0m[7m[0mhook [0m[7m[0mcurrently [0m[7m[0mparses [0m[7m[0m`non-automatable: [0m[7m[0mtrue` [0m[7m[0mas [0m[7m[0mBLOCKING. [0m[7m[0mPromotion [0m[7m[0mto [0m[7m[0mmechanical [0m
+[7m[0mBLOCKING [0m[7m[0mis [0m[7m[0mFORWARD-REF [0m[7m[0mfor [0m[7m[0ma [0m[7m[0mseparate [0m[7m[0menforcement-hook [0m[7m[0mship: [0m[7m[0m`tools/non_automatable_blocking_audit.py` [0m[7m[0mparsing [0m
+[7m[0mcommitted [0m[7m[0mrule [0m[7m[0medits [0m[7m[0m+ [0m[7m[0memitting [0m[7m[0mBLOCKING [0m[7m[0mstatus [0m[7m[0min [0m[7m[0mT3/T4/T6 [0m[7m[0mverdict-shape [0m[7m[0m+ [0m[7m[0mregression [0m[7m[0mtests [0m[7m[0mat [0m
+[7m[0m`tests/test_non_automatable_blocking_audit.py`. [0m[7m[0mDo [0m[7m[0mNOT [0m[7m[0mclaim [0m[7m[0mBLOCKING [0m[7m[0msemantic [0m[7m[0min [0m[7m[0mcommit [0m[7m[0mbodies [0m[7m[0muntil [0m[7m[0mthat [0m[7m[0mship [0m[7m[0mlands. [0m
+[7m[0mForward-only [0m[7m[0mconvention [0m[7m[0mcodified [0m[7m[0mWave [0m[7m[0m18 [0m[7m[0mPSW [0m[7m[0marc [0m[7m[0m— [0m[7m[0mBundle [0m[7m[0mB [0m[7m[0mRound-2 [0m[7m[0mcommit [0m[7m[0m`d6acfb1`, [0m[7m[0mBundle [0m[7m[0mB [0m[7m[0mRound-3 [0m[7m[0mcommit [0m
+[7m[0m`217430f`, [0m[7m[0mkarpathy [0m[7m[0m5-author [0m[7m[0mcommit [0m[7m[0m`0fe6282`, [0m[7m[0mcitation-discipline [0m[7m[0mRound-2 [0m[7m[0mDEMOTE [0m[7m[0mcommit [0m[7m[0m`1b87a6e`, [0m
+[7m[0mcitation-discipline [0m[7m[0mRound-3 [0m[7m[0mhard-gate [0m[7m[0mcommit [0m[7m[0m`d07ac71`, [0m[7m[0mthis [0m[7m[0mRound-4 [0m[7m[0mprose-downgrade [0m[7m[0mcommit [0m[7m[0mcloses [0m[7m[0mthe [0m[7m[0marchitectural [0m
+[7m[0mconcern [0m[7m[0mper [0m[7m[0m`reference_wave18_psw_arc_close_4ship_2026_05_04.md` [0m[7m[0m+ [0m[7m[0mOutcome [0m[7m[0mA [0m[7m[0mmonotone-decline [0m[7m[0mpath [0m[7m[0mper [0m
+[7m[0m`closed-loop-recursive-narrowing.md` [0m[7m[0m(R1 [0m[7m[0mconf=0.86 [0m[7m[0m→ [0m[7m[0mR2 [0m[7m[0mconf=0.88 [0m[7m[0mESCALATING [0m[7m[0m→ [0m[7m[0mR3 [0m[7m[0mconf=0.82 [0m[7m[0mDECLINING [0m[7m[0m→ [0m[7m[0mR4 [0m[7m[0mconf=0.82 [0m
+[7m[0mSAME-CLASS [0m[7m[0mDECLINING-STABLE; [0m[7m[0mseverity [0m[7m[0mstable [0m[7m[0mmedium; [0m[7m[0mseverity-gate [0m[7m[0msatisfied [0m[7m[0mvia [0m[7m[0mconcrete-verification [0m[7m[0mmechanism [0m[7m[0mper [0m
+[7m[0mamendments [0m[7m[0ma+b [0m[7m[0m+ [0m[7m[0mprose-downgrade [0m[7m[0mper [0m[7m[0mamendment [0m[7m[0mc; [0m[7m[0marc [0m[7m[0mconverging [0m[7m[0mwithin [0m[7m[0mRound [0m[7m[0m5 [0m[7m[0mceiling).[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:34:[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:35:7. [0m[7m[0m**Anthropic-bundled-skill [0m[7m[0mcites: [0m[7m[0mcite [0m[7m[0mthe [0m[7m[0mcurrent [0m[7m[0mslash [0m
+[7m[0mcommand, [0m[7m[0mnot [0m[7m[0mlocal [0m[7m[0mfolder [0m[7m[0mnames** [0m[7m[0m— [0m[7m[0m*(specialization [0m[7m[0mof [0m[7m[0mrule [0m[7m[0m#4 [0m[7m[0mfor [0m[7m[0mbundled-skill [0m[7m[0midentifier [0m[7m[0mdivergence)* [0m[7m[0m— [0m[7m[0mBundled [0m
+[7m[0mskill [0m[7m[0midentifiers [0m[7m[0mcan [0m[7m[0mdiverge [0m[7m[0macross [0m[7m[0mlocal [0m[7m[0mfolders, [0m[7m[0mCCBP [0m[7m[0mtables, [0m[7m[0mchangelogs, [0m[7m[0mand [0m[7m[0mofficial [0m[7m[0mdocs. [0m[7m[0mExample: [0m[7m[0mCCBP [0m
+[7m[0m`changelog/best-practice/concepts/changelog.md:410 [0m[7m[0m@ [0m[7m[0m76599cb` [0m[7m[0mrecords [0m[7m[0ma [0m[7m[0mstale-name [0m[7m[0mcorrection [0m[7m[0mfrom [0m
+[7m[0m`/fewer-permission-prompts` [0m[7m[0mto [0m[7m[0m`/less-permission-prompts`, [0m[7m[0mwhile [0m[7m[0mCCBP [0m[7m[0m`best-practice/claude-skills.md:48 [0m[7m[0m@ [0m[7m[0m76599cb` [0m
+[7m[0mstill [0m[7m[0mlists [0m[7m[0mthe [0m[7m[0mfolder-style [0m[7m[0m`fewer-permission-prompts`, [0m[7m[0mAND [0m[7m[0mthe [0m[7m[0mcurrent [0m[7m[0mofficial [0m[7m[0mCommands [0m[7m[0mpage [0m
+[7m[0m(`code.claude.com/docs/en/commands` [0m[7m[0mline [0m[7m[0m90 [0m[7m[0m[VERIFIED [0m[7m[0m2026-05-01 [0m[7m[0mvia [0m[7m[0mcodex [0m[7m[0mT1 [0m[7m[0mweb-fetch]) [0m[7m[0mshows [0m
+[7m[0m`/fewer-permission-prompts` [0m[7m[0m— [0m[7m[0mso [0m[7m[0mthe [0m[7m[0mthree [0m[7m[0mauthoritative [0m[7m[0msurfaces [0m[7m[0mactively [0m[7m[0mdisagree. [0m[7m[0m**Discipline**: [0m[7m[0mwhen [0m[7m[0msss [0m
+[7m[0mdocuments [0m[7m[0man [0m[7m[0mAnthropic-bundled [0m[7m[0mskill [0m[7m[0minvocation, [0m[7m[0mcite [0m[7m[0mthe [0m[7m[0mcurrent [0m[7m[0mcommand [0m[7m[0mfrom [0m[7m[0m`code.claude.com/docs/en/commands` [0m
+[7m[0mFIRST [0m[7m[0mas [0m[7m[0mthe [0m[7m[0mtie-breaker; [0m[7m[0muse [0m[7m[0m`code.claude.com/docs/en/skills` [0m[7m[0monly [0m[7m[0mfor [0m[7m[0mgeneral [0m[7m[0mskill [0m[7m[0mmechanics; [0m[7m[0muse [0m[7m[0mCCBP [0m
+[7m[0mtables/changelogs [0m[7m[0mas [0m[7m[0msecondary [0m[7m[0mdrift [0m[7m[0mevidence [0m[7m[0mwhen [0m[7m[0mthey [0m[7m[0mconflict. [0m[7m[0mNever [0m[7m[0mtreat [0m[7m[0m`.claude/skills/<folder>` [0m[7m[0mor [0m[7m[0mplugin [0m
+[7m[0mcache [0m[7m[0mpaths [0m[7m[0mas [0m[7m[0mproof [0m[7m[0mof [0m[7m[0mthe [0m[7m[0muser-visible [0m[7m[0mslash [0m[7m[0mcommand. [0m[7m[0mApply [0m[7m[0mto: [0m[7m[0m`CLAUDE.md`, [0m[7m[0m`.claude/agents/*.md`, [0m
+[7m[0m`.claude/commands/**`, [0m[7m[0m`.claude/skills/**/SKILL.md`, [0m[7m[0m`.claude/rules/**`, [0m[7m[0m`docs/sota-grand-catalog/**`, [0m[7m[0mactive [0m
+[7m[0madoption/citation [0m[7m[0mdocs, [0m[7m[0mand [0m[7m[0mcommit [0m[7m[0mbodies [0m[7m[0mciting [0m[7m[0mskill [0m[7m[0minvocations. [0m[7m[0mn=1 [0m[7m[0mper [0m[7m[0m`codification-threshold.md`: [0m[7m[0mobserved [0m[7m[0mlive [0m
+[7m[0mconflict [0m[7m[0macross [0m[7m[0mofficial [0m[7m[0mCommands [0m[7m[0mdocs [0m[7m[0m/ [0m[7m[0mofficial [0m[7m[0mSkills [0m[7m[0mdocs [0m[7m[0m/ [0m[7m[0mCCBP [0m[7m[0mchangelog [0m[7m[0m/ [0m[7m[0mCCBP [0m[7m[0mskills [0m[7m[0mtable [0m[7m[0m/ [0m[7m[0msss [0m[7m[0mdocs [0m[7m[0mcosts [0m
+[7m[0m~15 [0m[7m[0mmin [0m[7m[0mto [0m[7m[0mre-derive [0m[7m[0mper [0m[7m[0mstale [0m[7m[0mcite, [0m[7m[0mthis [0m[7m[0mrule [0m[7m[0mis [0m[7m[0m<200 [0m[7m[0mLOC; [0m[7m[0mre-evaluate [0m[7m[0mat [0m[7m[0mthe [0m[7m[0mnext [0m[7m[0mAnthropic [0m[7m[0mbundled-skill [0m[7m[0mrename [0m[7m[0mor [0m
+[7m[0mofficial/CCBP [0m[7m[0mconflict.[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:36:[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:37:8. **Composed-claims discipline + mechanical [7msource-class [0m
+[7m[0mreduction [0m[7m[0mlattice** [0m[7m[0m— [0m[7m[0m*(Wave [0m[7m[0m17 [0m[7m[0mfire-31 [0m[7m[0mv1 [0m[7m[0mcodification [0m[7m[0mper [0m[7m[0mcodex [0m[7m[0mT1 [0m[7m[0mfire-28 [0m[7m[0mconf=0.87; [0m[7m[0mUPGRADED [0m[7m[0mat [0m[7m[0mfire-36 [0m[7m[0mper [0m[7m[0mcodex [0m
+[7m[0mT1 [0m[7m[0mfire-33 [0m[7m[0mNEEDS-REVISION [0m[7m[0mon [0m[7m[0mT2 [0m[7m[0mb8fa7dd1 [0m[7m[0mfinding [0m[7m[0m"weakest-source [0m[7m[0mrule [0m[7m[0mnot [0m[7m[0mcomputable" [0m[7m[0mconf=0.72)* [0m[7m[0m— [0m[7m[0mWhen [0m[7m[0ma [0m[7m[0msingle [0m
+[7m[0mnormative [0m[7m[0mclaim [0m[7m[0mcites [0m[7m[0mMULTIPLE [0m[7m[0msource [0m[7m[0mclasses, [0m[7m[0mthe [0m[7m[0mcite [0m[7m[0mMUST [0m[7m[0mdeclare:[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:38: [0m[7m [0m[7m [0m[7m[0m- [0m[7m[0m`constituents=[<class1@cite1>, [0m[7m[0m<class2@cite2>, [0m[7m[0m...]` [0m[7m[0m— [0m
+[7m[0mexplicit [0m[7m[0mlist [0m[7m[0mof [0m[7m[0meach [0m[7m[0mconstituent [0m[7m[0mprimitive [0m[7m[0mat [0m[7m[0mfile:line [0m[7m[0m+ [0m[7m[0mSHA [0m[7m[0mOR [0m[7m[0mofficial-docs [0m[7m[0mURL[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:39:   - `effective_[7mtier[0m=<class>` [0m[7m[0m— [0m[7m[0mthe [0m[7m[0mEFFECTIVE [0m[7m[0mclass [0m[7m[0mof [0m[7m[0mthe [0m
+[7m[0mcomposed [0m[7m[0mclaim, [0m[7m[0mcomputed [0m[7m[0mby [0m[7m[0mthe [0m[7m[0mreduction [0m[7m[0mlattice [0m[7m[0mbelow[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:40:[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:41:   **[7mSource-class [0m[7m[0mprecedence/order [0m[7m[0m(lower [0m[7m[0mwins; [0m[7m[0mweakest [0m
+[7m[0mdominates)**:[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:42: [0m[7m [0m[7m [0m[7m[0m1. [0m[7m[0m`UNKNOWN` [0m[7m[0m(no [0m[7m[0mcite [0m[7m[0mat [0m[7m[0mall) [0m[7m[0m— [0m[7m[0malways [0m[7m[0mdisqualifying; [0m
+[7m[0mreject [0m[7m[0mclaim [0m[7m[0muntil [0m[7m[0mcited[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:43:   2. `[7mTIER[0m-3-LOCAL-COMPOSITION` [0m[7m[0m(any [0m[7m[0mlocal [0m[7m[0mglue [0m[7m[0m/ [0m[7m[0msss-novel [0m
+[7m[0mcomposition [0m[7m[0mover [0m[7m[0mTIER-1/TIER-2 [0m[7m[0msubstrates)[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:44:   3. `[7mTIER[0m-3-LOCAL-OPERATOR-DERIVED` [0m[7m[0m(sss [0m[7m[0mdogfood, [0m[7m[0mcodex [0m
+[7m[0mverdicts, [0m[7m[0mincidents, [0m[7m[0moperator [0m[7m[0mdecisions)[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:45:   4. `[7mTIER[0m-3-LOCAL-CONFIG` (sss live config or script wiring)
+> Z:\claude-sota\.claude\rules\citation-discipline.md:46:   5. `[7mTIER[0m-2` [0m[7m[0m(user-curated/sibling [0m[7m[0mdocs, [0m[7m[0mNOT [0m[7m[0mupstream [0m
+[7m[0mauthority)[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:47:   6. `[7mTIER[0m-1-COMPOSED` [0m[7m[0m(ALL [0m[7m[0mconstituents [0m[7m[0mTIER-1 [0m[7m[0mwith [0m
+[7m[0mdisclosed [0m[7m[0mlocal [0m[7m[0mglue) [0m[7m[0m— [0m[7m[0mstill [0m[7m[0mTIER-3-LOCAL-COMPOSITION [0m[7m[0mas [0m[7m[0meffective [0m[7m[0mtier[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:48:   7. `[7mTIER[0m-1-DIRECT` [0m[7m[0m(upstream [0m[7m[0mverbatim [0m[7m[0mfile:line [0m[7m[0m+ [0m[7m[0mSHA [0m[7m[0mOR [0m
+[7m[0mofficial-docs [0m[7m[0mURL [0m[7m[0mwith [0m[7m[0manchor)[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:49:[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:50:   **Reduction rule (mechanical)**: `effective_[7mtier [0m[7m[0m= [0m
+[7m[0mMIN_PRECEDENCE(constituents)`. [0m[7m[0mConcretely: [0m[7m[0mif [0m[7m[0mANY [0m[7m[0mconstituent [0m[7m[0mcontains [0m[7m[0m"TIER-3-LOCAL-*" [0m[7m[0mOR [0m[7m[0mthe [0m[7m[0mcomposition [0m[7m[0mglue [0m[7m[0mitself [0m
+[7m[0mis [0m[7m[0mlocal-codified [0m[7m[0m(e.g., [0m[7m[0msss-novel [0m[7m[0mcomposition [0m[7m[0mpattern), [0m[7m[0mthe [0m[7m[0meffective [0m[7m[0mtier [0m[7m[0mis [0m[7m[0m`TIER-3-LOCAL-COMPOSITION` [0m[7m[0mregardless [0m
+[7m[0mof [0m[7m[0mhow [0m[7m[0mmany [0m[7m[0mTIER-1 [0m[7m[0mprimitives [0m[7m[0mare [0m[7m[0mcited. [0m[7m[0mEXCEPTION: [0m[7m[0mif [0m[7m[0mthe [0m[7m[0mcomposed [0m[7m[0mclaim [0m[7m[0mis [0m[7m[0mONLY [0m[7m[0mabout [0m[7m[0man [0m[7m[0mupstream [0m[7m[0mprimitive's [0m
+[7m[0mEXISTENCE [0m[7m[0m(e.g., [0m[7m[0m"asyncRewake [0m[7m[0mfield [0m[7m[0mexists" [0m[7m[0mcited [0m[7m[0mverbatim [0m[7m[0mfrom [0m[7m[0mAnthropic [0m[7m[0mdocs), [0m[7m[0mit [0m[7m[0mremains [0m[7m[0m`TIER-1-DIRECT` [0m[7m[0mbecause [0m
+[7m[0mthere's [0m[7m[0mno [0m[7m[0mlocal [0m[7m[0mcomposition [0m[7m[0mglue.[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:51:[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:52:   **Anti-promotion rule**: composition CANNOT promote a 
+[7mTIER[0m-2/TIER-3 [0m[7m[0mcomponent [0m[7m[0minto [0m[7m[0mTIER-1. [0m[7m[0mThe [0m[7m[0mcite [0m[7m[0mclass [0m[7m[0mof [0m[7m[0mthe [0m[7m[0mCOMPOSED [0m[7m[0mclaim [0m[7m[0mis [0m[7m[0mdetermined [0m[7m[0mby [0m[7m[0mthe [0m[7m[0mMIN_PRECEDENCE [0m
+[7m[0mconstituent [0m[7m[0mOR [0m[7m[0mby [0m[7m[0mthe [0m[7m[0mcomposition-glue [0m[7m[0mclass, [0m[7m[0mwhichever [0m[7m[0mis [0m[7m[0mweaker.[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:53:[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:54: [0m[7m [0m[7m [0m[7m[0m**Exemplar [0m[7m[0m(computable)**: [0m
+[7m[0m`.claude/rules/cross-model-consensus.md [0m[7m[0m§Normative [0m[7m[0mAuthority [0m[7m[0mMap` [0m[7m[0mrow [0m[7m[0m"T1-T7 [0m[7m[0mtouchpoint [0m[7m[0mlifecycle":[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:55:   - `constituents=[[7mTIER[0m-1-DIRECT [0m[7m[0m@ [0m
+[7m[0mAnthropic-CC-hooks-docs-L1021-1023, [0m[7m[0mTIER-2 [0m[7m[0m@ [0m[7m[0mCCBP-cross-model-workflow.md:1-48, [0m[7m[0mTIER-3-LOCAL-COMPOSITION [0m[7m[0m@ [0m[7m[0msss-novel [0m
+[7m[0mT0+T7+profile-selection]`[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:56:   - `effective_[7mtier[0m=TIER-3-LOCAL-COMPOSITION` [0m
+[7m[0m(MIN_PRECEDENCE [0m[7m[0m= [0m[7m[0m2 [0m[7m[0mdue [0m[7m[0mto [0m[7m[0msss-novel [0m[7m[0mglue)[0m
+> Z:\claude-sota\.claude\rules\citation-discipline.md:57:   - Despite Anthropic CC + CCBP being upstream-authority for 
+primitives, the composition itself is sss-local and EFFECTIVE class is [7mTIER[0m-3-LOCAL-COMPOSITION[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:58:[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:59: [0m[7m [0m[7m [0m[7m[0mApply [0m[7m[0mto: [0m[7m[0many [0m[7m[0mrule [0m[7m[0mbody [0m[7m[0msection [0m[7m[0min [0m[7m[0m`.claude/rules/**` [0m[7m[0mthat [0m
+[7m[0mmixes [0m[7m[0mupstream [0m[7m[0m+ [0m[7m[0msister-rule [0m[7m[0m+ [0m[7m[0mlocal-operator-codification [0m[7m[0mclaims. [0m[7m[0mSister: [0m[7m[0m`cross-model-consensus.md [0m[7m[0m§Normative [0m
+[7m[0mAuthority [0m[7m[0mMap` [0m[7m[0m(POINTS [0m[7m[0mTO [0m[7m[0mthis [0m[7m[0mrule, [0m[7m[0mdoes [0m[7m[0mNOT [0m[7m[0mcarry [0m[7m[0msofter [0m[7m[0mduplicate).[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:60:[0m
+[7m[0m  Z:\claude-sota\.claude\rules\citation-discipline.md:61:## Anti-patterns (model-name gotchas)[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:62:- [0m[7m[0m"Plus" [0m[7m[0min [0m[7m[0mmodel [0m[7m[0mname [0m[7m[0mdoes [0m[7m[0mNOT [0m[7m[0mmean [0m[7m[0mquality [0m[7m[0m(qwen3.5-plus [0m[7m[0m= [0m
+[7m[0mthinking [0m[7m[0mmodel)[0m
+[7m [0m[7m [0m[7m[0mZ:\claude-sota\.claude\rules\citation-discipline.md:63:- [0m[7m[0m`@latest` [0m[7m[0mon [0m[7m[0mnpm [0m[7m[0mmay [0m[7m[0mhit [0m[7m[0mWindows [0m[7m[0mcleanup [0m[7m[0mbug [0m[7m[0m→ [0m[7m[0minstall [0m
+[7m[0msucceeds [0m[7m[0mbut [0m[7m[0marborist [0m[7m[0mcrashes [0m[7m[0mon [0m[7m[0mEPERM [0m[7m[0m(parent [0m[7m[0m`project_gitnexus_full_audit_2026_04_18.md` [0m[7m[0m— [0m[7m[0mPARENT-ATTRIBUTION); [0m
+[7m[0mprefer [0m[7m[0m`npm [0m[7m[0minstall [0m[7m[0m-g` [0m[7m[0mfor [0m[7m[0mCLI-bundled [0m[7m[0mMCP [0m[7m[0mservers[0m
+
+
+web search: 
+web search: site:code.claude.com/docs/en/mcp .mcp.json mcpServers type command
+web search: 
+web search: https://code.claude.com/docs/en/mcp
+codex
+The local file matches the described failure mode: `mcpServers` currently mixes server objects with string-valued `_comment_*` entries. The Anthropic docs show `.mcp.json` as a top-level `mcpServers` map whose entries are server configs; they do not document comments as valid server-map members.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "python -c \"import json; p='.mcp.json'; data=json.load(open(p, encoding='utf-8')); print('top_keys=', list(data.keys())); print('mcp_key_count=', len(data['mcpServers'])); print('comment_keys=', [k for k,v in data['mcpServers'].items() if isinstance(v, str)]); print('non_object_mcp_values=', [(k,type(v).__name__) for k,v in data['mcpServers'].items() if not isinstance(v, dict)])\"" in Z:\claude-sota-installed
+ succeeded in 384ms:
+top_keys= ['_comment', 'mcpServers']
+mcp_key_count= 17
+comment_keys= ['_comment_playwright_pin', '_comment_w155_f13_native_node', '_comment_chrome_devtools', '_comment_serena_pin', '_comment_context_mode_removed', '_comment_gitnexus']
+non_object_mcp_values= [('_comment_playwright_pin', 'str'), ('_comment_w155_f13_native_node', 'str'), ('_comment_chrome_devtools', 'str'), ('_comment_serena_pin', 'str'), ('_comment_context_mode_removed', 'str'), ('_comment_gitnexus', 'str')]
+
+codex
+Verdict: APPROVE.
+
+Anthropic’s MCP docs show `.mcp.json` as a top-level `mcpServers` object whose values are MCP server config objects, with examples for `type`, `command`, `args`, `env`, `url`, and `headers`: https://code.claude.com/docs/en/mcp. That supports moving string comments out of `mcpServers`.
+
+Top-level `_comments` is not explicitly documented, so the strongest evidence is empirical: the existing top-level `_comment` already parses cleanly in your runtime. I would not add a separate `_comments_moved_from_mcpServers: true`; use the commit body or audit JSONL for migration metadata instead of adding another unknown top-level key.
+
+Local JSON parse of current `.mcp.json` succeeds, and the current failure mode is exactly the six string values under `mcpServers`.
+
+{"verdict":"APPROVE","confidence":0.86,"prescribed_edits":[],"axis_findings":{"schema_conformance":"PASS","top_level_key_safety":"PASS","audit_trail_preservation":"PASS","json_validity":"PASS","sister_rule_integration":"PASS"},"summary":"Move all six string-valued _comment_* entries out of mcpServers into a top-level _comments object, and promote existing top-level _comment to _comments.header with its value preserved verbatim. This aligns mcpServers with Anthropic's documented server-config map shape, removes the CC v2.1.140 string-as-server parse errors, preserves the seven provenance strings, and does not alter source-class semantics. Top-level unknown-key tolerance is not formally documented, but the existing working top-level _comment is strong local precedent; avoid adding an extra forwarding boolean and record migration metadata in the commit body/audit JSONL instead. JSON validity is PASS if the proposed comma/object restructure is applied cleanly and verified with python -c \"import json; json.load(open('.mcp.json'))\"."}
+tokens used
+71,257
+Verdict: APPROVE.
+
+Anthropic’s MCP docs show `.mcp.json` as a top-level `mcpServers` object whose values are MCP server config objects, with examples for `type`, `command`, `args`, `env`, `url`, and `headers`: https://code.claude.com/docs/en/mcp. That supports moving string comments out of `mcpServers`.
+
+Top-level `_comments` is not explicitly documented, so the strongest evidence is empirical: the existing top-level `_comment` already parses cleanly in your runtime. I would not add a separate `_comments_moved_from_mcpServers: true`; use the commit body or audit JSONL for migration metadata instead of adding another unknown top-level key.
+
+Local JSON parse of current `.mcp.json` succeeds, and the current failure mode is exactly the six string values under `mcpServers`.
+
+{"verdict":"APPROVE","confidence":0.86,"prescribed_edits":[],"axis_findings":{"schema_conformance":"PASS","top_level_key_safety":"PASS","audit_trail_preservation":"PASS","json_validity":"PASS","sister_rule_integration":"PASS"},"summary":"Move all six string-valued _comment_* entries out of mcpServers into a top-level _comments object, and promote existing top-level _comment to _comments.header with its value preserved verbatim. This aligns mcpServers with Anthropic's documented server-config map shape, removes the CC v2.1.140 string-as-server parse errors, preserves the seven provenance strings, and does not alter source-class semantics. Top-level unknown-key tolerance is not formally documented, but the existing working top-level _comment is strong local precedent; avoid adding an extra forwarding boolean and record migration metadata in the commit body/audit JSONL instead. JSON validity is PASS if the proposed comma/object restructure is applied cleanly and verified with python -c \"import json; json.load(open('.mcp.json'))\"."}

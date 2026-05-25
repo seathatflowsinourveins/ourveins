@@ -1,0 +1,110 @@
+feat(mcp): Wave 110 Ship 2N-batch3-B — graphiti MCP wire (Path B stdio Python via uv; FalkorDB-shared + Ollama-local)
+
+Closes Wave 105 Agent C P0-2 finding (graphiti MCP unwired) via 3-wave research convergence:
+- Wave 105 Agent C: detected graphiti MCP missing from .mcp.json
+- Wave 109 Agent F: cognee REJECT-FOR-FIT (SUPERSEDED-BY-X — duplicates graphiti)
+- Wave 110 Agent F+G + Mia probe: graphiti FULLY supports Ollama; Path B stdio is harness-fit
+
+ARCHITECTURAL DECISIONS (research-backed):
+  Path A (combined Docker): REJECTED — cross-harness FalkorDB ownership conflict
+                            with parent CCC's :16379 instance (Wave 110 Mia OVER #31-33
+                            lessons on cross-harness state mutation)
+  Path B (stdio Python via uv): SELECTED — official upstream pattern per
+                                mcp_config_stdio_example.json; reuses parent FalkorDB
+                                via group_id="eee" namespace; minimal cross-harness mutation
+  Path C (HTTP standalone): REJECTED — needs background process management; stdio simpler
+
+CHANGES (1 eee-tracked file / +34 LOC + 1 untracked-clone patch):
+  .mcp.json — add `graphiti` stdio MCP entry with Ollama+FalkorDB CLI overrides
+  .local/graphiti/mcp_server/src/services/factories.py L122-128 — UNTRACKED PATCH:
+    add base_url=config.providers.openai.api_url to OpenAI LLM CoreLLMConfig() call
+    (mirrors EmbedderFactory L274 which already has it)
+
+UPSTREAM PATCH RATIONALE:
+  Without patch, graphiti's OpenAI LLM factory ignored OPENAI_API_URL env — only
+  embeddings honored it. LLM calls would default to api.openai.com (CoreLLMConfig
+  base_url default per its docstring). Per codex T1 NEEDS-REVISION conf=0.9 P4:
+  "Patch mcp_server/src/services/factories.py OpenAI LLM branch to pass
+  base_url=config.providers.openai.api_url into CoreLLMConfig; otherwise
+  OPENAI_API_URL only affects embeddings and LLM calls default to OpenAI."
+
+  Patch lives in eee's .local/graphiti/ clone (separate git repo; gitignored).
+  Forward-only fix. Upstream PR candidate at https://github.com/getzep/graphiti
+  for inclusion in next graphiti MCP release.
+
+WIRE PATTERN (codex T1 P2 prescribed args):
+  command: uv
+  args: [run, --isolated, --directory, .../mcp_server, --project, ., main.py,
+         --transport, stdio,
+         --database-provider, falkordb,
+         --model, qwen3.6:35b,
+         --embedder-model, qwen3-embedding:0.6b,
+         --group-id, eee]
+  env:
+    FALKORDB_URI=redis://127.0.0.1:16379  (parent CCC's existing FalkorDB)
+    FALKORDB_PASSWORD=                     (no auth)
+    FALKORDB_DATABASE=default_db
+    OPENAI_API_KEY=ollama                  (placeholder per upstream README L183)
+    OPENAI_API_URL=http://127.0.0.1:11700/v1  (Ollama OpenAI-compat endpoint)
+    GRAPHITI_GROUP_ID=eee                  (cross-harness namespace isolation)
+    EMBEDDER__DIMENSIONS=1024              (qwen3-embedding:0.6b emits 1024-dim,
+    EMBEDDING_DIM=1024                      not default 1536; codex T1 P3)
+    SEMAPHORE_LIMIT=3                      (Ollama throttle for entity extraction)
+
+CR-3 SATISFIED (cross-model consensus):
+  Codex T1 e2e fired BEFORE this commit per Ship 2X SRA cross-model T1 mandate +
+  Wave 100 Ship 2P fully-unleashed discipline (no --sandbox=read-only;
+  danger-full-access). Verdict: NEEDS-REVISION conf=0.9. Pattern A apply
+  integrating all 9 prescriptions:
+
+  P1 Path B over A/C — APPLIED (stdio Python via uv)
+  P2 Revised CLI args (--isolated --directory --project --transport stdio
+     --database-provider falkordb --model --embedder-model --group-id) — APPLIED
+  P3 Replace EMBEDDER_DIMENSIONS with EMBEDDER__DIMENSIONS + EMBEDDING_DIM (pydantic
+     nested env mapping double-underscore convention) — APPLIED
+  P4 Patch factories.py to pass base_url through OpenAI LLM CoreLLMConfig — APPLIED
+     (forward-only patch in .local/graphiti/ clone; upstream PR candidate)
+  P5 Keep env block (OPENAI_API_KEY=ollama / OPENAI_API_URL / FALKORDB_*
+     / GRAPHITI_GROUP_ID / SEMAPHORE_LIMIT=3) — APPLIED
+  P6 GROUP_ID=eee acceptable for namespacing; not full isolation; avoid clear_graph
+     without explicit group_ids — DOCUMENTED (operator discipline)
+  P7 uv installed at C:/Users/42/.local/bin/uv.exe — VERIFIED
+  P8 Use qwen3.6:35b for quality; reduce SEMAPHORE_LIMIT=1 if blocks Ollama;
+     fallback qwen3-coder:30b/devstral-small-2:24b — APPLIED (initial config)
+  P9 If Path B fails, DEFER (don't fall back to Path A which creates Docker conflict) — POLICY
+
+PYRIGHT DIAGNOSTICS:
+  10 errors fired on factories.py — ALL pre-existing upstream issues (temperature
+  float|None, reasoning/verbosity None, conditional imports unbound). NOT introduced
+  by my single-line base_url addition. Per Karpathy P3 Surgical Changes: do NOT fix
+  unrelated upstream issues — only the targeted base_url fix needed.
+
+CR COMPLIANCE:
+  CR-1 (cite SOTA primary): TIER-1-DIRECT Z:/repos/deps/graphiti/mcp_server/README.md
+                            @ HEAD (L23+L62-68+L183) + config-docker-falkordb-combined.yaml
+                            + mcp_config_stdio_example.json
+  CR-3 (cross-model T1):    codex T1 NEEDS-REVISION conf=0.9 Pattern A applied (9 prescriptions)
+  CR-5 (install-priority):  upstream graphiti-core 0.29.0 + uv official install path
+  CR-6 (fresh-from-github): graphiti clone at .local/graphiti/; pinned via local SHA
+  CR-7 (graduated unleash): Phase 3 destination preserved; .mcp.json additive
+  CR-8 (full-SOTA-content): ADAPTED-FROM-SOTA (graphiti Apache-2.0 official MCP)
+  CR-9 (install-risk):      LOW-MEDIUM (.mcp.json additive; reversible; cross-harness
+                            FalkorDB shared via group_id namespace)
+  CR-10 (research-first):   3-wave agent research drove this design (Agent F+G + Wave 105 C)
+  CR-11 (META-process):     Mia OVER catches #31-33 pre-empted Path A; codex T1 e2e
+                            caught factories.py base_url gap before runtime failure
+  CR-12 (upstream-install): YES — official upstream graphiti via uv stdio MCP example
+
+T1 GATE FALSE-POSITIVE NOTE:
+  PreToolUse:Edit T1 gate fired WARN on factories.py edit (no_path_match for
+  consult-pair). False-positive — system-level meta-review fallback applies per
+  codex-t1-system-meta-review-fallback.md (verdict file at
+  .claude/state/codex_consult_wave110_ship2n_batch3b_graphiti_wire_OUT.txt
+  prescribed this exact factories.py edit as P4). Cross-model gate satisfied.
+
+QUEUE (post Ship 2N-batch3-B):
+  Operator restart eee → graphiti MCP comes online → mcp__graphiti__* tools available
+  Smoke test: invoke mcp__graphiti__add_episode → verify FalkorDB write + Ollama LLM call
+  Ship 2N-batch3-G skillOverrides study-pilot — UNBLOCKED (Phoenix telemetry + graphiti memory both available)
+
+Wave 110 — Ship 2N-batch3-B (35th commit in this session arc).

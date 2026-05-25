@@ -1,0 +1,55 @@
+# Wave 141 Fire 1 — L3 Graphiti MCP smoke-probe adversarial review
+
+You are codex GPT-5.5 acting as adversarial reviewer per cross-model-consensus.md
+T1 lifecycle. Single-claim audit. JSON-at-EOF.
+
+## Context (verified state at probe time 2026-05-10)
+
+- Docker daemon 29.4.1 UP (Docker Desktop, 10 containers, 13 images)
+- FalkorDB container UP at port 16379→6379 (uptime 8min)
+- GRAPH.QUERY module command exists (FalkorDB module loaded; INFO shows
+  `graph.QUERY -1 write denyoom module`)
+- Graphiti MCP server entry-point at `Z:/claude-sota-installed/.local/graphiti/mcp_server/main.py`
+  (HEAD c427615, backwards-compat wrapper around `src/graphiti_mcp_server.py`)
+- `.mcp.json:49-82` graphiti entry: stdio transport + uv runner + falkordb provider
+  + `--falkordb-uri redis://127.0.0.1:16379` + `--model qwen3.6:35b`
+- redis-py 7.1.0 module probe Wave 140 Fire 1 confirmed: port 6379 = MS-OpenTech
+  plain Redis 5.0.14.1 (NO module), port 16379 = FalkorDB module loaded ✅
+
+## Single-claim audit
+
+CLAIM: "The 3-step smoke probe spec (Step 1: start MCP server in stdio transport
++ verify clean boot; Step 2: send JSON-RPC initialize + verify capabilities,
+then send tools/list + verify expected Graphiti tools schema present; Step 3:
+end-to-end memory operation `add_memory` → `search_memory_nodes` → verify
+retrieval) is SUFFICIENT and NECESSARY to confirm the L3 Graphiti MCP wire
+status PASS-vs-FAIL classification."
+
+Specifically classify:
+- (a) Is Step 1 alone sufficient (just verify clean boot)? Y/N
+- (b) Is Step 2 (tools/list) the minimum-viable wire confirmation? Y/N
+- (c) Does Step 3 require LLM call (qwen3.6:35b) or can it stub via fake-LLM env?
+- (d) Are there hidden failure modes the 3-step spec misses (e.g., FalkorDB
+  authentication requirements, OpenAI API key requirement for embeddings,
+  uv dependency resolution failure mid-probe)?
+
+## Output format (MANDATORY JSON at EOF)
+
+After your analysis, emit final verdict as a single JSON object on the LAST
+line of output. Schema:
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.00,
+  "minimum_viable_smoke_probe_steps": ["..."],
+  "expected_tools_list_schema": ["add_memory", "..."],
+  "hidden_failure_modes": ["..."],
+  "embedding_provider_concern": "...",
+  "concerns": ["..."],
+  "prescribed_edits": ["..."]
+}
+```
+
+Be terse. Cite primary sources at file:line + HEAD SHA. ~30 LOC reasoning before
+JSON verdict acceptable.

@@ -1,0 +1,152 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 499399f7acb3d05ec12567e123cc0947e646634e
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.mcp.json                       |  2 +-
+ docs/install-provenance.md      | 90 +++++++++++++++++++++++++++++++++++++++++
+ docs/sota-installed-manifest.md |  2 +-
+ 3 files changed, 92 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 499399f7acb3d05ec12567e123cc0947e646634e
+Author:     42 <42@local>
+AuthorDate: Sun May 10 01:49:18 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 01:49:18 2026 -0400
+
+    chore(wave-132-fire-2): RETAIN gitnexus per advanced 3-round multi-agent deep-dive — REMOVE-AND-DEFER (Round-2) REVERSED via Round-3 line-by-line evidence + user-correction
+    
+    Round-1 codex Path P RETAIN-WITH-DOWNGRADE (conf=0.91 license-class framing) → Round-2 codex Path P REMOVE-AND-DEFER (conf=0.89 retention-necessity reframe per deprecation-discipline 5/5 gates) → user-correction 2026-05-10 "ALWAYS deep-dive line by line" → Round-3 3-agent advanced deep-dive (codex Path P repo line-by-line + sota-researcher alternatives ecosystem + codex Path P-recovered archaeology after FM-17.f n=4) → CONVERGENT VERDICT: RETAIN gitnexus@1.6.3.
+    
+    Disposition (3 atomic edits per codex-t1-fix-forward-pattern.md Pattern A):
+    1. .mcp.json:88 — UPDATE _comment_gitnexus with Round-3 evidence + tighter PolyForm Noncommercial disclosure (forbids local commercial/internal business use + paid-client-work, not only SaaS-resale)
+    2. docs/sota-installed-manifest.md:136 — Section 7 row PLANNED → INSTALLED-DEEP-DIVE-VERIFIED
+    3. docs/install-provenance.md — APPEND Wave 132 Fire 2 RETAIN decision-record (full close-synthesis)
+    
+    Round-3 deep-dive convergent evidence:
+    - Agent A (codex Path P REAL GPT-5.5, gitnexus repo line-by-line, conf=0.88): UNIQUE value confirmed — persistent local KG + COBOL + cross-repo gRPC/Thrift contract + API/route/tool shape (route_map/shape_check/api_impact/tool_map) + wiki auto-gen + stale-index hook NOT covered by serena/repomix/ast-grep/GitHub MCP/gitleaks/graphiti; HNF-4 SCOPE CORRECTION — affects context/impact/query/cypher/detect_changes (BIGGER than Wave 119 SHIP A8 stated)
+    - Agent B (sota-researcher, 4 alternatives source-code deep-dive): NO replacement-ready alternative per deprecation-discipline F-003; 6 Mia OVERs caught (incl Round-2 "DeusData replacement-ready" metadata-only assumption REFUTED via functional matrix); 37,312★ ecosystem maturity 10-17× alternatives
+    - Agent C-recovered (codex Path P REAL GPT-5.5 archaeology, conf=0.88): HEALTHY-BUT-NATIVE-DEPENDENCY-RISK; maintainer ACTIVE (~10h response avg, 314 commits/30d, 106 contributors, last response TODAY 2026-05-10); SRA D4 RECLASSIFIED TIER-3-NAMED-ORG from TIER-4-NAMED-INDIVIDUAL (Mia OVER #127); HNF-4 fix-forward AVAILABLE via gitnexus@1.6.4-rc.112 + @ladybugdb/core@0.16.1
+    
+    Mia ladder n=119→n=127 (8 catches this fire):
+    - #117 Round-1 RETAIN-WITH-DOWNGRADE incomplete
+    - #118 Round-2 REMOVE-AND-DEFER over-applied (caught by user-correction)
+    - #119 "DeusData replacement-ready" REFUTED
+    - #120-125 Agent B 6 alternatives-evaluation catches
+    - #126 HNF-4 scope OVER (Wave 119 stated list/impact/context; actual context/impact/query/cypher/detect_changes)
+    - #127 SRA D4 TIER-4 → TIER-3-NAMED-ORG reclassification
+    
+    FM-17.f cumulative n=3→n=4 (this fire Agent C codex-rescue pre-fire 0-token billing-class blocker; Path P recovery successful per cardinal-rule-3 Phase 1 bootstrap exception). Sibling fm17 backport queued per task #91.
+    
+    Mia probes 2026-05-10 [VERIFIED via Bash]:
+    - gitnexus@1.6.4-rc.112 EXISTS (modified 2026-05-10T05:17:13)
+    - @ladybugdb/core@0.16.1 EXISTS (published 2026-05-04, dev 0.16.1-dev.20260509)
+    - gitnexus list + status BOTH exit 0 on Windows 1.6.3 (registry-only paths work; graph-loading paths NOT probed)
+    
+    DEFERRED to Wave 132 Fire 3 per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE:
+    - Verify HNF-4 actual Windows behavior (gitnexus analyze on small test repo)
+    - Decide gitnexus@1.6.3 → @1.6.4-rc.112 upgrade based on Windows native binding probe + WSL2 SIGSEGV #1431 risk assessment
+    - DeusData re-audit on/after 2026-05-25 (90-day STABLE-BURN-IN gate) IF gitnexus HNF-4 cannot be fixed forward
+    
+    Cross-model gate: FULL via 3 REAL GPT-5.5 Path P verdicts (Round-1 + Round-2 + Round-3 Agent A + Round-3 Agent C-recovered) per cardinal-rule-3 Phase 1 bootstrap exception. Cardinal-rule-9 install-risk discipline preserved (no @latest, no sibling-bleed install-class, no REVERT-AND-REMOVE precedent created).
+    
+    User-correction codified at .claude/projects/Z--claude-sota-installed/memory/feedback_removal_discipline_deep_dive_required_2026_05_10.md per cycle-322 user-trigger n=1 automatic promotion. Standing form: removal grounds REQUIRE deep-dive + production-proven SOTA replacement OR systematic no-value evidence; orphaned/license-class/metadata-alternative-alone are INSUFFICIENT.
+    
+    closes #98 (Wave 132 Fire 2 P0)
+    defers HNF-4 Windows verification to Wave 132 Fire 3
+    preserves Wave 112 Ship 2AA install (no REVERT precedent created)
+
+=== diff ===
+diff --git a/.mcp.json b/.mcp.json
+index d4d1519..260b0dc 100644
+--- a/.mcp.json
++++ b/.mcp.json
+@@ -85,7 +85,7 @@
+       "command": "npx",
+       "args": ["-y", "@arizeai/phoenix-mcp", "--baseUrl", "http://127.0.0.1:16006"]
+     },
+-    "_comment_gitnexus": "Wave 112 Ship 2AA 2026-05-09 — added gitnexus MCP per operator URL https://github.com/abhigyanpatwari/GitNexus + CR-9 sibling-bleed closure (9 inherited rule references at .claude/rules/* + ZERO eee install pre-this-ship). License: PolyForm Noncommercial 1.0.0 (DOWNGRADE-WITH-DISCLOSURE per SRA D1 use-class lattice — eee local-runtime non-commercial use OK; NOT for SaaS-resale or commercial distribution; consistent with FalkorDB SSPLv1 + context-mode ELv2 prior verdicts). Maintainer: abhigyanpatwari (TIER-4-NAMED-INDIVIDUAL — bus-factor disclosure). Version-pinned 1.6.3 per CR-9 mandate. Install via official native channel: npm install -g gitnexus@1.6.3 per cardinal-rule-12 PRIMARY upstream-install. CLI commands: setup/analyze/index/serve/mcp/list/status/clean/wiki/augment/query/context/impact/cypher/detect-changes/eval-server/group. Cite: Z:/repos/deps/gitnexus/README.md @ HEAD 55d5042 + Z:/repos/deps/gitnexus/LICENSE @ HEAD 55d5042 + Z:/repos/deps/gitnexus/package.json @ HEAD 55d5042. Codex T1 deep-review-exec foreground (240s timeout exit=124 → Pattern B HONEST-NON-FINDING per Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md Pattern B; T2 commit-time hook is verification net per cardinal-rule-3 Phase 1 bootstrap exception). Closes Ship 2AA-followup queued in Wave 112 Ship A1 commit f29c973.",
++    "_comment_gitnexus": "Wave 112 Ship 2AA 2026-05-09 + Wave 132 Fire 2 Round-3 RETAIN ratification 2026-05-10 — added gitnexus MCP per operator URL https://github.com/abhigyanpatwari/GitNexus + CR-9 sibling-bleed closure. License: PolyForm Noncommercial 1.0.0 (RETAIN-WITH-DOWNGRADE-DEEP-DIVE-VERIFIED per SRA D1 use-class lattice — eee local-runtime non-commercial use OK; NOT for SaaS-resale, commercial distribution, local commercial/internal business use, or paid-client-work; PolyForm Noncommercial forbids commercial use entirely outside the grant per https://polyformproject.org/licenses/noncommercial/1.0.0). Maintainer: abhigyanpatwari + 105 active contributors (Wave 132 Fire 2 Round-3 archaeology RECLASSIFIED TIER-3-NAMED-ORG from prior TIER-4-NAMED-INDIVIDUAL per Mia OVER #127 catch; npm publishing single-user; multi-contributor repo work; 314 commits/30d; ~10h maintainer response avg, last 2026-05-10T05:14:12Z; Akon Labs enterprise framing per README). Version-pinned 1.6.3 per CR-9 mandate (HNF-4 fix-forward via gitnexus@1.6.4-rc.112 + @ladybugdb/core@0.16.1 deferred to Wave 132 Fire 3 per cycle-300). Install via official native channel: npm install -g gitnexus@1.6.3 per cardinal-rule-12 PRIMARY upstream-install. CLI commands (18 verified via gitnexus --help 2026-05-10): setup/analyze/index/serve/mcp/list/status/clean/remove/wiki/augment/query/context/impact/cypher/detect-c
+
+[prompt truncated]

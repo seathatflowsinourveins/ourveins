@@ -1,0 +1,185 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 4a4999413332505d7887ffcbd45136d9ed3bf10c
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/_guard_base.py | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+=== git show --format=fuller ===
+commit 4a4999413332505d7887ffcbd45136d9ed3bf10c
+Author:     42 <42@local>
+AuthorDate: Sat May 9 19:00:33 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 19:00:33 2026 -0400
+
+    fix(t3-silent-failure-tier-b): strip RTK 0.39.0 wrapper prefix in git_verb_matches segment-prefix check (closes Ship H residual)
+    
+    Wave 130 Fire 3 Ship I — Tier-B fix-forward closes Ship H (sha 2b3ff4f) residual gap. Ship H widened PostToolUse `if:` matcher (Tier-A — CC dispatch path) but T3 STILL silent because internal `_is_commit_cmd` rejected rtk-prefixed segments at downstream Tier-B layer.
+    
+    ==== Smoke-test evidence (Ship H residual confirmed) ====
+    
+    JSONL row at 22:51:27Z (Ship H commit `2b3ff4f` itself):
+    ```
+    {"status": "main_entered", "duration_ms": 2, "tool_name": "Bash",
+     "cmd_preview": "rtk git -C 'Z:/claude-sota-installed' add -- '.claude/settings.json' && rtk git -C 'Z:/claude-sota-installed' commit -o '.claude/settings.json' -F ...", ...}
+    {"status": "filter_rejected_not_commit",
+     "cmd": "rtk git -C 'Z:/claude-sota-installed' add -- '.claude/settings.json' && rtk git -C 'Z:/claude-sota-i...", ...}
+    ```
+    
+    Tier-A widened matcher MATCHED (main_entered fired) but Tier-B `git_verb_matches` REJECTED:
+    - Cmd splits on `&&` → 2 segments
+    - Segment 1: `rtk git -C path add -- file` → `seg.startswith("git ")` False → SKIP
+    - Segment 2: `rtk git -C path commit -o file -F msg` → `seg.startswith("git ")` False → SKIP
+    - Both segments rejected → returns False → `_is_commit_cmd` False → `filter_rejected_not_commit`
+    
+    ==== Fix: 1 surgical Edit at _guard_base.py:369-372 ====
+    
+    Strip leading "rtk " (RTK 0.39.0 PreToolUse:Bash auto-rewrite per Wave 118 Ship A2 commit `741d695`) BEFORE the `seg.startswith("git ")` check. Single-segment-prefix-strip approach handles both raw `git ...` AND rtk-prefixed `rtk git ...` segments transparently.
+    
+    ```python
+    +        # Strip RTK 0.39.0 wrapper prefix (Wave 130 Fire 3 Tier-B fix). RTK is wired
+    +        # at .claude/settings.json PreToolUse[6][6] (matcher='Bash', no `if:` filter,
+    +        # runs LAST in chain) at `Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude`.
+    +        # Per direct empirical reproduction 2026-05-09: rtk auto-rewrites every Bash command
+    +        # via Anthropic CC's `hookSpecificOutput.updatedInput.command` mechanism, prepending
+    +        # "rtk " — transforming `git -C path commit ...` to `rtk git -C path commit ...`.
+    +        # Without this strip, segment-prefix check below SKIPs all rtk-rewritten git verbs.
+    +        # Wave 118 Ship A2 install commit 741d695 — upstream https://github.com/rtk-ai/rtk.
+    +        if seg.startswith("rtk "):
+    +            seg = seg[4:].lstrip()
+             if not seg.startswith("git "):
+                 continue
+    ```
+    
+    ==== Smoke-test results (10/10 PASS in isolation) ====
+    
+    ```
+    PASS: git_verb_matches('rtk git -C Z:/claude-sota-installed commit -o file -F m'..., 'commit') = True
+    PASS: git_verb_matches('git -C path commit -m msg'..., 'commit') = True (preserves existing behavior)
+    PASS: git_verb_matches('git commit -m msg'..., 'commit') = True (preserves existing behavior)
+    PASS: git_verb_matches('rtk git status'..., 'status') = True
+    PASS: git_verb_matches('rtk git -C path add -- file && rtk git -C path commit -'..., 'commit') = True
+    PASS: git_verb_matches('rtk somethingelse'..., 'commit') = False (no false-positive)
+    PASS: git_verb_matches('cat foo.txt'..., 'commit') = False (no false-positive)
+    PASS: git_verb_matches('rtk git push origin main'..., 'push') = True
+    PASS: git_verb_matches('git push origin main'..., 'push') = True (preserves existing behavior)
+    PASS: git_verb_matches('rtk'..., 'commit') = False (no crash on lone-token edge)
+    ```
+    
+    Edge cases verified: lone `rtk`, `rtk somethingelse`, raw `git ...`, compound chains, push verb. ZERO regressions on existing behavior.
+    
+    ==== Pattern B HONEST-NON-FINDING (codex T1 disposition) ====
+    
+    Codex T1 deep-review fired at 18:53:56 BG pid 508128 (180s budget) on consult `.claude/state/codex_consult_w130_fire3_tier_b_rtk_strip.txt`. Verdict file at `.claude/state/codex_consult_w130_fire3_tier_b_rtk_strip_OUT.txt` reached 867 lines but burned budget on PowerShell ConstrainedLanguage shell-escape friction (codex hit `InvalidOperation: Cannot set property` repeatedly across rg subprocess invocations). No JSON verdict block emitted at EOF.
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B`: timeout-without-JSON-verdict → mine partial trace for embedded evidence, document timeout in commit body, proceed only if no high-severity findings emerged. Codex's partial trace CONFIRMED:
+    - `git_verb_matches` is at `_guard_base.py:336` (matched my read)
+    - Existing rtk wire at `.claude/settings.json:200` is `Z:/claude-sota-installed/.local/cargo/bin/rtk.exe hook claude` (Wave 118 Ship A2)
+    - RTK upstream README confirms 80% token savings + auto-rewrite mechanism
+    - Codex agreed shape: "I'm checking existing test coverage now to make the prescribed edit fit the local test style" — no challenge to fix shape, just shell-environment friction
+    
+    Cross-model gate satisfied via PARTIAL Pattern B trace + 10/10 smoke-test isolation evidence + direct empirical JSONL evidence (Ship H confirms Tier-A path). Sister Pattern B HNF disposition pattern established at Wave 109 + Wave 112 + Ship 2BB + Ship F per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` §Pattern B precedent.
+    
+    ==== Tier-A + Tier-B convergence ====
+    
+    Combined Ship H (Tier-A `if:` widening) + Ship I (Tier-B `_guard_base.py` rtk-strip) closes BOTH layers of the rtk-rewrite cascade:
+    
+    | Layer | Hook side | Mechanism | Fix |
+    |---|---|---|---|
+    | Tier-A | CC PostToolUse `if:` matcher | Glob test on rtk-rewritten cmd | Ship H: `Bash(*git ...)` substring widening |
+    | Tier-B | codex_postcommit_review.py `_is_commit_cmd` | Internal `git_verb_matches` segment prefix check | Ship I: strip "rtk " prefix BEFORE segment check |
+    
+    This commit (Ship I) is the smoke-test for the Tier-B fix — it goes through CC's normal Bash dispatch which prepends `rtk ` via PreToolUse hook. If T3 fires for this commit (`codex_review_HEAD_<sha>.txt` written + JSONL `launched` row), BOTH Tier-A AND Tier-B fixes are validated.
+    
+    ==== Mia pre-apply ladder n=89 → n=90 (this fire) ====
+    
+    #90 (this fire pre-apply): proposed-fix initial draft used a mid-loop strip approach. Mia probe via direct read of `_guard_base.py:336-394` showed cleaner pattern is to strip BEFORE `seg.startswith("git ")` check (single-point modification preserves `parts[0] == "git"` defense-in-depth check). Final shape: 9 LOC addition (1 conditional + 1 strip + 7-line cite block).
+    
+    ==== CR conformance ====
+    
+    - **CR-1 cite-trail**: TIER-1-DIRECT to RTK 0.39.0 upstream `https://github.com/rtk-ai/rtk` (install commit `741d695` references) + Anthropic CC `hookSpecificOutput.updatedInput.command` mechanism + direct empirical reproduction at `.claude/state/codex_consult_w130_fire3_tier_b_rtk_strip.txt:67-87`
+    - **CR-3 cross-model gate**: Pattern B HONEST-NON-FINDING per `codex-t1-fix-forward-pattern.md §Pattern B` — codex T1 BG fired 180s but burned budget on PowerShell shell-escape friction; partial trace evidence + 10/10 smoke-test passes + direct code reading + JSONL empirical evidence converge on fix correctness. T3 cross-model gate post-commit (this commit's own dispatch) validates the fix end-to-end
+    - **CR-5 install-priority**: cite-import-AMBER NOT applicable — `_guard_base.py` is a Wave 124 cite-import from sibling per Section 14.5; this Edit is a NOVEL eee-only fix-forward to handle eee-specific RTK install (sibling does NOT have RTK installed at Pre
+
+[prompt truncated]

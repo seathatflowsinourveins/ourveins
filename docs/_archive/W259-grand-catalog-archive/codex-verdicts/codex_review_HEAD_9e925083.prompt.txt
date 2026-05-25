@@ -1,0 +1,231 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 9e925083071ac29bece0151c7f0520eb9278c0e2
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md      | 226 ++++++++++++++++++++++++++++++++++++++++
+ docs/sota-installed-manifest.md |   2 +-
+ 2 files changed, 227 insertions(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit 9e925083071ac29bece0151c7f0520eb9278c0e2
+Author:     42 <42@local>
+AuthorDate: Sun May 10 19:31:05 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 19:31:05 2026 -0400
+
+    docs(wave-141-fire1): L3 Graphiti smoke probe PASS-PARTIAL → INSTALLED-AMBER + collision-mitigation REFUTED + T1 NEEDS-REVISION conf=0.89 Pattern A applied
+    
+    Wave 141 Fire 1 = post-operator-Docker-restart 3-voice agent team L3 Graphiti
+    MCP smoke probe + status flip + collision-mitigation decision + FM-20 cascade
+    closure. T1 review on consolidated synthesis returned NEEDS-REVISION conf=0.89
+    + 5 prescribed_edits applied per Pattern A.
+    
+    ## 4-voice convergence (cross-model gate FULLY SATISFIED 2x REAL GPT-5.5)
+    
+    | Voice | Type | Verdict | Cross-model gate |
+    |---|---|---|---|
+    | 1 | Path P codex T1 (DEFAULT profile, REAL GPT-5.5 v0.130.0) | NEEDS-REVISION conf=0.89 + 5 prescribed_edits | FULL |
+    | 2 | sota-researcher subagent (Sonnet stand-in) | PASS conf=0.91 (Steps 1+2+3 PASS, Step 4 PARTIAL) | STAND-IN |
+    | 3 | architect subagent (Sonnet stand-in) | DESIGN APPROVE-FOR-IMPLEMENTATION conf=0.88 | STAND-IN |
+    | 4 | Path P codex T1 review (DEFAULT profile, REAL GPT-5.5 v0.130.0) | NEEDS-REVISION conf=0.89 + 5 prescribed_edits | FULL |
+    
+    ## DEFINITIVE FINDINGS
+    
+    **Wire structurally correct + INSTALLED-AMBER pending Wave 142 live-session probe**:
+    - Voice 2 verified 9 tools registered via JSON-RPC tools/list (add_memory /
+      search_nodes / search_memory_facts / delete_entity_edge / delete_episode /
+      get_entity_edge / get_episodes / clear_graph / get_status — per
+      graphiti_mcp_server.py:407-408 @ HEAD c427615)
+    - Server clean-boots in 6.97s; FalkorDB driver attached + 30 indices verified
+    - LiteLLM proxy at port 11700 resolves both qwen3.6:35b LLM + qwen3-embedding:0.6b
+      embedder
+    - Step 4 PARTIAL: subprocess stdio EOF closed before async background queue
+      worker persisted episode (HFM-1 likely probe-pattern artifact, NOT runtime
+      defect — but T1 prescribed_edit #1 weakened wording: "persistence/search
+      remain unverified until Wave 142 live-session probe")
+    
+    ## Critical T1 finding — Voice 3 collision-mitigation REFUTED
+    
+    Voice 3 had recommended Option B DEFER for `default_db` → `eee_db` rename
+    (Probe 7.a DEMAND-ABSENCE: sibling allegedly does not wire Graphiti). T1
+    adversarial review caught the FM-20 path-drift cascade extension:
+    
+    **Sibling Z:/claude-sota/.mcp.json:49-69 @ HEAD 2fc5431a ALREADY wires
+    Graphiti FalkorDB on same port 16379 with --group-id claude-sota.**
+    
+    Voice 3 DEMAND-ABSENCE premise FALSE. T1 prescribed_edit #2 application:
+    - DROP env-only FALKORDB_DATABASE rename as no-op (verified
+      factories.py:425-438 reads URI+PASSWORD only, NOT FALKORDB_DATABASE env)
+    - DO NOT close shared-FalkorDB / database-routing risk
+    - Cold-restart single-group search may query default_db and miss eee data
+      per routing ambiguity at graphiti_core/decorators.py:47-68 +
+      falkordb_driver.py:217-224,307-318 @ HEAD c427615
+    
+    ## OpenAIClient vs OpenAIGenericClient caveat (T1 prescribed_edit #4)
+    
+    factories.py:19,122-146 uses OpenAIClient while upstream README:521-528
+    says local/OpenAI-compat providers should use OpenAIGenericClient for
+    structured outputs. Step 4 queue worker did NOT exercise this path —
+    verification required before AMBER → INSTALLED promotion.
+    
+    ## 5 T1 prescribed_edits applied per Pattern A (codex-t1-fix-forward-pattern.md)
+    
+    1. Replace "NOT runtime defect" with "likely probe-pattern artifact;
+       persistence/search remain unverified until Wave 142 live-session probe"
+    2. Change collision-mitigation text to "DROP env-only FALKORDB_DATABASE rename
+       as no-op; do not close shared-FalkorDB/database-routing risk because sibling
+       Graphiti is already wired"
+    3. Add Wave 142 must-pass probe (live add_memory + queue completion + cold
+       restart + search_nodes retrieves canary)
+    4. Add OpenAIClient/OpenAIGenericClient caveat with structured-output
+       verification gate before AMBER → INSTALLED promotion
+    5. Restate FM-20 closure: 2/5 fully closed (manifest + MEMORY), arch-audit
+       conditional/open, sibling + historical surfaces deferred
+    
+    ## Pattern D candidate ladder advance to n=10 same-arc
+    
+    Per Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern D
+    candidate (queued task #137), Wave 141 Fire 1 advances n=9 → n=10 cumulative
+    same-arc evidence for DEFAULT codex profile recovery FM-17.i Pattern B HNF:
+    Wave 137 Fire 2 + Wave 138 Fire 1+2+3+4 + Wave 139A Voice 1 + Wave 139A T1
+    review + Wave 140 Voice 1 + Wave 140 T1 review + Wave 141 Voice 1 + Wave 141
+    T1 review = n=10. cycle-322 promotion FIRMLY ready.
+    
+    ## Files changed
+    
+    - docs/sota-installed-manifest.md (§4 row 102 status text PARTIAL → INSTALLED-AMBER)
+    - docs/install-provenance.md (Wave 141 Fire 1 entry +203 LOC)
+    
+    ## Memory artifacts (gitignored — Karpathy §5 Wiki Compounding Surface)
+    
+    - tmp/wave141-voice1-verdict-distilled-2026-05-10.md (Voice 1 distilled)
+    - tmp/wave141-voice2-graphiti-smoke-2026-05-10.md (Voice 2 smoke 470 LOC)
+    - tmp/wave141-voice3-architect-status-flip-2026-05-10.md (Voice 3 design 304 LOC)
+    - tmp/wave141-fire1-provenance-append.md (provenance append source)
+    - tmp/wave141a-design-input-2026-05-10.md (Wave 141A pre-design 250 LOC)
+    - .claude/state/codex_consult_w141_graphiti_smoke{,_OUT}.txt (Voice 1 13156 LOC)
+    - .claude/state/codex_consult_w141_synthesis_t1_review{,_OUT}.txt (T1 9470 LOC)
+    
+    ## Wave 141A pre-prepared (queued for next-fire — Docker SOTA permission unleash)
+    
+    5 Docker SOTA repos cloned (CR-6 fresh-from-github, --depth 1):
+    - docker/mcp-gateway @ b46ac896 (MIT, Docker official MCP CLI plugin)
+    - docker/docker-agent @ b6575306 (Apache-2.0, Docker official Agent Builder
+      with Anthropic Claude integration native)
+    - docker/docker-py @ df3f8e2a (Apache-2.0, Python SDK v7.1.0 INSTALLED)
+    - docker/genai-stack @ 0444f467 (CC0, Langchain+Docker+Neo4j+Ollama compose)
+    - docker/awesome-compose @ 18f59bdb (CC0, 60+ Compose example stacks)
+    
+    Wave 141A design pre-staged at tmp/wave141a-design-input-2026-05-10.md
+    covering settings.json permissions.allow[] Docker class additions + safety_guard.py
+    extension + state-outside-repo Docker volume discipline + manifest §3 plugin
+    row additions + manifest §10 CLI tool row additions + sister-rule integration
+    + CR conformance verification.
+    
+    ## Wave 142 must-pass probe (T1 prescribed_edit #3)
+    
+    To promote INSTALLED-AMBER → INSTALLED:
+    1. Live claude session: invoke mcp__graphiti__add_memory canary uuid + group_id=eee
+    2. Wait queue completion / verify nonzero nodes in eee keyspace
+    3. Restart Claude (cold-start)
+    4. Without prior add: search_nodes retrieves canary
+    5. Verify OpenAIClient structured-output through LiteLLM/qwen real path
+    6. Refresh docs/architecture-audit-2026-05-10.md to reflect INSTALLED status
+    7. DOWNGRADE to PARTIAL with concrete root-cause IF Step 4 fails
+    
+    ## Cross-references (cite trail per CR-1)
+    
+    - Voice 1 verdict: .claude/state/codex_consult_w141_graphiti_smoke_OUT.txt
+    - Voice 2 artifact: tmp/wave141-voice2-graphiti-smoke-2026-05-10.md
+    - Voice 3 artifact: tmp/wave141-voice3-architect-status-flip-2026-05-10.md
+    - T1 review verdict: .claude/state/codex_consult_w141_synthesis_t1_review_OUT.txt
+    - Pattern A: Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md
+    - FM-20 cascade: Z:/claude-sota/.claude/rules/fm20-path-drift-cascade.md
+    - Pattern D candidate: task #137
+    
+    ## CR conformance
+    
+    - CR-1 
+
+[prompt truncated]

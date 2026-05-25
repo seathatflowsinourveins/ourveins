@@ -1,0 +1,215 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit fa9b3d4f68f40ed5e17e22e16bae2d854ec2d2e5
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit fa9b3d4f68f40ed5e17e22e16bae2d854ec2d2e5
+Author:     42 <42@local>
+AuthorDate: Sat May 9 19:06:39 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 19:06:39 2026 -0400
+
+    fix(t2-silent-failure): widen PreToolUse[6][2-5] gitleaks + codex_t2 `if:` matchers (same root cause as Ship H)
+    
+    Wave 130 Fire 3 Ship J — Pattern A scope-extension of Ship H Tier-A widening to PreToolUse[6][2-5] hooks. T2 cross-model gate (codex_t2_pre_commit_gate.py) + gitleaks pre-commit gate were ALSO operationally bypassed since Wave 118 Ship A2 RTK install (commit `741d695`) for the same root cause as T3 (Ship H closed).
+    
+    ==== Same-shape Pattern A apply (4 surgical Edits) ====
+    
+    `.claude/settings.json` PreToolUse[6] entries [2]+[3]+[4]+[5]:
+    
+    ```diff
+    - "if": "Bash(git commit *)"          (line 177, gitleaks_pre_commit_gate.py)
+    + "if": "Bash(*git commit *)"
+    - "if": "Bash(git -C * commit *)"     (line 183, gitleaks_pre_commit_gate.py)
+    + "if": "Bash(*git -C * commit *)"
+    - "if": "Bash(git commit *)"          (line 189, codex_t2_pre_commit_gate.py)
+    + "if": "Bash(*git commit *)"
+    - "if": "Bash(git -C * commit *)"     (line 195, codex_t2_pre_commit_gate.py)
+    + "if": "Bash(*git -C * commit *)"
+    ```
+    
+    JSON validity confirmed. 4 PreToolUse + 4 PostToolUse = 8 hooks total now widened.
+    
+    ==== Pattern A scope-extension justification ====
+    
+    Ship H codex T1 (verdict at `.claude/state/codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt` APPROVE conf=0.94) verified Anthropic CC official docs (TIER-1-DIRECT) that hook-level `if:` permission rule syntax DOES support leading `*` wildcards (canonical examples: `Bash(* --version)`, `Bash(* --help *)`, `Bash(* install)`). Same syntax applies to PreToolUse and PostToolUse hooks per CC docs unified hook-input contract.
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A: this Ship J is scope-extension of the SAME root cause + SAME fix shape codex T1 already verified. No new T1 needed; codex T1 syntax verification carries forward. T2 itself fires for THIS commit (PreToolUse[6][4-5] now widened) — embedded smoke-test.
+    
+    Per `Z:/claude-sota/.claude/rules/cross-model-consensus.md` §The contract HARD GATE: T2 commit-time hook `codex_t2_pre_commit_gate.py:424` IS the cross-model verification net. Restoring T2 means cross-model gate is fully operational.
+    
+    ==== Test scope ====
+    
+    Existing test coverage:
+    - `tests/test_codex_t2_pre_commit_gate.py` (cite-import from sibling Wave 124 batch)
+    - `tests/test_gitleaks_pre_commit_gate_security.py` (cite-import per CR-9 install-risk discipline)
+    
+    Both tests cover script-internal `_is_commit_cmd` logic which is unchanged here (Ship I closed Tier-B at `_guard_base.py`). settings.json `if:` widening doesn't break test invariants — tests invoke scripts directly with controlled stdin payloads.
+    
+    ==== Mia pre-apply ladder n=90 → n=91 (this fire) ====
+    
+    #91 (this fire pre-apply): initial draft considered separate Ship J + Ship K for gitleaks + codex_t2 (2 separate fires). Mia pre-apply: same root cause + same fix shape + same lines = ONE atomic fire per Pattern A discipline. Single 4-edit commit.
+    
+    ==== Tier-A coverage now COMPLETE ====
+    
+    | Hook | Layer | Lines | Status |
+    |---|---|---|---|
+    | safety_guard.py | PreToolUse[6][0] | n/a (no if filter) | Always fires |
+    | block_no_verify_guard.py | PreToolUse[6][1] | n/a (no if filter) | Always fires |
+    | gitleaks_pre_commit_gate.py | PreToolUse[6][2-3] | 177, 183 | ✅ Ship J widened |
+    | codex_t2_pre_commit_gate.py | PreToolUse[6][4-5] | 189, 195 | ✅ Ship J widened |
+    | rtk.exe hook claude | PreToolUse[6][6] | n/a (no if filter) | Always fires (auto-rewrite source) |
+    | codex_postcommit_review.py | PostToolUse[0][0-1] | 213, 220 | ✅ Ship H widened |
+    | codex_prepush_review.py | PostToolUse[0][2-3] | 227, 234 | ✅ Ship H widened |
+    | codex_review_trace.py | PostToolUse[0][4] | n/a (no if filter) | Always fires |
+    
+    ALL `if:`-filtered hooks for git-commit/push paths now properly handle rtk-rewritten cmds.
+    
+    ==== Convergence with Ship I (Tier-B fix) ====
+    
+    Ship I `4a499941` validated Tier-B `_guard_base.git_verb_matches` rtk-strip — T3 fired APPROVE with `{"verdict":"approve","summary":"No ship-blocking finding... narrowly scoped to recognizing the empirically observed `rtk git ...` wrapper..."}`.
+    
+    Ship J completes the cross-model gate restoration:
+    - T1 = codex pre-edit consult (orchestrator-side foreground+tee per CR-3 Phase 1 bootstrap exception — already operational)
+    - T2 = codex_t2_pre_commit_gate.py at PreToolUse[6][4-5] — RESTORED via this commit
+    - T3 = codex_postcommit_review.py at PostToolUse[0][0-1] — RESTORED via Ship H + Ship I
+    - T4 = codex_prepush_review.py at PostToolUse[0][2-3] — RESTORED via Ship H
+    
+    Cross-model T1+T2+T3+T4 lifecycle now fully operational on every commit going through CC's normal Bash dispatch path.
+    
+    ==== CR conformance ====
+    
+    - **CR-1 cite-trail**: Same-shape Pattern A scope-extension; codex T1 syntax verification at `.claude/state/codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt` carries forward. Anthropic CC official docs (TIER-1-DIRECT) verified `Bash(*...)` leading-wildcard syntax
+    - **CR-3 cross-model gate**: Pattern A scope-extension per `codex-t1-fix-forward-pattern.md`. T2 itself is the smoke-test for this commit
+    - **CR-5 install-priority**: cite-import-AMBER NOT applicable — settings.json edit is bootstrap-only
+    - **CR-8 full-SOTA-content**: ADAPTED-FROM-SOTA — same Anthropic CC permission rule canonical examples Ship H cited
+    - **CR-9 install-risk**: LOW (additive 4-character changes; REVERT path = single-commit revert; JSON validity verified)
+    - **CR-11 META-process**: Pattern A scope-extension + Mia pre-apply n=91 + ONE atomic fire per cycle-300 ONE-LU discipline
+    
+    ==== Outstanding queue ====
+    
+    - Task #94 (this commit closes): T2 + gitleaks `if:` widening
+    - Task #95 still pending: Tier-B segment splitter `\n` for line-continuation chains (defense-in-depth; not affected by RTK-strip since `\\\n` continuation is independent of rtk wrapper)
+    - Task #91 still pending: sibling fm17 backport (sibling-context fire)
+    - Task #92 still pending: fm17 multi-file taxonomy split
+    
+    VERDICT (this commit): T2 cross-model gate Pattern A scope-extension complete. Combined with Ship H + Ship I, full T1+T2+T3+T4 cross-model lifecycle restored.
+
+=== diff ===
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 6d5fc81..49c9bb0 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -174,25 +174,25 @@
+           {
+             "type": "command",
+             "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+-            "if": "Bash(git commit *)",
++            "if": "Bash(*git commit *)",
+             "timeout": 10
+           },
+           {
+             "type": "command",
+             "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/gitleaks_pre_commit_gate.py",
+-            "if": "Bash(git -C * commit *)",
++            "if": "Bash(*git -C * commit *)",
+             "timeout": 10
+           },
+           {
+             "type": "command",
+             "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+-            "if": "Bash(git commit *)",
++            "if": "Bash(*git commit *)",
+             "timeout": 180
+           },
+           {
+             "type": "command",
+             "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/codex_t2_pre_commit_gate.py",
+-            "if": "Bash(git -C * commit *)",
+
+
+[prompt truncated]

@@ -1,0 +1,49 @@
+fix(eee): wave 50 fire 42 path-mangling root-cause + PowerShell .Count unfold bug
+
+Apply 3 prescribed_edits per codex T1 NEEDS-REVISION conf=0.86 deep-review-exec
+verdict at .claude/state/codex_consult_fire42_eee_silent_hang_OUT.txt:4144,4267
+(real GPT-5.5 foreground+tee per FM-17.d recovery; xhigh reasoning; 3-way ablation
+empirical isolation).
+
+PE1 (eee.ps1 L66-68) — drop MSYS argv-conversion suppression:
+  Old: $env:MSYS_NO_PATHCONV='1' + $env:MSYS2_ARG_CONV_EXCL='*' + $env:MSYS2_ENV_CONV_EXCL='*'
+  New: Remove-Item Env:\MSYS_NO_PATHCONV + Remove-Item Env:\MSYS2_ARG_CONV_EXCL
+       (keep $env:MSYS2_ENV_CONV_EXCL='*' for env-only suppression)
+  Root cause empirically isolated by codex T1 3-way ablation
+  (OUT.txt:4151-4159): with MSYS2_ARG_CONV_EXCL='*', Claude plugin hooks pass
+  POSIX /z/claude-sota-installed/... plugin roots through Git Bash to Windows
+  node.exe; Node's path.resolve treats /z/ as drive-relative → Z:\z\... module
+  not found.
+
+PE2 (eee.cmd L7) — proper exit code propagation:
+  Add `exit /b %ERRORLEVEL%` after pwsh forward; without it, EEE_BOOTSTRAP=0
+  hard-gate failures returned exit 0 silently per Q3 prescribed_edit
+  (OUT.txt:4344-4353).
+
+PE0 (eee.ps1 L209) — PowerShell .Count unfold bug:
+  Wrap PSMemberInfoCollection in @(...) for scalar count.
+  PSMemberInfoCollection lacks native .Count member → member enumeration
+  auto-projects .Count onto each PSPropertyInfo (each returns 1) → @(1,1,1...)
+  array. Fix: @($cfg.mcpServers.PSObject.Properties).Count → Int32 3.
+  Cite TIER-1 https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_member-access_enumeration?view=powershell-7.6
+  Repro: Probe E showed `.mcp.json has 1 1 1 MCP server(s)` (false-positive
+  warning); post-fix shows correct count=3, no warning.
+
+Verification:
+  - eee.ps1: 21 line additions / 3 deletions; PowerShell AST OK 3587 tokens
+  - eee.cmd: 5 line additions
+  - Probe E re-run: warn no longer fires; claude.exe --version still returns
+    "2.1.119 (Claude Code)" exit=0
+  - Operator's actual stop-hook crash 2026-05-07 referenced
+    Z:\z\claude-sota\.claude\plugins\marketplaces\openai-codex\plugins\codex\
+    scripts\stop-review-gate-hook.mjs (sister bug in claude-sota runtime;
+    cross-runtime fix shipped separately).
+
+Disposition: Pattern A (single-apply) per cross-model-consensus.md.
+Risk class: medium (per codex T1 OUT.txt:4147).
+Cardinal-rule-3 cross-model gate: SATISFIED via real GPT-5.5 foreground+tee.
+FM-17.d recovery applied: foreground+tee bypassed BRIDGE-MODE Sonnet-wrapper
+600s stream-watchdog stall (Agent RR signature earlier this arc).
+
+Wave 50 Fire 42 — closes path-mangling user-visible operator bug
+(Z:\z\claude-sota-installed\... module-not-found in SessionEnd hook).

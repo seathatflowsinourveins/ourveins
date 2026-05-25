@@ -1,0 +1,142 @@
+# docker-compose.cognee-basicmemory.yml
+# W301 Stream C — operator-ready compose for CogneeMCP + basic-memory
+# Endgame-A steps 4-5: migrate from NSSM/standalone → docker compose
+#
+# Prereqs (operator-verified before `docker compose up`):
+#   - Docker Desktop >= 4.54.0 (released 2025-12-04)
+#   - WSL2 backend enabled (Settings -> General -> "Use WSL 2 based engine")
+#   - Host services UP:
+#       * IkLlamaServer at http://127.0.0.1:8080/v1     (llama-server)
+#       * Ollama       at http://127.0.0.1:16700        (embeddings)
+#       * Langfuse     at http://127.0.0.1:3000         (observability)
+#   - cognee.env and basic-memory.env created from templates (SEV-1 secrets)
+#
+# Bring-up:    docker compose -f docker-compose.cognee-basicmemory.yml up -d
+# Smoke-test:  see ../W301-STREAM-C-DOCKER-COMPOSE-COGNEE-BASIC-MEMORY.md §6
+# Rollback:    docker compose -f docker-compose.cognee-basicmemory.yml down
+#              + restart NSSM CogneeMCP service
+#
+# Compose spec version is implicit (Compose v2 ignores `version:`); we rely on
+# Compose >= 2.32.2 features (env_file long syntax). Verify with: docker compose version
+
+services:
+  # =========================================================================
+  # 1. Cognee BACKEND — graph + vector + relational stores
+  # =========================================================================
+  cognee:
+    image: cognee/cognee:main
+    container_name: cognee
+    restart: unless-stopped
+    env_file:
+      - ./cognee.env   # gitignored; copy from cognee.env.template
+    environment:
+      # Override host-reachable URLs (env_file is base, environment wins)
+      - LLM_API_BASE=http://host.docker.internal:8080/v1
+      - EMBEDDING_API_BASE=http://host.docker.internal:16700
+      - LANGFUSE_HOST=http://host.docker.internal:3000
+      - LANGFUSE_BASE_URL=http://host.docker.internal:3000
+      # Cognee internals
+      - SYSTEM_ROOT_DIRECTORY=/app/data
+      - DEBUG=false
+    ports:
+      - "127.0.0.1:8765:8000"   # loopback-only bind
+    volumes:
+      - cognee_data:/app/data   # named volume -> Linux VM ext4 (fast)
+    networks:
+      - cognee_memory_net
+    extra_hosts:
+      # Linux-portability + intent documentation. On Docker Desktop Windows
+      # this is automatic, but declaring it explicit is the SOTA pattern.
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # =========================================================================
+  # 2. Cognee MCP — talks to backend, exposes MCP HTTP transport
+  # =========================================================================
+  cognee-mcp:
+    image: cognee/cognee-mcp:main
+    container_name: cognee-mcp
+    restart: unless-stopped
+    env_file:
+      - ./cognee.env
+    environment:
+      - TRANSPORT_MODE=http
+      # In-network DNS: cognee resolves via cognee_memory_net
+      - API_URL=http://cognee:8000
+      - LANGFUSE_HOST=http://host.docker.internal:3000
+    ports:
+      - "127.0.0.1:8766:8000"   # MCP endpoint (operator wires into .mcp.json)
+    networks:
+      - cognee_memory_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      cognee:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # =========================================================================
+  # 3. basic-memory — T6 canonical memory, SQLite+WAL, SSE transport
+  # =========================================================================
+  basic-memory:
+    image: ghcr.io/basicmachines-co/basic-memory:latest
+    container_name: basic-memory
+    restart: unless-stopped
+    env_file:
+      - ./basic-memory.env
+    environment:
+      - BASIC_MEMORY_HOME=/app/data/basic-memory
+      - BASIC_MEMORY_PROJECT_ROOT=/app/data
+      - BASIC_MEMORY_DEFAULT_PROJECT=main
+      - BASIC_MEMORY_SYNC_CHANGES=true
+      - BASIC_MEMORY_LOG_LEVEL=INFO
+    ports:
+      - "127.0.0.1:8767:8000"   # SSE endpoint
+    volumes:
+      # CRITICAL: named volume, NOT bind-mount.
+      # SQLite WAL on NTFS-via-Docker-Windows is 10-50x slow per WSL #6985.
+      # Named volumes live in Docker Desktop's Linux VM ext4 (near-native).
+      - basic_memory_data:/app/data
+      - basic_memory_config:/app/.basic-memory
+    networks:
+      - cognee_memory_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+# =========================================================================
+# Named volumes — stored in Docker Desktop Linux VM ext4 (fast small-I/O)
+# Backup: docker run --rm -v <volume>:/data busybox tar czf - /data > backup.tgz
+# Restore: docker run --rm -v <volume>:/data -i busybox tar xzf - -C / < backup.tgz
+# =========================================================================
+volumes:
+  cognee_data:
+    name: cognee_data
+  basic_memory_data:
+    name: basic_memory_data
+  basic_memory_config:
+    name: basic_memory_config
+
+# =========================================================================
+# Bridge network — Docker Desktop default; host.docker.internal works auto
+# (operator host-firewall must permit loopback; default Win Defender does)
+# =========================================================================
+networks:
+  cognee_memory_net:
+    name: cognee_memory_net
+    driver: bridge

@@ -1,0 +1,168 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 2fd0fe111545840ad54d583ef4e158f5a80d65a9
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/sota-installed-manifest.md | 1 +
+ 1 file changed, 1 insertion(+)
+
+=== git show --format=fuller ===
+commit 2fd0fe111545840ad54d583ef4e158f5a80d65a9
+Author:     42 <42@local>
+AuthorDate: Mon May 11 00:28:25 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 00:28:25 2026 -0400
+
+    docs(install): Wave 146 Ship 1 — npm install -g @anthropic-ai/sdk@0.95.1 INSTALLED (3-voice advanced agent team APPROVE; CR-12 PROVIDER-COMPLEMENT; cross-model gate FULLY SATISFIED via 2× REAL GPT-5.5)
+    
+    3-voice advanced agent team CONVERGENT APPROVE on Wave 146 Ship 1 anthropic-sdk-typescript install:
+    
+    V1 sota-researcher (Sonnet stand-in via CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6 STAND-IN-NOTICE per CLAUDE.local.md ENV (g)):
+      PASS-INSTALL — Probe DAG 1-7 ALL PASS / CR-9 PASS / CR-12 PROVIDER-COMPLEMENT / SRA D1+D6 PASS / 7 Mia self-OVER catches preempted
+      ARTIFACT-INLINE: tmp/wave146-ship1-v1-sota-researcher-anthropic-sdk-2026-05-11.md (350 LOC budget honored)
+    
+    V2 Path P REAL GPT-5.5 codex T1 (cardinal-rule-3 Phase 1 bootstrap exception):
+      APPROVE-INSTALL conf=0.91 — CR-6 canonical-native PASS / CR-9 0.95.1 explicit pin PASS / CR-1 cite PRIMARY=npmjs.com/@anthropic-ai/sdk/v/0.95.1 + SUPPORT=github.com/anthropics/anthropic-sdk-typescript/releases/tag/sdk-v0.95.1 / CR-12 PROVIDER-COMPLEMENT (raw Messages SDK distinct from Agent SDK orchestrator) / pairing Python SDK PASS
+      Verdict: .claude/state/codex_consult_w146_s1_v2_install_review_OUT.txt (279 LOC)
+    
+    V3 Path P REAL GPT-5.5 codex T1 adversarial 2nd-stage (cardinal-rule-3 Phase 1 bootstrap exception):
+      APPROVE-INSTALL conf=0.90 / READY / prescribed_edits=[] (clean)
+      - v1_validation: VERIFIED
+      - v2_validation: PARTIAL — CR-8 not explicitly recorded, no blocking evidence found
+      - cr12_class_confirm: AGREE-PROVIDER-COMPLEMENT
+      - publish_date_risk: ACCEPTABLE (4 days old past 24h burn-in)
+      - scope_g_vs_D: G-CORRECT
+      - additional_concerns: (1) defensive npm cache EPERM mitigation if needed (didn't fire), (2) PROVIDER-COMPLEMENT classification reaffirmed via Anthropic docs distinguishing Client SDK vs Agent SDK
+      Verdict: .claude/state/codex_consult_w146_s1_v3_adversarial_review_OUT.txt (751 LOC)
+    
+    INSTALL EXECUTED:
+      $ npm install -g @anthropic-ai/sdk@0.95.1
+      → added 7 packages in 3s
+      Bin: /c/Users/42/AppData/Roaming/npm/anthropic-ai-sdk (migrate subcommand verified)
+      Smoke probe: NODE_PATH-explicit require returns SDK class with Messages API present (10 exports: default, toFile, APIPromise, BaseAnthropic, Anthropic, HUMAN_PROMPT, AI_PROMPT, PagePromise, AnthropicError, APIError; hasMessages=true)
+    
+    Mia OVER catch (orchestrator-side post-install):
+      V1 Probe 5 cited package.json @ blob 9cd668b1 (GitHub source) showing "main: dist/index.js" + "types: dist/index.d.ts" — npm-published flattened layout differs (ACTUAL: "main: ./index.js" + "types: ./index.d.ts" at root; no dist/). V1 cite was technically TIER-1-DIRECT but for the wrong layout (source-tree vs distribution-tree). Install correctness UNAFFECTED — package works at root paths. Mia ladder n=213 → n=214.
+    
+    CR-12 disposition (5-class lattice per CLAUDE.md cardinal-rule-12):
+      PROVIDER-COMPLEMENT — INSTALL as ALTERNATIVE; @anthropic-ai/claude-agent-sdk@0.2.133 (Agent SDK orchestrator) retains canonical PRIMARY position. Raw Messages SDK adds RAW API client primitive for TS hooks needing direct messages.create/batches/files/beta calls outside Claude Code agent loop.
+    
+    Cross-model gate satisfaction: FULLY SATISFIED via 2× REAL GPT-5.5 codex CLI v0.130.0 dispatches (V2 conf=0.91 + V3 conf=0.90) per cardinal-rule-3 Phase 1 bootstrap exception (Tier 1a codex T1-T7 hooks NOT-yet-INSTALLED per manifest §Section 2 INSTALLED-PARTIAL status; Path P recipe satisfies cross-model invariant at zero degraded-mode risk). Pattern D ladder advance n=20 → n=22 (V2 + V3 both Path P DEFAULT-profile dispatches).
+    
+    Cite class for this ship:
+      constituents=[TIER-1-DIRECT @ npmjs.com/package/@anthropic-ai/sdk/v/0.95.1, TIER-1-DIRECT @ github.com/anthropics/anthropic-sdk-typescript LICENSE blob ac71a66c (MIT verbatim) + package.json blob 9cd668b1, TIER-2 @ V1 Probe DAG verdicts at tmp/wave146-ship1-v1-sota-researcher-anthropic-sdk-2026-05-11.md, TIER-3-LOCAL-OPERATOR-DERIVED @ V2+V3 codex T1 verdicts at .claude/state/codex_consult_w146_s1_*_OUT.txt]
+      effective_tier=TIER-1-DIRECT per citation-discipline.md rule #8 MIN_PRECEDENCE (no local composition glue introduced; pure upstream-install via official npm channel)
+    
+    Discipline cascade defenses applied this ship:
+      - Mia pre-apply (V1 7 self-OVER catches + 1 orchestrator-side OVER on V1 Probe 5 main-path) — n=213 → n=214
+      - FM-20 path-drift cascade (claude-agent-sdk Python version drift 0.86.0 standing-form → 0.1.33 W145 V3 → 0.1.77 actual; INDEPENDENT of this TS install but disclosed) — n=14 → n=15
+      - Pattern D codex T1 (V2 + V3 Path P REAL GPT-5.5 dispatches both terminal JSON within 60-180s budget) — n=20 → n=22
+      - FM-09 codex-rescue blind-spot specialization (V1 STAND-IN → V3 cross-model gate validation) — 7/7 → 8/8
+      - FM-15 + FM-02 (b)+(c) atomic single-shell defense — narrow `--only -- <pathspec>` form
+      - CR-9 install-risk (version-pin 0.95.1 explicit; alternate-channels enumerated; sibling-bleed clean)
+    
+    Wave 146 Ship 1 of 5 INSTALL ships approved by Wave 145 Fire 7 V4 with version pins.
+    Next auto-proceed: Wave 146 Ship 2 — manifest reclassify microsoft/playwright-mcp@0.0.75 (per V4 prescription).
+    
+    Files modified:
+      - docs/install-provenance.md (+88 LOC append Wave 146 Ship 1 entry)
+      - docs/sota-installed-manifest.md (+1 LOC manifest row insert after L589 in §Anthropic SDKs + CLI)
+    
+    Co-Authored-By: V1 sota-researcher (Sonnet stand-in)
+    Co-Authored-By: V2 codex T1 REAL GPT-5.5 (deep-review-exec, Path P recipe)
+    Co-Authored-By: V3 codex T1 adversarial REAL GPT-5.5 (deep-review-exec, Path P recipe)
+
+=== diff ===
+diff --git a/docs/sota-installed-manifest.md b/docs/sota-installed-manifest.md
+index 3de753b..8f701a2 100644
+--- a/docs/sota-installed-manifest.md
++++ b/docs/sota-installed-manifest.md
+@@ -587,6 +587,7 @@ Add to Section 11.5 cite-only authority guides:
+ |---|---|---|---|
+ | @anthropic-ai/claude-agent-sdk@0.2.133 | npm install -g (CR-6 official npmjs.com) | TIER-1-DIRECT npmjs.com/package/@anthropic-ai/claude-agent-sdk | INSTALLED 2026-05-08; 97 packages |
+ | claude-agent-sdk@0.1.77 (Python) | pip install (CR-6 official PyPI) | TIER-1-DIRECT pypi.org/project/claude-agent-sdk | INSTALLED 2026-05-08; verified import |
++| @anthropic-ai/sdk@0.95.1 | npm install -g (CR-6 official npmjs.com) | TIER-1-DIRECT npmjs.com/package/@anthropic-ai/sdk + LICENSE blob ac71a66c MIT | INSTALLED 2026-05-11 Wave 146 Ship 1; CR-12 PROVIDER-COMPLEMENT to @anthropic-ai/claude-agent-sdk@0.2.133 (raw Messages SDK vs Agent SDK orchestrator); 7 packages added; 2 prod deps (standardwebhooks ^1.0.0 + json-schema-to-ts ^3.1.1); optional zod peer; bin/cli ships migrate subcommand; 3-voice agent team APPROVE conf 0.90-0.91 |
+ | anthropics/anthropic-cli v1.7.0 (ant.exe) | gh release download (CR-6 official GH releases) | TIER-1-DIRECT https://github.com/anthropics/anthropic-cli/releases/v1.7.0 | INSTALLED 2026-05-08; ant.exe 21MB at .local/bin/ |
+ 
+ ### sota-researcher Wave 82a ADOPT-NOW (3 — Wave 82e/i)
+</repository_context>

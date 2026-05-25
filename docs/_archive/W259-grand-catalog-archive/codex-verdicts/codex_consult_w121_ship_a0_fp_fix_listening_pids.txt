@@ -1,0 +1,43 @@
+ROLE: cross-model T1 reviewer (REAL GPT-5.5 BRIDGE-MODE foreground+tee per cross-model-consensus.md §"On codex unavailable" Path P). Phase 1 bootstrap exception per CLAUDE.md cardinal-rule-3. FM-17.f blocks BRIDGE-MODE Agent() subagent dispatch under [1m] parent — Path P (orchestrator-side codex exec) is the sanctioned route.
+
+CONTEXT: Wave 121 Ship A0-MONITORING fire-3 enrichment to process_hygiene_audit.py — closes FALSE-POSITIVE catch on cnighswonger v3.5.4 daemon (PID 103408 owns :19801 + serves /health HTTP 200 + ESTABLISHED connections to claude.exe BUT parent shell PID 119820 exited per Win32 detached-process convention).
+
+Per CR-10 research-first probed:
+- Path A: Anthropic CC + ECC marketplaces — NO process-hygiene daemon-vs-zombie discriminator skill
+- Path B HONEST-NON-FINDING: sibling Z:/claude-sota/tools/process_hygiene_audit.py has SAME blind-spot (no daemon-whitelist mechanism)
+- Path A localized enrichment: Microsoft Win32 Get-NetTCPConnection (TIER-1 https://learn.microsoft.com/powershell/module/nettcpip/get-nettcpconnection) is the canonical primitive
+
+EDIT APPLIED (uncommitted, retroactive T1 per discipline):
+- File: Z:/claude-sota-installed/tools/process_hygiene_audit.py
+- Change 1: NEW listening_pids() function (lines 110-138) — runs `Get-NetTCPConnection -State Listen | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique` via PowerShell subprocess; returns set of PIDs owning at least one LISTENING TCP port
+- Change 2: find_reap_candidates() now calls listening_pids() and EXEMPTS PIDs in that set from reap candidates list (added after parent_alive check)
+
+Empirical evidence (this fire):
+- cnighswonger v3.5.4 PID 103408: parent_pid=119820 (DEAD per WMIC), age=1.0h, name=node.exe — would be reaped pre-fix
+- POST-FIX expected: PID 103408 EXEMPT because owns :19801 LISTENING port + has ESTABLISHED connections to claude.exe
+- Verification: `curl http://127.0.0.1:19801/health` returned `{"status":"ok"}` HTTP 200 in 2.6ms
+- netstat: `127.0.0.1:19801 LISTENING 103408` + `127.0.0.1:9333 -> 127.0.0.1:19801 ESTABLISHED 118588`
+
+REVIEW AXES (TIGHT — ≤120s budget):
+
+AXIS-1 — TIER-1-DIRECT cite admissibility:
+  Is `https://learn.microsoft.com/powershell/module/nettcpip/get-nettcpconnection` sufficient TIER-1 cite for the new listening_pids() function? Per CR-1 cite-class lattice + cite-import-AMBER per CR-12 last-resort.
+
+AXIS-2 — Mechanism correctness:
+  Is port-listening detection a SEMANTICALLY CORRECT discriminator for daemon-vs-zombie? Edge cases:
+  (a) Daemon that listens then exits but PID still in tasklist (race condition)
+  (b) Daemon listening on UNIX socket / named pipe (NOT TCP — escapes filter)
+  (c) Daemon NOT listening (e.g., outbound-only telemetry agent)
+  (d) Multi-PID daemon process tree where only ONE PID listens but children should also be exempt
+
+  Should the exemption ALSO cover ESTABLISHED-connections-only processes (no LISTEN port but active inbound)?
+
+AXIS-3 — Pattern A correctness + exemption-precedence:
+  Is exempt-after-parent-check ordering correct? (currently: target-name-match → age-check → dead-parent-check → port-LISTEN-exemption)
+  Should port-LISTEN-exemption be EARLIER (skip dead-parent check entirely if daemon)? Or per current ordering (dead-parent-check first, then exempt-if-listening — preserves audit-trail visibility into "would have reaped but exempted")?
+
+OUTPUT_BUDGET: 200 LOC
+
+VERDICT SHAPE per cross-model-consensus.md §Verdict shapes:
+  APPROVE | NEEDS-REVISION conf=<0.85-0.95> + prescribed_edits | REJECT
+  + ONE-LINE: "[VERIFIED via TIER-1 cite] <approach correct/needs adjust>"

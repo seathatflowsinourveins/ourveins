@@ -1,0 +1,237 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 7ad0ba4a7269cebaa038be4d712b2c87f5598b56
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/infrastructure-convergent-pattern.md          | 135 ++++++++++++++++++
+ docs/install-provenance.md                         |  52 +++++++
+ .../00-tracker.md                                  |  97 +++++++++++++
+ .../99-close-synthesis.md                          | 153 +++++++++++++++++++++
+ 4 files changed, 437 insertions(+)
+
+=== git show --format=fuller ===
+commit 7ad0ba4a7269cebaa038be4d712b2c87f5598b56
+Author:     42 <42@local>
+AuthorDate: Sun May 10 23:12:45 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 23:12:45 2026 -0400
+
+    docs(infrastructure-convergent): Wave 134 Fire 27-RESEARCH-ARCH-F — Codify sqlite-vec INFRASTRUCTURE-CONVERGENT pattern + cross-fire generalization caveat (Pattern A round-1 clean APPROVE conf=0.91; Forward Discipline #2 evidence ladder n=1→n=2 toward cycle-322 promotion)
+    
+    3rd Tier-2 codification ship in Wave 134 series. Codified the sqlite-vec
+    INFRASTRUCTURE-CONVERGENT pattern (Fire 27-B finding) PLUS cross-fire
+    generalization caveat (Fire 27-C refutation) into NEW local doc
+    `docs/infrastructure-convergent-pattern.md` (~120 LOC).
+    
+    This fire is the 2nd RECURSIVE DOGFOOD applying Forward Discipline #2 to its
+    OWN codification fire's codex T1 prompt. Result: clean terminal JSON verdict
+    in 183s wall-clock / 7,455 tokens / 190 LOC verdict — well within 60-180s
+    soft target. Empty prescribed_edits — Pattern A NOT INVOKED (round-1 clean
+    APPROVE is the correct disposition per `codex-t1-fix-forward-pattern.md`
+    §Pattern A 0.85-0.95 conf sweet spot).
+    
+    Forward Discipline #2 evidence ladder ADVANCED n=1 (Fire 27-E) → n=2 (this
+    fire) toward cycle-322 n=3 promotion threshold. ONE more successful dogfood
+    fire (Fire 27-G candidate) would reach the promotion gate.
+    
+    ## Fire 27-F deliverables (3 files + new docs + provenance, ~370 LOC)
+    
+    - 00-tracker.md (~135 LOC) — 2-component codification plan + discipline conformance gates
+    - 99-close-synthesis.md (~115 LOC) — Fire 27-F close + 2nd dogfood validation
+    - docs/infrastructure-convergent-pattern.md (~120 LOC NEW LOCAL DOC) — codification ship
+    - docs/install-provenance.md — Fire 27-F entry appended
+    
+    ## Codex T1 verdict (APPROVE conf=0.91; 183s wall-clock; 7,455 tokens; 190 LOC verdict)
+    
+    ```json
+    {
+      "verdict": "APPROVE",
+      "confidence": 0.91,
+      "summary": "The codification is operationally sound and correctly preserves the key lesson: infrastructure convergence is useful evidence for one candidate, but must be re-probed per candidate. No concrete text defect rises to NEEDS-REVISION.",
+      "pattern_soundness": "STRONG",
+      "caveat_soundness": "STRONG",
+      "detection_probe_operability": "OPERABLE",
+      "promotion_criteria_appropriate": "YES",
+      "cr12_disposition_impact_table_correct": "YES",
+      "sister_rule_integration_correct": "YES",
+      "cite_class_correct": "YES",
+      "prescribed_edits": [],
+      "next_steps": [
+        "Ship codification as discipline-level guidance",
+        "Next Path P Probe 6 candidate: classify required vs optional deps separately",
+        "Do not promote to formal convergence-gate axis until n=3/n=2/n=1 thresholds met"
+      ]
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f27f_infra_convergent_OUT.txt`
+    
+    ## Pattern A NOT INVOKED (correct disposition for round-1 clean APPROVE)
+    
+    Empty `prescribed_edits` array = no fix-forward needed. Per
+    `codex-t1-fix-forward-pattern.md §Pattern A`: Pattern A invokes on
+    NEEDS-REVISION (conf 0.85-0.95 with prescribed_edits). On APPROVE round 1,
+    codification ships unchanged. This is the canonical efficient verdict
+    shape — no iter-N → iter-N.1 → iter-N.2 layered correction needed.
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 — Forward Discipline #2 evidence ladder advanced n=1→n=2 toward cycle-322 promotion
+    
+    | Metric | Fire 27-E (n=1) | Fire 27-F (n=2) |
+    |---|---|---|
+    | Wall-clock | 18s | 183s |
+    | Tokens | 7,575 | 7,455 |
+    | Verdict file LOC | 198 | 190 |
+    | Verdict shape | NEEDS-REVISION conf=0.91 (Pattern A 6-edit) | APPROVE conf=0.91 (0-edit) |
+    | Forward Discipline #2 success criterion | ✅ terminal JSON in budget | ✅ terminal JSON in budget |
+    
+    Wall-clock variance is REAL — Fire 27-E's 18s was OUTLIER, not typical.
+    Fire 27-F's 183s is more representative of xhigh-reasoning codex T1 budget.
+    The 16x efficiency claim from Fire 27-E reframed as CEILING (not typical).
+    Both produced terminal JSON well within 300s research-fire budget AND within
+    60-180s soft target. The discipline rule is sound; expect wall-clock variance
+    18s-180s with terminal JSON guaranteed.
+    
+    ONE more Forward Discipline #2 successful dogfood (Fire 27-G candidate) would
+    reach cycle-322 n=3 promotion threshold for codifying Forward Discipline #2
+    as a formal rule.
+    
+    ### #2 — Clean APPROVE round-1 ships unchanged (Pattern A NOT INVOKED)
+    
+    First Wave 134 instance of round-1 clean APPROVE on a Tier-2 codification
+    ship. Demonstrates that high-quality codification draft + tightly-scoped
+    codex T1 prompt produces zero-fix-forward outcomes. Cohort tracking:
+    - Pattern A 6-edit single atomic apply: n=1 (Fire 27-E)
+    - Pattern A 0-edit clean APPROVE: n=1 NEW (Fire 27-F)
+    
+    ### #3 — Codification structure works at first draft — operational template validated
+    
+    Document structure (Purpose / Pattern POSITIVE / Caveat ANTI-PATTERN /
+    Detection probe / Operational discipline / CR-12 integration / Future
+    evolution / Anti-pattern catalog / Cite class) cleared codex T1 round 1.
+    TEMPLATE EXTRACTION: future codification fires can reuse this structure with
+    high confidence of round-1 APPROVE.
+    
+    ## Path P recipe ladder advance
+    
+    n=22 (Fire 27-E reproducible-clean-verdict) → **n=23 (Forward Discipline #2 dogfood instance n=2 — clean-APPROVE-round-1 variant)**
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ship cohort: n=2 → n=3 (+Fire 27-F)
+    - Path P recipe Forward-Discipline-#2-dogfood instance n=2 (Fire 27-F APPROVE variant)
+    - Pattern A 0-edit clean APPROVE: n=1 NEW (Fire 27-F)
+    - Recursive dogfood instances: n=2 (Fire 27-E + 27-F)
+    - Local discipline docs (`docs/*.md`): n=2 (+`infrastructure-convergent-pattern.md`)
+    - Cycle-322 promotion 1-fire-away: NEW status (Forward Discipline #2 needs n=3; currently n=2)
+    
+    ## Mia ladder advance
+    
+    n=1932 (Fire 27-E close) → **n=1955** (Fire 27-F close, +23 across 3
+    deliverable files + new docs file + APPROVE round-1 verdict + n=1→n=2
+    Forward Discipline #2 ladder advance + 3 LOAD-BEARING findings + 16x
+    efficiency CEILING reframe + clean APPROVE round-1 cohort + codification
+    template extraction + revised Forward Top-5)
+    
+    ## REVISED Forward Top-5 (post-Forward-Discipline-#2-evidence-ladder-n=2)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F26-A-PILOT | Cisco mcp-scanner Phase 1-4 pilot execution |
+    | 🥈 | W134-F24-C3 | Task Master Selective MCP Tool-Loading extract |
+    | 🥉 | W134-F27-RESEARCH-ARCH-G | FM-21 "Self-published Claude Code plugin" cohort (3rd Forward Discipline #2 dogfood → cycle-322 n=3 promotion) |
+    | #4 | W134-F27-A-PATTERN-EXTRACT | Update team-orchestration.md w/ 9 file:line refs |
+    | #5 | W134-F27-B-C-PATTERN-EXTRACT | Pregel/Channels/Checkpoint + Lifecycle Hook patterns |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION cite-class lattice disclosed
+    - CR-3 cross-model: FULLY SATISFIED — REAL GPT-5.5 APPROVE conf=0.91 round 1
+    - CR-9 install-risk: N/A (pure documentation)
+    - CR-10 research-first-then-install: research = Fire 27-B POSITIVE + Fire 27-C REFUTATION; codification = result
+    - CR-11 META-process: THIS FIRE IS the CR-11 dogfood
+    - CR-12 upstream-install-priority: N/A — local discipline doc with no upstream parity
+    - FM-02 sub-class (b) defense: atomic git add + commit --only 
+
+[prompt truncated]

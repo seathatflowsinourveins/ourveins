@@ -1,0 +1,191 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 4ac4d6904d5c2fe28757375b870f09a54fa5b386
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.mcp.json                       |  2 +-
+ docs/install-provenance.md      | 97 +++++++++++++++++++++++++++++++++++++++++
+ docs/sota-installed-manifest.md |  2 +-
+ 3 files changed, 99 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 4ac4d6904d5c2fe28757375b870f09a54fa5b386
+Author:     42 <42@local>
+AuthorDate: Sun May 10 02:28:23 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 02:28:23 2026 -0400
+
+    chore(wave-132-fire-3): UPGRADE gitnexus@1.6.3 → @1.6.4-rc.112 — HNF-4 Windows fix-forward via 4-layer multi-layered fix (3-voice CONVERGENT verdict)
+    
+    Wave 132 Fire 3 closes Wave 132 Fire 2 deferred HNF-4 Windows verification + RC upgrade decision per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE.
+    
+    ## Empirical evidence (REPRODUCIBLE on Windows 2026-05-10)
+    
+    - gitnexus@1.6.3 BROKEN: analyze writes .gitnexus/lbug + lbug.wal but FAILS to write meta.json + ~/.gitnexus/registry.json. Exit 0 silent. ALL downstream cmds report "not indexed".
+    - gitnexus@1.6.4-rc.112 FULLY WORKS: 24 nodes/25 edges indexed, meta.json 732B + registry.json 441B written, status ✅ up-to-date.
+    
+    Test setup: tmp/w132f3-hnf4-test (JS+Python+TS, 18 LOC, HEAD 358291f).
+    
+    ## Advanced 3-agent team per standing-directive
+    
+    - Agent A — Path P codex bg `brorqawb0` REAL GPT-5.5 deep-review-exec — Pattern B HONEST-NON-FINDING-LOSS — mined trace yields RC viable + 112 RCs/16d cadence + maintainer commitment to stable + @ladybugdb/core issue #452 OPEN (60K-node graph segfault — OUT OF SCOPE for typical eee use)
+    - Agent B `a69afa6129ae2af48` sota-researcher 4-axis — VERDICT: PASS-UPGRADE conf=0.86 — RC-channel maturity 7.2 RCs/day + WSL2 #1431 forward-looking-only (Windows-native unaffected) + DeusData STABLE-BURN-IN gate fails until 2026-06-27 + 1.6.4 stable imminent 7-14d
+    - Agent C `a887ae730351d6799` archaeology Sonnet stand-in 3-axis — VERDICT: SAFE-UPGRADE conf=0.92 — 147 commits / 0 BREAKING markers / 50% fix-burst stabilization / MCP tools UNCHANGED at 13 / +3 new CLI subcmds / HNF-4 4-LAYER multi-layered fix verified at commit-SHA depth
+    
+    ## HNF-4 4-LAYER fix (Agent C archaeology)
+    
+    | Layer | Commit | Fix |
+    |---|---|---|
+    | 1 Detection | 6f42253 | NEW assertAnalysisFinalized() invariant + AnalysisNotFinalizedError; analyze surfaces silent finalize-skip as exit-1 |
+    | 2 Hook canonical-root | b792787 | git rev-parse --git-common-dir for linked worktrees + LadybugDB FTS read-only graceful |
+    | 3 Storage canonical-name | 3732fa1 | Registry entries derive from canonical repo root (not worktree slug) |
+    | 4 Native crash | 3f0c74f | @ladybugdb/core ^0.15.2 → ^0.16.1 (nodejs async + memory-management + extension ABI fix) |
+    
+    ## Pattern A apply (4 atomic operations — 3 file edits + 1 npm install)
+    
+    1. `npm install -g gitnexus@1.6.4-rc.112` — INSTALL_EXIT=0, 26 packages added/258 changed in 45s, gitnexus --version → 1.6.4-rc.112 ✅
+    2. `.mcp.json:88` UPDATE _comment_gitnexus with Fire 3 RC-upgrade evidence + 3-voice verdict trail + Mia n=128 catch
+    3. `docs/sota-installed-manifest.md:136` Section 7 row INSTALLED-DEEP-DIVE-VERIFIED → INSTALLED-RC-UPGRADED-HNF4-FIXED
+    4. `docs/install-provenance.md` APPEND comprehensive Wave 132 Fire 3 RC-UPGRADE close-synthesis (~95 LOC)
+    
+    ## Mia ladder n=127 → n=128 (1 catch)
+    
+    - #128: Agent C CLI subcommand undercount — claimed +2 (`index` + `publish`) actual +3 (added `doctor` for runtime platform capabilities). Caught via Mia probe on RC sandbox `gitnexus --help`.
+    
+    ALL Agent B + C load-bearing claims VERIFIED via Mia probes:
+    - HNF-4 fix commit 6f42253 (Magyar Gergő 2026-04-30T20:36:28Z) ✅ via gh api
+    - @ladybugdb/core dep bump commit 3f0c74f (2026-04-30T16:40:39Z) ✅ via gh api
+    - engines.node 20→22 ✅ via npm view (1.6.3:>=20.0.0; 1.6.4-rc.112:>=22.0.0)
+    - PR #1448 merged 2026-05-09T14:18:10Z by magyargergo ✅ via gh api
+    - Pre-flight node v22.22.0 PASS ✅
+    
+    ## Cross-model gate
+    
+    FULL via Path P codex bg (REAL GPT-5.5 voice; orchestrator-side foreground+tee per cardinal-rule-3 Phase 1 bootstrap exception). T1-T7 hooks not yet INSTALLED so Phase 1 exception applies. Agent B + C run as Sonnet stand-ins with STAND-IN-NOTICE per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate.
+    
+    ## CR-9 install-risk discipline
+    
+    - ✅ Version-pinned 1.6.4-rc.112 (NOT @latest; D6 RC-stream ack)
+    - ✅ 2-round fix-forward expectation (if T3 surfaces NEEDS-REVISION, Wave 132 Fire 4+ apply Pattern A)
+    - ✅ Pre-cite-import REVERT check: gitnexus has NO REVERT precedent (4th REVERT-AND-REMOVE precedent AVOIDED via deep-dive evidence)
+    - ✅ Sibling-bleed defense N/A (npm-global install-class, not sibling-cite)
+    - ⚠️ RC-stability: 7.2 RCs/day cadence acknowledged; rollback `npm install -g gitnexus@1.6.3` <30s
+    
+    ## FM-17.f cumulative ladder
+    
+    Remains n=4 (Path P satisfies cross-model gate via foreground+tee orchestrator-side; Agent C dispatched as Sonnet stand-in to AVOID FM-17.f BRIDGE-MODE 1M-context billing-class blocker risk). Sibling fm17 backport queued task #91 separate sibling-context fire.
+    
+    ## DEFERRED to Wave 132 Fire 4+
+    
+    - Stable 1.6.4 bump auto-fire on `npm view gitnexus dist-tags.latest` change detection (best-median 7-14d window per Agent B Axis 4)
+    - Sibling fm17 backport per task #91 (CR-9 sibling-bleed defense; separate sibling-context fire)
+    - DeusData re-audit on/after 2026-05-25 (90-day STABLE-BURN-IN gate) IF future HNF-class regression in RC line emerges
+    
+    ## Cite trail
+    
+    - Path P codex verdict: .claude/state/codex_consult_w132fire3_rc_upgrade_decision_OUT.txt (1020 lines Pattern B trace mining)
+    - Agent B + C ARTIFACT-INLINE: tmp/wave132-fire3-agent{B,C}-*-2026-05-10.md
+    - Wave 132 Fire 2 close-synthesis: .claude/projects/Z--claude-sota-installed/memory/reference_w132_fire2_round3_retain_close_synthesis_2026_05_10.md
+    - TIER-1 RC release: https://github.com/abhigyanpatwari/GitNexus/releases/tag/v1.6.4-rc.112 (commit 54f53eb0)
+    - HNF-4 4-layer fix commits: 6f42253 + b792787 + 3732fa1 + 3f0c74f (ALL VERIFIED via gh api)
+    
+    ## FM-08 codex-t1-gate WARN known-false-positive
+    
+    This commit's 3-edit Pattern A apply may trigger codex-t1-gate WARN (no topic-named consult-pair on .mcp.json/manifest/provenance). Per codex-t1-system-meta-review-fallback.md: Path P codex bg verdict at .claude/state/codex_consult_w132fire3_rc_upgrade_decision_OUT.txt IS the SYSTEM-meta-review consult for this fire's atomic Pattern A apply. Acknowledged-known-false-positive per FM-08.
+    
+    closes #99 (Wave 132 Fire 3 P0)
+    defers stable 1.6.4 bump to Wave 132 Fire 4+
+    ratifies Wave 132 Fire 2 RETAIN with empirical Windows fix-forward
+
+=== diff ===
+diff --git a/.mcp.json b/.mcp.json
+index 260b0dc..053bb1d 100644
+--- a/.mcp.json
++++ b/.mcp.json
+@@ -85,7 +85,7 @@
+       "command": "npx",
+       "args": ["-y", "@arizeai/phoenix-mcp", "--baseUrl", "http://127.0.0.1:16006"]
+     },
+-    "_comment_gitnexus": "Wave 112 Ship 2AA 2026-05-09 + Wave 132 Fire 2 Round-3 RETAIN ratification 2026-05-10 — added gitnexus MCP per operator URL https://github.com/abhigyanpatwari/GitNexus + CR-9 sibling-bleed closure. License: PolyForm Noncommercial 1.0.0 (RETAIN-WITH-DOWNGRADE-DEEP-DIVE-VERIFIED per SRA D1 use-class lattice — eee local-runtime non-commercial use OK; NOT for SaaS-resale, commercial distribution, local commercial/internal business use, or paid-client-work; PolyForm Noncommercial forbids commercial use entirely outside the grant per https://polyformproject.org/licenses/noncommercial/1.0.0). Maintainer: abhigyanpatwari + 105 active contributors (Wave 132 Fire 2 Round-3 archaeology RECLASSIFIED TIER-3-NAMED-ORG from prior TIER-4-NAMED-INDIVIDUAL per Mia OVER #127 catch; npm publishing single-user; multi-contributor repo work; 314 commits/30d; ~10h maintainer response avg, last 2026-05-10T05:14:12Z; Akon Labs enterprise framing per README). Version-pinned 1.6
+
+[prompt truncated]

@@ -1,0 +1,69 @@
+## Wave 190 — accounts/ folder consolidation retroactive T1 consult
+
+### Context
+
+claude-sota-installed runtime W190 ship: consolidate scattered accounts/credentials/quota tracker infrastructure into top-level `accounts/` folder. User-approved Option B via AskUserQuestion 2026-05-14:
+- top-level `accounts/{scripts/, docs/, state/}` layout
+- single Python `poll_all.py` (consolidated from existing 17.5KB `scripts/cpa_oauth_quota_poller.py`)
+- 3 weekly-reset goals: status display + routing-rebalance hint + pre-reset burst-warning
+
+### Changes shipped (6 design-surface edits + 3 git mv)
+
+**git mv (3)**:
+- `scripts/cpa_oauth_quota_poller.py` → `accounts/scripts/poll_all.py` (17.5KB, no body change — STATE_DIR env override at L57 preserves state-outside-repo write target)
+- `tools/cpa-cache-rate.py` → `accounts/scripts/cache_rate.py` (3.7KB no change)
+- `tools/fleet-status.ps1` → `accounts/scripts/fleet_status.ps1` (18.7KB no change)
+
+**New files (5 docs + 1 script)**:
+1. `accounts/README.md` — entry-point + Quick-reference table mapping surface → CPA mgmt API endpoint
+2. `accounts/docs/sota-cite-anchors.md` — TIER-1-DIRECT cite trail (CLIProxyAPI server.go @ 785b00c3 + Anthropic /api/oauth/usage + codex /wham/usage + ccusage @ 1a4bd69b + Aperant CITE-CLASS-ONLY per CR-9)
+3. `accounts/docs/reset-goals.md` — 3 weekly-reset goal semantics
+4. `accounts/docs/repos.md` — SOTA repo install paths (NOT symlinked into accounts/repos/ — kiss-dry-yagni Must-Never #4 + Windows symlink discipline)
+5. `accounts/state/README.md` — pointer to state-outside-repo `Z:/claude-sota-installed-state/accounts/` per CLAUDE.local.md ENV (f); NO credentials in git-tracked path
+6. `accounts/scripts/weekly_reset_guard.py` — NEW ~200 LOC stdlib-only Python; --status / --hint / --burst-check; reads state-outside-repo JSONL
+
+### Pre-flight Mia probes (already done before edits)
+
+- ✅ NO hardcoded paths to migrated scripts in .claude/settings.json / .mcp.json / hooks (only docs/ references)
+- ✅ tools/cpa-cache-rate.py NOT a duplicate (Mia caught my initial mis-claim; single file at tools/)
+- ✅ State-outside-repo `Z:/claude-sota-installed-state/accounts/cpa_oauth_quota.jsonl` is canonical write target via STATE_DIR env at poll_all.py:57 (FM-20 row 18 single-source-preferred satisfied)
+- ✅ Recent W188 P0a commit `b935e4a` verified live HTTP 200 PASS on `claude-739955940fc@gmail.com` (5h=56%, 7d=45%)
+
+### Cardinal rules in scope
+
+- CR-1 cite every architectural edit at file:line + HEAD SHA — all 5 new docs have TIER-1-DIRECT cite trail
+- CR-3 cross-model consensus — THIS is the retroactive T1 closing the Phase-1 bootstrap exception (3-agent fan-out attempt earlier hit FM-17.b/e on Agent A + FM-17.e n=5+n=6 firm on B+C; orchestrator-direct foreground+tee bypass per Path P)
+- CR-5 install-priority — accounts/ is in-repo consolidation (NOT install-class); all SOTA primitives remain at `.local/` install locations
+- CR-6 fresh-from-github + official-native-channel — no new installs this fire; consolidation only
+- CR-8 full-SOTA-content invariant — every doc/script cite-class adapts SOTA pattern at file:line + HEAD SHA
+- CR-9 install-risk — pre-cite-import REVERT check (W184 F3 seakee/CPA-Manager REJECT precedent acknowledged; a995498 retired-aperant-shims acknowledged)
+- CR-12 disposition: GENUINELY-NEW consolidation (no incumbent top-level accounts folder)
+
+### Audit dimensions
+
+Audit the 6 edits + 3 moves per these 4 axes:
+
+1. **Text soundness**: are the cite anchors in `sota-cite-anchors.md` factually correct (CPA server.go:506-658 + ccusage @ 1a4bd69b + codex @ 1a894c18)?
+2. **Cite-class correctness**: is `effective_tier=TIER-3-LOCAL-COMPOSITION` correct for the consolidation per citation-discipline.md rule #8?
+3. **State-location reconciliation**: is the `accounts/state/README.md` correctly NOT moving credentials into git tracked? Does Mia's FM-20 row 18 single-source-preferred catch hold?
+4. **Forward usability**: would the next-fire operator correctly route to `accounts/scripts/weekly_reset_guard.py --status` for utilization visibility before hitting weekly reset?
+
+### NOT in scope (explicit per codex-t1-pattern-b-forward-discipline Forward Discipline #2 codification-fire-scope-bloat defense)
+
+- DO NOT explore historical W12-W189 wave artifacts beyond the cite anchors in `accounts/docs/sota-cite-anchors.md`
+- DO NOT audit broader repo structure, hooks, settings.json
+- DO NOT propose alternative folder layouts (Option A/C already rejected by user)
+
+### Verdict shape (JSON-strict at EOF)
+
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.NN,
+  "findings": [{"severity": "P0|P1|P2|P3", "file": "...", "claim": "...", "fix": "..."}],
+  "prescribed_edits": [],
+  "notes": "..."
+}
+```
+
+Budget: 120-180s TARGET per Forward Discipline #2 codification-scope-bloat.

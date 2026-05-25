@@ -1,0 +1,102 @@
+# T1 codex pre-commit consult — Wave 118 Ship A1 fleet priority equalization
+
+## Context
+
+Wave 118 Ship A1 = live API stability fix. CPA log evidence 2026-05-09 02:42-02:45: ALL traffic going to `auth=claude-aesthetic9c@gmail.com.json` (5+ requests in 5min). Pre-fix priority state:
+- aesthetic9c=P30 (highest priority)
+- mr.euphoriaincarnate=P20
+- nalawowac=P10
+- 4 other claude accounts disabled (Ship 1X cycle-aware rotation)
+
+Per `.cli-proxy-api/config.yaml` Wave 86 Ship 1Q + Wave 97 Ship 1J comment block at L113-122 (verbatim): "round-robin operates WITHIN highest-priority bucket FIRST, NOT across unequal priorities. Current OAuth fleet has UNEQUAL priorities: aesthetic9c=P30, mr.euphoriaincarnate=P20, nalawowac=P10 (P30 highest). Round-robin will exhaust P30 BEFORE falling to P20, then P10. Effectively: fill-first within priority tiers; round-robin within ties. **For TRUE 3-account burst-distribution: equalize all 3 active accounts to same priority (e.g. all P30) — DEFERRED to separate operator-decision ship**".
+
+Ship A1 IS the deferred-operator-decision ship. Equalize mr.euphoriaincarnate P20→P30 + nalawowac P10→P30 to enable true round-robin distribution across all 3 active accounts.
+
+## Proposed edit (3 files, mechanical priority field flip)
+
+```
+.cli-proxy-api/claude-mr.euphoriaincarnate@gmail.com.json:
+  "priority":20  →  "priority":30
+  "note":"cycle-150: P=40 — 40% remaining, resets 23:00 EDT Thu (1d)"  →
+  "note":"Wave 118: priority=30 (equalized for round-robin true distribution; was P20)"
+
+.cli-proxy-api/claude-nalawowac@gmail.com.json:
+  "priority":10  →  "priority":30
+
+.cli-proxy-api/claude-aesthetic9c@gmail.com.json:
+  no change (already P30)
+```
+
+## 3 audit axes (TIGHT per codex-t1-fix-forward-pattern.md Pattern A)
+
+### AXIS 1 — CLIProxyAPI selector.go round-robin semantic verification
+
+Verify against `Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/selector.go @ HEAD 785b00c3` (operator-claimed @ HEAD per config.yaml L11):
+- Does `selector.go:33-36` round-robin operate within priority tier OR across all priorities?
+- Does `selector.go:498-535` session-affinity key by `provider::session::model` (operator claim per config.yaml L189)?
+- Will P30/P30/P30 equalization produce true 3-account distribution per request OR only per-NEW-session?
+- Is there a known issue where 3 equal-priority auths get round-robined deterministically vs hash-based load-balancing?
+
+If the selector logic differs from operator claim, round-robin behavior post-equalization may NOT distribute as expected.
+
+### AXIS 2 — Hot-reload vs restart requirement for auth-file priority changes
+
+Verify against CPA's hot-reload mechanism at `internal/api/modules/amp/amp.go:OnConfigUpdated` (operator claim L188 of config.yaml):
+- Does CPA hot-reload PRIORITY field changes in auth files? OR does it require restart?
+- Are auth-files watched via fsnotify or polled at /v0/management/auth-files endpoint?
+- If restart required: operator must `taskkill /PID 87232 /F` then re-launch via eee.ps1
+- If hot-reloaded: no operator action needed beyond file save
+
+This affects whether the live fix takes effect now OR after next eee restart.
+
+### AXIS 3 — Cache-prefix preservation under round-robin distribution
+
+Verify the cache-prefix model at `Z:/repos/deps/cnighswonger-claude-code-cache-fix/` (referenced in config.yaml L191-192):
+- Session-affinity TTL=4h preserves cache-prefix benefit for the SAME session.id
+- BUT round-robin happens at NEW-session selection — once bound, sticky 4h
+- For autonomous /loop arcs (cron `*/15 * * * *` re-entries): does each cron tick get a fresh session.id (rebalance) OR inherit parent (sticky 4h)?
+- For sub-agent dispatches (Agent tool with isolation:worktree): does each sub-agent get distinct session.id?
+- If sub-agents get distinct session.id → equalization will distribute load across 3 accounts (PASS — fix works)
+- If sub-agents inherit parent session.id → equalization helps NEW sessions only, doesn't help mid-arc burnout
+
+Verify whether sub-agent dispatches (Agent tool / cli-proxy-api receives) carry distinct session-keys, or share parent's session.
+
+## Output schema (JSON-strict)
+
+```
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "axis_findings": {
+    "axis_1_selector_round_robin_semantic": "...",
+    "axis_2_hot_reload_or_restart": "...",
+    "axis_3_cache_prefix_preservation": "..."
+  },
+  "prescribed_edits": [
+    {
+      "file": ".cli-proxy-api/claude-*.json | .cli-proxy-api/config.yaml",
+      "line_or_section": "priority field | session-affinity block | other",
+      "change_summary": "...",
+      "verbatim_replacement_or_addition": "..."
+    }
+  ],
+  "risks_if_shipped_as_is": "...",
+  "blockers_remaining": "..."
+}
+```
+
+## CR conformance + cite trail
+
+- CR-1 cite SOTA primary: TIER-1-DIRECT to CLIProxyAPI selector.go @ HEAD 785b00c3 + cnighswonger-claude-code-cache-fix
+- CR-3 cross-model T1: this consult IS the gate satisfaction (T1-WARN already fired n=2; explicit foreground+tee codex e2e per Phase 1 bootstrap exception)
+- CR-5 install-priority: NO new install; pure config edits to existing CPA
+- CR-9 install-risk: LOW-RISK reversible (3-line revert: P30→P20/P10 if round-robin produces unexpected behavior)
+- CR-12 upstream-install-priority: HONEST-NON-FINDING — no upstream Anthropic-OFFICIAL primitive controls per-account priority field; CPA-side operator policy
+
+## Files for review
+
+- `.cli-proxy-api/claude-aesthetic9c@gmail.com.json` (UNCHANGED, P30 reference baseline)
+- `.cli-proxy-api/claude-mr.euphoriaincarnate@gmail.com.json` (CHANGED P20→P30 + note update)
+- `.cli-proxy-api/claude-nalawowac@gmail.com.json` (CHANGED P10→P30)
+- Upstream cite: `Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/selector.go @ HEAD 785b00c3` (round-robin semantic verification)
+- Operator's own L113-122 comment block in `.cli-proxy-api/config.yaml` already documented the equalization intent and DEFERRED it; this ship is the closure.

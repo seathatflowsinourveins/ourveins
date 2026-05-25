@@ -1,0 +1,1149 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+[1mworkdir:[0m Z:\claude-sota-installed
+[1mmodel:[0m gpt-5.5
+[1mprovider:[0m openai
+[1mapproval:[0m never
+[1msandbox:[0m workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state\.codex\memories]
+[1mreasoning effort:[0m none
+[1mreasoning summaries:[0m none
+[1msession id:[0m 019e06b5-a8dc-7823-a355-d50c744493a5
+--------
+[36muser[0m
+CODEX T1 narrow per-rule review — deprecation-discipline.md ONLY
+
+NEW FILE: Z:/claude-sota-installed/.claude/rules/deprecation-discipline.md (87 LOC)
+
+Cite: TIER-1-NAMED-AUTHOR-QUOTE Addy Osmani 33,500 stars MIT
+.../skills/deprecation-and-migration/SKILL.md @742dca5
+
+Body sections: top-cite block + the rule + when applies + Hyrum's Law + 5-question deprecation decision + Compulsory vs Advisory table + 4-stage migration patterns + anti-patterns + sister-rule integration + promotion threshold + update triggers.
+
+Q1: Is the cite anchor well-formed (TIER-1-NAMED-AUTHOR-QUOTE per citation-discipline.md rule #6)?
+Q2: Any critical mechanics gaps vs upstream Osmani SKILL.md @742dca5?
+
+OUTPUT_BUDGET: 100 LOC. VERDICT: APPROVE / NEEDS-REVISION + edits / BLOCK
+
+[1m[33mdeprecated:[0m[0m `[features].codex_hooks` is deprecated. Use `[features].hooks` instead.
+[2mEnable it with `--enable hooks` or `[features].hooks` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.[0m
+[35m[3mcodex[0m[0m
+I’ll inspect the new rule plus the local citation discipline and upstream skill reference, then answer in review form with findings first.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Recurse -Filter SKILL.md | Where-Object { $_.FullName -like '"'*deprecation-and-migration*' } | Select-Object -ExpandProperty FullName"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/rules/citation-discipline.md'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git status --short'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/rules/deprecation-discipline.md'[0m in Z:\claude-sota-installed
+[32m succeeded in 305ms:[0m
+---
+name: deprecation-discipline
+description: Code-as-liability sunset discipline. Sister to kiss-dry-yagni.md (prevents speculative ADD); this rule covers cleanup-phase REMOVAL + migration. Use when sunsetting features, replacing legacy systems, removing dead code that nobody owns but everybody depends on, OR planning lifecycle of new system at design time (deprecation planning starts at design time per Hyrum's Law).
+paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", "scripts/**", "tools/**", "docs/**"]
+---
+
+# Deprecation discipline — code-as-liability sunset workflow
+
+# Reference: TIER-1-NAMED-AUTHOR-QUOTE Z:/claude-sota-installed/.claude/plugins/marketplaces/agent-skills/skills/deprecation-and-migration/SKILL.md @742dca5 [VERIFIED 2026-05-08 via Wave 82m-B sota-researcher Top-3 CITE-IMPORT #2] — Addy Osmani / Google Chrome team 33,500★ MIT (Apache 2.0 source). Verbatim quote: "Code is a liability, not an asset. Every line of code has ongoing maintenance cost — bugs to fix, dependencies to update, security patches to apply, and new engineers to onboard. Deprecation is the discipline of removing code that no longer earns its keep, and migration is the process of moving users safely from the old to the new."
+# Reference: TIER-2 sister rule `kiss-dry-yagni.md` Must-Never #4 — prevents speculative ADD. This rule extends the lifecycle to REMOVE.
+# Reference: TIER-2 sister rule `Z:/claude-sota/.claude/rules/karpathy-adapted.md §3 Surgical Changes` (cite-import-AMBER per Section 14.5) — "Don't refactor things that aren't broken" interacts with deprecation: leave non-broken UNLESS deprecation-decision triggers (see §The deprecation decision below).
+
+## The rule
+
+Code is a liability. Every line has ongoing cost (tests, security patches, dependency updates, onboarding overhead). Deprecation is the discipline of removing code that no longer earns its keep. **Most engineering organizations are good at building things. Few are good at removing them.** This rule addresses the gap.
+
+## When this discipline applies
+
+ANY of these triggers fires this rule:
+
+1. Replacing an old system, API, or library with a new one
+2. Sunsetting a feature that's no longer needed
+3. Consolidating duplicate implementations (sister to kiss-dry-yagni Must-Never #4)
+4. Removing dead code that nobody owns but everybody depends on
+5. Planning lifecycle of NEW system at design time ("how would we remove this in 3 years?")
+6. Deciding whether to maintain a legacy system or invest in migration
+
+## Hyrum's Law (load-bearing)
+
+> With enough users, every observable behavior becomes depended on — including bugs, timing quirks, and undocumented side effects.
+
+This is why deprecation requires **active migration**, not just announcement. Users can't "just switch" when they depend on behaviors the replacement doesn't replicate.
+
+## The deprecation decision (5-question gate)
+
+Before deprecating ANY surface — code, API, plugin, MCP, hook, rule, agent, skill — answer these in order:
+
+1. **Does this still provide unique value?** → If yes, maintain it. If no, proceed.
+2. **How many consumers depend on it?** → Quantify migration scope (`grep -rl "<symbol>"`, `mcp__github__search_code`, etc).
+3. **Does a replacement exist?** → If no, build the replacement FIRST. Never deprecate without an alternative.
+4. **What's the migration cost per consumer?** → Trivially automated → do it. Manual + high-effort → weigh vs maintenance cost.
+5. **What's the ongoing cost of NOT deprecating?** → Security risk + engineer time + opportunity cost of complexity.
+
+## Compulsory vs advisory deprecation
+
+| Type | When to Use | Mechanism |
+|---|---|---|
+| **Compulsory** | Breaking change required (security, broken contract, blocking next-gen feature) | Hard removal at version cut OR `@deprecated` + compile error path + migration grace window |
+| **Advisory** | Replacement exists, soft-migrate path acceptable | Documentation deprecation note + warning at use site + parallel-deploy + telemetry |
+
+## Migration patterns (4-stage)
+
+1. **Parallel deploy**: ship new alongside old; both work; no behavior change
+2. **Telemetry**: instrument both paths; measure consumer migration via observable signal
+3. **Cutover**: when new path adoption exceeds threshold (e.g., 95%), redirect remaining consumers
+4. **Removal**: delete old code, dependencies, docs, references — `rg "<old-symbol>"` should return zero hits
+
+## Anti-patterns
+
+- **Announce-and-leave**: emitting `@deprecated` without migration support — Hyrum's Law guarantees nobody migrates. Refuted by §Migration patterns 4-stage active discipline.
+- **Hard-remove-without-replacement**: deprecating before a viable migration path exists. Refuted by §The deprecation decision question 3.
+- **Maintain-forever**: keeping a legacy system because "users depend on it" without measuring the maintenance cost. Refuted by §The deprecation decision question 5.
+- **Speculative-deprecation**: marking code `@deprecated` because "we might replace it someday". This violates kiss-dry-yagni — only deprecate when a real replacement exists. Sister to "speculative ADD" anti-pattern.
+- **Deprecate-via-rewrite**: rewriting from scratch + telling users to migrate. Refuted by Joel Spolsky "Things You Should Never Do, Part I" — rewrites lose Hyrum's-Law-encoded knowledge. Migrate IN PLACE when possible.
+
+## Sister-rule integration
+
+- `kiss-dry-yagni.md` Must-Never #4 — prevents speculative ADD; this rule covers REMOVE side of the lifecycle
+- `Z:/claude-sota/.claude/rules/karpathy-adapted.md §3 Surgical Changes` (cite-import-AMBER) — "Don't refactor things that aren't broken" interacts with deprecation: leave non-broken UNLESS deprecation-decision triggers (Hyrum's Law catches false-non-broken cases)
+- `Z:/claude-sota/.claude/rules/research-protocol.md` 3 gates — RECALL → INVESTIGATE → VERIFY before deprecating any surface (verify replacement exists + dependents migrated)
+- `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 — symmetric: codification gate prevents premature ADD; deprecation gate prevents premature KEEP
+- `launch-discipline.md` — sister cleanup-phase rule for the BUILD side; this rule covers the SUNSET side
+- `Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories` (cite-import-AMBER) — OVER claims about "this is dead" need git-diff verification before removal
+- `Z:/claude-sota/.claude/rules/audit-action-loop.md` Wire/Surface/Close/Re-fire — telemetry stage of migration mirrors audit-action-loop's Surface stage (consumer migration is the drift signal that closes)
+
+## Promotion threshold (cite-import-AMBER per Section 14.5)
+
+This rule was promoted from Wave 82m-B Top-3 CITE-IMPORT #2 (sota-researcher fork dispatched 2026-05-08). Cite class **TIER-1-NAMED-AUTHOR-QUOTE-via-LOCAL-COMPOSITION**: Osmani is named-author T1 source for the PATTERN; this rule is the eee-local composition that adapts the pattern to claude-sota-installed cardinal-rule lattice (CR-1 cite-trail + CR-8 full-SOTA-content + Hyrum's Law backing). Per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8: `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE due to local composition glue), but underlying SOTA authority is firm (33,500★ MIT + Apache 2.0 source).
+
+## Update triggers
+
+Re-evaluate this rule when:
+- Osmani updates `deprecation-and-migration/SKILL.md` upstream — re-pin SHA + re-extract any new mechanics
+- A 4th deprecation-class surface emerges in claude-sota-installed (currently 3 trigger conditions per §When this discipline applies — extend to 4+ if observed)
+- Hyrum's Law violation costs >2h re-derive in any single fire — promote to mechanical-enforcement (e.g., consumer-graph audit hook before deprecation Edit)
+- A 2nd named-author org publishes a contradicting pattern — re-open convergence-gate Axis 1 audit
+- claude-sota-installed deprecates ANY existing primitive (plugin / MCP / rule / agent / hook) — apply this rule to that deprecation as its first dogfood
+
+
+[32m succeeded in 308ms:[0m
+<!--
+Wave 62 fire 9 - sibling cite-import per CR-12 TERTIARY (HONEST-NON-FINDING-gated)
+effective_tier: TIER-3-LOCAL-COMPOSITION
+source: Z:/claude-sota/.claude/rules/citation-discipline.md @ HEAD 72775ab8e1e0212031900cade70fe8d6d1171b01
+imported: 2026-05-07
+HNF evidence: probed claude-plugins-official + everything-claude-code@2.0.0-rc.1 + obra/superpowers + mattpocock/skills + anthropic-cookbook for upstream parity -> no install-class equivalent for sibling-novel discipline rule (Wave 9 transitive closure of Wave 8 sota-researcher subagent dependency chain)
+sibling-bleed audit (CR-9): path-rewrites applied per Wave 62 fire 9 dispatch contract (6 rewrite classes per codex T5 NEEDS-REVISION conf=0.91 prescription #2)
+-->
+
+---
+name: citation-discipline
+description: Every new pattern MUST cite its source at file:line depth. Header-comment format, never-cite-readme rule, star-count anti-signal, decay-aware verify-before-trust, silent-fallback-is-violation. Cardinal-rule body for canonical.md Must Always #7 + CLAUDE.md cardinal #1.
+paths: [".claude/agents/**", ".claude/skills/**", ".claude/hooks/**", ".claude/commands/**", ".claude/rules/**", "docs/**", "reports/**"]
+---
+
+<!--
+Port-note (claude-sota /loop iter-#5 fire 2026-04-27; frontmatter moved to byte 0 in Bundle 5 fire 2026-04-30 per codex T1 Q3 verdict — paths preserved, byte-0 fix only): ported verbatim from
+Z:/claude/rules/citation-discipline.md HEAD (16 LOC, content-stable).
+Adaptations: (a) added frontmatter (parent has none — header was originally
+loose comment-block); (b) parent memory cite (`feedback_reference_first_hard_rule.md`)
+kept as PARENT-ATTRIBUTION since sss memory port pending (1/248 per Agent B audit);
+(c) parent project_gitnexus_full_audit_2026_04_18.md kept as parent-attribution.
+Closes cardinal-rule body gap: canonical.md Must Always #7 ("Cite file:line for
+every claim") + CLAUDE.md cardinal #1 ("Every architectural edit cites a SOTA
+primary source") both reference the discipline informally; this file ships the
+enforceable contract. Sister to evidence-policy.md (markers) — citation discipline
+is the cite-format contract, evidence policy is the marker-tagging contract.
+-->
+
+# Citation Discipline — Cross-Cutting Doctrine
+# Reference: Z:/repos/deps/autoresearch/.claude/skills/autoresearch/SKILL.md (verified 2026-04-18 in parent; deps-shared with sss)
+# Reference: Z:/claude/.claude/projects/Z--claude/memory/feedback_reference_first_hard_rule.md (parent hard rule, 2026-04-18 — PARENT-ATTRIBUTION; sss memory port pending)
+# Retracted: ARIS + QWED-AI + lean-ctx anti-pattern refs — none of those repos exist in Z:/repos/deps/
+
+## Rule: Every new pattern MUST cite its source at file:line depth
+
+1. **Header comment**: `# Reference: Z:/repos/deps/<repo>/<file>:<line>` or `# Reference: <official-docs-URL>`
+2. **Never cite READMEs alone** — cite the actual source code implementation
+3. **Star count does NOT indicate quality** — read the source, verify the claim
+4. **Verify before trust** — the cited file must still exist AND still say what you cite (labels decay)
+5. **Silent fallback = violation** — if expected output doesn't appear (e.g., `embeddings: 0` after `--embeddings`), that's a STOP, not a footnote (parent `feedback_reference_first_hard_rule.md` — PARENT-ATTRIBUTION pending sss memory port)
+6. **TIER-1-NAMED-AUTHOR-QUOTE class for inherited patterns** — when a SOTA pattern is derived from a named author's published work (book / peer-reviewed paper / conference talk), cite verbatim-quote + author-name + publication inline. The named-author cite is TIER-1 primary-source for the PATTERN (not the implementing repo); use alongside repo file:line cites for full provenance. Exemplar: `Z:/repos/deps/mattpocock/skills/README.md` (48,857★, MIT, [VERIFIED 2026-04-30 PM via curl raw GitHub]) quotes Pragmatic Programmer (Thomas & Hunt) for "rate of feedback is your speed limit" (failure-mode #3 framing), Domain-Driven-Design (Eric Evans) for ubiquitous-language pattern (#2 framing), and Extreme Programming Explained (Kent Beck) for "invest in design every day" (#4 framing). Per `.claude/projects/Z--claude-sota-installed/memory/reference_mattpocock_skills_pattern_extract_2026_04_30.md` for the full mining trace + adoption-candidate ranking. **TIER-1-NAMED-AUTHOR-QUOTE PROVISIONAL-EXCEPTION** *(round-3 framing per T3 round-2 conf=0.88 ESCALATING finding on commit `d4df352`; supersedes round-1 "full cardinal-rule-1 satisfaction" framing — physical-only sources do NOT fully satisfy committed-tree inspectability)*: physical-only printed-book/journal/conference-publication primary anchor (ISBN + page + verbatim-quote) is a PROVISIONAL-EXCEPTION to cardinal-rule-1 (CLAUDE.md L7), NOT full satisfaction. Cite class downgraded to TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL with REQUIRED metadata: (a) ISBN/DOI + page + verbatim-quote inline; (b) verifier-identity disclosure (who-verified-when, e.g., `[VERIFIED 2026-05-04 by orchestrator against book Tip #15 verbatim text]`); (c) explicit `non-automatable: true` marker so review hooks know to defer to human sign-off; (d) **HARD-GATE ELIGIBILITY TEST** *(Round-3 amendment a per T3 R3 NEEDS-ATTENTION conf=0.82 same-class finding on commit `1b87a6e`; supersedes round-2 "MUST prefer" soft preference framing — preference is not gateable; eligibility is)*: PROVISIONAL admission is admissible ONLY when DOI landing page + accessible PDF / publisher excerpt / archived scan (license-permitting) was SEARCHED AND UNAVAILABLE. The commit body MUST document the search (which DOI/publisher/archive was queried + return shape — e.g., "searched ACM DOI 10.1145/<doi> 2026-05-05 — paywall-only, no excerpt found; searched Internet Archive — no scan; searched publisher excerpt page — none"). Mere preference is INSUFFICIENT — if any auditable surrogate exists (DOI/PDF/excerpt/scan), use it as the normative source instead of the physical-only book cite. e.g., ACM DOI `https://dl.acm.org/doi/10.1145/<doi>` for ACM papers IS auditable when paywall-free. Secondary aggregator URLs (Wikipedia, `https://pragprog.com/tips/`, `https://martinfowler.com/bliki/<topic>.html`, `c2.com/cgi/wiki`) are VERIFICATION PROXIES only — they help re-verify the primary quote without owning the book physically, but are NOT cited as normative source. **Independent named-reviewer sign-off mandate** *(Round-3 amendment b per T3 R3 NEEDS-ATTENTION conf=0.82 same-class finding on commit `1b87a6e`; supersedes round-2 "Lower-confidence reviewer-sign-off mandate" sole-orchestrator framing — sole-orchestrator verification is no longer admissible)*: rule edits citing TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL MUST cite a SECOND verifier-identity BEYOND the orchestrator who replayed the verbatim quote against the source — commit body MUST embed BOTH verifier-identity-1 (the orchestrator, e.g., `[VERIFIED 2026-05-05 by orchestrator against book Tip #15 verbatim text]`) AND verifier-identity-2 (the independent named reviewer, e.g., `[VERIFIED 2026-05-05 by <human-name> against same book + same page + same quote]`) with explicit `[VERIFIED yyyy-mm-dd by <name> against <source>]` markers for each. The 2-verifier requirement closes the "self-attestation only" gap that round-2 left open. **`non-automatable: true` operator-discipline mandate (manual-only; no hook enforcement YET)** *(Round-4 amendment per T3 round-4 NEEDS-ATTENTION conf=0.82 SAME-CLASS finding on commit `d07ac71`; supersedes Round-3 amendment c "BLOCKING in T3/T4/T6 verdict-shape" claim that was prose-only without hook implementation — codex GPT-5.5 BRIDGE-MODE caught the policy/enforcement drift: rule text claimed automated BLOCKING but no T3/T4/T6 hook, verdict parser, schema, or test changed. Per closed-loop-recursive-narrowing.md §Outcome A monotone-decline path, downgraded prose closes the drift while the enforcement-hook ship is queued separately)*: when a TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL cite is shipped, the operator MUST: (i) embed `non-automatable: true` marker inline; (ii) embed explicit "no automated enforcement, human gate only" disclosure in commit body acknowledging that automated re-verification is impossible AND naming both verifier-identities (per amendment b); (iii) accept residual provenance gap explicitly. The discipline is OPERATOR-MANUAL — NO T3/T4/T6 hook currently parses `non-automatable: true` as BLOCKING. Promotion to mechanical BLOCKING is FORWARD-REF for a separate enforcement-hook ship: `tools/non_automatable_blocking_audit.py` parsing committed rule edits + emitting BLOCKING status in T3/T4/T6 verdict-shape + regression tests at `tests/test_non_automatable_blocking_audit.py`. Do NOT claim BLOCKING semantic in commit bodies until that ship lands. Forward-only convention codified Wave 18 PSW arc — Bundle B Round-2 commit `d6acfb1`, Bundle B Round-3 commit `217430f`, karpathy 5-author commit `0fe6282`, citation-discipline Round-2 DEMOTE commit `1b87a6e`, citation-discipline Round-3 hard-gate commit `d07ac71`, this Round-4 prose-downgrade commit closes the architectural concern per `reference_wave18_psw_arc_close_4ship_2026_05_04.md` + Outcome A monotone-decline path per `closed-loop-recursive-narrowing.md` (R1 conf=0.86 → R2 conf=0.88 ESCALATING → R3 conf=0.82 DECLINING → R4 conf=0.82 SAME-CLASS DECLINING-STABLE; severity stable medium; severity-gate satisfied via concrete-verification mechanism per amendments a+b + prose-downgrade per amendment c; arc converging within Round 5 ceiling).
+
+7. **Anthropic-bundled-skill cites: cite the current slash command, not local folder names** — *(specialization of rule #4 for bundled-skill identifier divergence)* — Bundled skill identifiers can diverge across local folders, CCBP tables, changelogs, and official docs. Example: CCBP `changelog/best-practice/concepts/changelog.md:410 @ 76599cb` records a stale-name correction from `/fewer-permission-prompts` to `/less-permission-prompts`, while CCBP `best-practice/claude-skills.md:48 @ 76599cb` still lists the folder-style `fewer-permission-prompts`, AND the current official Commands page (`code.claude.com/docs/en/commands` line 90 [VERIFIED 2026-05-01 via codex T1 web-fetch]) shows `/fewer-permission-prompts` — so the three authoritative surfaces actively disagree. **Discipline**: when sss documents an Anthropic-bundled skill invocation, cite the current command from `code.claude.com/docs/en/commands` FIRST as the tie-breaker; use `code.claude.com/docs/en/skills` only for general skill mechanics; use CCBP tables/changelogs as secondary drift evidence when they conflict. Never treat `.claude/skills/<folder>` or plugin cache paths as proof of the user-visible slash command. Apply to: `CLAUDE.md`, `.claude/agents/*.md`, `.claude/commands/**`, `.claude/skills/**/SKILL.md`, `.claude/rules/**`, `docs/sota-grand-catalog/**`, active adoption/citation docs, and commit bodies citing skill invocations. n=1 per `codification-threshold.md`: observed live conflict across official Commands docs / official Skills docs / CCBP changelog / CCBP skills table / sss docs costs ~15 min to re-derive per stale cite, this rule is <200 LOC; re-evaluate at the next Anthropic bundled-skill rename or official/CCBP conflict.
+
+8. **Composed-claims discipline + mechanical source-class reduction lattice** — *(Wave 17 fire-31 v1 codification per codex T1 fire-28 conf=0.87; UPGRADED at fire-36 per codex T1 fire-33 NEEDS-REVISION on T2 b8fa7dd1 finding "weakest-source rule not computable" conf=0.72)* — When a single normative claim cites MULTIPLE source classes, the cite MUST declare:
+   - `constituents=[<class1@cite1>, <class2@cite2>, ...]` — explicit list of each constituent primitive at file:line + SHA OR official-docs URL
+   - `effective_tier=<class>` — the EFFECTIVE class of the composed claim, computed by the reduction lattice below
+
+   **Source-class precedence/order (lower wins; weakest dominates)**:
+   1. `UNKNOWN` (no cite at all) — always disqualifying; reject claim until cited
+   2. `TIER-3-LOCAL-COMPOSITION` (any local glue / sss-novel composition over TIER-1/TIER-2 substrates)
+   3. `TIER-3-LOCAL-OPERATOR-DERIVED` (sss dogfood, codex verdicts, incidents, operator decisions)
+   4. `TIER-3-LOCAL-CONFIG` (sss live config or script wiring)
+   5. `TIER-2` (user-curated/sibling docs, NOT upstream authority)
+   6. `TIER-1-COMPOSED` (ALL constituents TIER-1 with disclosed local glue) — still TIER-3-LOCAL-COMPOSITION as effective tier
+   7. `TIER-1-DIRECT` (upstream verbatim file:line + SHA OR official-docs URL with anchor)
+
+   **Reduction rule (mechanical)**: `effective_tier = MIN_PRECEDENCE(constituents)`. Concretely: if ANY constituent contains "TIER-3-LOCAL-*" OR the composition glue itself is local-codified (e.g., sss-novel composition pattern), the effective tier is `TIER-3-LOCAL-COMPOSITION` regardless of how many TIER-1 primitives are cited. EXCEPTION: if the composed claim is ONLY about an upstream primitive's EXISTENCE (e.g., "asyncRewake field exists" cited verbatim from Anthropic docs), it remains `TIER-1-DIRECT` because there's no local composition glue.
+
+   **Anti-promotion rule**: composition CANNOT promote a TIER-2/TIER-3 component into TIER-1. The cite class of the COMPOSED claim is determined by the MIN_PRECEDENCE constituent OR by the composition-glue class, whichever is weaker.
+
+   **Exemplar (computable)**: `.claude/rules/cross-model-consensus.md §Normative Authority Map` row "T1-T7 touchpoint lifecycle":
+   - `constituents=[TIER-1-DIRECT @ Anthropic-CC-hooks-docs-L1021-1023, TIER-2 @ CCBP-cross-model-workflow.md:1-48, TIER-3-LOCAL-COMPOSITION @ sss-novel T0+T7+profile-selection]`
+   - `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE = 2 due to sss-novel glue)
+   - Despite Anthropic CC + CCBP being upstream-authority for primitives, the composition itself is eee-local and EFFECTIVE class is TIER-3-LOCAL-COMPOSITION
+
+   Apply to: any rule body section in `.claude/rules/**` that mixes upstream + sister-rule + local-operator-codification claims. Sister: `cross-model-consensus.md §Normative Authority Map` (POINTS TO this rule, does NOT carry softer duplicate).
+
+## Anti-patterns (model-name gotchas)
+- "Plus" in model name does NOT mean quality (qwen3.5-plus = thinking model)
+- `@latest` on npm may hit Windows cleanup bug → install succeeds but arborist crashes on EPERM (parent `project_gitnexus_full_audit_2026_04_18.md` — PARENT-ATTRIBUTION); prefer `npm install -g` for CLI-bundled MCP servers
+
+## Related rules
+
+- `evidence-policy.md` — marker tagging (`[VERIFIED]/[INFERRED]/[UNKNOWN]/...`); orthogonal axis to cite-format contract
+- `port-note-discipline.md` §1 — line-number drift discipline; cite `file:line` will drift by N lines if parent ships a port-note header
+- `canonical.md` Must Always #7 — cardinal hard-rule statement; this file ships the enforceable body
+- `research-protocol.md` Gate 2/3 — INVESTIGATE + VERIFY both terminate with cited evidence; this rule defines the cite format the gates require
+
+
+[32m succeeded in 319ms:[0m
+ M .claude/.claude.json
+ M .claude/hooks/scripts/agent_spawn_gate.py
+ M .claude/hooks/scripts/codex_postcommit_review.py
+ M .claude/hooks/scripts/codex_prepush_review.py
+ M .claude/hooks/scripts/codex_t1_consult_gate.py
+ M .claude/hooks/scripts/codex_t5_plan_review_gate.py
+ M .claude/plugins/installed_plugins.json
+ M .claude/plugins/known_marketplaces.json
+ M .claude/settings.json
+ M .gitignore
+ M .mcp.json
+ M CLAUDE.md
+ M bin/eee.cmd
+ M docs/sota-installed-manifest.md
+ M scripts/codex-plugin-hooks-rewrite.py
+ M tools/eee.ps1
+?? .ccs/
+?? .claude.json
+?? .claude/.last-cleanup
+?? .claude/agents/
+?? .claude/context-mode/
+?? .claude/hooks/cwc/
+?? .claude/hooks/scripts/agent_plan_readonly_bash_guard.py
+?? .claude/hooks/scripts/cwc/
+?? .claude/hooks/scripts/safety_guard.py
+?? .claude/mcp-needs-auth-cache.json
+?? .claude/plugins/install-counts-cache.json
+?? .claude/rules/
+?? .claude/scheduled_tasks.lock
+?? .claude/session-data/
+?? .claude/session-env/
+?? .claude/settings.json.pre-fire45-fix
+?? .claude/settings.local.json
+?? .claude/shell-snapshots/
+?? .local/
+?? .ssh/
+?? docs/eee-launch-design-cliproxyapi.md
+?? docs/operator-path-setup.md
+?? tools/eee-status.ps1
+?? tools/eee.ps1.pre-fire46-fix
+warning: could not open directory '.pytest_cache/': Permission denied
+
+[2m2026-05-08T08:30:39.014211Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 2.1 seconds
+Output:
+Z:\claude-sota-installed\.claude\plugins\marketplaces\addy-agent-skills\skills\deprecation-and-migration\SKILL.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\agent-skills\skills\deprecation-and-migration\SKILL.md
+[31;1mGet-ChildItem: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-ChildItem -Recurse -Filter SKILL.md[0m | Where-Object { $_.FullName  …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mAccess to the path 'Z:\claude-sota-installed\.pytest_cache' is denied.[0m
+
+[31m exited 1 in 2111ms:[0m
+Z:\claude-sota-installed\.claude\plugins\marketplaces\addy-agent-skills\skills\deprecation-and-migration\SKILL.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\agent-skills\skills\deprecation-and-migration\SKILL.md
+[31;1mGet-ChildItem: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-ChildItem -Recurse -Filter SKILL.md[0m | Where-Object { $_.FullName  …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mAccess to the path 'Z:\claude-sota-installed\.pytest_cache' is denied.[0m
+
+[35m[3mcodex[0m[0m
+I found two local copies of the upstream skill and the reviewed file cites the `agent-skills` marketplace copy. I’m going to read that exact file and check whether the pinned SHA is available locally.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git -C .claude/plugins/marketplaces/agent-skills rev-parse --show-toplevel; git -C .claude/plugins/marketplaces/agent-skills rev-parse --short HEAD; git -C .claude/plugins/marketplaces/agent-skills status --short'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .claude/plugins/marketplaces/agent-skills/skills/deprecation-and-migration/SKILL.md'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git -C .claude/plugins/marketplaces/agent-skills show --stat --oneline 742dca5 -- skills/deprecation-and-migration/SKILL.md'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git -C .claude/plugins/marketplaces/agent-skills show 742dca5:skills/deprecation-and-migration/SKILL.md'[0m in Z:\claude-sota-installed
+[32m succeeded in 326ms:[0m
+---
+name: deprecation-and-migration
+description: Manages deprecation and migration. Use when removing old systems, APIs, or features. Use when migrating users from one implementation to another. Use when deciding whether to maintain or sunset existing code.
+---
+
+# Deprecation and Migration
+
+## Overview
+
+Code is a liability, not an asset. Every line of code has ongoing maintenance cost — bugs to fix, dependencies to update, security patches to apply, and new engineers to onboard. Deprecation is the discipline of removing code that no longer earns its keep, and migration is the process of moving users safely from the old to the new.
+
+Most engineering organizations are good at building things. Few are good at removing them. This skill addresses that gap.
+
+## When to Use
+
+- Replacing an old system, API, or library with a new one
+- Sunsetting a feature that's no longer needed
+- Consolidating duplicate implementations
+- Removing dead code that nobody owns but everybody depends on
+- Planning the lifecycle of a new system (deprecation planning starts at design time)
+- Deciding whether to maintain a legacy system or invest in migration
+
+## Core Principles
+
+### Code Is a Liability
+
+Every line of code has ongoing cost: it needs tests, documentation, security patches, dependency updates, and mental overhead for anyone working nearby. The value of code is the functionality it provides, not the code itself. When the same functionality can be provided with less code, less complexity, or better abstractions — the old code should go.
+
+### Hyrum's Law Makes Removal Hard
+
+With enough users, every observable behavior becomes depended on — including bugs, timing quirks, and undocumented side effects. This is why deprecation requires active migration, not just announcement. Users can't "just switch" when they depend on behaviors the replacement doesn't replicate.
+
+### Deprecation Planning Starts at Design Time
+
+When building something new, ask: "How would we remove this in 3 years?" Systems designed with clean interfaces, feature flags, and minimal surface area are easier to deprecate than systems that leak implementation details everywhere.
+
+## The Deprecation Decision
+
+Before deprecating anything, answer these questions:
+
+```
+1. Does this system still provide unique value?
+   → If yes, maintain it. If no, proceed.
+
+2. How many users/consumers depend on it?
+   → Quantify the migration scope.
+
+3. Does a replacement exist?
+   → If no, build the replacement first. Don't deprecate without an alternative.
+
+4. What's the migration cost for each consumer?
+   → If trivially automated, do it. If manual and high-effort, weigh against maintenance cost.
+
+5. What's the ongoing maintenance cost of NOT deprecating?
+   → Security risk, engineer time, opportunity cost of complexity.
+```
+
+## Compulsory vs Advisory Deprecation
+
+| Type | When to Use | Mechanism |
+|------|-------------|-----------|
+| **Advisory** | Migration is optional, old system is stable | Warnings, documentation, nudges. Users migrate on their own timeline. |
+| **Compulsory** | Old system has security issues, blocks progress, or maintenance cost is unsustainable | Hard deadline. Old system will be removed by date X. Provide migration tooling. |
+
+**Default to advisory.** Use compulsory only when the maintenance cost or risk justifies forcing migration. Compulsory deprecation requires providing migration tooling, documentation, and support — you can't just announce a deadline.
+
+## The Migration Process
+
+### Step 1: Build the Replacement
+
+Don't deprecate without a working alternative. The replacement must:
+
+- Cover all critical use cases of the old system
+- Have documentation and migration guides
+- Be proven in production (not just "theoretically better")
+
+### Step 2: Announce and Document
+
+```markdown
+## Deprecation Notice: OldService
+
+**Status:** Deprecated as of 2025-03-01
+**Replacement:** NewService (see migration guide below)
+**Removal date:** Advisory — no hard deadline yet
+**Reason:** OldService requires manual scaling and lacks observability.
+            NewService handles both automatically.
+
+### Migration Guide
+1. Replace `import { client } from 'old-service'` with `import { client } from 'new-service'`
+2. Update configuration (see examples below)
+3. Run the migration verification script: `npx migrate-check`
+```
+
+### Step 3: Migrate Incrementally
+
+Migrate consumers one at a time, not all at once. For each consumer:
+
+```
+1. Identify all touchpoints with the deprecated system
+2. Update to use the replacement
+3. Verify behavior matches (tests, integration checks)
+4. Remove references to the old system
+5. Confirm no regressions
+```
+
+**The Churn Rule:** If you own the infrastructure being deprecated, you are responsible for migrating your users — or providing backward-compatible updates that require no migration. Don't announce deprecation and leave users to figure it out.
+
+### Step 4: Remove the Old System
+
+Only after all consumers have migrated:
+
+```
+1. Verify zero active usage (metrics, logs, dependency analysis)
+2. Remove the code
+3. Remove associated tests, documentation, and configuration
+4. Remove the deprecation notices
+5. Celebrate — removing code is an achievement
+```
+
+## Migration Patterns
+
+### Strangler Pattern
+
+Run old and new systems in parallel. Route traffic incrementally from old to new. When the old system handles 0% of traffic, remove it.
+
+```
+Phase 1: New system handles 0%, old handles 100%
+Phase 2: New system handles 10% (canary)
+Phase 3: New system handles 50%
+Phase 4: New system handles 100%, old system idle
+Phase 5: Remove old system
+```
+
+### Adapter Pattern
+
+Create an adapter that translates calls from the old interface to the new implementation. Consumers keep using the old interface while you migrate the backend.
+
+```typescript
+// Adapter: old interface, new implementation
+class LegacyTaskService implements OldTaskAPI {
+  constructor(private newService: NewTaskService) {}
+
+  // Old method signature, delegates to new implementation
+  getTask(id: number): OldTask {
+    const task = this.newService.findById(String(id));
+    return this.toOldFormat(task);
+  }
+}
+```
+
+### Feature Flag Migration
+
+Use feature flags to switch consumers from old to new system one at a time:
+
+```typescript
+function getTaskService(userId: string): TaskService {
+  if (featureFlags.isEnabled('new-task-service', { userId })) {
+    return new NewTaskService();
+  }
+  return new LegacyTaskService();
+}
+```
+
+## Zombie Code
+
+Zombie code is code that nobody owns but everybody depends on. It's not actively maintained, has no clear owner, and accumulates security vulnerabilities and compatibility issues. Signs:
+
+- No commits in 6+ months but active consumers exist
+- No assigned maintainer or team
+- Failing tests that nobody fixes
+- Dependencies with known vulnerabilities that nobody updates
+- Documentation that references systems that no longer exist
+
+**Response:** Either assign an owner and maintain it properly, or deprecate it with a concrete migration plan. Zombie code cannot stay in limbo — it either gets investment or removal.
+
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "It still works, why remove it?" | Working code that nobody maintains accumulates security debt and complexity. Maintenance cost grows silently. |
+| "Someone might need it later" | If it's needed later, it can be rebuilt. Keeping unused code "just in case" costs more than rebuilding. |
+| "The migration is too expensive" | Compare migration cost to ongoing maintenance cost over 2-3 years. Migration is usually cheaper long-term. |
+| "We'll deprecate it after we finish the new system" | Deprecation planning starts at design time. By the time the new system is done, you'll have new priorities. Plan now. |
+| "Users will migrate on their own" | They won't. Provide tooling, documentation, and incentives — or do the migration yourself (the Churn Rule). |
+| "We can maintain both systems indefinitely" | Two systems doing the same thing is double the maintenance, testing, documentation, and onboarding cost. |
+
+## Red Flags
+
+- Deprecated systems with no replacement available
+- Deprecation announcements with no migration tooling or documentation
+- "Soft" deprecation that's been advisory for years with no progress
+- Zombie code with no owner and active consumers
+- New features added to a deprecated system (invest in the replacement instead)
+- Deprecation without measuring current usage
+- Removing code without verifying zero active consumers
+
+## Verification
+
+After completing a deprecation:
+
+- [ ] Replacement is production-proven and covers all critical use cases
+- [ ] Migration guide exists with concrete steps and examples
+- [ ] All active consumers have been migrated (verified by metrics/logs)
+- [ ] Old code, tests, documentation, and configuration are fully removed
+- [ ] No references to the deprecated system remain in the codebase
+- [ ] Deprecation notices are removed (they served their purpose)
+
+
+[32m succeeded in 380ms:[0m
+Z:/claude-sota-installed/.claude/plugins/marketplaces/agent-skills
+742dca5
+?? .claude/state/
+
+[32m succeeded in 296ms:[0m
+---
+name: deprecation-and-migration
+description: Manages deprecation and migration. Use when removing old systems, APIs, or features. Use when migrating users from one implementation to another. Use when deciding whether to maintain or sunset existing code.
+---
+
+# Deprecation and Migration
+
+## Overview
+
+Code is a liability, not an asset. Every line of code has ongoing maintenance cost — bugs to fix, dependencies to update, security patches to apply, and new engineers to onboard. Deprecation is the discipline of removing code that no longer earns its keep, and migration is the process of moving users safely from the old to the new.
+
+Most engineering organizations are good at building things. Few are good at removing them. This skill addresses that gap.
+
+## When to Use
+
+- Replacing an old system, API, or library with a new one
+- Sunsetting a feature that's no longer needed
+- Consolidating duplicate implementations
+- Removing dead code that nobody owns but everybody depends on
+- Planning the lifecycle of a new system (deprecation planning starts at design time)
+- Deciding whether to maintain a legacy system or invest in migration
+
+## Core Principles
+
+### Code Is a Liability
+
+Every line of code has ongoing cost: it needs tests, documentation, security patches, dependency updates, and mental overhead for anyone working nearby. The value of code is the functionality it provides, not the code itself. When the same functionality can be provided with less code, less complexity, or better abstractions — the old code should go.
+
+### Hyrum's Law Makes Removal Hard
+
+With enough users, every observable behavior becomes depended on — including bugs, timing quirks, and undocumented side effects. This is why deprecation requires active migration, not just announcement. Users can't "just switch" when they depend on behaviors the replacement doesn't replicate.
+
+### Deprecation Planning Starts at Design Time
+
+When building something new, ask: "How would we remove this in 3 years?" Systems designed with clean interfaces, feature flags, and minimal surface area are easier to deprecate than systems that leak implementation details everywhere.
+
+## The Deprecation Decision
+
+Before deprecating anything, answer these questions:
+
+```
+1. Does this system still provide unique value?
+   → If yes, maintain it. If no, proceed.
+
+2. How many users/consumers depend on it?
+   → Quantify the migration scope.
+
+3. Does a replacement exist?
+   → If no, build the replacement first. Don't deprecate without an alternative.
+
+4. What's the migration cost for each consumer?
+   → If trivially automated, do it. If manual and high-effort, weigh against maintenance cost.
+
+5. What's the ongoing maintenance cost of NOT deprecating?
+   → Security risk, engineer time, opportunity cost of complexity.
+```
+
+## Compulsory vs Advisory Deprecation
+
+| Type | When to Use | Mechanism |
+|------|-------------|-----------|
+| **Advisory** | Migration is optional, old system is stable | Warnings, documentation, nudges. Users migrate on their own timeline. |
+| **Compulsory** | Old system has security issues, blocks progress, or maintenance cost is unsustainable | Hard deadline. Old system will be removed by date X. Provide migration tooling. |
+
+**Default to advisory.** Use compulsory only when the maintenance cost or risk justifies forcing migration. Compulsory deprecation requires providing migration tooling, documentation, and support — you can't just announce a deadline.
+
+## The Migration Process
+
+### Step 1: Build the Replacement
+
+Don't deprecate without a working alternative. The replacement must:
+
+- Cover all critical use cases of the old system
+- Have documentation and migration guides
+- Be proven in production (not just "theoretically better")
+
+### Step 2: Announce and Document
+
+```markdown
+## Deprecation Notice: OldService
+
+**Status:** Deprecated as of 2025-03-01
+**Replacement:** NewService (see migration guide below)
+**Removal date:** Advisory — no hard deadline yet
+**Reason:** OldService requires manual scaling and lacks observability.
+            NewService handles both automatically.
+
+### Migration Guide
+1. Replace `import { client } from 'old-service'` with `import { client } from 'new-service'`
+2. Update configuration (see examples below)
+3. Run the migration verification script: `npx migrate-check`
+```
+
+### Step 3: Migrate Incrementally
+
+Migrate consumers one at a time, not all at once. For each consumer:
+
+```
+1. Identify all touchpoints with the deprecated system
+2. Update to use the replacement
+3. Verify behavior matches (tests, integration checks)
+4. Remove references to the old system
+5. Confirm no regressions
+```
+
+**The Churn Rule:** If you own the infrastructure being deprecated, you are responsible for migrating your users — or providing backward-compatible updates that require no migration. Don't announce deprecation and leave users to figure it out.
+
+### Step 4: Remove the Old System
+
+Only after all consumers have migrated:
+
+```
+1. Verify zero active usage (metrics, logs, dependency analysis)
+2. Remove the code
+3. Remove associated tests, documentation, and configuration
+4. Remove the deprecation notices
+5. Celebrate — removing code is an achievement
+```
+
+## Migration Patterns
+
+### Strangler Pattern
+
+Run old and new systems in parallel. Route traffic incrementally from old to new. When the old system handles 0% of traffic, remove it.
+
+```
+Phase 1: New system handles 0%, old handles 100%
+Phase 2: New system handles 10% (canary)
+Phase 3: New system handles 50%
+Phase 4: New system handles 100%, old system idle
+Phase 5: Remove old system
+```
+
+### Adapter Pattern
+
+Create an adapter that translates calls from the old interface to the new implementation. Consumers keep using the old interface while you migrate the backend.
+
+```typescript
+// Adapter: old interface, new implementation
+class LegacyTaskService implements OldTaskAPI {
+  constructor(private newService: NewTaskService) {}
+
+  // Old method signature, delegates to new implementation
+  getTask(id: number): OldTask {
+    const task = this.newService.findById(String(id));
+    return this.toOldFormat(task);
+  }
+}
+```
+
+### Feature Flag Migration
+
+Use feature flags to switch consumers from old to new system one at a time:
+
+```typescript
+function getTaskService(userId: string): TaskService {
+  if (featureFlags.isEnabled('new-task-service', { userId })) {
+    return new NewTaskService();
+  }
+  return new LegacyTaskService();
+}
+```
+
+## Zombie Code
+
+Zombie code is code that nobody owns but everybody depends on. It's not actively maintained, has no clear owner, and accumulates security vulnerabilities and compatibility issues. Signs:
+
+- No commits in 6+ months but active consumers exist
+- No assigned maintainer or team
+- Failing tests that nobody fixes
+- Dependencies with known vulnerabilities that nobody updates
+- Documentation that references systems that no longer exist
+
+**Response:** Either assign an owner and maintain it properly, or deprecate it with a concrete migration plan. Zombie code cannot stay in limbo — it either gets investment or removal.
+
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "It still works, why remove it?" | Working code that nobody maintains accumulates security debt and complexity. Maintenance cost grows silently. |
+| "Someone might need it later" | If it's needed later, it can be rebuilt. Keeping unused code "just in case" costs more than rebuilding. |
+| "The migration is too expensive" | Compare migration cost to ongoing maintenance cost over 2-3 years. Migration is usually cheaper long-term. |
+| "We'll deprecate it after we finish the new system" | Deprecation planning starts at design time. By the time the new system is done, you'll have new priorities. Plan now. |
+| "Users will migrate on their own" | They won't. Provide tooling, documentation, and incentives — or do the migration yourself (the Churn Rule). |
+| "We can maintain both systems indefinitely" | Two systems doing the same thing is double the maintenance, testing, documentation, and onboarding cost. |
+
+## Red Flags
+
+- Deprecated systems with no replacement available
+- Deprecation announcements with no migration tooling or documentation
+- "Soft" deprecation that's been advisory for years with no progress
+- Zombie code with no owner and active consumers
+- New features added to a deprecated system (invest in the replacement instead)
+- Deprecation without measuring current usage
+- Removing code without verifying zero active consumers
+
+## Verification
+
+After completing a deprecation:
+
+- [ ] Replacement is production-proven and covers all critical use cases
+- [ ] Migration guide exists with concrete steps and examples
+- [ ] All active consumers have been migrated (verified by metrics/logs)
+- [ ] Old code, tests, documentation, and configuration are fully removed
+- [ ] No references to the deprecated system remain in the codebase
+- [ ] Deprecation notices are removed (they served their purpose)
+
+[32m succeeded in 322ms:[0m
+742dca5 Merge pull request #114 from creazyfrog/fix/plugin-json-declare-skills-and-agents
+ skills/deprecation-and-migration/SKILL.md | 206 ++++++++++++++++++++++++++++++
+ 1 file changed, 206 insertions(+)
+
+[35m[3mcodex[0m[0m
+The pinned `agent-skills` repo is exactly at `742dca5`, and the cited file exists at that revision. I’m checking line numbers now so the verdict can be precise.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content .claude/rules/deprecation-discipline.md | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content .claude/rules/citation-discipline.md | ForEach-Object { if ($i -ge 31 -and $i -le 74) { '"'{0,4}: {1}' -f "'$i, $_ }; $i++ }'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content .claude/plugins/marketplaces/agent-skills/skills/deprecation-and-migration/SKILL.md | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }'[0m in Z:\claude-sota-installed
+[32m succeeded in 336ms:[0m
+   1: ---
+   2: name: deprecation-discipline
+   3: description: Code-as-liability sunset discipline. Sister to kiss-dry-yagni.md (prevents speculative ADD); this rule covers cleanup-phase REMOVAL + migration. Use when sunsetting features, replacing legacy systems, removing dead code that nobody owns but everybody depends on, OR planning lifecycle of new system at design time (deprecation planning starts at design time per Hyrum's Law).
+   4: paths: [".claude/rules/**", ".claude/agents/**", ".claude/commands/**", ".claude/skills/**/SKILL.md", "scripts/**", "tools/**", "docs/**"]
+   5: ---
+   6: 
+   7: # Deprecation discipline — code-as-liability sunset workflow
+   8: 
+   9: # Reference: TIER-1-NAMED-AUTHOR-QUOTE Z:/claude-sota-installed/.claude/plugins/marketplaces/agent-skills/skills/deprecation-and-migration/SKILL.md @742dca5 [VERIFIED 2026-05-08 via Wave 82m-B sota-researcher Top-3 CITE-IMPORT #2] — Addy Osmani / Google Chrome team 33,500★ MIT (Apache 2.0 source). Verbatim quote: "Code is a liability, not an asset. Every line of code has ongoing maintenance cost — bugs to fix, dependencies to update, security patches to apply, and new engineers to onboard. Deprecation is the discipline of removing code that no longer earns its keep, and migration is the process of moving users safely from the old to the new."
+  10: # Reference: TIER-2 sister rule `kiss-dry-yagni.md` Must-Never #4 — prevents speculative ADD. This rule extends the lifecycle to REMOVE.
+  11: # Reference: TIER-2 sister rule `Z:/claude-sota/.claude/rules/karpathy-adapted.md §3 Surgical Changes` (cite-import-AMBER per Section 14.5) — "Don't refactor things that aren't broken" interacts with deprecation: leave non-broken UNLESS deprecation-decision triggers (see §The deprecation decision below).
+  12: 
+  13: ## The rule
+  14: 
+  15: Code is a liability. Every line has ongoing cost (tests, security patches, dependency updates, onboarding overhead). Deprecation is the discipline of removing code that no longer earns its keep. **Most engineering organizations are good at building things. Few are good at removing them.** This rule addresses the gap.
+  16: 
+  17: ## When this discipline applies
+  18: 
+  19: ANY of these triggers fires this rule:
+  20: 
+  21: 1. Replacing an old system, API, or library with a new one
+  22: 2. Sunsetting a feature that's no longer needed
+  23: 3. Consolidating duplicate implementations (sister to kiss-dry-yagni Must-Never #4)
+  24: 4. Removing dead code that nobody owns but everybody depends on
+  25: 5. Planning lifecycle of NEW system at design time ("how would we remove this in 3 years?")
+  26: 6. Deciding whether to maintain a legacy system or invest in migration
+  27: 
+  28: ## Hyrum's Law (load-bearing)
+  29: 
+  30: > With enough users, every observable behavior becomes depended on — including bugs, timing quirks, and undocumented side effects.
+  31: 
+  32: This is why deprecation requires **active migration**, not just announcement. Users can't "just switch" when they depend on behaviors the replacement doesn't replicate.
+  33: 
+  34: ## The deprecation decision (5-question gate)
+  35: 
+  36: Before deprecating ANY surface — code, API, plugin, MCP, hook, rule, agent, skill — answer these in order:
+  37: 
+  38: 1. **Does this still provide unique value?** → If yes, maintain it. If no, proceed.
+  39: 2. **How many consumers depend on it?** → Quantify migration scope (`grep -rl "<symbol>"`, `mcp__github__search_code`, etc).
+  40: 3. **Does a replacement exist?** → If no, build the replacement FIRST. Never deprecate without an alternative.
+  41: 4. **What's the migration cost per consumer?** → Trivially automated → do it. Manual + high-effort → weigh vs maintenance cost.
+  42: 5. **What's the ongoing cost of NOT deprecating?** → Security risk + engineer time + opportunity cost of complexity.
+  43: 
+  44: ## Compulsory vs advisory deprecation
+  45: 
+  46: | Type | When to Use | Mechanism |
+  47: |---|---|---|
+  48: | **Compulsory** | Breaking change required (security, broken contract, blocking next-gen feature) | Hard removal at version cut OR `@deprecated` + compile error path + migration grace window |
+  49: | **Advisory** | Replacement exists, soft-migrate path acceptable | Documentation deprecation note + warning at use site + parallel-deploy + telemetry |
+  50: 
+  51: ## Migration patterns (4-stage)
+  52: 
+  53: 1. **Parallel deploy**: ship new alongside old; both work; no behavior change
+  54: 2. **Telemetry**: instrument both paths; measure consumer migration via observable signal
+  55: 3. **Cutover**: when new path adoption exceeds threshold (e.g., 95%), redirect remaining consumers
+  56: 4. **Removal**: delete old code, dependencies, docs, references — `rg "<old-symbol>"` should return zero hits
+  57: 
+  58: ## Anti-patterns
+  59: 
+  60: - **Announce-and-leave**: emitting `@deprecated` without migration support — Hyrum's Law guarantees nobody migrates. Refuted by §Migration patterns 4-stage active discipline.
+  61: - **Hard-remove-without-replacement**: deprecating before a viable migration path exists. Refuted by §The deprecation decision question 3.
+  62: - **Maintain-forever**: keeping a legacy system because "users depend on it" without measuring the maintenance cost. Refuted by §The deprecation decision question 5.
+  63: - **Speculative-deprecation**: marking code `@deprecated` because "we might replace it someday". This violates kiss-dry-yagni — only deprecate when a real replacement exists. Sister to "speculative ADD" anti-pattern.
+  64: - **Deprecate-via-rewrite**: rewriting from scratch + telling users to migrate. Refuted by Joel Spolsky "Things You Should Never Do, Part I" — rewrites lose Hyrum's-Law-encoded knowledge. Migrate IN PLACE when possible.
+  65: 
+  66: ## Sister-rule integration
+  67: 
+  68: - `kiss-dry-yagni.md` Must-Never #4 — prevents speculative ADD; this rule covers REMOVE side of the lifecycle
+  69: - `Z:/claude-sota/.claude/rules/karpathy-adapted.md §3 Surgical Changes` (cite-import-AMBER) — "Don't refactor things that aren't broken" interacts with deprecation: leave non-broken UNLESS deprecation-decision triggers (Hyrum's Law catches false-non-broken cases)
+  70: - `Z:/claude-sota/.claude/rules/research-protocol.md` 3 gates — RECALL → INVESTIGATE → VERIFY before deprecating any surface (verify replacement exists + dependents migrated)
+  71: - `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 — symmetric: codification gate prevents premature ADD; deprecation gate prevents premature KEEP
+  72: - `launch-discipline.md` — sister cleanup-phase rule for the BUILD side; this rule covers the SUNSET side
+  73: - `Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories` (cite-import-AMBER) — OVER claims about "this is dead" need git-diff verification before removal
+  74: - `Z:/claude-sota/.claude/rules/audit-action-loop.md` Wire/Surface/Close/Re-fire — telemetry stage of migration mirrors audit-action-loop's Surface stage (consumer migration is the drift signal that closes)
+  75: 
+  76: ## Promotion threshold (cite-import-AMBER per Section 14.5)
+  77: 
+  78: This rule was promoted from Wave 82m-B Top-3 CITE-IMPORT #2 (sota-researcher fork dispatched 2026-05-08). Cite class **TIER-1-NAMED-AUTHOR-QUOTE-via-LOCAL-COMPOSITION**: Osmani is named-author T1 source for the PATTERN; this rule is the eee-local composition that adapts the pattern to claude-sota-installed cardinal-rule lattice (CR-1 cite-trail + CR-8 full-SOTA-content + Hyrum's Law backing). Per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8: `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE due to local composition glue), but underlying SOTA authority is firm (33,500★ MIT + Apache 2.0 source).
+  79: 
+  80: ## Update triggers
+  81: 
+  82: Re-evaluate this rule when:
+  83: - Osmani updates `deprecation-and-migration/SKILL.md` upstream — re-pin SHA + re-extract any new mechanics
+  84: - A 4th deprecation-class surface emerges in claude-sota-installed (currently 3 trigger conditions per §When this discipline applies — extend to 4+ if observed)
+  85: - Hyrum's Law violation costs >2h re-derive in any single fire — promote to mechanical-enforcement (e.g., consumer-graph audit hook before deprecation Edit)
+  86: - A 2nd named-author org publishes a contradicting pattern — re-open convergence-gate Axis 1 audit
+  87: - claude-sota-installed deprecates ANY existing primitive (plugin / MCP / rule / agent / hook) — apply this rule to that deprecation as its first dogfood
+
+[32m succeeded in 389ms:[0m
+   1: ---
+   2: name: deprecation-and-migration
+   3: description: Manages deprecation and migration. Use when removing old systems, APIs, or features. Use when migrating users from one implementation to another. Use when deciding whether to maintain or sunset existing code.
+   4: ---
+   5: 
+   6: # Deprecation and Migration
+   7: 
+   8: ## Overview
+   9: 
+  10: Code is a liability, not an asset. Every line of code has ongoing maintenance cost — bugs to fix, dependencies to update, security patches to apply, and new engineers to onboard. Deprecation is the discipline of removing code that no longer earns its keep, and migration is the process of moving users safely from the old to the new.
+  11: 
+  12: Most engineering organizations are good at building things. Few are good at removing them. This skill addresses that gap.
+  13: 
+  14: ## When to Use
+  15: 
+  16: - Replacing an old system, API, or library with a new one
+  17: - Sunsetting a feature that's no longer needed
+  18: - Consolidating duplicate implementations
+  19: - Removing dead code that nobody owns but everybody depends on
+  20: - Planning the lifecycle of a new system (deprecation planning starts at design time)
+  21: - Deciding whether to maintain a legacy system or invest in migration
+  22: 
+  23: ## Core Principles
+  24: 
+  25: ### Code Is a Liability
+  26: 
+  27: Every line of code has ongoing cost: it needs tests, documentation, security patches, dependency updates, and mental overhead for anyone working nearby. The value of code is the functionality it provides, not the code itself. When the same functionality can be provided with less code, less complexity, or better abstractions — the old code should go.
+  28: 
+  29: ### Hyrum's Law Makes Removal Hard
+  30: 
+  31: With enough users, every observable behavior becomes depended on — including bugs, timing quirks, and undocumented side effects. This is why deprecation requires active migration, not just announcement. Users can't "just switch" when they depend on behaviors the replacement doesn't replicate.
+  32: 
+  33: ### Deprecation Planning Starts at Design Time
+  34: 
+  35: When building something new, ask: "How would we remove this in 3 years?" Systems designed with clean interfaces, feature flags, and minimal surface area are easier to deprecate than systems that leak implementation details everywhere.
+  36: 
+  37: ## The Deprecation Decision
+  38: 
+  39: Before deprecating anything, answer these questions:
+  40: 
+  41: ```
+  42: 1. Does this system still provide unique value?
+  43:    → If yes, maintain it. If no, proceed.
+  44: 
+  45: 2. How many users/consumers depend on it?
+  46:    → Quantify the migration scope.
+  47: 
+  48: 3. Does a replacement exist?
+  49:    → If no, build the replacement first. Don't deprecate without an alternative.
+  50: 
+  51: 4. What's the migration cost for each consumer?
+  52:    → If trivially automated, do it. If manual and high-effort, weigh against maintenance cost.
+  53: 
+  54: 5. What's the ongoing maintenance cost of NOT deprecating?
+  55:    → Security risk, engineer time, opportunity cost of complexity.
+  56: ```
+  57: 
+  58: ## Compulsory vs Advisory Deprecation
+  59: 
+  60: | Type | When to Use | Mechanism |
+  61: |------|-------------|-----------|
+  62: | **Advisory** | Migration is optional, old system is stable | Warnings, documentation, nudges. Users migrate on their own timeline. |
+  63: | **Compulsory** | Old system has security issues, blocks progress, or maintenance cost is unsustainable | Hard deadline. Old system will be removed by date X. Provide migration tooling. |
+  64: 
+  65: **Default to advisory.** Use compulsory only when the maintenance cost or risk justifies forcing migration. Compulsory deprecation requires providing migration tooling, documentation, and support — you can't just announce a deadline.
+  66: 
+  67: ## The Migration Process
+  68: 
+  69: ### Step 1: Build the Replacement
+  70: 
+  71: Don't deprecate without a working alternative. The replacement must:
+  72: 
+  73: - Cover all critical use cases of the old system
+  74: - Have documentation and migration guides
+  75: - Be proven in production (not just "theoretically better")
+  76: 
+  77: ### Step 2: Announce and Document
+  78: 
+  79: ```markdown
+  80: ## Deprecation Notice: OldService
+  81: 
+  82: **Status:** Deprecated as of 2025-03-01
+  83: **Replacement:** NewService (see migration guide below)
+  84: **Removal date:** Advisory — no hard deadline yet
+  85: **Reason:** OldService requires manual scaling and lacks observability.
+  86:             NewService handles both automatically.
+  87: 
+  88: ### Migration Guide
+  89: 1. Replace `import { client } from 'old-service'` with `import { client } from 'new-service'`
+  90: 2. Update configuration (see examples below)
+  91: 3. Run the migration verification script: `npx migrate-check`
+  92: ```
+  93: 
+  94: ### Step 3: Migrate Incrementally
+  95: 
+  96: Migrate consumers one at a time, not all at once. For each consumer:
+  97: 
+  98: ```
+  99: 1. Identify all touchpoints with the deprecated system
+ 100: 2. Update to use the replacement
+ 101: 3. Verify behavior matches (tests, integration checks)
+ 102: 4. Remove references to the old system
+ 103: 5. Confirm no regressions
+ 104: ```
+ 105: 
+ 106: **The Churn Rule:** If you own the infrastructure being deprecated, you are responsible for migrating your users — or providing backward-compatible updates that require no migration. Don't announce deprecation and leave users to figure it out.
+ 107: 
+ 108: ### Step 4: Remove the Old System
+ 109: 
+ 110: Only after all consumers have migrated:
+ 111: 
+ 112: ```
+ 113: 1. Verify zero active usage (metrics, logs, dependency analysis)
+ 114: 2. Remove the code
+ 115: 3. Remove associated tests, documentation, and configuration
+ 116: 4. Remove the deprecation notices
+ 117: 5. Celebrate — removing code is an achievement
+ 118: ```
+ 119: 
+ 120: ## Migration Patterns
+ 121: 
+ 122: ### Strangler Pattern
+ 123: 
+ 124: Run old and new systems in parallel. Route traffic incrementally from old to new. When the old system handles 0% of traffic, remove it.
+ 125: 
+ 126: ```
+ 127: Phase 1: New system handles 0%, old handles 100%
+ 128: Phase 2: New system handles 10% (canary)
+ 129: Phase 3: New system handles 50%
+ 130: Phase 4: New system handles 100%, old system idle
+ 131: Phase 5: Remove old system
+ 132: ```
+ 133: 
+ 134: ### Adapter Pattern
+ 135: 
+ 136: Create an adapter that translates calls from the old interface to the new implementation. Consumers keep using the old interface while you migrate the backend.
+ 137: 
+ 138: ```typescript
+ 139: // Adapter: old interface, new implementation
+ 140: class LegacyTaskService implements OldTaskAPI {
+ 141:   constructor(private newService: NewTaskService) {}
+ 142: 
+ 143:   // Old method signature, delegates to new implementation
+ 144:   getTask(id: number): OldTask {
+ 145:     const task = this.newService.findById(String(id));
+ 146:     return this.toOldFormat(task);
+ 147:   }
+ 148: }
+ 149: ```
+ 150: 
+ 151: ### Feature Flag Migration
+ 152: 
+ 153: Use feature flags to switch consumers from old to new system one at a time:
+ 154: 
+ 155: ```typescript
+ 156: function getTaskService(userId: string): TaskService {
+ 157:   if (featureFlags.isEnabled('new-task-service', { userId })) {
+ 158:     return new NewTaskService();
+ 159:   }
+ 160:   return new LegacyTaskService();
+ 161: }
+ 162: ```
+ 163: 
+ 164: ## Zombie Code
+ 165: 
+ 166: Zombie code is code that nobody owns but everybody depends on. It's not actively maintained, has no clear owner, and accumulates security vulnerabilities and compatibility issues. Signs:
+ 167: 
+ 168: - No commits in 6+ months but active consumers exist
+ 169: - No assigned maintainer or team
+ 170: - Failing tests that nobody fixes
+ 171: - Dependencies with known vulnerabilities that nobody updates
+ 172: - Documentation that references systems that no longer exist
+ 173: 
+ 174: **Response:** Either assign an owner and maintain it properly, or deprecate it with a concrete migration plan. Zombie code cannot stay in limbo — it either gets investment or removal.
+ 175: 
+ 176: ## Common Rationalizations
+ 177: 
+ 178: | Rationalization | Reality |
+ 179: |---|---|
+ 180: | "It still works, why remove it?" | Working code that nobody maintains accumulates security debt and complexity. Maintenance cost grows silently. |
+ 181: | "Someone might need it later" | If it's needed later, it can be rebuilt. Keeping unused code "just in case" costs more than rebuilding. |
+ 182: | "The migration is too expensive" | Compare migration cost to ongoing maintenance cost over 2-3 years. Migration is usually cheaper long-term. |
+ 183: | "We'll deprecate it after we finish the new system" | Deprecation planning starts at design time. By the time the new system is done, you'll have new priorities. Plan now. |
+ 184: | "Users will migrate on their own" | They won't. Provide tooling, documentation, and incentives — or do the migration yourself (the Churn Rule). |
+ 185: | "We can maintain both systems indefinitely" | Two systems doing the same thing is double the maintenance, testing, documentation, and onboarding cost. |
+ 186: 
+ 187: ## Red Flags
+ 188: 
+ 189: - Deprecated systems with no replacement available
+ 190: - Deprecation announcements with no migration tooling or documentation
+ 191: - "Soft" deprecation that's been advisory for years with no progress
+ 192: - Zombie code with no owner and active consumers
+ 193: - New features added to a deprecated system (invest in the replacement instead)
+ 194: - Deprecation without measuring current usage
+ 195: - Removing code without verifying zero active consumers
+ 196: 
+ 197: ## Verification
+ 198: 
+ 199: After completing a deprecation:
+ 200: 
+ 201: - [ ] Replacement is production-proven and covers all critical use cases
+ 202: - [ ] Migration guide exists with concrete steps and examples
+ 203: - [ ] All active consumers have been migrated (verified by metrics/logs)
+ 204: - [ ] Old code, tests, documentation, and configuration are fully removed
+ 205: - [ ] No references to the deprecated system remain in the codebase
+ 206: - [ ] Deprecation notices are removed (they served their purpose)
+
+[32m succeeded in 410ms:[0m
+  31: # Reference: Z:/repos/deps/autoresearch/.claude/skills/autoresearch/SKILL.md (verified 2026-04-18 in parent; deps-shared with sss)
+  32: # Reference: Z:/claude/.claude/projects/Z--claude/memory/feedback_reference_first_hard_rule.md (parent hard rule, 2026-04-18 — PARENT-ATTRIBUTION; sss memory port pending)
+  33: # Retracted: ARIS + QWED-AI + lean-ctx anti-pattern refs — none of those repos exist in Z:/repos/deps/
+  34: 
+  35: ## Rule: Every new pattern MUST cite its source at file:line depth
+  36: 
+  37: 1. **Header comment**: `# Reference: Z:/repos/deps/<repo>/<file>:<line>` or `# Reference: <official-docs-URL>`
+  38: 2. **Never cite READMEs alone** — cite the actual source code implementation
+  39: 3. **Star count does NOT indicate quality** — read the source, verify the claim
+  40: 4. **Verify before trust** — the cited file must still exist AND still say what you cite (labels decay)
+  41: 5. **Silent fallback = violation** — if expected output doesn't appear (e.g., `embeddings: 0` after `--embeddings`), that's a STOP, not a footnote (parent `feedback_reference_first_hard_rule.md` — PARENT-ATTRIBUTION pending sss memory port)
+  42: 6. **TIER-1-NAMED-AUTHOR-QUOTE class for inherited patterns** — when a SOTA pattern is derived from a named author's published work (book / peer-reviewed paper / conference talk), cite verbatim-quote + author-name + publication inline. The named-author cite is TIER-1 primary-source for the PATTERN (not the implementing repo); use alongside repo file:line cites for full provenance. Exemplar: `Z:/repos/deps/mattpocock/skills/README.md` (48,857★, MIT, [VERIFIED 2026-04-30 PM via curl raw GitHub]) quotes Pragmatic Programmer (Thomas & Hunt) for "rate of feedback is your speed limit" (failure-mode #3 framing), Domain-Driven-Design (Eric Evans) for ubiquitous-language pattern (#2 framing), and Extreme Programming Explained (Kent Beck) for "invest in design every day" (#4 framing). Per `.claude/projects/Z--claude-sota-installed/memory/reference_mattpocock_skills_pattern_extract_2026_04_30.md` for the full mining trace + adoption-candidate ranking. **TIER-1-NAMED-AUTHOR-QUOTE PROVISIONAL-EXCEPTION** *(round-3 framing per T3 round-2 conf=0.88 ESCALATING finding on commit `d4df352`; supersedes round-1 "full cardinal-rule-1 satisfaction" framing — physical-only sources do NOT fully satisfy committed-tree inspectability)*: physical-only printed-book/journal/conference-publication primary anchor (ISBN + page + verbatim-quote) is a PROVISIONAL-EXCEPTION to cardinal-rule-1 (CLAUDE.md L7), NOT full satisfaction. Cite class downgraded to TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL with REQUIRED metadata: (a) ISBN/DOI + page + verbatim-quote inline; (b) verifier-identity disclosure (who-verified-when, e.g., `[VERIFIED 2026-05-04 by orchestrator against book Tip #15 verbatim text]`); (c) explicit `non-automatable: true` marker so review hooks know to defer to human sign-off; (d) **HARD-GATE ELIGIBILITY TEST** *(Round-3 amendment a per T3 R3 NEEDS-ATTENTION conf=0.82 same-class finding on commit `1b87a6e`; supersedes round-2 "MUST prefer" soft preference framing — preference is not gateable; eligibility is)*: PROVISIONAL admission is admissible ONLY when DOI landing page + accessible PDF / publisher excerpt / archived scan (license-permitting) was SEARCHED AND UNAVAILABLE. The commit body MUST document the search (which DOI/publisher/archive was queried + return shape — e.g., "searched ACM DOI 10.1145/<doi> 2026-05-05 — paywall-only, no excerpt found; searched Internet Archive — no scan; searched publisher excerpt page — none"). Mere preference is INSUFFICIENT — if any auditable surrogate exists (DOI/PDF/excerpt/scan), use it as the normative source instead of the physical-only book cite. e.g., ACM DOI `https://dl.acm.org/doi/10.1145/<doi>` for ACM papers IS auditable when paywall-free. Secondary aggregator URLs (Wikipedia, `https://pragprog.com/tips/`, `https://martinfowler.com/bliki/<topic>.html`, `c2.com/cgi/wiki`) are VERIFICATION PROXIES only — they help re-verify the primary quote without owning the book physically, but are NOT cited as normative source. **Independent named-reviewer sign-off mandate** *(Round-3 amendment b per T3 R3 NEEDS-ATTENTION conf=0.82 same-class finding on commit `1b87a6e`; supersedes round-2 "Lower-confidence reviewer-sign-off mandate" sole-orchestrator framing — sole-orchestrator verification is no longer admissible)*: rule edits citing TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL MUST cite a SECOND verifier-identity BEYOND the orchestrator who replayed the verbatim quote against the source — commit body MUST embed BOTH verifier-identity-1 (the orchestrator, e.g., `[VERIFIED 2026-05-05 by orchestrator against book Tip #15 verbatim text]`) AND verifier-identity-2 (the independent named reviewer, e.g., `[VERIFIED 2026-05-05 by <human-name> against same book + same page + same quote]`) with explicit `[VERIFIED yyyy-mm-dd by <name> against <source>]` markers for each. The 2-verifier requirement closes the "self-attestation only" gap that round-2 left open. **`non-automatable: true` operator-discipline mandate (manual-only; no hook enforcement YET)** *(Round-4 amendment per T3 round-4 NEEDS-ATTENTION conf=0.82 SAME-CLASS finding on commit `d07ac71`; supersedes Round-3 amendment c "BLOCKING in T3/T4/T6 verdict-shape" claim that was prose-only without hook implementation — codex GPT-5.5 BRIDGE-MODE caught the policy/enforcement drift: rule text claimed automated BLOCKING but no T3/T4/T6 hook, verdict parser, schema, or test changed. Per closed-loop-recursive-narrowing.md §Outcome A monotone-decline path, downgraded prose closes the drift while the enforcement-hook ship is queued separately)*: when a TIER-1-NAMED-AUTHOR-QUOTE-PROVISIONAL cite is shipped, the operator MUST: (i) embed `non-automatable: true` marker inline; (ii) embed explicit "no automated enforcement, human gate only" disclosure in commit body acknowledging that automated re-verification is impossible AND naming both verifier-identities (per amendment b); (iii) accept residual provenance gap explicitly. The discipline is OPERATOR-MANUAL — NO T3/T4/T6 hook currently parses `non-automatable: true` as BLOCKING. Promotion to mechanical BLOCKING is FORWARD-REF for a separate enforcement-hook ship: `tools/non_automatable_blocking_audit.py` parsing committed rule edits + emitting BLOCKING status in T3/T4/T6 verdict-shape + regression tests at `tests/test_non_automatable_blocking_audit.py`. Do NOT claim BLOCKING semantic in commit bodies until that ship lands. Forward-only convention codified Wave 18 PSW arc — Bundle B Round-2 commit `d6acfb1`, Bundle B Round-3 commit `217430f`, karpathy 5-author commit `0fe6282`, citation-discipline Round-2 DEMOTE commit `1b87a6e`, citation-discipline Round-3 hard-gate commit `d07ac71`, this Round-4 prose-downgrade commit closes the architectural concern per `reference_wave18_psw_arc_close_4ship_2026_05_04.md` + Outcome A monotone-decline path per `closed-loop-recursive-narrowing.md` (R1 conf=0.86 → R2 conf=0.88 ESCALATING → R3 conf=0.82 DECLINING → R4 conf=0.82 SAME-CLASS DECLINING-STABLE; severity stable medium; severity-gate satisfied via concrete-verification mechanism per amendments a+b + prose-downgrade per amendment c; arc converging within Round 5 ceiling).
+  43: 
+  44: 7. **Anthropic-bundled-skill cites: cite the current slash command, not local folder names** — *(specialization of rule #4 for bundled-skill identifier divergence)* — Bundled skill identifiers can diverge across local folders, CCBP tables, changelogs, and official docs. Example: CCBP `changelog/best-practice/concepts/changelog.md:410 @ 76599cb` records a stale-name correction from `/fewer-permission-prompts` to `/less-permission-prompts`, while CCBP `best-practice/claude-skills.md:48 @ 76599cb` still lists the folder-style `fewer-permission-prompts`, AND the current official Commands page (`code.claude.com/docs/en/commands` line 90 [VERIFIED 2026-05-01 via codex T1 web-fetch]) shows `/fewer-permission-prompts` — so the three authoritative surfaces actively disagree. **Discipline**: when sss documents an Anthropic-bundled skill invocation, cite the current command from `code.claude.com/docs/en/commands` FIRST as the tie-breaker; use `code.claude.com/docs/en/skills` only for general skill mechanics; use CCBP tables/changelogs as secondary drift evidence when they conflict. Never treat `.claude/skills/<folder>` or plugin cache paths as proof of the user-visible slash command. Apply to: `CLAUDE.md`, `.claude/agents/*.md`, `.claude/commands/**`, `.claude/skills/**/SKILL.md`, `.claude/rules/**`, `docs/sota-grand-catalog/**`, active adoption/citation docs, and commit bodies citing skill invocations. n=1 per `codification-threshold.md`: observed live conflict across official Commands docs / official Skills docs / CCBP changelog / CCBP skills table / sss docs costs ~15 min to re-derive per stale cite, this rule is <200 LOC; re-evaluate at the next Anthropic bundled-skill rename or official/CCBP conflict.
+  45: 
+  46: 8. **Composed-claims discipline + mechanical source-class reduction lattice** — *(Wave 17 fire-31 v1 codification per codex T1 fire-28 conf=0.87; UPGRADED at fire-36 per codex T1 fire-33 NEEDS-REVISION on T2 b8fa7dd1 finding "weakest-source rule not computable" conf=0.72)* — When a single normative claim cites MULTIPLE source classes, the cite MUST declare:
+  47:    - `constituents=[<class1@cite1>, <class2@cite2>, ...]` — explicit list of each constituent primitive at file:line + SHA OR official-docs URL
+  48:    - `effective_tier=<class>` — the EFFECTIVE class of the composed claim, computed by the reduction lattice below
+  49: 
+  50:    **Source-class precedence/order (lower wins; weakest dominates)**:
+  51:    1. `UNKNOWN` (no cite at all) — always disqualifying; reject claim until cited
+  52:    2. `TIER-3-LOCAL-COMPOSITION` (any local glue / sss-novel composition over TIER-1/TIER-2 substrates)
+  53:    3. `TIER-3-LOCAL-OPERATOR-DERIVED` (sss dogfood, codex verdicts, incidents, operator decisions)
+  54:    4. `TIER-3-LOCAL-CONFIG` (sss live config or script wiring)
+  55:    5. `TIER-2` (user-curated/sibling docs, NOT upstream authority)
+  56:    6. `TIER-1-COMPOSED` (ALL constituents TIER-1 with disclosed local glue) — still TIER-3-LOCAL-COMPOSITION as effective tier
+  57:    7. `TIER-1-DIRECT` (upstream verbatim file:line + SHA OR official-docs URL with anchor)
+  58: 
+  59:    **Reduction rule (mechanical)**: `effective_tier = MIN_PRECEDENCE(constituents)`. Concretely: if ANY constituent contains "TIER-3-LOCAL-*" OR the composition glue itself is local-codified (e.g., sss-novel composition pattern), the effective tier is `TIER-3-LOCAL-COMPOSITION` regardless of how many TIER-1 primitives are cited. EXCEPTION: if the composed claim is ONLY about an upstream primitive's EXISTENCE (e.g., "asyncRewake field exists" cited verbatim from Anthropic docs), it remains `TIER-1-DIRECT` because there's no local composition glue.
+  60: 
+  61:    **Anti-promotion rule**: composition CANNOT promote a TIER-2/TIER-3 component into TIER-1. The cite class of the COMPOSED claim is determined by the MIN_PRECEDENCE constituent OR by the composition-glue class, whichever is weaker.
+  62: 
+  63:    **Exemplar (computable)**: `.claude/rules/cross-model-consensus.md §Normative Authority Map` row "T1-T7 touchpoint lifecycle":
+  64:    - `constituents=[TIER-1-DIRECT @ Anthropic-CC-hooks-docs-L1021-1023, TIER-2 @ CCBP-cross-model-workflow.md:1-48, TIER-3-LOCAL-COMPOSITION @ sss-novel T0+T7+profile-selection]`
+  65:    - `effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE = 2 due to sss-novel glue)
+  66:    - Despite Anthropic CC + CCBP being upstream-authority for primitives, the composition itself is eee-local and EFFECTIVE class is TIER-3-LOCAL-COMPOSITION
+  67: 
+  68:    Apply to: any rule body section in `.claude/rules/**` that mixes upstream + sister-rule + local-operator-codification claims. Sister: `cross-model-consensus.md §Normative Authority Map` (POINTS TO this rule, does NOT carry softer duplicate).
+  69: 
+  70: ## Anti-patterns (model-name gotchas)
+  71: - "Plus" in model name does NOT mean quality (qwen3.5-plus = thinking model)
+  72: - `@latest` on npm may hit Windows cleanup bug → install succeeds but arborist crashes on EPERM (parent `project_gitnexus_full_audit_2026_04_18.md` — PARENT-ATTRIBUTION); prefer `npm install -g` for CLI-bundled MCP servers
+  73: 
+  74: ## Related rules
+
+[35m[3mcodex[0m[0m
+VERDICT: NEEDS-REVISION + edits
+
+**Findings**
+
+1. Cite anchor is not fully well-formed per `citation-discipline.md` rule #6 and rule #1.
+   At [.claude/rules/deprecation-discipline.md](/Z:/claude-sota-installed/.claude/rules/deprecation-discipline.md:9), the cite has author + verbatim quote + SHA, but lacks file:line depth required by `citation-discipline.md` rule #1. Use the upstream line anchor, e.g. `.../SKILL.md:10-12 @742dca5`.
+   Also, rule #6 says TIER-1-NAMED-AUTHOR-QUOTE applies to named-author published work such as book / paper / conference talk, used alongside repo file:line cites. A repo skill authored by/attributed to Osmani is better expressed as `TIER-1-DIRECT` for the local upstream file quote, or `TIER-1-NAMED-AUTHOR-QUOTE-via-LOCAL-COMPOSITION` only with explicit constituents per rule #8.
+
+   Suggested edit:
+   `# Reference: constituents=[TIER-1-DIRECT @ Z:/claude-sota-installed/.claude/plugins/marketplaces/agent-skills/skills/deprecation-and-migration/SKILL.md:10-12 @742dca5, TIER-3-LOCAL-COMPOSITION @ claude-sota-installed adaptation]; effective_tier=TIER-3-LOCAL-COMPOSITION ...`
+
+2. Critical mechanics gap: compulsory/advisory policy drops upstream’s “default to advisory” guard.
+   Upstream lines 62-65 define advisory first, compulsory only when risk/cost justifies forcing migration, and require migration tooling, documentation, and support. Local lines 46-49 put compulsory first and allow “hard removal at version cut” without that default/guardrail.
+
+   Add below the table:
+   `Default to advisory. Use compulsory only when maintenance cost or risk justifies forcing migration. Compulsory deprecation requires migration tooling, documentation, and support; a deadline alone is not sufficient.`
+
+3. Critical mechanics gap: replacement readiness is under-specified.
+   Local line 40 says replacement exists; upstream lines 71-75 require a working alternative that covers critical use cases, has docs/migration guides, and is production-proven.
+
+   Edit line 40 to include:
+   `Replacement must cover critical use cases, have docs/migration guide, and be proven in production before deprecation starts.`
+
+4. Critical mechanics gap: Churn Rule is missing.
+   Upstream line 106 makes owner responsibility explicit: if you own deprecated infrastructure, migrate users or provide backward-compatible updates. Local anti-pattern “Announce-and-leave” is directionally aligned but lacks the compulsory owner obligation.
+
+   Add to migration patterns or anti-patterns:
+   `Churn Rule: if you own the surface being deprecated, you own user migration or backward-compatible updates; do not leave consumers to discover the path themselves.`
+
+5. Critical mechanics gap: final removal verification relies too much on `rg`.
+   Local line 56 requires zero textual references, but upstream lines 112-118 and 201-206 require zero active usage verified by metrics/logs/dependency analysis plus removal of tests, docs, config, and deprecation notices.
+
+   Edit line 56:
+   `Removal: verify zero active usage via metrics/logs/dependency analysis; delete old code, tests, docs, config, and deprecation notices; then rg "<old-symbol>" should return zero hits.`
+
+**Q1**
+
+No. It is close, but not well-formed: missing file:line depth and overclaims the named-author quote class unless it declares the composed effective tier/constituents.
+
+**Q2**
+
+Yes: default-advisory guard, production-proven replacement readiness, Churn Rule, and zero-active-usage/removal checklist are the critical upstream mechanics gaps.
+[2mtokens used[0m
+23,842
+VERDICT: NEEDS-REVISION + edits
+
+**Findings**
+
+1. Cite anchor is not fully well-formed per `citation-discipline.md` rule #6 and rule #1.
+   At [.claude/rules/deprecation-discipline.md](/Z:/claude-sota-installed/.claude/rules/deprecation-discipline.md:9), the cite has author + verbatim quote + SHA, but lacks file:line depth required by `citation-discipline.md` rule #1. Use the upstream line anchor, e.g. `.../SKILL.md:10-12 @742dca5`.
+   Also, rule #6 says TIER-1-NAMED-AUTHOR-QUOTE applies to named-author published work such as book / paper / conference talk, used alongside repo file:line cites. A repo skill authored by/attributed to Osmani is better expressed as `TIER-1-DIRECT` for the local upstream file quote, or `TIER-1-NAMED-AUTHOR-QUOTE-via-LOCAL-COMPOSITION` only with explicit constituents per rule #8.
+
+   Suggested edit:
+   `# Reference: constituents=[TIER-1-DIRECT @ Z:/claude-sota-installed/.claude/plugins/marketplaces/agent-skills/skills/deprecation-and-migration/SKILL.md:10-12 @742dca5, TIER-3-LOCAL-COMPOSITION @ claude-sota-installed adaptation]; effective_tier=TIER-3-LOCAL-COMPOSITION ...`
+
+2. Critical mechanics gap: compulsory/advisory policy drops upstream’s “default to advisory” guard.
+   Upstream lines 62-65 define advisory first, compulsory only when risk/cost justifies forcing migration, and require migration tooling, documentation, and support. Local lines 46-49 put compulsory first and allow “hard removal at version cut” without that default/guardrail.
+
+   Add below the table:
+   `Default to advisory. Use compulsory only when maintenance cost or risk justifies forcing migration. Compulsory deprecation requires migration tooling, documentation, and support; a deadline alone is not sufficient.`
+
+3. Critical mechanics gap: replacement readiness is under-specified.
+   Local line 40 says replacement exists; upstream lines 71-75 require a working alternative that covers critical use cases, has docs/migration guides, and is production-proven.
+
+   Edit line 40 to include:
+   `Replacement must cover critical use cases, have docs/migration guide, and be proven in production before deprecation starts.`
+
+4. Critical mechanics gap: Churn Rule is missing.
+   Upstream line 106 makes owner responsibility explicit: if you own deprecated infrastructure, migrate users or provide backward-compatible updates. Local anti-pattern “Announce-and-leave” is directionally aligned but lacks the compulsory owner obligation.
+
+   Add to migration patterns or anti-patterns:
+   `Churn Rule: if you own the surface being deprecated, you own user migration or backward-compatible updates; do not leave consumers to discover the path themselves.`
+
+5. Critical mechanics gap: final removal verification relies too much on `rg`.
+   Local line 56 requires zero textual references, but upstream lines 112-118 and 201-206 require zero active usage verified by metrics/logs/dependency analysis plus removal of tests, docs, config, and deprecation notices.
+
+   Edit line 56:
+   `Removal: verify zero active usage via metrics/logs/dependency analysis; delete old code, tests, docs, config, and deprecation notices; then rg "<old-symbol>" should return zero hits.`
+
+**Q1**
+
+No. It is close, but not well-formed: missing file:line depth and overclaims the named-author quote class unless it declares the composed effective tier/constituents.
+
+**Q2**
+
+Yes: default-advisory guard, production-proven replacement readiness, Churn Rule, and zero-active-usage/removal checklist are the critical upstream mechanics gaps.

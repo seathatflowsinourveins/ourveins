@@ -1,0 +1,51 @@
+ROLE: cross-model T1 reviewer (REAL GPT-5.5 BRIDGE-MODE foreground+tee per cross-model-consensus.md §Env-funneled subagent stand-in disclosure mandate). Phase 1 bootstrap exception per CLAUDE.md cardinal-rule-3.
+
+CONTEXT (TIER-1-DIRECT only):
+
+1. Official Anthropic CC env-vars docs (https://code.claude.com/docs/en/env-vars) verbatim quote:
+   "CLAUDE_CODE_DISABLE_1M_CONTEXT | Set to `1` to disable 1M context window support. When set, 1M model variants are unavailable in the model picker. Useful for enterprise environments with compliance requirements"
+
+2. Official Anthropic CC sub-agents docs (https://code.claude.com/docs/en/sub-agents §"Choose a model") verbatim quote:
+   "Claude Code resolves the subagent's model in this order:
+    1. The CLAUDE_CODE_SUBAGENT_MODEL environment variable, if set
+    2. The per-invocation `model` parameter
+    3. The subagent definition's `model` frontmatter
+    4. The main conversation's model"
+
+3. CHANGELOG cite chain (TIER-1-DIRECT Z:/repos/deps/claude-code/CHANGELOG.md @ HEAD):
+   - L1349: "Added 1M context window for Opus 4.6 by default for Max, Team, and Enterprise plans" (Opus 4.7 NOT in this list — newer)
+   - L1761: "Added CLAUDE_CODE_DISABLE_1M_CONTEXT environment variable to disable 1M context window support"
+   - L1782: "Sonnet 4.5 with 1M context is being removed from the Max plan in favor of our frontier Sonnet 4.6 model, which now has 1M context"
+   - L2367: "Fixed subagents sometimes not inheriting the parent's model by default"
+   - L1396: "Fixed subagents with `model: opus`/`sonnet`/`haiku` being silently downgraded to older model versions"
+   - L436: "Fixed subagents running a different model than the main agent incorrectly flagging file reads"
+
+4. Failure observation: Agent({subagent_type:"codex:codex-rescue", model:sonnet frontmatter}) from parent `claude-opus-4-7[1m]` session fails with:
+   "API Error: Extra usage is required for 1M context · run /extra-usage to enable, or /model to switch to standard context"
+   at 648ms / 0 tool_uses / 0 tokens (PRE-FIRE).
+
+5. Hypothesis: 1M entitlement is SESSION-LEVEL billing-context (not model-level). Parent's `[1m]` flag attaches to subagent session-creation request before step 3 frontmatter model resolution binds. Plan-tier check rejects because Opus 4.7 1M is not in CHANGELOG L1349 Max-auto-include list (only Opus 4.6 is).
+
+PROPOSED SETUP (THIS FIRE):
+
+A. Add CLAUDE_CODE_DISABLE_1M_CONTEXT to CLAUDE.local.md ENV (h) as GUARDED COMMENT (operator activates per-Wave when fan-out needed; default UNSET preserves 1M for orchestrator-direct work)
+B. Update CLAUDE.local.md ENV (g) deprecation comment — point CLAUDE_CODE_SUBAGENT_MODEL users to ENV (h) Path D instead (Path S deprecation per cross-model-consensus.md STAND-IN-NOTICE risk)
+C. Update docs/install-provenance.md FM-17.f reclassification — REFRAMED from "n=1 candidate" to "architectural-property + Path D activation discipline" (no n=3 codification needed; Anthropic shipped the workaround at TIER-1-DIRECT)
+D. NO change to current operational state — Path P (direct codex exec foreground+tee) remains PRIMARY cross-model gate; Path D is documented standby for explicit fan-out Waves
+
+REVIEW AXES (TIGHT — ≤180s budget):
+
+AXIS-1 — TIER-1 cite admissibility:
+  Are the 2 official-docs cites (env-vars + sub-agents) sufficient to satisfy CR-1 cite-class lattice for THIS edit class (CLAUDE.local.md ENV block + provenance reclassification)? Does the constituents form per citation-discipline.md rule #8 apply (effective_tier=TIER-3-LOCAL-COMPOSITION because CLAUDE.local.md is local-machine config)?
+
+AXIS-2 — refined root-cause accuracy:
+  Is the SESSION-LEVEL billing-context entitlement (vs model-level) hypothesis CORRECT? Per the 4-step model resolution order at sub-agents docs §"Choose a model", does step 4 (main conversation model fallback) bind BEFORE step 3 (frontmatter) at session-creation in the case where plan-tier 1M-entitlement check fires? Cite docs section if it speaks to session-creation timing.
+
+AXIS-3 — Path D activation discipline:
+  Is the "guarded comment + operator activates per-Wave" pattern (vs always-on) correct for THIS runtime where parent 1M context is load-bearing for long-arc autonomous /loop sessions per Karpathy §5 Wiki Compounding Surface? Trade-off rationale: 200k vs 1M context ceiling.
+
+OUTPUT_BUDGET: 250 LOC
+
+VERDICT SHAPE per cross-model-consensus.md §Verdict shapes:
+  APPROVE | NEEDS-REVISION conf=<0.85-0.95> + prescribed_edits | REJECT
+  + ONE-LINE: "[VERIFIED via TIER-1 cite] <approach correct/needs adjust>"

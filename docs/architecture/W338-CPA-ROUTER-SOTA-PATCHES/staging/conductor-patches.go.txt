@@ -1,0 +1,144 @@
+// W338 — staging file with EXACT Go code blocks to splice into conductor.go.
+//
+// Target file: Z:\repos\deps\CLIProxyAPI\sdk\cliproxy\auth\conductor.go (or your fork's copy)
+//
+// Splice procedure: 4 distinct splices. Each block below has the anchor
+// (exact existing text to find) and the replacement.
+
+// =============================================================================
+// SPLICE 1 — IMPORTS (conductor.go L3-L28)
+// =============================================================================
+// FIND (line 8-9):
+//     "io"
+//     "net/http"
+// REPLACE WITH:
+//     "io"
+//     "math/rand"
+//     "net/http"
+
+// =============================================================================
+// SPLICE 2 — CONST BLOCK (conductor.go L65-L77)
+// =============================================================================
+// FIND (lines 75-76):
+//     quotaBackoffBase          = time.Second
+//     quotaBackoffMax           = 30 * time.Minute
+// REPLACE WITH the entire block below — adds overloadBackoff* constants:
+
+	quotaBackoffBase          = time.Second
+	quotaBackoffMax           = 30 * time.Minute
+	// overloadBackoffBase is the initial cooldown for HTTP 529 upstream-overload.
+	// Larger than quotaBackoffBase because 529 means provider-side capacity
+	// exhaustion, not per-account quota. AWS Brooker 2015 + Google SRE Ch.21.
+	overloadBackoffBase = 5 * time.Second
+	overloadBackoffMax  = 5 * time.Minute
+
+// =============================================================================
+// SPLICE 3 — MarkResult 529 case (conductor.go ~L2704)
+// =============================================================================
+// FIND the existing block:
+//     case 408, 500, 502, 503, 504:
+//         auth.StatusMessage = "transient upstream error"
+//         if disableCooling {
+//             auth.NextRetryAfter = time.Time{}
+//         } else {
+//             auth.NextRetryAfter = now.Add(1 * time.Minute)
+//         }
+// REPLACE WITH (adds 529 case BEFORE the 408/5xx case):
+
+	case 529:
+		// W338 Patch 1: HTTP 529 = Anthropic upstream-overload.
+		// Apply short escalating cooldown ON THIS AUTH ONLY. The provider-wide
+		// breaker (breaker.go) handles fleet-wide signaling.
+		auth.StatusMessage = "upstream overloaded"
+		if !disableCooling {
+			var next time.Time
+			if retryAfter != nil {
+				next = now.Add(*retryAfter)
+			} else {
+				cooldown, nextLevel := nextOverloadCooldown(auth.Quota.OverloadLevel)
+				next = now.Add(cooldown)
+				auth.Quota.OverloadLevel = nextLevel
+			}
+			auth.NextRetryAfter = next
+		}
+	case 408, 500, 502, 503, 504:
+		auth.StatusMessage = "transient upstream error"
+		if disableCooling {
+			auth.NextRetryAfter = time.Time{}
+		} else {
+			auth.NextRetryAfter = now.Add(1 * time.Minute)
+		}
+
+// =============================================================================
+// SPLICE 4 — Replace nextQuotaCooldown + ADD nextOverloadCooldown (~L2718)
+// =============================================================================
+// FIND the existing nextQuotaCooldown function (anchored by its comment line):
+//     // nextQuotaCooldown returns the next cooldown duration and updated backoff level for repeated quota errors.
+//     func nextQuotaCooldown(prevLevel int, disableCooling bool) (time.Duration, int) {
+//         if prevLevel < 0 {
+//             prevLevel = 0
+//         }
+//         if disableCooling {
+//             return 0, prevLevel
+//         }
+//         cooldown := quotaBackoffBase * time.Duration(1<<prevLevel)
+//         if cooldown < quotaBackoffBase {
+//             cooldown = quotaBackoffBase
+//         }
+//         if cooldown >= quotaBackoffMax {
+//             return quotaBackoffMax, prevLevel
+//         }
+//         return cooldown, prevLevel + 1
+//     }
+// REPLACE WITH:
+
+// nextQuotaCooldown returns the next cooldown duration and updated backoff
+// level for repeated quota errors.
+//
+// W338 Patch 2: full-jitter exponential backoff (AWS Brooker 2015).
+// Range = [maxCooldown/4, maxCooldown] — base/4 prevents zero-wait,
+// maxCooldown is the classic exponential ceiling for level N.
+func nextQuotaCooldown(prevLevel int, disableCooling bool) (time.Duration, int) {
+	if prevLevel < 0 {
+		prevLevel = 0
+	}
+	if disableCooling {
+		return 0, prevLevel
+	}
+	maxCooldown := quotaBackoffBase * time.Duration(1<<prevLevel)
+	if maxCooldown < quotaBackoffBase {
+		maxCooldown = quotaBackoffBase
+	}
+	if maxCooldown >= quotaBackoffMax {
+		return quotaBackoffMax, prevLevel
+	}
+	jitterRange := int64(maxCooldown - maxCooldown/4)
+	if jitterRange < 1 {
+		jitterRange = 1
+	}
+	jittered := time.Duration(rand.Int63n(jitterRange)) + (maxCooldown / 4)
+	return jittered, prevLevel + 1
+}
+
+// nextOverloadCooldown returns the next cooldown for HTTP 529 with full-jitter.
+// W338 Patch 1: separate from quota backoff because 529 = provider capacity,
+// not per-account quota. Avoids polluting the BackoffLevel ladder on
+// upstream-side incidents the auth itself is not at fault for.
+func nextOverloadCooldown(prevLevel int) (time.Duration, int) {
+	if prevLevel < 0 {
+		prevLevel = 0
+	}
+	maxCooldown := overloadBackoffBase * time.Duration(1<<prevLevel)
+	if maxCooldown >= overloadBackoffMax {
+		maxCooldown = overloadBackoffMax
+	}
+	jitterRange := int64(maxCooldown - maxCooldown/4)
+	if jitterRange < 1 {
+		jitterRange = 1
+	}
+	jittered := time.Duration(rand.Int63n(jitterRange)) + (maxCooldown / 4)
+	if jittered >= overloadBackoffMax {
+		return overloadBackoffMax, prevLevel
+	}
+	return jittered, prevLevel + 1
+}

@@ -1,0 +1,192 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit f4d92d6527458da80551fd3624e18011047b0767</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.../hooks/scripts/posttooluse_context_monitor.js   | 174 +++++++++++++++++++++
+ .claude/settings.json                              |  22 +++
+ 2 files changed, 196 insertions(+)
+
+=== git show --format=fuller ===
+commit f4d92d6527458da80551fd3624e18011047b0767
+Author:     42 <42@local>
+AuthorDate: Thu May 14 01:02:24 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 14 01:02:24 2026 -0400
+
+    chore(hooks): W189 P1 — wire dormant compact-advisory layer + cite-adapt gsd PostToolUse monitor [checkpoint]
+    
+    W189 P1 compact-remind calibration. Agent A audit (tmp/wave189-P1-agentA-compact-chain-audit-2026-05-14.md)
+    + Mia-verified wire-status finding: the operator's "compact-remind hooks damaging the workflow" is
+    REFUTED — 4 of 6 compact hooks were DORMANT (unwired), not aggressive. Threshold calibration was
+    already fixed at W187 round-2 (600k/650k/700k for 1M; all 3 token-scale surfaces agree). The real
+    fix is the OPPOSITE of "calm the hooks": wire the well-built advisory layer + add the missing
+    PostToolUse monitor.
+    
+    This checkpoint commit lands the wiring + the new monitor:
+    - NEW .claude/hooks/scripts/posttooluse_context_monitor.js — cite-adapt of gsd-build/get-shit-done
+      gsd-context-monitor.js @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5 (MIT, Copyright (c) 2025
+      Lex Christopherson, author TACHES). Fills the documented gap: runtime had PreCompact + SessionStart
+      + UserPromptSubmit compact hooks but NO PostToolUse continuous monitor. Advisory-only, silent-fail,
+      debounced; bridge-remapped to .claude/state/context_window_sidecar.json keyed-dict; thresholds
+      env-derived from CONTEXT_WINDOW_COMPACT_*_TOKENS (single source of truth with
+      userpromptsubmit_compact_threshold.py). gsd-specific drops (.planning/ sentinel + STATE.md
+      breadcrumb + Gemini AfterTool branch). effective_tier=TIER-3-LOCAL-COMPOSITION per
+      citation-discipline rule #8. (Hook is already firing — its own CONTEXT CRITICAL advisory fired
+      during this fire, confirming the wire works.)
+    - settings.json — 3 wirings: PostToolUse 4th entry (posttooluse_context_monitor.js) + UserPromptSubmit
+      2nd hook (userpromptsubmit_compact_threshold.py — was DORMANT despite being the intentional
+      replacement for the disabled ECC suggest-compact) + PreCompact 2nd hook (precompact_hint_emitter.py
+      — completes the hint-emitter->hint-reader pair; its reader sessionstart_compact_hint_reader.py was
+      already wired). All 3 wired hooks Mia-VERIFIED advisory/non-blocking (no decision:block, exit 0)
+      BEFORE wiring. settings.json validated as valid JSON post-edit.
+    
+    CHECKPOINT — P1 partial: context budget critical (~15% remaining; the new monitor's own CONTEXT
+    CRITICAL advisory fired). Committing in-flight work to protect from parallel-session FM-02
+    absorption + compact-loss. DEFERRED to post-compact resume:
+    (a) context_window_guard.py:28-29 stale 25/30 percent defaults -> 60/70 (kept unwired — superseded
+        by posttooluse_context_monitor.js; hygiene fix only).
+    (b) CLAUDE.local.md ENV(j) CCBP claude-settings.md:826,967 re-source (add TIER-1-DIRECT autocompact-
+        model anchor per Agent B design tmp/wave189-P1-agentB-gsd-monitor-design-2026-05-14.md).
+    (c) explicit cross-model T1 — the T2 pre-commit gate fires on THIS commit (cross-model coverage at
+        commit-time); explicit T1 verification queued post-compact per cmc-t1-t7-lifecycle.md
+        §On codex unavailable queue+retry recovery (codex IS available; deferral is context-budget-driven).
+    (d) precompact_guard.py wiring — risk-staged: it emits decision:block; deserves its own careful
+        cross-model-T1'd settings edit per cardinal-rule-9 + launch-discipline D1. Recommendation: WIRE
+        it (it's the auto-compact-discipline.md Rank #3 anti-blind-autocompact defense — the FM-17.e
+        autocompact-thrash defense the agents hit this arc).
+    
+    Backup tag: w189-pre-cleanup @ 8de923b. Artifacts: tmp/wave189-P1-agentA-compact-chain-audit-2026-05-14.md
+    + tmp/wave189-P1-agentB-gsd-monitor-design-2026-05-14.md. Parallel-session note: W188 concurrently
+    active; narrow git commit --only per FM-02 absorption defense.
+    
+    [task #239] W189 P1 ARCH-SOTA-CLEANUP (checkpoint — P1 continues post-compact)
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/posttooluse_context_monitor.js b/.claude/hooks/scripts/posttooluse_context_monitor.js
+new file mode 100644
+index 0000000..835a1dd
+--- /dev/null
++++ b/.claude/hooks/scripts/posttooluse_context_monitor.js
+@@ -0,0 +1,174 @@
++#!/usr/bin/env node
++// posttooluse_context_monitor.js — PostToolUse continuous context-monitor hook
++//
++// W189 P1 — cite-adapt of gsd-build/get-shit-done gsd-context-monitor.js. Fills the
++// runtime's documented gap: PreCompact + SessionStart + UserPromptSubmit compact hooks
++// exist, but there was NO PostToolUse continuous context-monitor (the existing 3
++// PostToolUse entries are codex-review / mcp-healthcheck / review-trace — none monitor
++// context). Reads the runtime's context_window_sidecar.json bridge file after each tool
++// use and injects an advisory (additionalContext) when context usage crosses thresholds.
++// Advisory-only, silent-fail — NEVER blocks tool execution.
++//
++// Cite-class lattice (per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE):
++// constituents=[
++//   TIER-1-DIRECT @ Z:/repos/deps/get-shit-done/hooks/gsd-context-monitor.js:1-193 @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5
++//     (file-pin SHA 7be9affea289287396cd282f1563e0502deee783) — gsd-build/get-shit-done PostToolUse
++//     context-monitor; MIT License Copyright (c) 2025 Lex Christopherson (LICENSE:1-3 + package.json:38),
++//     author TACHES; the advisory-only / silent-fail / debounced / severity-escalation PostToolUse
++//     monitor pattern this hook adapts,
++//   TIER-1-DIRECT @ https://code.claude.com/docs/en/hooks — Anthropic CC PostToolUse hook contract
++//     (hookSpecificOutput.additionalContext injection; silent exit-0 = no-block),
++//   TIER-1-DIRECT @ .claude/hooks/scripts/context_window_guard.py:25 + context_window_statusline.sh
++//     — runtime bridge-file path/schema (.claude/state/context_window_sidecar.json keyed-dict),
++//   TIER-3-LOCAL-COMPOSITION @ W189 P1 claude-sota-installed adaptation — bridge-file remap
++//     (/tmp/claude-ctx-{session}.json single-file -> .claude/state/context_window_sidecar.json keyed-dict;
++//     unix timestamp -> updated_at ISO; threshold env-wiring CONTEXT_WINDOW_COMPACT_*_TOKENS ->
++//     derived remaining-% thresholds); gsd-specific drops (.planning/ sentinel + STATE.md breadcrumb
++//     + Gemini AfterTool branch)
++// ]; effective_tier=TIER-3-LOCAL-COMPOSITION per rule #8 MIN_PRECEDENCE.
++//
++// Sister-rule integration:
++// - auto-compact-discipline.md Rank #3.5 (PreCompact hook layer — this hook is the PostToolUse-event
++//   COMPLEMENT, not PreCompact-class; fills the documented "no PostToolUse continuous monitor" gap)
++// - userpromptsubmit_compact_threshold.py (UserPromptSubmit-event peer — SAME CONTEXT_WINDOW_COMPACT_*_TOKENS
++//   env source; this hook = per-tool-use coverage, that hook = per-prompt coverage)
++// - sessionstart_compact_hint_reader.py (SessionStart matcher=="compact" peer — post-compact rehydrate)
++// - team-orch-patterns.md "1M context calibration" (rot zone ~300-400k on Opus 4.7)
++//
++// How it works:
++// 1. context_window_statusline.sh writes per-session metrics into
++//    .claude/state/context_window_sidecar.json (a dict keyed by session_id).
++// 2. This hook reads that bridge file after each tool use.
++// 3. When remaining context crosses derived thresholds, it injects an advisory as
++//    additionalContext, which the agent sees in its conversation.
++//
++// Thresholds: derived from CONTEXT_WINDOW_COMPACT_{WARN,CRIT}_TOKENS env (defaults
++//   600000 / 700000) divided by the session's context_window_size — single source of
++//   truth with userpromptsubmit_compact_threshold.py. On a 1M window: WARNING fires at
++//   <=40% remaining (60% used), CRITICAL at <=30% remaining (70% used).
++// Debounce: DEBOUNCE_CALLS tool uses between warnings. Severity escalation bypasses debounce.
++// Opt-out: POSTTOOLUSE_CONTEXT_MONITOR_DISABLE=1.
++
++const fs = require('fs');
++const path = require('path');
++
++const STATE_DIR = path.join(__dirname, '..', '..', 'state');
++const SIDECAR_PATH = path.join(STATE_DIR, 'context_window_sidecar.json');
++
++function intEnv(name, dflt) {
++  const v = process.env[name];
++  if (v === undefined || v === null || v === '') return dflt;
++  const n = parseInt(v, 10);
++  return Number.isFinite(n) && n > 0 ? n : dflt;
++}
++
++const WARN_TOKENS = intEnv('CONTEXT_WINDOW_COMPACT_WARN_TOKENS', 600000);
++const CRIT_TOKENS = intEnv('CONTEXT_WINDOW_COMPACT_CRIT_TOKENS', 700000);
++const STALE_SECONDS = intEnv('POSTTOOLUSE_CONTEXT_MONITOR_STALE_SECONDS', 120);
++const DEBOUNCE_CALLS = intEnv('POSTTOOLUSE_CONTEXT_MONITOR_DEBOUNCE_CALLS', 5);
++
++// Opt-out
++if (process.env.POSTTOOLUSE_CONTEXT_MONITOR_DISABLE === '1') process.exit(0);
++
++let input = '';
++// Timeout guard: if stdin doesn't close within 10s (Windows/Git Bash pipe issues, or
++// slow piping during large outputs), exit silently instead of hanging. See gsd #775, #1162.
++const stdinTimeout = setTimeout(() => process.exit(0), 10000);
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => input += chunk);
++process.stdin.on('end', () => {
++  clearTimeout(stdinTimeout);
++  try {
++    const data = JSON.parse(input);
++    const sessionId = data.session_id;
++    if (!sessionId) process.exit(0);
++
++    // Reject session IDs with path traversal / separators — sessionId is used to build
++    // file paths; an unsanitized value could escape .claude/state/. (gsd security check.)
++    if (/[/\\]|\.\./.test(sessionId)) process.exit(0);
++
++    // No sidecar bridge file -> subagent or fresh session -> exit silently
++    if (!fs.existsSync(SIDECAR_PATH)) process.exit(0);
++
++    const sidecar = JSON.parse(fs.readFileSync(SIDECAR_PATH, 'utf8'));
++    const row = sidecar && sidecar[sessionId];
++    if (!row) process.exit(0);
++
++    // Stale check — runtime sidecar uses updated_at (ISO-8601), not gsd's unix timestamp
++    if (row.updated_at) {
++      const parsed = Date.parse(row.updated_at);
++      if (Number.isFinite(parsed) && (Date.now() - parsed) > STALE_SECONDS * 1000) {
++        process.exit(0);
++      }
++    }
++
++    const remaining = row.remaining_percentage;
++    if (remaining === undefined || remaining === null || !Number.isFinite(Number(remaining))) {
++      process.exit(0);
++    }
++    const remainingNum = Number(remaining);
++    // used_pct: prefer the sidecar field if present, else derive from remaining
++    const usedPct = (row.used_percentage !== undefined && row.used_percentage !== null
++      && Number.isFinite(Number(row.used_percentage)))
++      ? Math.round(Number(row.used_percentage))
++      : Math.round(100 - remainingNum);
++
++    // Derive remaining-% thresholds from token thresholds / this session's context window
++    // (single source of truth with userpromptsubmit_compact_threshold.py CONTEXT_WINDOW_COMPACT_*_TOKENS)
++    const ctxSize = (Number.isFinite(Number(row.context_windo
+
+[prompt truncated]

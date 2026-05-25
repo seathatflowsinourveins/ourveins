@@ -1,0 +1,231 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 94a3248845fe7a24f80f78f8b58bd3a1c19e3ad3
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/cwc/commit-on-stop.sh | 17 +++++++++++++++++
+ .claude/hooks/scripts/cwc/kill-switch.sh    |  9 +++++++++
+ .claude/hooks/scripts/cwc/steer.sh          | 14 ++++++++++++++
+ .claude/hooks/scripts/cwc/track-read.sh     | 11 +++++++++++
+ .claude/hooks/scripts/cwc/verify-gate.sh    | 29 +++++++++++++++++++++++++++++
+ 5 files changed, 80 insertions(+)
+
+=== git show --format=fuller ===
+commit 94a3248845fe7a24f80f78f8b58bd3a1c19e3ad3
+Author:     42 <42@local>
+AuthorDate: Tue May 12 11:45:42 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 11:45:42 2026 -0400
+
+    docs(hooks): wave loop89d7bbd4 fire 2 — anchor Section 17 cwc primitives (5 files; CR-1 cite-trail; install-class @ ffd563d6)
+    
+    Closes F-NEXT.A queued by prior session per docs/install-provenance.md W156
+    F3 close synthesis. Ratifies 5 untracked cwc-long-running-agents primitive
+    hook scripts at `.claude/hooks/scripts/cwc/` as install-class per CLAUDE.md
+    §Architecture cite anchor.
+    
+    Per /loop 89d7bbd4 fire 2 cron tick under user-trigger ALWAYS reinforcement
+    of advanced-agent-team-standing-directive + cycle-300 ONE-LOGICAL-UNIT-PER-FIRE.
+    
+    ## Files staged (5)
+    
+    - .claude/hooks/scripts/cwc/commit-on-stop.sh (17 lines, sha 282d8f34)
+    - .claude/hooks/scripts/cwc/kill-switch.sh (9 lines, sha 76bc8c58)
+    - .claude/hooks/scripts/cwc/steer.sh (14 lines, sha 2dc453a7)
+    - .claude/hooks/scripts/cwc/track-read.sh (11 lines, sha f510382f)
+    - .claude/hooks/scripts/cwc/verify-gate.sh (29 lines, sha ee8e1131)
+    
+    ## Convergence consensus (multi-source)
+    
+    Per operator-mandate "only commit with sota convergence" + user-directive
+    "ship with convergence consensus":
+    
+    1. **Path P codex T1 evidence** (Wave 134 Fire 1 Path P bypnnntjq, exit 0,
+       4753 LOC trace at `.claude/state/codex_consult_hooks_install_completeness_audit_2026_05_12_OUT.txt`):
+       ALL 5 files byte-match upstream anthropics/cwc-long-running-agents HEAD
+       `ffd563d668a97a38d4aa092bf0d5b1507c046629`. Codex F-NEXT.A recommendation
+       verbatim: "Section 17 cwc scripts ratification (5 files: commit-on-stop.sh
+       / kill-switch.sh / steer.sh / track-read.sh / verify-gate.sh from
+       `.claude/hooks/scripts/cwc/`). These are Anthropic OFFICIAL TIER-1
+       cwc-long-running-agents primitives per CLAUDE.md §Architecture;
+       install-class NOT cite-import-AMBER; ratification path is `git add` +
+       manifest §Section 17 row updates + commit. ZERO FM-02 race surface."
+    
+    2. **Agent C architect Option E** (Wave 134 Fire 1 design at
+       `tmp/wave134-fire2-architect-design-2026-05-12.md`): tier-stratified batch
+       ship with explicit CR-7 Phase 2 predicate progression. Section 17 cwc
+       ratification is in Fires 8-10 of Option E (agents + hooks + skills track).
+       This fire pulls Fire 8 forward per codex F-NEXT.A leverage ranking.
+    
+    3. **Agent B sota-researcher saturation HNF** (Wave 134 Fire 1 at
+       `tmp/wave134-fire2-sotaresearcher-14repo-gap-audit-2026-05-12.md`): ZERO
+       ADOPT-NOW for 14-repo set. Architectural saturation confirmed. No
+       competing/missing primitive identified that would supersede cwc install.
+    
+    4. **Sibling REVERT precedent check** (CR-9 sibling-bleed defense):
+       `git -C Z:/claude-sota log --all --oneline -- '.claude/hooks/scripts/cwc/'`
+       returned 0 REVERT-AND-REMOVE commits. SAFE to install per CR-9.
+    
+    ## CR conformance
+    
+    - CR-1: ✅ Anchors cite-trail (each file's blob SHA recorded above; upstream
+      anchor at anthropics/cwc-long-running-agents@ffd563d6 per CLAUDE.md L274-277
+      §Architecture)
+    - CR-3: ✅ Cross-model gate satisfied via Path P codex T1 byte-level
+      match=True verification (Phase 1 bootstrap exception per CLAUDE.md L196 —
+      orchestrator-side codex exec foreground+tee dispatch)
+    - CR-5: ✅ Install-priority (these ARE the canonical Anthropic install
+      artifacts; cite anchor anthropics/cwc-long-running-agents)
+    - CR-6: ✅ Pulled from canonical https://github.com/anthropics/cwc-long-running-agents
+      (HEAD ffd563d6 verified; per-file SHAs match)
+    - CR-7: ✅ Phase 1 bootstrap exception (codex T1-T7 hooks NOT-yet-INSTALLED
+      in Tier 1a per manifest §Section 2 → Path P + Mia probe + codex byte-match
+      trace satisfies the Phase 1 gate)
+    - CR-8: ✅ ADAPTED-FROM-SOTA — byte-identical to upstream cite anchor
+    - CR-9: ✅ Pre-cite-import REVERT check (0 precedent); no sibling-bleed
+      (these are direct from Anthropic upstream, NOT sibling claude-sota cite-import)
+    - CR-10: ✅ Research-first — Path P codex T1 byte-level verification IS the
+      research; convergence-consensus-pre-ship discipline applied
+    - CR-11: ✅ META-process — F-NEXT.A queued by prior W156 F3 session;
+      pull-forward executed per codex leverage recommendation
+    - CR-12: ✅ GENUINELY-NEW disposition (per CLAUDE.md L297-302) — Anthropic
+      OFFICIAL install with no prior eee parallel; install via CR-12 PRIMARY path
+    
+    ## FM-class risk
+    
+    - FM-02: LOW — narrow `git add --` + `git commit --only --` atomic
+      single-shell chain per git-cli-grammar-discipline.md
+    - FM-17.f: ZERO — Path P orchestrator-direct (no BRIDGE-MODE subagent
+      exposure to 1M-context billing-block)
+    - FM-19: ZERO — no read-only-guard sidestep (commit is install-class)
+    - FM-20: ZERO — no cite-trail propagation across fires; cite anchors are
+      upstream-fixed at @ffd563d6
+    
+    ## Known follow-up (cycle-322 candidate)
+    
+    `.claude/hooks/cwc/` directory has 4 already-tracked duplicate files
+    (kill-switch.sh / steer.sh / track-read.sh / verify-gate.sh — missing
+    commit-on-stop.sh). Per kiss-dry-yagni Must-Never #4 (no duplicate
+    functionality without clear reason), this is a duplicate-anti-pattern
+    needing de-dupe. Deferred to follow-up fire per cycle-300
+    ONE-LOGICAL-UNIT-PER-FIRE.
+    
+    Investigation needed (next-fire candidate):
+    - Are `.claude/hooks/cwc/*.sh` byte-identical to `.claude/hooks/scripts/cwc/*.sh`?
+    - Which path does `.claude/settings.json` reference for cwc hook wires?
+    - Should one set be removed?
+    
+    The throttled variant (`.claude/hooks/scripts/cwc/commit-on-stop-throttled.sh`)
+    is already tracked and is a LOCAL adaptation (not in upstream@ffd563d6) —
+    separate cite-class decision needed (not this fire).
+    
+    ## Cite trail
+    
+    - Path P codex T1 verdict: `.claude/state/codex_consult_hooks_install_completeness_audit_2026_05_12_OUT.txt`
+      (1.8MB / 4753 LOC; Pattern B HNF disposition with mineable trace evidence
+      per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B`)
+    - Architect design: tmp/wave134-fire2-architect-design-2026-05-12.md
+      (Option E recommended; this commit pulls Fire 8 forward per F-NEXT.A leverage)
+    - sota-researcher gap audit: tmp/wave134-fire2-sotaresearcher-14repo-gap-audit-2026-05-12.md
+      (saturation HNF; 0 ADOPT-NOW for 14-repo set)
+    - Upstream anchor: https://github.com/anthropics/cwc-long-running-agents
+      HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629 (verified via `git ls-remote`)
+    - CLAUDE.md §Architecture L274-277 (cwc-long-running-agents 5 install-class
+      primitives + 3 reference plugins per Wave 6 port)
+    - Fire 2 plan: tmp/loop89d7bbd4-fire2-cardinal-cluster-plan-2026-05-12.md
+      (drafted Option E Fire 1 workflow; pivoted to Section 17 cwc per codex
+      F-NEXT.A leverage recommendation)
+    - Sister rules (cite-import-AMBER per CLAUDE.md Section 14.5):
+      - `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A + §Pattern B`
+      - `Z:/claude-sota/.claude/rules/mia-pre-apply.md`
+      - `Z:/claude-sota/.claude/rules/git-cli-grammar-discipline.md`
+      - `Z:/claude-sota/.claude/rules/parallel-session-worktree-isolation.md §FM-02`
+    
+    ## Provenance log
+    
+    Append to `docs/install-provenance.md` (forward-only, separate Edit):
+    
+    ```markdown
+    ## /loop 89d7bbd4 Fire 2 — Sectio
+
+[prompt truncated]

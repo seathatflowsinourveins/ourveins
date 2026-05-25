@@ -1,0 +1,3793 @@
+V2 dispatch start: 22:23:20
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e19fe-fa27-7a20-9fd4-66b8aa2ce311
+--------
+user
+## W154 F1 — Leak-defense 4-layer ship audit (V2 DESIGNER role)
+
+You are reviewing a proposed 4-layer leak-defense ship. Be thorough, cite anchors, JSON-strict verdict at EOF.
+
+## Empirical evidence
+
+1500 4-byte files (content=`blat`) + 6 shell-typo artifacts (=500, =1000, =10000, nul, t, tm) accumulated in Z:/claude-sota-installed/ repo root.
+- Owner: same user as Claude session (OHHELLO\42)
+- Time-window: 15:10:49-16:13:52 today (63 min during W153 F8-F13)
+- Source: NOT in project tree (0 hits in scripts/hooks/state)
+- Pattern: random [a-z0-9_]{8} names + 4-byte content "blat" (hex 62 6C 61 74)
+- Plausible source: external canary-token scanner OR plugin-cache leak OR codex CLI internal probe
+
+## Class 3 PROTECT (must NOT delete)
+- .claude/rules/*.md (39 files, SOTA work pending)
+- .claude/agents/ + .claude/skills/mem-recall/
+- .local/ .bun/ .cargo/ .npm-cache/ (CR-5 install-class state)
+- docs/*.md (44 new design docs)
+- bin/eee-backup.cmd + tools/eee.ps1.pre-fire46-fix (operator backups)
+
+## Proposed 4-layer ship
+
+LAYER 1: Targeted cleanup — PowerShell pattern-filter delete:
+```
+$leaked = Get-ChildItem -File -Force | Where-Object { $_.Length -eq 4 -and (Get-Content $_.FullName -Raw) -eq 'blat' -and $_.Name -match '^[a-z0-9_]{1,10}$' -and $_.Name -notmatch '\.' }
+$leaked | Remove-Item -Force
+Get-ChildItem -File -Force | Where-Object { $_.Name -in @('=500','=1000','=10000','nul','t','tm') } | Remove-Item -Force
+```
+
+LAYER 2: .gitignore patterns appended:
+```
+# Leak-defense (Wave 154 Fire 1)
+/[a-z0-9_]
+/[a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/[a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_][a-z0-9_]
+/=*
+/nul
+```
+
+LAYER 3: lefthook.yml pre-commit gate:
+```
+pre-commit:
+  jobs:
+    - name: leak-detect
+      run: |
+        n=$(git ls-files --others --exclude-standard | wc -l)
+        if [ "$n" -gt 50 ]; then echo "ABORT: $n untracked"; exit 1; fi
+```
+
+LAYER 4: scripts/leak_audit.py (PostToolUse Bash(git commit *) async + SessionStart additionalContext)
+- Emit JSONL to .claude/state/leak_audit.jsonl schema leak_audit.v1
+- Drift signals: untracked_count > 50 (P1), 4byte_canary_count > 0 (P0)
+
+## Audit dimensions (Q1-Q7)
+
+Q1: .gitignore pattern correctness — does /[a-z0-9_] glob clobber legitimate single-char or short repo-root files? List collisions.
+Q2: Layer 1 PowerShell predicate — is `$_.Name -match '^[a-z0-9_]{1,10}$'` over-broad? Could it match legitimate files?
+Q3: Lefthook config syntax — does this match lefthook.dev/configuration canonical schema? Any anti-patterns?
+Q4: Layer 4 JSONL schema — name conflicts with existing .claude/state/*.jsonl? FM-15 git CLI grammar conformance for the cleanup commands?
+Q5: Cardinal-rule conformance — CR-1 (cite-trail), CR-3 (cross-model gate), CR-5 (install-priority), CR-8 (SOTA content), CR-9 (install-risk)?
+Q6: launch-discipline §D1 6-axis checklist — Reversible (git revert <30s)? Observable (Layer 4 wire)? Incremental (atomic-batch per FM-02)?
+Q7: deprecation-discipline interaction — is cleanup a deprecation (need replacement readiness)? Or just garbage removal?
+
+## Output schema (JSON at EOF, strict)
+
+```
+{
+  "verdict": "APPROVE-DESIGN | NEEDS-REVISION | REJECT",
+  "confidence": <0.0-1.0>,
+  "prescribed_edits": [
+    {"layer": "1|2|3|4", "issue": "...", "fix": "..."}
+  ],
+  "cardinal_rule_conformance": {
+    "cr1": true/false, "cr3": true/false, "cr5": true/false,
+    "cr8": true/false, "cr9": true/false
+  },
+  "launch_d1_axes": {
+    "code_quality": "PASS/FAIL", "security": "PASS/FAIL",
+    "performance": "PASS/FAIL", "infra": "PASS/FAIL", "comms": "PASS/FAIL"
+  },
+  "ship_recommendation": "ATOMIC-ALL-4-LAYERS | ATOMIC-LAYERS-1-2-ONLY | PAUSE-FOR-ROOT-CAUSE"
+}
+```
+
+
+codex
+I’ll audit this as a design review, using the repo’s local files as anchors where needed. I’m going to inspect `.gitignore`, any existing `lefthook.yml`, state JSONL names, and relevant docs/rules before giving the strict JSON verdict.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'if (Test-Path .gitignore) { Get-Content .gitignore }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-ChildItem -Force .claude\\state -ErrorAction SilentlyContinue | Select-Object Name,Length | Format-Table -AutoSize" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Force | Select-Object Mode,Length,Name | Format-Table -AutoSize' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullName' in Z:\claude-sota-installed
+ succeeded in 320ms:
+# claude-sota-installed gitignore
+# Bootstrap-only — installs add their own gitignore patterns post-install
+
+# Local-only env / preferences (NEVER commit per CCBP claude-memory.md:113)
+CLAUDE.local.md
+
+# Plugin caches (populated by /plugin install — opaque to git)
+.claude/plugins/cache/
+
+# Plugin marketplace clones (populated by `claude plugin marketplace add` — upstream-managed; do NOT re-vendor per cardinal-rule-12)
+.claude/plugins/marketplaces/
+
+# CC auto-backups (transient; opaque to git)
+.claude/backups/
+
+# Temp / state
+tmp/
+.claude/state/
+.claude/debug/
+.claude/projects/
+.claude/sessions/
+.claude/agent-memory/
+.claude/worktrees/
+
+# Auth + credentials (NEVER commit) — codex T2 BLOCK conf=0.93 prescribed-edit #1 expansion
+.codex/
+.codex/auth.json
+.claude/.credentials.json
+.env
+.env.local
+.env.*.local
+auth/
+
+# CC runtime state files (auto-generated, never source) — Wave 62B T2 prescribed-edit #1
+.claude/history.jsonl
+.claude/file-history/
+.claude/metrics/
+.claude/paste-cache/
+.claude/homunculus/
+.claude/cost-tracker.log
+.claude/bash-commands.log
+.claude/cache/
+.claude/.claude.json
+.claude/tasks/
+.claude/quotas/
+
+# Tool / runtime caches — Wave 62B T2 prescribed-edit #1
+.config/
+.gateguard/
+.rustup/
+.semgrep/
+.uv/
+.cargo/
+
+# Install artifacts (reproducible from upstream — per CR-5 install-priority + CR-6 fresh-from-github)
+.local/cwc/
+.local/bin/
+.local/share/
+.local/state/
+.local/cpa-usage-keeper/
+
+# Outer-research kits (sibling-claude-sota lives elsewhere; if any local scratch exists, exclude)
+docs/outer research/
+
+# Python venv (if local)
+.venv/
+venv/
+
+# Node / npm
+node_modules/
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Install provenance — partial / in-flight install logs
+docs/install-provenance.md.tmp
+
+# Runtime caches (auto-populated; opaque to git)
+.cache/
+.serena/
+
+# Windows native install side-effects
+AppData/
+
+# Z-portable install scaffolds (populated by Tier 2 install execution per docs/sota-installed-manifest.md PHASE A/B/C)
+.npm-global/
+.qdrant/
+.litellm/
+.falkordb/
+.gitnexus/
+installers/
+
+# CLIProxyAPI 8-account fleet — operator-private (config has secret-key + OAuth tokens in auths/)
+# Cite: docs/eee-launch-design-cliproxyapi.md §2 + §13 (Mgmt API secret) + §3.2 (OAuth onboarding)
+.cli-proxy-api/
+
+ succeeded in 439ms:
+
+Name                                                                     Length
+----                                                                     ------
+archive                                                                  
+auto_proceed_allow_buckets                                               
+codex_t1_allow_excluded_buckets                                          
+codex_t1_auto_locks                                                      
+aperant_poller.jsonl                                                     19964144
+auto_proceed_gate_latch.json                                             3717
+auto_proceed_gate.jsonl                                                  34754
+cache-fix-proxy.err                                                      12209
+cache-fix-proxy.log                                                      35
+codex_consult_auto_t1_CLAUDE.md_dea0b155bdf6_535cc8e234aa.txt            7419
+codex_consult_eee_launch_design_e2e_OUT.txt                              5066353
+codex_consult_eee_launch_design_e2e.txt                                  6451
+codex_consult_eee_launch_v2_narrowed_OUT.txt                             3934
+codex_consult_eee_launch_v2_narrowed.txt                                 3283
+codex_consult_eee_launch_v3_via_proxy_OUT.txt                            3934
+codex_consult_eee_ps1_rtk_path_OUT.txt                                   1054
+codex_consult_eee_ps1_rtk_path.txt                                       1364
+codex_consult_eee_status_ps1_OUT.txt                                     3708
+codex_consult_eee_status_ps1.txt                                         888
+codex_consult_fire42_eee_silent_hang.txt                                 7313
+codex_consult_ship_1m_context_mode_full_OUT.txt                          25799
+codex_consult_ship_1m_context_mode_full.txt                              3127
+codex_consult_ship_1t_cnighswonger_chain_OUT.txt                         361860
+codex_consult_ship_1t_cnighswonger_chain.txt                             1858
+codex_consult_ship_1t_v2_OUT.txt                                         25131
+codex_consult_ship_1t_v2.txt                                             540
+codex_consult_ship_1w_aperant_poller_OUT.txt                             71144
+codex_consult_ship_1w_aperant_poller.txt                                 2897
+codex_consult_ship_1x_rotation_planner_OUT.txt                           43621
+codex_consult_ship_1x_rotation_planner.txt                               2145
+codex_consult_ship_1x_v2_OUT.txt                                         1763
+codex_consult_ship_1x_v2.txt                                             930
+codex_consult_ship1a_token_opt_apply_OUT.txt                             5701
+codex_consult_ship1a_token_opt_apply.txt                                 4384
+codex_consult_ship1b_cpa_usage_keeper_install_OUT.txt                    5833
+codex_consult_ship1b_cpa_usage_keeper_install.txt                        4990
+codex_consult_ship1c_cpa_usage_keeper_wire_OUT.txt                       6945
+codex_consult_ship1c_cpa_usage_keeper_wire.txt                           6669
+codex_consult_token_opt_synthesis_review_OUT.txt                         5557
+codex_consult_w118_autoupdate_path_OUT.txt                               143510
+codex_consult_w118_autoupdate_path.txt                                   3231
+codex_consult_w119_cliproxy_eee_full_audit_OUT.txt                       136503
+codex_consult_w119_cliproxy_eee_full_audit.txt                           5287
+codex_consult_w119_fm17f_path_d_setup_OUT.txt                            132795
+codex_consult_w119_fm17f_path_d_setup.txt                                4585
+codex_consult_w120_ship_cl4_fix_eee_ps1_authdir_OUT.txt                  628166
+codex_consult_w120_ship_cl4_fix_eee_ps1_authdir.txt                      3086
+codex_consult_w121_ship_a0_fp_fix_listening_pids_OUT.txt                 25153
+codex_consult_w121_ship_a0_fp_fix_listening_pids.txt                     3643
+codex_consult_w121_ship_a0_fp_fix_v2_namedpipe_pidfile_OUT.txt           45702
+codex_consult_w121_ship_a0_fp_fix_v2_namedpipe_pidfile.txt               6140
+codex_consult_w121_v2_namedpipe_pidfile_v2_OUT.txt                       19643
+codex_consult_w121_v2_namedpipe_pidfile_v2.txt                           2243
+codex_consult_w121_v65_convergence_OUT.txt                               1219702
+codex_consult_w121_v65_convergence.txt                                   2802
+codex_consult_w122_arch_audit_OUT.txt                                    982586
+codex_consult_w122_arch_audit.txt                                        3391
+codex_consult_w122_e2e_audit_OUT.txt                                     979375
+codex_consult_w122_e2e_audit.txt                                         8691
+codex_consult_w123_arch_audit_tight_OUT.txt                              320794
+codex_consult_w123_arch_audit_tight.txt                                  2963
+codex_consult_w123_ship2_ccstatusline_t1.txt                             2828
+codex_consult_w123_ship3_cwc_phase1_OUT.txt                              1356281
+codex_consult_w123_ship3_cwc_phase1.txt                                  3167
+codex_consult_w125_agentB_w124_adversarial_OUT.txt                       372807
+codex_consult_w125_agentB_w124_adversarial.txt                           5155
+codex_consult_w127_w124wires_e2e_review_OUT.txt                          233453
+codex_consult_w127_w124wires_e2e_review.txt                              5284
+codex_consult_w128_top3_t1_OUT.txt                                       8606
+codex_consult_w128_top3_t1_v2_OUT.txt                                    2626
+codex_consult_w128_top3_t1_v2.txt                                        1676
+codex_consult_w128_top3_t1.txt                                           6434
+codex_consult_w129_path_p_ship_priority_OUT.txt                          1114410
+codex_consult_w129_path_p_ship_priority.txt                              5350
+codex_consult_w130_fire3_t3_silent_failure_fix_OUT.txt                   13518
+codex_consult_w130_fire3_t3_silent_failure_fix.txt                       5894
+codex_consult_w130_fire3_tier_b_rtk_strip_OUT.txt                        107339
+codex_consult_w130_fire3_tier_b_rtk_strip.txt                            4677
+codex_consult_w130_fire5_ship_p_architectural_decision_OUT.txt           2348550
+codex_consult_w130_fire5_ship_p_architectural_decision.txt               12931
+codex_consult_w131_agentB_archaeology_OUT_pathP.txt                      22480
+codex_consult_w131_agentB_archaeology_OUT.txt                            20568
+codex_consult_w131_agentB_archaeology.txt                                6774
+codex_consult_w132_12repo_verification_OUT.txt                           2326989
+codex_consult_w132_12repo_verification.txt                               8475
+codex_consult_w132fire2_gitnexus_license_OUT.txt                         339136
+codex_consult_w132fire2_gitnexus_license.txt                             10664
+codex_consult_w132fire2_round2_remove_vs_retain_OUT.txt                  238156
+codex_consult_w132fire2_round2_remove_vs_retain.txt                      10471
+codex_consult_w132fire2_round3_archaeology_path_p_recovery_OUT.txt       1025331
+codex_consult_w132fire2_round3_archaeology_path_p_recovery.txt           6703
+codex_consult_w132fire2_round3_gitnexus_deep_dive_OUT.txt                1300917
+codex_consult_w132fire2_round3_gitnexus_deep_dive.txt                    8956
+codex_consult_w132fire3_rc_upgrade_decision_OUT.txt                      220495
+codex_consult_w132fire3_rc_upgrade_decision.txt                          7654
+codex_consult_w133fire1_kits_convergence_audit_OUT.txt                   1076311
+codex_consult_w133fire1_kits_convergence_audit.txt                       10995
+codex_consult_w134_f14_agent_b_recovery_OUT.txt                          5803594
+codex_consult_w134_f14_agent_b_recovery.txt                              3935
+codex_consult_w134_f15_focused_OUT.txt                                   59883
+codex_consult_w134_f15_focused.txt                                       1572
+codex_consult_w134_f16_aris_focused_OUT.txt                              200152
+codex_consult_w134_f16_aris_focused.txt                                  3028
+codex_consult_w134_f16_letta_focused_OUT.txt                             918584
+codex_consult_w134_f16_letta_focused.txt                                 2078
+codex_consult_w134_f16_openspec_focused_OUT.txt                          401046
+codex_consult_w134_f16_openspec_focused.txt                              2834
+codex_consult_w134_f16_verified_avoid_focused_OUT.txt                    63442
+codex_consult_w134_f16_verified_avoid_focused.txt                        3192
+codex_consult_w134_f18_dim5_hooks_focused_OUT.txt                        296368
+codex_consult_w134_f18_dim5_hooks_focused.txt                            3800
+codex_consult_w134_f19_dim6_eval_focused_OUT.txt                         377164
+codex_consult_w134_f19_dim6_eval_focused.txt                             3897
+codex_consult_w134_f20_dim7_tokeff_focused_OUT.txt                       3042676
+codex_consult_w134_f20_dim7_tokeff_focused.txt                           3929
+codex_consult_w134_f22c_normalizer_OUT.txt                               49882
+codex_consult_w134_f22c_normalizer.txt                                   2855
+codex_consult_w134_f24a_bmad_method_OUT.txt                              558481
+codex_consult_w134_f24a_bmad_method.txt                                  7825
+codex_consult_w134_f24b_ccpm_OUT.txt                                     1161405
+codex_consult_w134_f24b_ccpm.txt                                         7048
+codex_consult_w134_f24c_task_master_OUT.txt                              2711691
+codex_consult_w134_f24c_task_master.txt                                  7314
+codex_consult_w134_f24d_agent_os_OUT.txt                                 3359010
+codex_consult_w134_f24d_agent_os.txt                                     7616
+codex_consult_w134_f24e_memory_bank_OUT.txt                              1431059
+codex_consult_w134_f24e_memory_bank.txt                                  7111
+codex_consult_w134_f25_t0_candidate_list_OUT.txt                         437523
+codex_consult_w134_f25_t0_candidate_list.txt                             6722
+codex_consult_w134_f26a_cisco_mcp_scanner_OUT.txt                        2254898
+codex_consult_w134_f26a_cisco_mcp_scanner.txt                            6793
+codex_consult_w134_f26b_llmlingua_OUT.txt                                1249901
+codex_consult_w134_f26b_llmlingua.txt                                    7501
+codex_consult_w134_f26c_claw_compactor_OUT.txt                           1076624
+codex_consult_w134_f26c_claw_compactor.txt                               13474
+codex_consult_w134_f27a_openai_agents_python_OUT.txt                     2221229
+codex_consult_w134_f27a_openai_agents_python.txt                         11970
+codex_consult_w134_f27b_langgraph_OUT.txt                                2455960
+codex_consult_w134_f27b_langgraph.txt                                    14053
+codex_consult_w134_f27c_mem0_OUT.txt                                     1606038
+codex_consult_w134_f27c_mem0.txt                                         13368
+codex_consult_w134_f27d_cr12_5class_lattice_OUT.txt                      2866403
+codex_consult_w134_f27d_cr12_5class_lattice.txt                          12331
+codex_consult_w134_f27e_fd_doc_review_OUT.txt                            21163
+codex_consult_w134_f27e_fd_doc_review.txt                                10966
+codex_consult_w134_f27e_forward_discipline_OUT.txt                       12972
+codex_consult_w134_f27e_forward_discipline.txt                           6336
+codex_consult_w134_f27e_v3_review_OUT.txt                                18108
+codex_consult_w134_f27e_v3_review.txt                                    3456
+codex_consult_w134_f27f_infra_convergent_OUT.txt                         10142
+codex_consult_w134_f27f_infra_convergent.txt                             7728
+codex_consult_w134_f28_research_arch_improvement_OUT.txt                 16440
+codex_consult_w134_f28_research_arch_improvement.txt                     9626
+codex_consult_w134_f29a_multi_source_discovery_OUT.txt                   13693
+codex_consult_w134_f29a_multi_source_discovery.txt                       8241
+codex_consult_w134_f29c_sota_convergence_insights_OUT.txt                55808
+codex_consult_w134_f29c_sota_convergence_insights.txt                    5307
+codex_consult_w134_f37_forward_discipline_promotion_OUT.txt              9183
+codex_consult_w134_f37_forward_discipline_promotion.txt                  6239
+codex_consult_w134_f40_rubric_codification_OUT.txt                       11989
+codex_consult_w134_f40_rubric_codification.txt                           6230
+codex_consult_w134_f41_evidence_governed_8gate_OUT_v2.txt                16249
+codex_consult_w134_f41_evidence_governed_8gate_OUT.txt                   11743
+codex_consult_w134_f41_evidence_governed_8gate.txt                       8636
+codex_consult_w134_f42_4class_memory_taxonomy_OUT.txt                    13565
+codex_consult_w134_f42_4class_memory_taxonomy.txt                        8448
+codex_consult_w134_f43_cg_pre_burn_in_band_OUT.txt                       10239
+codex_consult_w134_f43_cg_pre_burn_in_band.txt                           5548
+codex_consult_w134_f45_cosign_verify_discipline_OUT.txt                  13804
+codex_consult_w134_f45_cosign_verify_discipline.txt                      6339
+codex_consult_w134_f47_kms_bundle_patch_OUT.txt                          11642
+codex_consult_w134_f47_kms_bundle_patch.txt                              4741
+codex_consult_w134_f7_install_plan_OUT.txt                               231279
+codex_consult_w134_f7_install_plan.txt                                   9361
+codex_consult_w134_full_audit_token_acct_arch_OUT.txt                    6028986
+codex_consult_w134_full_audit_token_acct_arch.txt                        9603
+codex_consult_w135_full_sota_audit_OUT.txt                               976911
+codex_consult_w135_full_sota_audit.txt                                   5699
+codex_consult_w135f6_p0_install_actions_OUT.txt                          3243153
+codex_consult_w135f6_p0_install_actions.txt                              10622
+codex_consult_w136f1_sota_convergence_audit_OUT.txt                      3948781
+codex_consult_w136f1_sota_convergence_audit.txt                          4739
+codex_consult_w137f1_atomic_apply_OUT.txt                                276121
+codex_consult_w137f1_atomic_apply_RETRY_OUT.txt                          99643
+codex_consult_w137f1_atomic_apply_RETRY.txt                              5258
+codex_consult_w137f1_atomic_apply.txt                                    6122
+codex_consult_w137f2_codification_OUT.txt                                9107
+codex_consult_w137f2_codification.txt                                    4101
+codex_consult_w138f1_3axis_ship_OUT.txt                                  1068904
+codex_consult_w138f1_3axis_ship.txt                                      5625
+codex_consult_w138f2_doconly_bundle_OUT.txt                              2824398
+codex_consult_w138f2_doconly_bundle.txt                                  6465
+codex_consult_w138f3_governance_trio_OUT.txt                             998129
+codex_consult_w138f3_governance_trio.txt                                 17518
+codex_consult_w138f4_governance_trio_install_OUT.txt                     236911
+codex_consult_w138f4_governance_trio_install.txt                         6388
+codex_consult_w139a_arch_synthesis_OUT.txt                               296400
+codex_consult_w139a_arch_synthesis.txt                                   2442
+codex_consult_w139a_synthesis_t1_review_OUT.txt                          278102
+codex_consult_w139a_synthesis_t1_review.txt                              2849
+codex_consult_w140_graphiti_mcp_config_OUT.txt                           395912
+codex_consult_w140_graphiti_mcp_config.txt                               3318
+codex_consult_w140_synthesis_t1_review_OUT.txt                           500235
+codex_consult_w140_synthesis_t1_review.txt                               5803
+codex_consult_w141_graphiti_smoke_probe_OUT.txt                          1802710
+codex_consult_w141_graphiti_smoke_probe.txt                              2438
+codex_consult_w141_synthesis_t1_review_OUT.txt                           2017630
+codex_consult_w141_synthesis_t1_review.txt                               6470
+codex_consult_w141a_docker_sota_permission_design_OUT.txt                3043259
+codex_consult_w141a_docker_sota_permission_design.txt                    6277
+codex_consult_w141a_synthesis_t1_review_OUT.txt                          286254
+codex_consult_w141a_synthesis_t1_review.txt                              7574
+codex_consult_w142_graphiti_routing_isolation_OUT.txt                    755335
+codex_consult_w142_graphiti_routing_isolation.txt                        3750
+codex_consult_w142_voice4_t1_review_OUT.txt                              277718
+codex_consult_w142_voice4_t1_review.txt                                  4345
+codex_consult_w143_pattern_d_codification_OUT.txt                        5458658
+codex_consult_w143_pattern_d_codification.txt                            2869
+codex_consult_w143_v4_review_OUT.txt                                     1300838
+codex_consult_w143_v4_review.txt                                         3301
+codex_consult_w144_uv_reclassify_OUT.txt                                 39526
+codex_consult_w144_uv_reclassify_v3_OUT.txt                              88409
+codex_consult_w144_uv_reclassify_v3.txt                                  3050
+codex_consult_w144_uv_reclassify.txt                                     2677
+codex_consult_w145_f1_research_arch_sota_convergence_OUT.txt             47813
+codex_consult_w145_f1_research_arch_sota_convergence.txt                 7026
+codex_consult_w145_f2_garak_redteam_OUT.txt                              241884
+codex_consult_w145_f2_garak_redteam.txt                                  8440
+codex_consult_w145_kits_top7_ranking_OUT.txt                             1707225
+codex_consult_w145_kits_top7_ranking.txt                                 5388
+codex_consult_w145_v4_adversarial_review_OUT.txt                         69107
+codex_consult_w145_v4_adversarial_review.txt                             6359
+codex_consult_w146_f1_adversarial_review_OUT.txt                         216791
+codex_consult_w146_f1_adversarial_review.txt                             9344
+codex_consult_w146_f1_sota_cleanliness_audit_OUT.txt                     470016
+codex_consult_w146_f1_sota_cleanliness_audit.txt                         6366
+codex_consult_w146_f3_p1_manifest_hygiene_OUT.txt                        265649
+codex_consult_w146_f3_p1_manifest_hygiene.txt                            8696
+codex_consult_w146_f4_hook_stdout_emission_OUT.txt                       25561
+codex_consult_w146_f4_hook_stdout_emission.txt                           8541
+codex_consult_w146_f5_v23_v25_insights_codification_OUT.txt              1096726
+codex_consult_w146_f5_v23_v25_insights_codification.txt                  9890
+codex_consult_w146_s1_v2_install_review_OUT.txt                          19200
+codex_consult_w146_s1_v2_install_review.txt                              2851
+codex_consult_w146_s1_v3_adversarial_review_OUT.txt                      51329
+codex_consult_w146_s1_v3_adversarial_review.txt                          3265
+codex_consult_w146_s2_v2_reclassify_review_OUT.txt                       5126
+codex_consult_w146_s2_v2_reclassify_review.txt                           4135
+codex_consult_w146_s2_v3_adversarial_review_OUT.txt                      203710
+codex_consult_w146_s2_v3_adversarial_review.txt                          5109
+codex_consult_w146_s3_v2_addy_skills_OUT.txt                             99349
+codex_consult_w146_s3_v2_addy_skills.txt                                 5639
+codex_consult_w146_s3_v3_addy_skills_adversarial_OUT.txt                 439783
+codex_consult_w146_s3_v3_addy_skills_adversarial.txt                     7829
+codex_consult_w146f8_cleanliness_refinement_OUT.txt                      758450
+codex_consult_w146f8_cleanliness_refinement.txt                          4774
+codex_consult_w147_f1_c_adversarial_OUT.txt                              1511800
+codex_consult_w147_f1_c_adversarial.txt                                  2979
+codex_consult_w147_f1_c_layer_scores_OUT.txt                             743751
+codex_consult_w147_f1_c_layer_scores_v2_OUT.txt                          5802
+codex_consult_w147_f1_c_layer_scores_v2.txt                              3517
+codex_consult_w147_f1_c_layer_scores.txt                                 5115
+codex_consult_w147_nssm_sota_supervision_OUT.txt                         316494
+codex_consult_w147_nssm_sota_supervision.txt                             5534
+codex_consult_w148f1b_10repo_audit_OUT.txt                               1027407
+codex_consult_w148f1b_10repo_audit.txt                                   4892
+codex_consult_w149_cpa_v7_exit_diagnose_OUT.txt                          1063252
+codex_consult_w149_cpa_v7_exit_diagnose.txt                              7138
+codex_consult_w149_f1_operator_commands_sota_OUT.txt                     517895
+codex_consult_w149_f1_operator_commands_sota.txt                         10636
+codex_consult_w149_f2_safety_guard_docker_extension_OUT.txt              21340
+codex_consult_w149_f2_safety_guard_docker_extension.txt                  6926
+codex_consult_w150_supervisor_sota_convergence_OUT.txt                   653448
+codex_consult_w150_supervisor_sota_convergence.txt                       9195
+codex_consult_w152_arc_OUT.txt                                           424472
+codex_consult_w152_f10_fm21_promotion_OUT.txt                            2598603
+codex_consult_w152_f11_v2_spec_kit_install_OUT.txt                       2487836
+codex_consult_w152_f11_v2_spec_kit_install.txt                           2504
+codex_consult_w152_f11_v3_spec_kit_adversarial_OUT.txt                   1580263
+codex_consult_w152_f11_v3_spec_kit_adversarial.txt                       3822
+codex_consult_w152_f2_v2_openai_agents_OUT.txt                           1139945
+codex_consult_w152_f2_v2_openai_agents.txt                               4499
+codex_consult_w152_f2_v3_openai_agents_adversarial_OUT.txt               1364163
+codex_consult_w152_f2_v3_openai_agents_adversarial.txt                   7269
+codex_consult_w152_f29_cr12_6thclass_OUT.txt                             1014972
+codex_consult_w152_f29_cr12_6thclass.txt                                 5111
+codex_consult_w152_f3_decision_OUT.txt                                   11848
+codex_consult_w152_f4_convergence_OUT.txt                                1187366
+codex_consult_w152_f4_v2_claude_sdk_OUT.txt                              284355
+codex_consult_w152_f4_v2_claude_sdk.txt                                  2191
+codex_consult_w152_f4_v3_claude_sdk_adversarial_OUT.txt                  1270939
+codex_consult_w152_f4_v3_claude_sdk_adversarial.txt                      2791
+codex_consult_w152_f7_openai_agents_re_OUT.txt                           11880
+codex_consult_w152_f7_v2_openai_agents_install_OUT.txt                   2048196
+codex_consult_w152_f7_v2_openai_agents_install.txt                       2872
+codex_consult_w152_f7_v3_openai_agents_adversarial_OUT.txt               1628999
+codex_consult_w152_f7_v3_openai_agents_adversarial.txt                   4735
+codex_consult_w153_f1_advance_automation_v2_OUT.txt                      3021485
+codex_consult_w153_f1_advance_automation_v2.txt                          4811
+codex_consult_w153_f1_advance_automation_v3_adversarial_OUT.txt          1354845
+codex_consult_w153_f1_advance_automation_v3_adversarial.txt              5364
+codex_consult_w153_f10_manifest_update_v2_OUT.txt                        160615
+codex_consult_w153_f10_manifest_update_v2.txt                            6621
+codex_consult_w153_f10_manifest_update_v3_adversarial_OUT.txt            2248934
+codex_consult_w153_f10_manifest_update_v3_adversarial.txt                6398
+codex_consult_w153_f11_ecc_audit_v2_OUT.txt                              183532
+codex_consult_w153_f11_ecc_audit_v2.txt                                  6299
+codex_consult_w153_f11_ecc_audit_v3_adversarial_OUT.txt                  1216509
+codex_consult_w153_f11_ecc_audit_v3_adversarial.txt                      5374
+codex_consult_w153_f12_anthropic_plugin_discovery_v2_OUT.txt             21826
+codex_consult_w153_f12_anthropic_plugin_discovery_v2.txt                 3906
+codex_consult_w153_f12_anthropic_plugin_discovery_v3_adversarial_OUT.txt 1770139
+codex_consult_w153_f12_anthropic_plugin_discovery_v3_adversarial.txt     4520
+codex_consult_w153_f13_arc_synthesis_v2_OUT.txt                          1879604
+codex_consult_w153_f13_arc_synthesis_v2.txt                              5258
+codex_consult_w153_f13_arc_synthesis_v3_adversarial_OUT.txt              16585
+codex_consult_w153_f13_arc_synthesis_v3_adversarial.txt                  5255
+codex_consult_w153_f2_ccbp_audit_v2_OUT.txt                              3359566
+codex_consult_w153_f2_ccbp_audit_v2.txt                                  3413
+codex_consult_w153_f2_ccbp_audit_v3_adversarial_OUT.txt                  2282342
+codex_consult_w153_f2_ccbp_audit_v3_adversarial.txt                      5131
+codex_consult_w153_f5_remediation_v2_OUT.txt                             2319137
+codex_consult_w153_f5_remediation_v2.txt                                 2907
+codex_consult_w153_f5_remediation_v3_adversarial_OUT.txt                 1120018
+codex_consult_w153_f5_remediation_v3_adversarial.txt                     3309
+codex_consult_w153_f7_disable_list_v2_OUT.txt                            2625759
+codex_consult_w153_f7_disable_list_v2.txt                                2967
+codex_consult_w153_f7_disable_list_v3_adversarial_OUT.txt                1719471
+codex_consult_w153_f7_disable_list_v3_adversarial.txt                    2816
+codex_consult_w153_f7_f6_safe_disable_v3_adversarial_OUT.txt             342
+codex_consult_w153_f7_f6_safe_disable_v3_adversarial.txt                 2068
+codex_consult_w153_f8_sra_d1d10_v2_OUT.txt                               686381
+codex_consult_w153_f8_sra_d1d10_v2.txt                                   6220
+codex_consult_w153_f8_sra_d1d10_v3_adversarial_OUT.txt                   1394108
+codex_consult_w153_f8_sra_d1d10_v3_adversarial.txt                       5238
+codex_consult_w153_f9_disabled_cite_index_v2_OUT.txt                     281161
+codex_consult_w153_f9_disabled_cite_index_v2.txt                         7237
+codex_consult_w153_f9_disabled_cite_index_v3_adversarial_OUT.txt         2610023
+codex_consult_w153_f9_disabled_cite_index_v3_adversarial.txt             6088
+codex_consult_w154_f1_leak_defense_v2_OUT.txt                            29
+codex_consult_w154_f1_leak_defense_v2_OUT.txt.err                        59
+codex_consult_w154_f1_leak_defense_v2.txt                                3922
+codex_consult_w154_f1_leak_defense_v3_adversarial_OUT.txt                29
+codex_consult_w154_f1_leak_defense_v3_adversarial_OUT.txt.err            59
+codex_consult_w154_f1_leak_defense_v3_adversarial.txt                    4217
+codex_consult_wave100_ship2n_batch1_OUT.txt                              3728546
+codex_consult_wave100_ship2n_batch1.txt                                  6592
+codex_consult_wave100_ship2p_operator_override_unleashed_OUT.txt         1265749
+codex_consult_wave100_ship2p_operator_override_unleashed.txt             4559
+codex_consult_wave100_ship2r_plugin_cache_populate_OUT.txt               203671
+codex_consult_wave100_ship2r_plugin_cache_populate.txt                   6082
+codex_consult_wave101_ship2q_cwc_throttle_wrapper_OUT.txt                22216
+codex_consult_wave101_ship2q_cwc_throttle_wrapper.txt                    5454
+codex_consult_wave102_ship2t_trufflehog_remove_OUT.txt                   73032
+codex_consult_wave102_ship2t_trufflehog_remove.txt                       5166
+codex_consult_wave103_ship2x_sra_methodology_OUT.txt                     478812
+codex_consult_wave103_ship2x_sra_methodology.txt                         6913
+codex_consult_wave104_ship2n_batch2_OUT.txt                              1205805
+codex_consult_wave104_ship2n_batch2.txt                                  5165
+codex_consult_wave105_ship2n_batch3a_safety_hooks_OUT.txt                144927
+codex_consult_wave105_ship2n_batch3a_safety_hooks.txt                    8204
+codex_consult_wave105_synthesis_OUT.txt                                  3288725
+codex_consult_wave105_synthesis.txt                                      7825
+codex_consult_wave106_ship2n_batch3e_repomix_mcp_OUT.txt                 15010
+codex_consult_wave106_ship2n_batch3e_repomix_mcp.txt                     5267
+codex_consult_wave106_ship2n_batch3f_gateway_discovery_OUT.txt           56323
+codex_consult_wave106_ship2n_batch3f_gateway_discovery.txt               5389
+codex_consult_wave109_ship2p_pilot_phoenix_wire_OUT.txt                  1160738
+codex_consult_wave109_ship2p_pilot_phoenix_wire.txt                      9819
+codex_consult_wave110_ship2n_batch3b_graphiti_wire_OUT.txt               211122
+codex_consult_wave110_ship2n_batch3b_graphiti_wire.txt                   9445
+codex_consult_wave112_ship2aa_gitnexus_install_OUT.txt                   182668
+codex_consult_wave112_ship2aa_gitnexus_install.txt                       3724
+codex_consult_wave113_ship_d_recall_command_OUT.txt                      1572457
+codex_consult_wave113_ship_d_recall_command.txt                          5833
+codex_consult_wave115_ship_e_harvest_command_OUT.txt                     102256
+codex_consult_wave115_ship_e_harvest_command.txt                         7414
+codex_consult_wave116_ship_mistake_search_command_OUT.txt                74431
+codex_consult_wave116_ship_mistake_search_command.txt                    7160
+codex_consult_wave117_ship_mistake_add_command_OUT.txt                   83436
+codex_consult_wave117_ship_mistake_add_command.txt                       8201
+codex_consult_wave118_fleet_equalization_OUT.txt                         2909253
+codex_consult_wave118_fleet_equalization.txt                             5985
+codex_consult_wave118_rtk_hook_wire_OUT.txt                              181732
+codex_consult_wave118_rtk_hook_wire.txt                                  8147
+codex_consult_wave119_adversary_review_OUT.txt                           3938025
+codex_consult_wave119_adversary_review.txt                               7171
+codex_consult_wave119_agents_md_OUT.txt                                  657938
+codex_consult_wave119_agents_md.txt                                      5873
+codex_consult_wave119_ship7_cpa_cache_rate_OUT.txt                       484150
+codex_consult_wave119_ship7_cpa_cache_rate.txt                           5255
+codex_consult_wave120_ship2_v10_kit_audit_OUT.txt                        3100989
+codex_consult_wave120_ship2_v10_kit_audit.txt                            4847
+codex_consult_wave121_ship1_token_eff_arch_opt_beyond_v65_OUT.txt        8170586
+codex_consult_wave121_ship1_token_eff_arch_opt_beyond_v65.txt            8488
+codex_consult_wave152_f13_fm_lints_design_OUT.txt                        1267762
+codex_consult_wave152_f13_fm_lints_design.txt                            2131
+codex_consult_wave152_f5_arch_completeness_OUT.txt                       29283
+codex_consult_wave152_f5_arch_completeness.txt                           3006
+codex_consult_wave152_f9_klmno_audit_OUT.txt                             12019
+codex_consult_wave152_f9_klmno_audit.txt                                 2094
+codex_consult_wave50_fire37_tier2a_mcp_OUT.txt                           10621
+codex_consult_wave50_fire37_tier2a_mcp.txt                               4280
+codex_consult_wave62_install_plan_OUT.txt                                23260
+codex_consult_wave62_install_plan.txt                                    7313
+codex_consult_wave62_t2_review_OUT.txt                                   788253
+codex_consult_wave62_t2_review.txt                                       6284
+codex_consult_wave75_unleash_OUT.txt                                     880
+codex_consult_wave75_unleash.txt                                         4932
+codex_consult_wave77_full_audit_OUT.txt                                  763218
+codex_consult_wave77_full_audit.txt                                      2983
+codex_consult_wave80_audit_trail_OUT.txt                                 3053
+codex_consult_wave80_deep_audit_OUT.txt                                  1651875
+codex_consult_wave80_deep_audit.txt                                      4025
+codex_consult_wave81_t1_followup_OUT.txt                                 5381174
+codex_consult_wave81_t1_followup.txt                                     3371
+codex_consult_wave81_v64_lane_convention_OUT.txt                         4548
+codex_consult_wave82_retroactive_t1_OUT.txt                              3499
+codex_consult_wave82_retroactive_t1_OUT2.txt                             2459008
+codex_consult_wave82_retroactive_t1.txt                                  2635
+codex_consult_wave82_synthesis_verdict_OUT.txt                           2769
+codex_consult_wave82_synthesis_verdict.txt                               6549
+codex_consult_wave82_v64_noise_classifier_OUT.txt                        4165
+codex_consult_wave82d_marketplace_registration_OUT.txt                   2145
+codex_consult_wave82d_marketplace_registration.txt                       1281
+codex_consult_wave82u_mcp_memory_stdio_fix_OUT.txt                       46049
+codex_consult_wave82u_mcp_memory_stdio_fix.txt                           1020
+codex_consult_wave82w_cite_imports_OUT.txt                               303843
+codex_consult_wave82w_cite_imports.txt                                   1509
+codex_consult_wave82w_deprecation_only_OUT.txt                           88352
+codex_consult_wave82w_deprecation_only.txt                               762
+codex_consult_wave82w_launch_only_OUT.txt                                238346
+codex_consult_wave82w_launch_only.txt                                    982
+codex_consult_wave82y_rtk_init_OUT.txt                                   88208
+codex_consult_wave82y_rtk_init.txt                                       1412
+codex_consult_wave83_synthesis_verdict_OUT.txt                           4072
+codex_consult_wave83_synthesis_verdict.txt                               6104
+codex_consult_wave83_v64_cache_routing_OUT.txt                           7134
+codex_consult_wave83_v64_cache_routing_REFIRE_OUT.txt                    1881
+codex_consult_wave83b_fm17d_transcript_mining_OUT.txt                    2494857
+codex_consult_wave83b_fm17d_transcript_mining.txt                        2917
+codex_consult_wave84_next_steps_OUT.txt                                  2231523
+codex_consult_wave84_next_steps.txt                                      4871
+codex_consult_wave84_synthesis_verdict_OUT.txt                           3977
+codex_consult_wave84_synthesis_verdict.txt                               5419
+codex_consult_wave84_v64_stable_prefix_OUT.txt                           5778
+codex_consult_wave84_v64_stable_prefix_REFIRE_OUT.txt                    2272
+codex_consult_wave85_synthesis_verdict_OUT.txt                           2712
+codex_consult_wave85_synthesis_verdict.txt                               5458
+codex_consult_wave86_synthesis_verdict_OUT.txt                           56130
+codex_consult_wave86_synthesis.txt                                       6866
+codex_consult_wave87_synthesis_verdict_OUT.txt                           444557
+codex_consult_wave87_synthesis.txt                                       5232
+codex_consult_wave88_a_arch_optim_OUT.txt                                1676198
+codex_consult_wave88_a_arch_optim.txt                                    2790
+codex_consult_wave88_b_token_eff_design_OUT.txt                          723273
+codex_consult_wave88_b_token_eff_design.txt                              2863
+codex_consult_wave88_c_proactive_rotation_OUT.txt                        360968
+codex_consult_wave88_c_proactive_rotation.txt                            4175
+codex_consult_wave89_ship_1y_unleash_OUT.txt                             15364
+codex_consult_wave89_ship_1y_unleash.txt                                 1977
+codex_consult_wave90_a_live_polling_OUT.txt                              143559
+codex_consult_wave90_a_live_polling.txt                                  4039
+codex_consult_wave90_b_sota_convergence_OUT.txt                          5581673
+codex_consult_wave90_b_sota_convergence.txt                              3057
+codex_consult_wave90_c_official_docs_OUT.txt                             592298
+codex_consult_wave90_c_official_docs.txt                                 3966
+codex_consult_wave90_synthesis_v2_OUT.txt                                2103
+codex_consult_wave90_synthesis_v2.txt                                    1282
+codex_consult_wave90_synthesis_verdict_OUT.txt                           2763064
+codex_consult_wave90_synthesis.txt                                       4672
+codex_consult_wave94_phase3_cron_OUT.txt                                 68130
+codex_consult_wave94_phase3_cron.txt                                     2240
+codex_consult_wave94_v2_OUT.txt                                          16391
+codex_consult_wave94_v2.txt                                              857
+codex_consult_wave96_phase2_bun_OUT.txt                                  1122662
+codex_consult_wave96_phase2_bun.txt                                      1883
+codex_consult_wave97_ship1a_enable_plugins_OUT.txt                       154651
+codex_consult_wave97_ship1a_enable_plugins.txt                           5226
+codex_consult_wave97_ship1a_round2_OUT.txt                               37654
+codex_consult_wave97_ship1a_round2.txt                                   2319
+codex_consult_wave97_ship1b_gitleaks_OUT.txt                             12780
+codex_consult_wave97_ship1b_gitleaks.txt                                 5831
+codex_consult_wave97_ship1c1d_gitleaks_phase2_OUT.txt                    1112748
+codex_consult_wave97_ship1c1d_gitleaks_phase2.txt                        7069
+codex_consult_wave97_ship1c1d_round2_OUT.txt                             145698
+codex_consult_wave97_ship1c1d_round2.txt                                 4315
+codex_consult_wave97_ship1f_cite_trail_headers_OUT.txt                   119791
+codex_consult_wave97_ship1f_cite_trail_headers.txt                       4298
+codex_consult_wave97_ship1f_correction_addendum_OUT.txt                  662891
+codex_consult_wave97_ship1f_correction_addendum.txt                      4951
+codex_consult_wave97_ship1f_round2_OUT.txt                               1080687
+codex_consult_wave97_ship1f_round2.txt                                   4867
+codex_consult_wave97_ship1f_round3_OUT.txt                               47013
+codex_consult_wave97_ship1f_round3.txt                                   3373
+codex_consult_wave97_ship1f_round4_OUT.txt                               146712
+codex_consult_wave97_ship1f_round4.txt                                   999
+codex_consult_wave97_ship1g_max_thinking_OUT.txt                         34017
+codex_consult_wave97_ship1g_max_thinking.txt                             4190
+codex_consult_wave97_ship1g_round2_OUT.txt                               16639
+codex_consult_wave97_ship1g_round2.txt                                   2574
+codex_consult_wave97_ship1j_round2_OUT.txt                               46078
+codex_consult_wave97_ship1j_round2.txt                                   3628
+codex_consult_wave97_ship1j_strategy_flip_OUT.txt                        1176039
+codex_consult_wave97_ship1j_strategy_flip.txt                            7061
+codex_consult_wave97_ship1l_followup_unleash_bumps_OUT.txt               26883
+codex_consult_wave97_ship1l_followup_unleash_bumps.txt                   5670
+codex_consult_wave97_ship1l_mcp_env_OUT.txt                              27970
+codex_consult_wave97_ship1l_mcp_env.txt                                  5280
+codex_consult_wave97_ship1n_spec_kit_install_OUT.txt                     144686
+codex_consult_wave97_ship1n_spec_kit_install.txt                         6021
+codex_consult_wave98_ship2a_cwc_commit_on_stop_OUT.txt                   437373
+codex_consult_wave98_ship2a_cwc_commit_on_stop.txt                       5955
+codex_consult_wave99_ship2h_eee_status_query_OUT.txt                     82440
+codex_consult_wave99_ship2h_eee_status_query.txt                         6597
+codex_failure_audit.jsonl                                                9091
+codex_gate.jsonl                                                         27485
+codex_mcp_healthcheck.jsonl                                              326
+codex_ping.txt                                                           120
+codex_postcommit_reviews.jsonl                                           617303
+codex_preflight_live_auth.json                                           790
+codex_prepush_reviews.jsonl                                              415044
+codex_review_HEAD_005a7156_872cfb77104c4ff6a2e2882b75ba502e.stream.jsonl 2343
+codex_review_HEAD_005a7156.prompt.txt                                    12348
+codex_review_HEAD_005a7156.txt                                           1459
+codex_review_HEAD_00f43b03_f691884d6361419b8933cd8200a02490.stream.jsonl 3697
+codex_review_HEAD_00f43b03.prompt.txt                                    12261
+codex_review_HEAD_00f43b03.txt                                           1543
+codex_review_HEAD_01728416_c799de005027491b921ead8fb25ab6da.stream.jsonl 1976
+codex_review_HEAD_01728416.prompt.txt                                    12360
+codex_review_HEAD_01728416.txt                                           1604
+codex_review_HEAD_0965b319_611483e9d8d64ebe910e60f55d11cf28.stream.jsonl 1786
+codex_review_HEAD_0965b319.prompt.txt                                    12312
+codex_review_HEAD_0965b319.txt                                           1426
+codex_review_HEAD_0eb57125_8c5a777b66e54fe088435dfbe3d5f355.stream.jsonl 1171
+codex_review_HEAD_0eb57125.prompt.txt                                    12326
+codex_review_HEAD_0eb57125.txt                                           288
+codex_review_HEAD_0f58c61b_7e3c1343496344978df0ef43d362fb46.stream.jsonl 2504
+codex_review_HEAD_0f58c61b.prompt.txt                                    12272
+codex_review_HEAD_0f58c61b.txt                                           1598
+codex_review_HEAD_0fc1bdcc_f0d2002567d349fe970685e614a89fa0.stream.jsonl 3260
+codex_review_HEAD_0fc1bdcc.prompt.txt                                    12243
+codex_review_HEAD_0fc1bdcc.txt                                           2339
+codex_review_HEAD_121c403c_9f9da62586274413ad4f0a92ea1ae563.stream.jsonl 2280
+codex_review_HEAD_121c403c.prompt.txt                                    12293
+codex_review_HEAD_121c403c.txt                                           342
+codex_review_HEAD_15faebc8_6b86c5ecc3a144c8ade18975c46d8372.stream.jsonl 1337
+codex_review_HEAD_15faebc8.prompt.txt                                    12355
+codex_review_HEAD_15faebc8.txt                                           461
+codex_review_HEAD_16d77385_1a43141f7f87416ba2d13fa487e9823f.stream.jsonl 2358
+codex_review_HEAD_16d77385.prompt.txt                                    12280
+codex_review_HEAD_16d77385.txt                                           1452
+codex_review_HEAD_187dd96d_686a8fdff40e437a8274b7c5781df7c2.stream.jsonl 793
+codex_review_HEAD_187dd96d.prompt.txt                                    12326
+codex_review_HEAD_187dd96d.txt                                           462
+codex_review_HEAD_18fdbf0f_3c5f58e2bc7a48ca8cb63d504676c774.stream.jsonl 2803
+codex_review_HEAD_18fdbf0f.prompt.txt                                    12257
+codex_review_HEAD_18fdbf0f.txt                                           1762
+codex_review_HEAD_1a9d0a79_a86f8cac7a8544599cecb37b68d2240e.stream.jsonl 1939
+codex_review_HEAD_1a9d0a79.prompt.txt                                    12306
+codex_review_HEAD_1a9d0a79.txt                                           1580
+codex_review_HEAD_1ac2919f_85bebbdab208400f9f4f6e6fe5fee6cd.stream.jsonl 2159
+codex_review_HEAD_1ac2919f.prompt.txt                                    12286
+codex_review_HEAD_1ac2919f.txt                                           1346
+codex_review_HEAD_1b85999b_b9879c040b804b239c632a072bc35882.stream.jsonl 2665
+codex_review_HEAD_1b85999b.prompt.txt                                    12240
+codex_review_HEAD_1b85999b.txt                                           1774
+codex_review_HEAD_1cb18735_ce4293ecaeed43c399f7a4016150af39.stream.jsonl 685
+codex_review_HEAD_1cb18735.prompt.txt                                    12348
+codex_review_HEAD_1cb18735.txt                                           356
+codex_review_HEAD_1d8e6d1d_e3c058014f7d4bc88a98452fa03b666b.stream.jsonl 1281
+codex_review_HEAD_1d8e6d1d.prompt.txt                                    12331
+codex_review_HEAD_1d8e6d1d.txt                                           333
+codex_review_HEAD_1e0972fe_9908aed2640841fc9256c9e2a172b0ed.stream.jsonl 1859
+codex_review_HEAD_1e0972fe.prompt.txt                                    12394
+codex_review_HEAD_1e0972fe.txt                                           1502
+codex_review_HEAD_2028b395_931a3a29b89d4cbb9e6f86fe7e86d6db.stream.jsonl 2948
+codex_review_HEAD_2028b395.prompt.txt                                    12377
+codex_review_HEAD_2028b395.txt                                           1474
+codex_review_HEAD_204eaf08_1b8a3a84b53a4dcba3b89920ae9dca65.stream.jsonl 6022
+codex_review_HEAD_204eaf08.prompt.txt                                    12321
+codex_review_HEAD_204eaf08.txt                                           1686
+codex_review_HEAD_2163d60d_5865fd9709bd44b79de00577caa70ea5.stream.jsonl 1260
+codex_review_HEAD_2163d60d.prompt.txt                                    12345
+codex_review_HEAD_2163d60d.txt                                           322
+codex_review_HEAD_23ea082c_15132e8c704843b08e56af7ce5c10b6d.stream.jsonl 637
+codex_review_HEAD_23ea082c.prompt.txt                                    12309
+codex_review_HEAD_23ea082c.txt                                           308
+codex_review_HEAD_262ebcef_dfd8006e8400428ca0c741ba24493c5e.stream.jsonl 2998
+codex_review_HEAD_262ebcef.prompt.txt                                    12293
+codex_review_HEAD_262ebcef.txt                                           2612
+codex_review_HEAD_2685c157_b8eefe522b874b499aeee1f201f2c7a2.stream.jsonl 1304
+codex_review_HEAD_2685c157.prompt.txt                                    12228
+codex_review_HEAD_2685c157.txt                                           386
+codex_review_HEAD_26a36d0e_7cc34bc34bc54141ab13deb9b90d4064.stream.jsonl 592
+codex_review_HEAD_26a36d0e.prompt.txt                                    12283
+codex_review_HEAD_26a36d0e.txt                                           263
+codex_review_HEAD_2b3ff4fb_36d436074c464c48b0c624cffbf5b311.stream.jsonl 2847
+codex_review_HEAD_2b3ff4fb_dea040569af6443d9da719273571ad16.stream.jsonl 2440
+codex_review_HEAD_2b3ff4fb.prompt.txt                                    12219
+codex_review_HEAD_2b3ff4fb.txt                                           1924
+codex_review_HEAD_2b9dc420_11450dd50b164ff7a3237e2b4d61dc86.stream.jsonl 2768
+codex_review_HEAD_2b9dc420.prompt.txt                                    12234
+codex_review_HEAD_2b9dc420.txt                                           1851
+codex_review_HEAD_2fd0fe11_eaa27b47e72042379e126abc4b3b584b.stream.jsonl 3061
+codex_review_HEAD_2fd0fe11.prompt.txt                                    11662
+codex_review_HEAD_2fd0fe11.txt                                           1623
+codex_review_HEAD_30af6b9e_2a02359af2044e2d997ccac925dc21fd.stream.jsonl 1163
+codex_review_HEAD_30af6b9e.prompt.txt                                    12220
+codex_review_HEAD_30af6b9e.txt                                           307
+codex_review_HEAD_322f1316_3fa26ff6d5b8410987909836865da03a.stream.jsonl 617
+codex_review_HEAD_322f1316.prompt.txt                                    4813
+codex_review_HEAD_322f1316.txt                                           288
+codex_review_HEAD_3656bc77_1c7353c055114e46bb7943e11d357778.stream.jsonl 1373
+codex_review_HEAD_3656bc77.prompt.txt                                    12330
+codex_review_HEAD_3656bc77.txt                                           402
+codex_review_HEAD_3812c2ec_3a90c563ae684086bd4222bed687a5a5.stream.jsonl 727
+codex_review_HEAD_3812c2ec.prompt.txt                                    12342
+codex_review_HEAD_3812c2ec.txt                                           396
+codex_review_HEAD_38d39767_b44436c327f845d8a915263aaae300c4.stream.jsonl 3011
+codex_review_HEAD_38d39767.prompt.txt                                    12425
+codex_review_HEAD_38d39767.txt                                           1456
+codex_review_HEAD_3a4ede73_c800881ba28a4b93911ced25757f0182.stream.jsonl 2445
+codex_review_HEAD_3a4ede73.prompt.txt                                    12339
+codex_review_HEAD_3a4ede73.txt                                           419
+codex_review_HEAD_3add5c71_a9191b89060d48ca8554d897e7e67e08.stream.jsonl 1966
+codex_review_HEAD_3add5c71.prompt.txt                                    12377
+codex_review_HEAD_3add5c71.txt                                           457
+codex_review_HEAD_3f5ef387_cf062a4282e347569ea4d0e2da7fb92d.stream.jsonl 1885
+codex_review_HEAD_3f5ef387.prompt.txt                                    12301
+codex_review_HEAD_3f5ef387.txt                                           1528
+codex_review_HEAD_45e376b2_89da1a26e79f45ec897377d340eb178a.stream.jsonl 1877
+codex_review_HEAD_45e376b2.prompt.txt                                    12276
+codex_review_HEAD_45e376b2.txt                                           1520
+codex_review_HEAD_45f36fdb_686e8d9ac7b84b098400a7d9a3a84241.stream.jsonl 2335
+codex_review_HEAD_45f36fdb_84d5b4d8fd19480b8dfc24514b9e7560.stream.jsonl 725
+codex_review_HEAD_45f36fdb.prompt.txt                                    12308
+codex_review_HEAD_45f36fdb.txt                                           1976
+codex_review_HEAD_499399f7_981582fb6cbc421ebfda0fdefd1ca0bd.stream.jsonl 3464
+codex_review_HEAD_499399f7.prompt.txt                                    12220
+codex_review_HEAD_499399f7.txt                                           1837
+codex_review_HEAD_4a499941_837abbf67d004ee29bdde786da9fa17f.stream.jsonl 1235
+codex_review_HEAD_4a499941.prompt.txt                                    12247
+codex_review_HEAD_4a499941.txt                                           355
+codex_review_HEAD_4a7ea015_4d32c1cdd6864f56bffd6ad59bde2647.stream.jsonl 2692
+codex_review_HEAD_4a7ea015.prompt.txt                                    12298
+codex_review_HEAD_4a7ea015.txt                                           1755
+codex_review_HEAD_4a811d96_ab346135628044fcbc04dfe1da9c13d6.stream.jsonl 640
+codex_review_HEAD_4a811d96.prompt.txt                                    12331
+codex_review_HEAD_4a811d96.txt                                           311
+codex_review_HEAD_4ac4d690_d232f9794c8741899fbd9521190e0c2a.stream.jsonl 3136
+codex_review_HEAD_4ac4d690.prompt.txt                                    12282
+codex_review_HEAD_4ac4d690.txt                                           1551
+codex_review_HEAD_55204a27_537a88ffd67e4accb7335f895c458428.stream.jsonl 724
+codex_review_HEAD_55204a27.prompt.txt                                    12396
+codex_review_HEAD_55204a27.txt                                           393
+codex_review_HEAD_55d5995f_277d52bc54bc4fe1b84819797673c9b3.stream.jsonl 1865
+codex_review_HEAD_55d5995f.prompt.txt                                    12311
+codex_review_HEAD_55d5995f.txt                                           326
+codex_review_HEAD_57fbad8e_3e32da07e9e2463d9b4598362a660819.stream.jsonl 2597
+codex_review_HEAD_57fbad8e.prompt.txt                                    12229
+codex_review_HEAD_57fbad8e.txt                                           1672
+codex_review_HEAD_583d0bb5_905c70b7e3e141a9bf244e7dd1849a47.stream.jsonl 1245
+codex_review_HEAD_583d0bb5.prompt.txt                                    12267
+codex_review_HEAD_583d0bb5.txt                                           321
+codex_review_HEAD_585d0348_380f532cdc6042a093a0397a9c9745dd.stream.jsonl 1967
+codex_review_HEAD_585d0348.prompt.txt                                    12254
+codex_review_HEAD_585d0348.txt                                           469
+codex_review_HEAD_5b32eb58_bf1b91bb7fac420397dfff6ebc4e80b5.stream.jsonl 645
+codex_review_HEAD_5b32eb58.prompt.txt                                    12284
+codex_review_HEAD_5b32eb58.txt                                           316
+codex_review_HEAD_5f9c60f8_7aa22cc4a5324288a59e412ff0d62c21.stream.jsonl 709
+codex_review_HEAD_5f9c60f8.prompt.txt                                    12263
+codex_review_HEAD_5f9c60f8.txt                                           380
+codex_review_HEAD_637be416_9e199f377e37494b9e40b5db6662017d.stream.jsonl 1722
+codex_review_HEAD_637be416.prompt.txt                                    11400
+codex_review_HEAD_637be416.txt                                           1357
+codex_review_HEAD_638b389e_469578b8a5194832846c27f6ecabafa7.stream.jsonl 1259
+codex_review_HEAD_638b389e.prompt.txt                                    12288
+codex_review_HEAD_638b389e.txt                                           375
+codex_review_HEAD_6517bdc9_da41b481af294b00a3e1a59e0e5b3c96.stream.jsonl 2981
+codex_review_HEAD_6517bdc9.prompt.txt                                    12303
+codex_review_HEAD_6517bdc9.txt                                           1502
+codex_review_HEAD_673c4dc3_f7ae24344b4f436f95fb016e2a7b8d1c.stream.jsonl 639
+codex_review_HEAD_673c4dc3.prompt.txt                                    12365
+codex_review_HEAD_673c4dc3.txt                                           309
+codex_review_HEAD_6d0d45fa_829e93f595e24fd990de09888cd04251.stream.jsonl 1241
+codex_review_HEAD_6d0d45fa.prompt.txt                                    12332
+codex_review_HEAD_6d0d45fa.txt                                           275
+codex_review_HEAD_6e393d21_4f5a92dcec52428ba33b9f168160814b.stream.jsonl 688
+codex_review_HEAD_6e393d21.prompt.txt                                    12337
+codex_review_HEAD_6e393d21.txt                                           357
+codex_review_HEAD_711535b4_78f08cded2074759aa52b608739c7fca.stream.jsonl 1215
+codex_review_HEAD_711535b4.prompt.txt                                    12338
+codex_review_HEAD_711535b4.txt                                           316
+codex_review_HEAD_72042bc6_1f5415e3f2194b58836c784ee986ee8b.stream.jsonl 2804
+codex_review_HEAD_72042bc6.prompt.txt                                    12345
+codex_review_HEAD_72042bc6.txt                                           1354
+codex_review_HEAD_72b44930_3cc4b20b251d41818ad4fd892ceedb7f.stream.jsonl 662
+codex_review_HEAD_72b44930.prompt.txt                                    12391
+codex_review_HEAD_72b44930.txt                                           333
+codex_review_HEAD_73476095_a2fd760e81cf4ddbb103350434ebfe9e.stream.jsonl 3341
+codex_review_HEAD_73476095.prompt.txt                                    12271
+codex_review_HEAD_73476095.txt                                           1415
+codex_review_HEAD_750a3ce6_23c744cc671a4a6e9950059513f8452e.stream.jsonl 1893
+codex_review_HEAD_750a3ce6.prompt.txt                                    12335
+codex_review_HEAD_750a3ce6.txt                                           334
+codex_review_HEAD_75925f72_8764439a9b3f44c4a4cd521efb54221a.stream.jsonl 1912
+codex_review_HEAD_75925f72.prompt.txt                                    12323
+codex_review_HEAD_75925f72.txt                                           375
+codex_review_HEAD_77b73e30_54a332b11bd94efdb912c34c57ccd061.stream.jsonl 2069
+codex_review_HEAD_77b73e30.prompt.txt                                    12342
+codex_review_HEAD_77b73e30.txt                                           1706
+codex_review_HEAD_7ad0ba4a_341bd40aeebc4653bfa0688341685974.stream.jsonl 1825
+codex_review_HEAD_7ad0ba4a.prompt.txt                                    12330
+codex_review_HEAD_7ad0ba4a.txt                                           399
+codex_review_HEAD_7bce1b83_fa13a687b05d4a5cb6ba770f37964911.stream.jsonl 2585
+codex_review_HEAD_7bce1b83.prompt.txt                                    12331
+codex_review_HEAD_7bce1b83.txt                                           1619
+codex_review_HEAD_7cdd0bdd_7842da27cba547aeb8c276638f5974d2.stream.jsonl 2399
+codex_review_HEAD_7cdd0bdd.prompt.txt                                    8409
+codex_review_HEAD_7cdd0bdd.txt                                           1477
+codex_review_HEAD_7f67ed97_2f79d60bc63c46e087d68040db490229.stream.jsonl 682
+codex_review_HEAD_7f67ed97_9a4e99cb122e4958a1f79003071a4f8a.stream.jsonl 2419
+codex_review_HEAD_7f67ed97.prompt.txt                                    12289
+codex_review_HEAD_7f67ed97.txt                                           352
+codex_review_HEAD_807579b9_daac2875105a4637869d58f8e4379616.stream.jsonl 673
+codex_review_HEAD_807579b9.prompt.txt                                    12382
+codex_review_HEAD_807579b9.txt                                           343
+codex_review_HEAD_80ccc35f_15df98923cfd42959c0640f6c97d9bdf.stream.jsonl 3043
+codex_review_HEAD_80ccc35f.prompt.txt                                    12335
+codex_review_HEAD_80ccc35f.txt                                           2018
+codex_review_HEAD_8213a608_b40cbcd5a68a4a10be6335a1014d9731.stream.jsonl 658
+codex_review_HEAD_8213a608.prompt.txt                                    12303
+codex_review_HEAD_8213a608.txt                                           329
+codex_review_HEAD_88adcd67_d9a4dd8175f542539af5b3f362a00689.stream.jsonl 1814
+codex_review_HEAD_88adcd67.prompt.txt                                    12297
+codex_review_HEAD_88adcd67.txt                                           1457
+codex_review_HEAD_89330be9_7ecf20ebe47a4b25815ce271768881b0.stream.jsonl 1182
+codex_review_HEAD_89330be9.prompt.txt                                    12246
+codex_review_HEAD_89330be9.txt                                           305
+codex_review_HEAD_8ef464c3_40d3c9d87d4d47dba27cc052a3629b57.stream.jsonl 1403
+codex_review_HEAD_8ef464c3.prompt.txt                                    12325
+codex_review_HEAD_8ef464c3.txt                                           493
+codex_review_HEAD_8f71da96_822f09f742dc45ef8cb461e42752e5e3.stream.jsonl 1240
+codex_review_HEAD_8f71da96.prompt.txt                                    12397
+codex_review_HEAD_8f71da96.txt                                           281
+codex_review_HEAD_8f8fd90f_cf7fbf9006474aa58adda4db78aa41aa.stream.jsonl 2686
+codex_review_HEAD_8f8fd90f.prompt.txt                                    12341
+codex_review_HEAD_8f8fd90f.txt                                           1623
+codex_review_HEAD_8fa3bcc2_a5d67900b71943bd8c226fc1343228fc.stream.jsonl 1855
+codex_review_HEAD_8fa3bcc2.prompt.txt                                    7060
+codex_review_HEAD_8fa3bcc2.txt                                           1496
+codex_review_HEAD_92812e8d_383a4e8d486549cd8d3134aaca520ca6.stream.jsonl 1334
+codex_review_HEAD_92812e8d.prompt.txt                                    12334
+codex_review_HEAD_92812e8d.txt                                           341
+codex_review_HEAD_92f9ea16_0a25d61fb6bf4e7cb1f6a7393d1cbd5f.stream.jsonl 2816
+codex_review_HEAD_92f9ea16.prompt.txt                                    12336
+codex_review_HEAD_92f9ea16.txt                                           1391
+codex_review_HEAD_9430583b_4face9581c694a919f63f42a2b0f5cf1.stream.jsonl 2053
+codex_review_HEAD_9430583b.prompt.txt                                    12346
+codex_review_HEAD_9430583b.txt                                           1696
+codex_review_HEAD_96dc5bff_eb2dbc966e534247a29dcebbc1c675a6.stream.jsonl 1408
+codex_review_HEAD_96dc5bff.prompt.txt                                    12245
+codex_review_HEAD_96dc5bff.txt                                           428
+codex_review_HEAD_977fff4f_ed405a8ce915424d9fbbad0cabab8b0e.stream.jsonl 1295
+codex_review_HEAD_977fff4f.prompt.txt                                    12303
+codex_review_HEAD_977fff4f.txt                                           305
+codex_review_HEAD_982f8e65_78c25e3a5ed9437fbdc67d4774cd37ae.stream.jsonl 1269
+codex_review_HEAD_982f8e65.prompt.txt                                    12342
+codex_review_HEAD_982f8e65.txt                                           333
+codex_review_HEAD_99c03ad9_61fbd91bb2ff4aaf8b7e1b8f35129d13.stream.jsonl 1356
+codex_review_HEAD_99c03ad9.prompt.txt                                    12230
+codex_review_HEAD_99c03ad9.txt                                           337
+codex_review_HEAD_9a35c709_1e47494e743b4207b559519ac60eb580.stream.jsonl 689
+codex_review_HEAD_9a35c709.prompt.txt                                    12283
+codex_review_HEAD_9a35c709.txt                                           360
+codex_review_HEAD_9d6f2383_61a958d582544ced8b8ac8c9ee37ac34.stream.jsonl 10034
+codex_review_HEAD_9d6f2383.prompt.txt                                    12281
+codex_review_HEAD_9d6f2383.txt                                           1459
+codex_review_HEAD_9e72d5db_f05d7259fabc4dc6847ec6541ee5cf94.stream.jsonl 682
+codex_review_HEAD_9e72d5db.prompt.txt                                    12266
+codex_review_HEAD_9e72d5db.txt                                           353
+codex_review_HEAD_9e925083_8a41af8ee86f49c2a3d0563941c0a4b6.stream.jsonl 2846
+codex_review_HEAD_9e925083.prompt.txt                                    12285
+codex_review_HEAD_9e925083.txt                                           1923
+codex_review_HEAD_a0ec9179_3914754473544487b7720c4c64511e53.stream.jsonl 7034
+codex_review_HEAD_a0ec9179.prompt.txt                                    11295
+codex_review_HEAD_a0ec9179.txt                                           2840
+codex_review_HEAD_a21e151d_517c7e63996b4ff08d8612a95f020cf1.stream.jsonl 1324
+codex_review_HEAD_a21e151d.prompt.txt                                    12340
+codex_review_HEAD_a21e151d.txt                                           423
+codex_review_HEAD_a2959f91_d1a1e0523a834688ab2382b21bd7e17a.stream.jsonl 623
+codex_review_HEAD_a2959f91.prompt.txt                                    12335
+codex_review_HEAD_a2959f91.txt                                           294
+codex_review_HEAD_a3d6f661_061caa5e7ba34a02a7b9a37728da34fc.stream.jsonl 1166
+codex_review_HEAD_a3d6f661_0c176a7382484078b3c70d82313d0804.stream.jsonl 700
+codex_review_HEAD_a3d6f661_1f077ad192ea4f72b31c079d477ff5ed.stream.jsonl 627
+codex_review_HEAD_a3d6f661_22533a73bed14eb19ef1699805382c56.stream.jsonl 1993
+codex_review_HEAD_a3d6f661_4531a292cff54f75aeffc57b4e75ecf3.stream.jsonl 701
+codex_review_HEAD_a3d6f661_8c00c20cdde54a938f85f0b96778db2e.stream.jsonl 1993
+codex_review_HEAD_a3d6f661_e4f2134f61fe4db8a47e2aabd0e47a09.stream.jsonl 1220
+codex_review_HEAD_a3d6f661.prompt.txt                                    12339
+codex_review_HEAD_a3d6f661.txt                                           298
+codex_review_HEAD_a46830db_d62e5bbc672949ed8ce6704014b47d01.stream.jsonl 1209
+codex_review_HEAD_a46830db.prompt.txt                                    12309
+codex_review_HEAD_a46830db.txt                                           292
+codex_review_HEAD_a487256d_574ca5741bae466482224f1220d076bb.stream.jsonl 1868
+codex_review_HEAD_a487256d.prompt.txt                                    12261
+codex_review_HEAD_a487256d.txt                                           348
+codex_review_HEAD_a734a873_4d898a20578c4444937bd2dd58349337.stream.jsonl 2040
+codex_review_HEAD_a734a873.prompt.txt                                    12335
+codex_review_HEAD_a734a873.txt                                           1683
+codex_review_HEAD_a8138f2d_3323736b3f994e35974bd3ebd31368b8.stream.jsonl 1205
+codex_review_HEAD_a8138f2d.prompt.txt                                    12276
+codex_review_HEAD_a8138f2d.txt                                           286
+codex_review_HEAD_ac8ea8a2_1b65cd5d350a4d9daf7bfaa7a66d8bde.stream.jsonl 2002
+codex_review_HEAD_ac8ea8a2.prompt.txt                                    12331
+codex_review_HEAD_ac8ea8a2.txt                                           1645
+codex_review_HEAD_b01e1e54_0fceb62d63354814919799311d95fd6a.stream.jsonl 2421
+codex_review_HEAD_b01e1e54.prompt.txt                                    12278
+codex_review_HEAD_b01e1e54.txt                                           1549
+codex_review_HEAD_b0be2932_656448898fed4f77b5865ae1e2800643.stream.jsonl 1896
+codex_review_HEAD_b0be2932.prompt.txt                                    12269
+codex_review_HEAD_b0be2932.txt                                           1535
+codex_review_HEAD_b153e814_18860eb7ac1640dcbabffbc04929bfd6.stream.jsonl 1653
+codex_review_HEAD_b153e814.prompt.txt                                    12328
+codex_review_HEAD_b153e814.txt                                           1295
+codex_review_HEAD_b28685bf_0ee2b1b9748a4dad8bb9dee695908317.stream.jsonl 3125
+codex_review_HEAD_b28685bf.prompt.txt                                    12313
+codex_review_HEAD_b28685bf.txt                                           1574
+codex_review_HEAD_b4283fd1_07bb7290fab543eb9e4b2f0e3ec8523b.stream.jsonl 4026
+codex_review_HEAD_b4283fd1.prompt.txt                                    12287
+codex_review_HEAD_b4283fd1.txt                                           1500
+codex_review_HEAD_b49639db_ba4c885f8091449ea6c4e2839c98ba5e.stream.jsonl 2939
+codex_review_HEAD_b49639db.prompt.txt                                    12329
+codex_review_HEAD_b49639db.txt                                           1392
+codex_review_HEAD_b4baa015_2d1cda3a4da249fea4f48c7a0bdd614b.stream.jsonl 1219
+codex_review_HEAD_b4baa015.prompt.txt                                    12317
+codex_review_HEAD_b4baa015.txt                                           316
+codex_review_HEAD_b5a4bc21_24e473a8d46d4b6aab99baa9c93cfc04.stream.jsonl 2176
+codex_review_HEAD_b5a4bc21.prompt.txt                                    12255
+codex_review_HEAD_b5a4bc21.txt                                           1314
+codex_review_HEAD_bb545a36_16ebf8f3775648da91b4a92b8233a3b2.stream.jsonl 634
+codex_review_HEAD_bb545a36.prompt.txt                                    12333
+codex_review_HEAD_bb545a36.txt                                           305
+codex_review_HEAD_bca2d672_5e9e50cdd0d245c2a1da3411c178b91a.stream.jsonl 2131
+codex_review_HEAD_bca2d672.prompt.txt                                    12325
+codex_review_HEAD_bca2d672.txt                                           1256
+codex_review_HEAD_bd34bcfe_fba0fd8733b347b9b59c0f5b14743fc2.stream.jsonl 623
+codex_review_HEAD_bd34bcfe.prompt.txt                                    12353
+codex_review_HEAD_bd34bcfe.txt                                           294
+codex_review_HEAD_bd91e20a_abb469a30c5045568b3c453a3edd6aaa.stream.jsonl 1862
+codex_review_HEAD_bd91e20a.prompt.txt                                    12331
+codex_review_HEAD_bd91e20a.txt                                           325
+codex_review_HEAD_c2b26cd9_c5a43c6fbec548019dff69cd9c4d56d5.stream.jsonl 1955
+codex_review_HEAD_c2b26cd9.prompt.txt                                    12210
+codex_review_HEAD_c2b26cd9.txt                                           1597
+codex_review_HEAD_c3a4a9d5_a2b9b07ecd7943fb8559361c133364f0.stream.jsonl 1809
+codex_review_HEAD_c3a4a9d5.prompt.txt                                    12302
+codex_review_HEAD_c3a4a9d5.txt                                           1452
+codex_review_HEAD_c57d807c_d267ef0e4f554a34aff4f97cf20de3f5.stream.jsonl 1969
+codex_review_HEAD_c57d807c.prompt.txt                                    12377
+codex_review_HEAD_c57d807c.txt                                           338
+codex_review_HEAD_c88b8aeb_e211b509277541b392fcd273d7bfba64.stream.jsonl 1736
+codex_review_HEAD_c88b8aeb.prompt.txt                                    12269
+codex_review_HEAD_c88b8aeb.txt                                           1379
+codex_review_HEAD_ca807e5d_655069232a22493e8bc009d461429a44.stream.jsonl 3442
+codex_review_HEAD_ca807e5d.prompt.txt                                    11571
+codex_review_HEAD_ca807e5d.txt                                           2516
+codex_review_HEAD_cff5d5fa_a7fe89018ca646c3965294e31ca1f6a1.stream.jsonl 2087
+codex_review_HEAD_cff5d5fa.prompt.txt                                    12362
+codex_review_HEAD_cff5d5fa.txt                                           1730
+codex_review_HEAD_d4947429_c955bd82861d4b2fad60acbf8f63f3fa.stream.jsonl 6100
+codex_review_HEAD_d4947429.prompt.txt                                    12233
+codex_review_HEAD_d4947429.txt                                           1465
+codex_review_HEAD_d7802b86_f7221a4a19bd4a76a4663a3beac12e65.stream.jsonl 1730
+codex_review_HEAD_d7802b86.prompt.txt                                    12278
+codex_review_HEAD_d7802b86.txt                                           1373
+codex_review_HEAD_d8ec3a9b_25aaf7539ffb48ebb61c9c0d7aa3ce6a.stream.jsonl 2303
+codex_review_HEAD_d8ec3a9b.prompt.txt                                    12228
+codex_review_HEAD_d8ec3a9b.txt                                           1350
+codex_review_HEAD_dee3c106_ac338ec784294db68939cc6b55266c97.stream.jsonl 3424
+codex_review_HEAD_dee3c106_e896482a818445b093a019ff63e96584.stream.jsonl 2701
+codex_review_HEAD_dee3c106.prompt.txt                                    12232
+codex_review_HEAD_dee3c106.txt                                           1848
+codex_review_HEAD_df5a260a_dd53db8ed2014ce8a433236fefb61e89.stream.jsonl 681
+codex_review_HEAD_df5a260a.prompt.txt                                    12331
+codex_review_HEAD_df5a260a.txt                                           352
+codex_review_HEAD_e087cbc4_fcde2d709ff64ea487e8611816bf45ba.stream.jsonl 1690
+codex_review_HEAD_e087cbc4.prompt.txt                                    12411
+codex_review_HEAD_e087cbc4.txt                                           278
+codex_review_HEAD_e4cefa6d_9e6970cc37c946d397a36c7927bde8ad.stream.jsonl 2428
+codex_review_HEAD_e4cefa6d.prompt.txt                                    12371
+codex_review_HEAD_e4cefa6d.txt                                           1526
+codex_review_HEAD_e56e2256_4af83dbdeab94bafae61ff40218937ce.stream.jsonl 604
+codex_review_HEAD_e56e2256.prompt.txt                                    6539
+codex_review_HEAD_e56e2256.txt                                           275
+codex_review_HEAD_e7666de7_341aad0d00bc4130af09f95babbb6e57.stream.jsonl 2987
+codex_review_HEAD_e7666de7.prompt.txt                                    12260
+codex_review_HEAD_e7666de7.txt                                           1411
+codex_review_HEAD_e785fc53_5d1204ff27e8480a85eca63ec652ce81.stream.jsonl 749
+codex_review_HEAD_e785fc53.prompt.txt                                    12387
+codex_review_HEAD_e785fc53.txt                                           417
+codex_review_HEAD_e982cb49_e803c378a8bf4cfd94a38bd9433f5fa1.stream.jsonl 635
+codex_review_HEAD_e982cb49.prompt.txt                                    12310
+codex_review_HEAD_e982cb49.txt                                           306
+codex_review_HEAD_ea2fb81e_d929c6d8847349f992aa26ea8be8e85c.stream.jsonl 618
+codex_review_HEAD_ea2fb81e.prompt.txt                                    12330
+codex_review_HEAD_ea2fb81e.txt                                           289
+codex_review_HEAD_ea674e95_2ef4ef26905441d0b9a09a37118cca8f.stream.jsonl 3378
+codex_review_HEAD_ea674e95.prompt.txt                                    12245
+codex_review_HEAD_ea674e95.txt                                           1750
+codex_review_HEAD_ec87a6cf_936f538c283f41c6858cfb2695f3b96b.stream.jsonl 698
+codex_review_HEAD_ec87a6cf.prompt.txt                                    6769
+codex_review_HEAD_ec87a6cf.txt                                           369
+codex_review_HEAD_f6cedef3_b564bca3f4c141108af9263171e7967b.stream.jsonl 2508
+codex_review_HEAD_f6cedef3.prompt.txt                                    12313
+codex_review_HEAD_f6cedef3.txt                                           1591
+codex_review_HEAD_f885514d_2acb55bbf3b543859218d74b17cca5a8.stream.jsonl 1973
+codex_review_HEAD_f885514d.prompt.txt                                    12348
+codex_review_HEAD_f885514d.txt                                           1614
+codex_review_HEAD_f93c412c_88e96c65e1014dcc8142ac0faa1c2fe1.stream.jsonl 2585
+codex_review_HEAD_f93c412c.prompt.txt                                    12305
+codex_review_HEAD_f93c412c.txt                                           1591
+codex_review_HEAD_f9f369b2_383acd56ab374c8aa78072971e11f0b8.stream.jsonl 2187
+codex_review_HEAD_f9f369b2.prompt.txt                                    12309
+codex_review_HEAD_f9f369b2.txt                                           1230
+codex_review_HEAD_fa9b3d4f_f373bc156521490d8f21142da6d7c576.stream.jsonl 1374
+codex_review_HEAD_fa9b3d4f.prompt.txt                                    12269
+codex_review_HEAD_fa9b3d4f.txt                                           391
+codex_review_HEAD_fc4e8b4e_436c73219fe5408e998ea84c825ddc4c.stream.jsonl 3246
+codex_review_HEAD_fc4e8b4e.prompt.txt                                    12258
+codex_review_HEAD_fc4e8b4e.txt                                           1685
+codex_review_queue.jsonl                                                 433
+codex_smoke_test_z_OUT.txt                                               570
+codex_smoke_test_z.txt                                                   54
+codex_stop_review_gate.jsonl                                             407
+codex_t1_consult_gate.jsonl                                              212655
+codex_t2_gate_22d79832.txt                                               838
+codex_t2_pre_commit_gate.jsonl                                           17610
+codex_verdict_summary.jsonl                                              25684
+eee_rotation_planner.jsonl                                               1443954
+eval_pass_rate_baseline.json                                             145
+gitleaks_pre_commit.jsonl                                                93063
+observations.jsonl                                                       12106
+process_hygiene_audit_expanded.jsonl                                     173
+process_hygiene_audit.jsonl                                              172
+subagent_metrics.jsonl                                                   893620
+swallow_counter.json                                                     45
+swallow_log.jsonl                                                        265
+
+
+ succeeded in 680ms:
+
+Mode  Length Name
+----  ------ ----
+d----        .audit-garak
+d----        .bun
+d----        .cache
+d----        .cargo
+d----        .ccs
+d----        .claude
+d----        .cli-proxy-api
+d----        .codex-tmp
+d----        .config
+d----        .deepeval
+d----        .docker
+d----        .gateguard
+d--h-        .git
+d----        .gitnexus
+d----        .lbdb
+d----        .local
+d----        .npm-cache
+d----        .promptfoo
+d----        .pytest_cache
+d----        .ruff_cache
+d----        .rustup
+d----        .semgrep
+d----        .serena
+d----        .sigstore
+d----        .specify
+d----        .ssh
+d----        .tmp-gitleaks-test
+d----        AppData
+d----        bin
+d----        docs
+d----        evals
+d----        pipx
+d----        scripts
+d----        tests
+d----        tmp
+d----        tools
+d----        Zclaude-sota-installedtmp
+-a--- 4      _08n4bhb
+-a--- 4      _16feupj
+-a--- 4      _1pqpqye
+-a--- 4      _1wn_o60
+-a--- 4      _4axa89l
+-a--- 4      _4ixelf_
+-a--- 4      _55v6z2g
+-a--- 4      _5ahod_k
+-a--- 4      _6d0xp61
+-a--- 4      _8ysrijl
+-a--- 4      _9_4le0_
+-a--- 4      _9yqngq8
+-a--- 4      _bmsm0v9
+-a--- 4      _cme104v
+-a--- 4      _cnzycbo
+-a--- 4      _crkdh04
+-a--- 4      _czrzmwy
+-a--- 4      _d_9tf1y
+-a--- 4      _dpv_mwm
+-a--- 4      _fgl9204
+-a--- 4      _g50x__v
+-a--- 4      _h7ilr2a
+-a--- 4      _huwkfus
+-a--- 4      _i2mpvi9
+-a--- 4      _md1h_5o
+-a--- 4      _mpk5h_6
+-a--- 4      _mr6f8av
+-a--- 4      _ndcebnk
+-a--- 4      _no8a7bx
+-a--- 4      _rkfqgv2
+-a--- 4      _stmucnb
+-a--- 4      _uwew07e
+-a--- 4      _v4bui0u
+-a--- 4      _v5h3v3a
+-a--- 4      _vzoq9ie
+-a--- 4      _wpgofbs
+-a--- 4      _ycxo9q5
+-a--- 4      _ymm7ole
+-a--- 4      _z1zmnyl
+-a--- 4      _zo0mljn
+-a--- 4      _zxpujla
+-a--- 352    .claude.json
+-a--- 2314   .gitignore
+-a--- 1612   .gitleaks.toml
+-a--- 1139   .gitnexusignore
+-a--- 9700   .mcp.json
+-a--- 1184   .pre-commit-config.yaml
+-a--- 171    =1000
+-a--- 137    =10000
+-a--- 196    =500
+-a--- 4      0_w670vu
+-a--- 4      00jvf3om
+-a--- 4      059oss8t
+-a--- 4      064o4ybm
+-a--- 4      06tpe7n4
+-a--- 4      07p528cp
+-a--- 4      08waj3k2
+-a--- 4      08zjqbhc
+-a--- 4      094qzfp9
+-a--- 4      09rutt87
+-a--- 4      09s9upna
+-a--- 4      0al6fww6
+-a--- 4      0dpz3iqt
+-a--- 4      0drga10p
+-a--- 4      0du3q1oa
+-a--- 4      0f01m3g1
+-a--- 4      0f3aytyu
+-a--- 4      0gj5embx
+-a--- 4      0i_l6c67
+-a--- 4      0k861bby
+-a--- 4      0lgsvoya
+-a--- 4      0pwb1i6s
+-a--- 4      0qapdpud
+-a--- 4      0qmwu1y8
+-a--- 4      0qpeihl_
+-a--- 4      0rciyfu1
+-a--- 4      0rrc058m
+-a--- 4      0u2q5i3w
+-a--- 4      0wsgv44f
+-a--- 4      0zjbczc6
+-a--- 4      0zuwf_6c
+-a--- 4      1_rk2cfk
+-a--- 4      1_rniojd
+-a--- 4      11kjtwhf
+-a--- 4      14g8ze0j
+-a--- 4      14xuhc4w
+-a--- 4      16cp89pw
+-a--- 4      16lr6ss4
+-a--- 4      17i4d0qk
+-a--- 4      190y4u9m
+-a--- 4      191n37xe
+-a--- 4      19jtz1z_
+-a--- 4      19lz3_48
+-a--- 4      1bnbbmzh
+-a--- 4      1cbbzrv3
+-a--- 4      1d4bit8b
+-a--- 4      1dti0ze8
+-a--- 4      1e4rcjf1
+-a--- 4      1ehj5mnb
+-a--- 4      1ei1v2qq
+-a--- 4      1ewen3iu
+-a--- 4      1ja9dkxg
+-a--- 4      1jackfzj
+-a--- 4      1kwn1iyi
+-a--- 4      1nepzgo2
+-a--- 4      1ni24gu0
+-a--- 4      1nx9wrvq
+-a--- 4      1pb35hbo
+-a--- 4      1qomb6ep
+-a--- 4      1r02jry7
+-a--- 4      1rjfjwcy
+-a--- 4      1rpx9284
+-a--- 4      1ruetf7j
+-a--- 4      1vkteqww
+-a--- 4      1vw4r3vz
+-a--- 4      1wgae6j3
+-a--- 4      1yi8_uh8
+-a--- 4      2_l786y4
+-a--- 4      20w573w0
+-a--- 4      21ocxiia
+-a--- 4      223xvgk3
+-a--- 4      23anzvkg
+-a--- 4      23stoc5j
+-a--- 4      23vppeme
+-a--- 4      23w2fe5z
+-a--- 4      246djzn7
+-a--- 4      25muctsk
+-a--- 4      25zs29ff
+-a--- 4      286v7a46
+-a--- 4      2at_2aws
+-a--- 4      2cu9vhpw
+-a--- 4      2dkj0p0d
+-a--- 4      2e5j3qju
+-a--- 4      2g52nkg4
+-a--- 4      2h3gll0p
+-a--- 4      2hyhiwnh
+-a--- 4      2ihoi7ar
+-a--- 4      2kw9wori
+-a--- 4      2qqu7z9c
+-a--- 4      2r89z__p
+-a--- 4      2rlla0fx
+-a--- 4      2rneracq
+-a--- 4      2s9veqol
+-a--- 4      2t76dj5p
+-a--- 4      2ucq6990
+-a--- 4      2v9du0qk
+-a--- 4      2vs9jiux
+-a--- 4      2x_pkrkf
+-a--- 4      2y67pz0a
+-a--- 4      2yx5eiwm
+-a--- 4      2zih00nv
+-a--- 4      3_bfyrmh
+-a--- 4      3_jzgnpo
+-a--- 4      3_nn2yee
+-a--- 4      3_piqj_6
+-a--- 4      307iil3e
+-a--- 4      314epbx_
+-a--- 4      33qlbkfs
+-a--- 4      34goyaer
+-a--- 4      34ql2nr2
+-a--- 4      34v_3hys
+-a--- 4      34w6rcx8
+-a--- 4      35l5a3vq
+-a--- 4      36j80oo5
+-a--- 4      37eriv9v
+-a--- 4      39d9bj96
+-a--- 4      39gngfyq
+-a--- 4      3ag2_m6m
+-a--- 4      3ag9ka8w
+-a--- 4      3bei7bd6
+-a--- 4      3bow31g0
+-a--- 4      3brykozb
+-a--- 4      3de8wdf3
+-a--- 4      3e952yw_
+-a--- 4      3ftod2qa
+-a--- 4      3i5b4w2o
+-a--- 4      3it3dz66
+-a--- 4      3j73bakp
+-a--- 4      3juu2gl2
+-a--- 4      3kq1hgnd
+-a--- 4      3kyfuz6x
+-a--- 4      3mztvp_m
+-a--- 4      3np0p_qp
+-a--- 4      3oonaszd
+-a--- 4      3otrm81t
+-a--- 4      3pl1xmsv
+-a--- 4      3qcppdtj
+-a--- 4      3r4i647e
+-a--- 4      3scs3czw
+-a--- 4      3tyjnvtf
+-a--- 4      3uz21ku8
+-a--- 4      3v52z7z0
+-a--- 4      3vm5r2yu
+-a--- 4      3w_ou5ob
+-a--- 4      3w5foat9
+-a--- 4      3yixcnvx
+-a--- 4      3zmgjaif
+-a--- 4      419so5u_
+-a--- 4      42ymk2ll
+-a--- 4      44tum0li
+-a--- 4      46hdj3z0
+-a--- 4      491s95sf
+-a--- 4      49hlhm08
+-a--- 4      4arw1e81
+-a--- 4      4c49o6o4
+-a--- 4      4dc7ep90
+-a--- 4      4e3ugze2
+-a--- 4      4eql6dq_
+-a--- 4      4ezzwqbj
+-a--- 4      4f87zxb1
+-a--- 4      4flm_tgr
+-a--- 4      4giir_mf
+-a--- 4      4h9ezrtp
+-a--- 4      4ibtabb6
+-a--- 4      4jl6ho1j
+-a--- 4      4l4duqeu
+-a--- 4      4m81o9lt
+-a--- 4      4o735n_1
+-a--- 4      4of0p01d
+-a--- 4      4pcoiser
+-a--- 4      4qcn1p0t
+-a--- 4      4rawy7v0
+-a--- 4      4s2qlctl
+-a--- 4      4sb4klma
+-a--- 4      4sd73m1k
+-a--- 4      4sukxszx
+-a--- 4      4tbu8l37
+-a--- 4      4tgr430z
+-a--- 4      4wotqeiw
+-a--- 4      4xvhdzo2
+-a--- 4      4y_1mn32
+-a--- 4      4y3j8fkd
+-a--- 4      4yqpoqbs
+-a--- 4      5_6qtt7v
+-a--- 4      51dysrwo
+-a--- 4      51fxq6wb
+-a--- 4      51o2ado0
+-a--- 4      522vpn2h
+-a--- 4      52d29m7v
+-a--- 4      52kco03q
+-a--- 4      52v2fee4
+-a--- 4      5307k_bi
+-a--- 4      53qcob8_
+-a--- 4      547i0b0a
+-a--- 4      5487qqa_
+-a--- 4      54zvg8_o
+-a--- 4      55qvynje
+-a--- 4      57zupfbo
+-a--- 4      59uv7ps4
+-a--- 4      5araulue
+-a--- 4      5bclo36d
+-a--- 4      5blnxl0z
+-a--- 4      5epn8qb1
+-a--- 4      5fgbwe6c
+-a--- 4      5fpe0s3w
+-a--- 4      5j9uhydd
+-a--- 4      5jafi07o
+-a--- 4      5jwrxpl4
+-a--- 4      5lgnk6zu
+-a--- 4      5mpox4hf
+-a--- 4      5octaxcv
+-a--- 4      5oujltp7
+-a--- 4      5p3cgpkg
+-a--- 4      5p83c_ki
+-a--- 4      5pt8vmr8
+-a--- 4      5qnlx5xb
+-a--- 4      5x6jimb8
+-a--- 4      5xqs3cej
+-a--- 4      5xsl5j7q
+-a--- 4      5xu088_7
+-a--- 4      5zwxp3fr
+-a--- 4      6_fdvyv_
+-a--- 4      6_wlijbv
+-a--- 4      60_h_ng_
+-a--- 4      60159j2_
+-a--- 4      60hycce7
+-a--- 4      60tur5k1
+-a--- 4      612kr51h
+-a--- 4      61imxtjh
+-a--- 4      61k_qhl9
+-a--- 4      63rev6h6
+-a--- 4      64c_snhv
+-a--- 4      64o5u8q6
+-a--- 4      64qy35ly
+-a--- 4      6767ia53
+-a--- 4      67nqb55x
+-a--- 4      69u_5jb9
+-a--- 4      6h7npxdh
+-a--- 4      6jd2vdfo
+-a--- 4      6kgpdi8q
+-a--- 4      6l249rl4
+-a--- 4      6lfh2l29
+-a--- 4      6lisqf30
+-a--- 4      6m1jwhte
+-a--- 4      6mrafew7
+-a--- 4      6nw7v0v6
+-a--- 4      6o2wglhr
+-a--- 4      6ogkfhvq
+-a--- 4      6oj4q8w0
+-a--- 4      6ov0jq5v
+-a--- 4      6rvv4iq7
+-a--- 4      6s5_twn4
+-a--- 4      6shjij2d
+-a--- 4      6uv85hce
+-a--- 4      6wo4iwoq
+-a--- 4      6xiquu5p
+-a--- 4      6yy2vnzf
+-a--- 4      6zoel6at
+-a--- 4      7_9wgdat
+-a--- 4      7_uh8z24
+-a--- 4      70nvoozu
+-a--- 4      71rrp09g
+-a--- 4      736n0zuq
+-a--- 4      737kx3eg
+-a--- 4      73ui02a_
+-a--- 4      74iurowg
+-a--- 4      75gf0od_
+-a--- 4      76egyja3
+-a--- 4      76yksg2f
+-a--- 4      79wb2cg8
+-a--- 4      7ae760jt
+-a--- 4      7dbqar1y
+-a--- 4      7ds4a_gu
+-a--- 4      7frj_4nk
+-a--- 4      7hw7qm48
+-a--- 4      7iftsozl
+-a--- 4      7j_h4z5x
+-a--- 4      7j9d05vf
+-a--- 4      7jkeazhe
+-a--- 4      7ka4tbt1
+-a--- 4      7l_3_0ae
+-a--- 4      7mjq91wh
+-a--- 4      7n406c6i
+-a--- 4      7nrvnqkt
+-a--- 4      7ozgpck9
+-a--- 4      7qf6qtqx
+-a--- 4      7qpb1in2
+-a--- 4      7qshtmkr
+-a--- 4      7s3_xycf
+-a--- 4      7sne8c9g
+-a--- 4      7sul0wk8
+-a--- 4      7tvtlkg_
+-a--- 4      7u5sxmsh
+-a--- 4      7ud4i0b1
+-a--- 4      7uktk8mc
+-a--- 4      7v0u8l8g
+-a--- 4      7v6kth4s
+-a--- 4      7w5n6d37
+-a--- 4      7wa1kab9
+-a--- 4      7wnzo4m6
+-a--- 4      7xupveo0
+-a--- 4      7y37xe2q
+-a--- 4      7y4cxcuk
+-a--- 4      7yf1r2it
+-a--- 4      7yfmun45
+-a--- 4      7ytmp2lb
+-a--- 4      7z6a6a6q
+-a--- 4      8_vcpkzg
+-a--- 4      80smcwls
+-a--- 4      81xs7kjl
+-a--- 4      8252rl6l
+-a--- 4      82v1np2_
+-a--- 4      83onwltn
+-a--- 4      8415ajqi
+-a--- 4      862c1avp
+-a--- 4      871yls2k
+-a--- 4      889o3qgu
+-a--- 4      88igr1hv
+-a--- 4      89ryw_14
+-a--- 4      89vppoee
+-a--- 4      89wk2y1v
+-a--- 4      8a7aimy7
+-a--- 4      8ch51n5k
+-a--- 4      8cs_a7u7
+-a--- 4      8e8h25kp
+-a--- 4      8fg3s9iy
+-a--- 4      8indfy6i
+-a--- 4      8ip0aja4
+-a--- 4      8jmxnfz9
+-a--- 4      8k5p794a
+-a--- 4      8kqfqy17
+-a--- 4      8m0tmxlm
+-a--- 4      8mq1lyjj
+-a--- 4      8n2zrmm7
+-a--- 4      8ntqo_s5
+-a--- 4      8oepdqio
+-a--- 4      8ott6m27
+-a--- 4      8pjawcjd
+-a--- 4      8pmrw_em
+-a--- 4      8pv8r3fy
+-a--- 4      8q5s8egi
+-a--- 4      8scdx0vd
+-a--- 4      8swemzkb
+-a--- 4      8sxcx42_
+-a--- 4      8txojkrg
+-a--- 4      8ubv7gw_
+-a--- 4      8ujbavbs
+-a--- 4      8umvojj5
+-a--- 4      8vdup23n
+-a--- 4      8xiac63d
+-a--- 4      90idgbjb
+-a--- 4      91x09q0r
+-a--- 4      94dhc0h2
+-a--- 4      95cso9qx
+-a--- 4      95nf9tj7
+-a--- 4      95uqt0t2
+-a--- 4      95y6bjg9
+-a--- 4      98gtmlp5
+-a--- 4      98ign0df
+-a--- 4      98w18rvy
+-a--- 4      98xq_bl_
+-a--- 4      99ie78m5
+-a--- 4      99ogd0ot
+-a--- 4      9arr2e_i
+-a--- 4      9dfupzy4
+-a--- 4      9dinkce7
+-a--- 4      9esmj6uw
+-a--- 4      9fc7frn3
+-a--- 4      9g1djl5_
+-a--- 4      9g8otfae
+-a--- 4      9i9qlk9_
+-a--- 4      9ktmoi8b
+-a--- 4      9lucgyz3
+-a--- 4      9oy9gjtq
+-a--- 4      9p52v810
+-a--- 4      9p69i2ct
+-a--- 4      9p8hu4dj
+-a--- 4      9pjpjh1r
+-a--- 4      9r0gh3vs
+-a--- 4      9rglucnf
+-a--- 4      9th0ozp3
+-a--- 4      9ujdya3q
+-a--- 4      9uswh39o
+-a--- 4      9wacb0o5
+-a--- 4      9xe3m710
+-a--- 4      9xoc3g10
+-a--- 4      9yirok4t
+-a--- 4      9z2c_zwl
+-a--- 4      9zs58psb
+-a--- 4      9zyp65y8
+-a--- 4      a0b0xncn
+-a--- 4      a0tvow7f
+-a--- 4      a0yw52ss
+-a--- 4      a1_oa2xf
+-a--- 4      a36l79fk
+-a--- 4      a4d73ts1
+-a--- 4      a4x30ryv
+-a--- 4      a619vqq3
+-a--- 4      a6amuodl
+-a--- 4      a6e41ptm
+-a--- 4      a71r3z9l
+-a--- 4      ab0wnrq_
+-a--- 4      aca5gdb5
+-a--- 4      aejk7qt9
+-a--- 4      af_wexq1
+-a--- 4      af5t4bz3
+-a--- 4      afxap76o
+-a--- 12356  AGENTS.md
+-a--- 4      ahb9c3dk
+-a--- 4      ahozhsw0
+-a--- 4      aivvb2fq
+-a--- 4      ak05xhs_
+-a--- 4      alsi2a96
+-a--- 4      amjpr79e
+-a--- 4      ant9xm85
+-a--- 4      aohytxkh
+-a--- 4      aoiacybm
+-a--- 4      aor6nk0z
+-a--- 4      aq885n7n
+-a--- 4      arl71gx8
+-a--- 4      arxxiijv
+-a--- 4      ash_hfi3
+-a--- 4      asigzykn
+-a--- 4      asly3r_u
+-a--- 4      awyfhwjc
+-a--- 4      az01w059
+-a--- 4      az1enzhi
+-a--- 4      az1hu2v_
+-a--- 4      az8s2m8n
+-a--- 4      azg2wxid
+-a--- 4      azz4nbzk
+-a--- 4      b015tfpu
+-a--- 4      b0axk0n7
+-a--- 4      b10e0nnz
+-a--- 4      b2b2l96u
+-a--- 4      b2qjp63g
+-a--- 4      b3gu6auv
+-a--- 4      b3xuqdou
+-a--- 4      b54f_9lm
+-a--- 4      b5gd6w_n
+-a--- 4      b5sqhld_
+-a--- 4      b5w72ydr
+-a--- 4      b85ti6j6
+-a--- 4      b8bd6fg_
+-a--- 4      b8lmnfak
+-a--- 4      b9wtxswn
+-a--- 4      ba0nfrzr
+-a--- 4      baeaodx_
+-a--- 4      baosvr3r
+-a--- 4      bc4zyp3t
+-a--- 4      be10gwkm
+-a--- 4      be36mfgm
+-a--- 4      biyp3dbz
+-a--- 4      bj08jgn3
+-a--- 4      bjrghe6a
+-a--- 4      bp4y1yyq
+-a--- 4      bq962nmi
+-a--- 4      bqqai2_h
+-a--- 4      brbyq6f9
+-a--- 4      bsi25_mh
+-a--- 4      btcm2jvr
+-a--- 4      btgjxjiw
+-a--- 4      btqu2svb
+-a--- 4      bu9w95xy
+-a--- 4      bxycdp1r
+-a--- 4      bzo069yk
+-a--- 4      c0tcif_z
+-a--- 4      c1pu7j5v
+-a--- 4      c3snvv_n
+-a--- 4      c4cq8y7w
+-a--- 4      c4wymv9i
+-a--- 4      c5l1uue3
+-a--- 4      c6hs593m
+-a--- 4      c6tu2clx
+-a--- 4      c7tvfozh
+-a--- 4      c8pwlehz
+-a--- 4      c97ugmza
+-a--- 4      c9ayocl5
+-a--- 4      ca3l6s9f
+-a--- 4      cae5kmve
+-a--- 4      cbqc1uj9
+-a--- 4      ccn6rih1
+-a--- 4      ccz9pinj
+-a--- 4      cebdm5iy
+-a--- 4      cf81l533
+-a--- 4      cftbzxbr
+-a--- 4      cj92g6je
+-a--- 4      cjhheurh
+-a--- 4      cjq_nflx
+-a--- 4      cjzq6uhp
+-a--- 8468   CLAUDE.local.md
+-a--- 61612  CLAUDE.md
+-a--- 4      cneg6cxw
+-a--- 4      coie190q
+-a--- 4      cr4btfaa
+-a--- 4      crhji_s6
+-a--- 4      cs3lcg7z
+-a--- 4      ctrqfnt9
+-a--- 4      cwer13ax
+-a--- 4      cx18vf_5
+-a--- 4      cx2lmkmm
+-a--- 4      cxf5uzbb
+-a--- 4      cy_vvaws
+-a--- 4      cyx1y32y
+-a--- 4      czvy0ywx
+-a--- 4      d0_9bvg2
+-a--- 4      d0_p6e_n
+-a--- 4      d088sbps
+-a--- 4      d08d3v2y
+-a--- 4      d1mahfu1
+-a--- 4      d3y93lxs
+-a--- 4      d5ss39vf
+-a--- 4      d8yay5nh
+-a--- 4      d9mw18no
+-a--- 4      d9rnq4be
+-a--- 4      d9t9pt23
+-a--- 4      dazpz33y
+-a--- 4      db8pmu1x
+-a--- 4      dcxiied7
+-a--- 4      ddoweqdu
+-a--- 4      dfqhydgl
+-a--- 4      dga88osv
+-a--- 4      di4g7qjn
+-a--- 4      dk9rc7h8
+-a--- 4      dki5w8ok
+-a--- 4      dnh9y081
+-a--- 4      dnpxcl3t
+-a--- 4      dolvkvvx
+-a--- 4      dq_aqpx6
+-a--- 4      dq34ay1g
+-a--- 4      dqadyp8m
+-a--- 4      dqfpt4_9
+-a--- 4      drr4u4n3
+-a--- 4      dtkuw5an
+-a--- 4      dtr2afx4
+-a--- 4      du7ydwe4
+-a--- 4      dvotgq0r
+-a--- 4      dvw9dbto
+-a--- 4      dw2vay27
+-a--- 4      dwg8rxh8
+-a--- 4      dxil9g76
+-a--- 4      dxx6ffho
+-a--- 4      dyo72_wi
+-a--- 4      dzcal61a
+-a--- 4      dznx84tq
+-a--- 4      e_sycyw7
+-a--- 4      e_viblf3
+-a--- 4      e1mx79t9
+-a--- 4      e1qu8ljd
+-a--- 4      e3nfjprj
+-a--- 4      e5_kp5zh
+-a--- 4      e5a_5f01
+-a--- 4      e7hf9xgs
+-a--- 4      e8gtpnkg
+-a--- 4      e8z6vju8
+-a--- 4      e999c4qq
+-a--- 4      ednc69wc
+-a--- 4      ee_9f63p
+-a--- 4      ees617dy
+-a--- 4      ehlki_oh
+-a--- 4      eih5i7bq
+-a--- 4      ele01u7d
+-a--- 4      elng33hz
+-a--- 4      elq4_171
+-a--- 4      em3sk8an
+-a--- 4      em6vpc81
+-a--- 4      emb7h4qm
+-a--- 4      en3a4rad
+-a--- 4      en58xdlv
+-a--- 4      enf1c4_s
+-a--- 4      ep5gn6fs
+-a--- 4      epnpbe44
+-a--- 4      eq5rwnef
+-a--- 4      espo9vpz
+-a--- 4      eudi7j3s
+-a--- 4      ev72ixqi
+-a--- 4      exv1lvg_
+-a--- 4      ey92b8xo
+-a--- 4      eyvijrdu
+-a--- 4      ezk0t82q
+-a--- 4      f_b5suox
+-a--- 4      f_fjwhq8
+-a--- 4      f_r1uudv
+-a--- 4      f02xs2vv
+-a--- 4      f2q50bx3
+-a--- 4      f3f1ewys
+-a--- 4      f47_jvhy
+-a--- 4      f4k0v681
+-a--- 4      f6lvn6o8
+-a--- 4      f735miio
+-a--- 4      f9_h1m7z
+-a--- 4      f9zxx6dv
+-a--- 4      faunn03a
+-a--- 4      fazssx1l
+-a--- 4      fbrguqxg
+-a--- 4      fdf2joue
+-a--- 4      feqsp2kt
+-a--- 4      ffn03vie
+-a--- 4      fg0o7yg9
+-a--- 4      fgwxckrx
+-a--- 4      fh4g49ff
+-a--- 4      fhrthv4h
+-a--- 4      fio4icfg
+-a--- 4      fkynurpx
+-a--- 4      flvs6wec
+-a--- 4      flz_205n
+-a--- 4      fn5njgjm
+-a--- 4      fof13d3v
+-a--- 4      fowslhxj
+-a--- 4      foy5mzse
+-a--- 4      fr49gyhg
+-a--- 4      fs83uh5m
+-a--- 4      fss6ka5l
+-a--- 4      fteczhsk
+-a--- 4      ftslc3ha
+-a--- 4      fu630nl2
+-a--- 4      fv77joe3
+-a--- 4      fx4ey3ih
+-a--- 4      fx4mciu0
+-a--- 4      fyt7aobr
+-a--- 4      fyzc51ce
+-a--- 4      fz9lcc36
+-a--- 4      fzvw6pdk
+-a--- 4      g_xw2i93
+-a--- 4      g0e763rf
+-a--- 4      g1565jsk
+-a--- 4      g1ns4tan
+-a--- 4      g1w3wl51
+-a--- 4      g1x5_63u
+-a--- 4      g3684vvy
+-a--- 4      g3d8liea
+-a--- 4      g3qf8tok
+-a--- 4      g5jmsqfz
+-a--- 4      g7_yd0z_
+-a--- 4      g8danqn2
+-a--- 4      g9auhbqn
+-a--- 4      g9she2fd
+-a--- 4      gadlpt0b
+-a--- 4      galdzjg6
+-a--- 4      gamb2qs0
+-a--- 4      gawdap8w
+-a--- 4      gb1vswue
+-a--- 4      gbb6pk4z
+-a--- 4      gbioj20l
+-a--- 4      gd876vco
+-a--- 4      gdoeut8v
+-a--- 4      ge4hey05
+-a--- 4      geesm2ml
+-a--- 4      gfgu1c1i
+-a--- 4      gfh4e09x
+-a--- 4      ggqom3sp
+-a--- 4      giyczzog
+-a--- 4      gjd4zhj8
+-a--- 4      gjj0d7fv
+-a--- 4      gkm0b2i5
+-a--- 4      glsi1wj4
+-a--- 4      gm68nzxl
+-a--- 4      gn9vaqkz
+-a--- 4      gntrucxo
+-a--- 4      goous2w7
+-a--- 4      govdgwnc
+-a--- 4      gpc0i3me
+-a--- 4      gpti41kt
+-a--- 4      gqnqeotm
+-a--- 4      gr3vak3c
+-a--- 4      gs9gyy0n
+-a--- 4      gt_r_y_9
+-a--- 4      gtm5384k
+-a--- 4      gv6st3tq
+-a--- 4      gw3tr8an
+-a--- 4      gwicqwg0
+-a--- 4      gx6h249s
+-a--- 4      gx91vw04
+-a--- 4      gyhm0sky
+-a--- 4      gynb0ghg
+-a--- 4      gz2sob5q
+-a--- 4      gzi9u7yd
+-a--- 4      gzsmogze
+-a--- 4      h_f9r50y
+-a--- 4      h_ll6v1h
+-a--- 4      h0sbeh2_
+-a--- 4      h1qzppfv
+-a--- 4      h29qhac8
+-a--- 4      h612pkne
+-a--- 4      h62tocnb
+-a--- 4      h70ptjxs
+-a--- 4      h8qomhzb
+-a--- 4      h8z2cjlh
+-a--- 4      h90hb4f2
+-a--- 4      h9r9t881
+-a--- 4      hagnkska
+-a--- 4      hathyagi
+-a--- 4      hbac7euc
+-a--- 4      hcxs0xpm
+-a--- 4      hdatb72j
+-a--- 4      he9_lufd
+-a--- 4      heu0zo5v
+-a--- 4      hju2dmjc
+-a--- 4      hjwdj3oo
+-a--- 4      hkslvbjh
+-a--- 4      hm79hf2l
+-a--- 4      hmx5_e2b
+-a--- 4      hmx85xqn
+-a--- 4      hn_j9n21
+-a--- 4      hn7cjvzv
+-a--- 4      hognpp7w
+-a--- 4      hpldfdut
+-a--- 4      hrlhzqlr
+-a--- 4      hryud3fa
+-a--- 4      hsofpu21
+-a--- 4      htoubawg
+-a--- 4      hu3m72cn
+-a--- 4      huiu5axn
+-a--- 4      hvl4yruo
+-a--- 4      hx23j50p
+-a--- 4      hxv4uu84
+-a--- 4      hyj7xnwb
+-a--- 4      hyvx18mt
+-a--- 4      hz4e5eeh
+-a--- 4      hzm2c9hz
+-a--- 4      i_15c34j
+-a--- 4      i_qt88zy
+-a--- 4      i0bhrdc0
+-a--- 4      i0tm8skz
+-a--- 4      i1xyzk54
+-a--- 4      i3yjq3eq
+-a--- 4      i4_1qq8r
+-a--- 4      i5dbea7b
+-a--- 4      i60vg4yr
+-a--- 4      i62u9ll2
+-a--- 4      i88ljwih
+-a--- 4      ia0gnzb_
+-a--- 4      ialpwlhn
+-a--- 4      iampcd4h
+-a--- 4      iao4imng
+-a--- 4      ibcllsdz
+-a--- 4      ic5_yngs
+-a--- 4      ich8ptdv
+-a--- 4      id_crx3b
+-a--- 4      idswh4h0
+-a--- 4      ifkaqm7d
+-a--- 4      ih3pqqhv
+-a--- 4      ii3dvwlq
+-a--- 4      ijxj3mli
+-a--- 4      ilslix7m
+-a--- 4      imd2aqjm
+-a--- 4      inh0_ak5
+-a--- 4      io0mm50l
+-a--- 4      ipjr25r2
+-a--- 4      ippsz9pz
+-a--- 4      ir_mqoyn
+-a--- 4      isspmqon
+-a--- 4      isvau3d9
+-a--- 4      it2ur1w_
+-a--- 4      iwbv6ohd
+-a--- 4      ix_tomgt
+-a--- 4      ixg263pq
+-a--- 4      iy7ncmbt
+-a--- 4      iy97a35r
+-a--- 4      izpvg7h5
+-a--- 4      j_2dvdb7
+-a--- 4      j_t_qy39
+-a--- 4      j0xfq8zk
+-a--- 4      j3m5x2px
+-a--- 4      j47vvklm
+-a--- 4      j5nujmye
+-a--- 4      j5pgmvr8
+-a--- 4      j5vvs09f
+-a--- 4      j6gwjpe0
+-a--- 4      j6kt35pz
+-a--- 4      j7wgtwsy
+-a--- 4      j99ol_pi
+-a--- 4      j9p1bult
+-a--- 4      jaz3a0w0
+-a--- 4      jcg0o2gv
+-a--- 4      je70cdk_
+-a--- 4      je9jl_1g
+-a--- 4      jea26fpb
+-a--- 4      jkcpywid
+-a--- 4      jley7o03
+-a--- 4      jllm9qwj
+-a--- 4      jmeuq6m_
+-a--- 4      jodzme30
+-a--- 4      jqeasd9j
+-a--- 4      jr4fz50y
+-a--- 4      jrtitih_
+-a--- 4      jry1qq0c
+-a--- 4      jrztfyv8
+-a--- 4      js1e_yb5
+-a--- 4      js282rlx
+-a--- 4      jsae27wz
+-a--- 4      jsb8w7hq
+-a--- 4      jt3me1hi
+-a--- 277    justfile
+-a--- 4      jvd62vew
+-a--- 4      jvvw92k8
+-a--- 4      jvwnenvv
+-a--- 4      jw73mefv
+-a--- 4      jwd2o5he
+-a--- 4      jwk_dukw
+-a--- 4      jws2ovm1
+-a--- 4      jxr2p5j4
+-a--- 4      jyhaepmu
+-a--- 4      k_1nfh9y
+-a--- 4      k_zoru6o
+-a--- 4      k2ldwhpk
+-a--- 4      k33mujcr
+-a--- 4      k3fxf4yz
+-a--- 4      k3hrycax
+-a--- 4      k58e23db
+-a--- 4      k58fadod
+-a--- 4      k5c0iuk3
+-a--- 4      k6ruuiue
+-a--- 4      k73gbll0
+-a--- 4      k82syenj
+-a--- 4      k8bigm8j
+-a--- 4      ka5j3r81
+-a--- 4      kaksp0t0
+-a--- 4      kbdgt1ao
+-a--- 4      kbqj2y5y
+-a--- 4      kc_1a82q
+-a--- 4      kc52w04q
+-a--- 4      kcktjks2
+-a--- 4      kfi4esyq
+-a--- 4      kgvky9bu
+-a--- 4      kgyd25r0
+-a--- 4      kh1zza2w
+-a--- 4      khvn51iw
+-a--- 4      kjq776y9
+-a--- 4      kjzvgyqr
+-a--- 4      kkb3pwwv
+-a--- 4      kl5z4h4n
+-a--- 4      klbp7jzv
+-a--- 4      kmnx1cuk
+-a--- 4      kno9eh1a
+-a--- 4      koj44zb3
+-a--- 4      kowgcj5o
+-a--- 4      koy4l36y
+-a--- 4      kqbjdxem
+-a--- 4      kqk071es
+-a--- 4      kqzvoi4o
+-a--- 4      kr3ws3s9
+-a--- 4      krgx4s3q
+-a--- 4      krniz74x
+-a--- 4      ks4igldr
+-a--- 4      ksj_w4g7
+-a--- 4      kuxww06f
+-a--- 4      kuziffc5
+-a--- 4      kvis50qm
+-a--- 4      kvwt4884
+-a--- 4      kxuov41g
+-a--- 4      kycv41ao
+-a--- 4      l_kgnt7e
+-a--- 4      l0leu0s3
+-a--- 4      l1c0l8j0
+-a--- 4      l1sjoojs
+-a--- 4      l1zldevi
+-a--- 4      l2rjjuve
+-a--- 4      l2sam0ym
+-a--- 4      l31_zxal
+-a--- 4      l38k1zn9
+-a--- 4      l3c9551u
+-a--- 4      l5m4p9lx
+-a--- 4      l93gql9j
+-a--- 4      l971651a
+-a--- 4      lamodc7i
+-a--- 4      lb_1k0w3
+-a--- 4      lb3t5v7u
+-a--- 4      lbsx_zz4
+-a--- 862    lefthook.yml
+-a--- 4      lgslpqmn
+-a--- 4      lgx3ffo9
+-a--- 4      lhw6c159
+-a--- 4      lio3ndez
+-a--- 4      ljmkh5da
+-a--- 4      lk8l7mk6
+-a--- 4      lkhidzkd
+-a--- 4      lko2la0q
+-a--- 4      lkpr17z_
+-a--- 4      lks6mbp7
+-a--- 4      lmn37e_w
+-a--- 4      lnzhzvoh
+-a--- 4      lotukpoh
+-a--- 4      lp0cdo7f
+-a--- 4      lpaviupb
+-a--- 4      lpf64n2b
+-a--- 4      lpsxr5u4
+-a--- 4      lpv227_c
+-a--- 4      ls76_1j_
+-a--- 4      lssaj73a
+-a--- 4      ltre4ehj
+-a--- 4      lvkzwenc
+-a--- 4      lvoph_54
+-a--- 4      lw3ecvm9
+-a--- 4      lw7_akaf
+-a--- 4      lx2a5jdf
+-a--- 4      lx5rdves
+-a--- 4      lyxweojk
+-a--- 4      lzbjusnx
+-a--- 4      m_8jyuuu
+-a--- 4      m_rizprz
+-a--- 4      m0h_b1rp
+-a--- 4      m11p4tl4
+-a--- 4      m126cbi9
+-a--- 4      m2p4a0qw
+-a--- 4      m32zkggr
+-a--- 4      m37n3civ
+-a--- 4      m3c3l9ey
+-a--- 4      m3je28ln
+-a--- 4      m6k7as5y
+-a--- 4      m6wg75wq
+-a--- 4      m7k0r9a2
+-a--- 4      m98g_kc2
+-a--- 4      ma_op1qm
+-a--- 4      ma3u9g0v
+-a--- 4      makaiu2r
+-a--- 4      mamzex82
+-a--- 4      mb34_bi2
+-a--- 4      mbt5oigc
+-a--- 4      mc9q3sdv
+-a--- 4      megsctnw
+-a--- 4      mepkjyuh
+-a--- 4      mezi6u5_
+-a--- 4      mf68pjd2
+-a--- 4      mg3bhgjr
+-a--- 4      mh42n7uk
+-a--- 4      mh85fvug
+-a--- 4      mhz7vzpk
+-a--- 4      mi3uop5p
+-a--- 4      mi3xa04w
+-a--- 4      mj_in5jj
+-a--- 4      mo82auvz
+-a--- 4      mo8g5x6b
+-a--- 4      mow6m28_
+-a--- 4      mp_vpbs_
+-a--- 4      mshbdlfd
+-a--- 4      mswgpslb
+-a--- 4      msy268n5
+-a--- 4      mtg9e0x1
+-a--- 4      mv8eaqb_
+-a--- 4      mw8gxm3f
+-a--- 4      mwf1y0xl
+-a--- 4      mx1x00vr
+-a--- 4      mxahb4_m
+-a--- 4      myz3t31b
+-a--- 4      mzmihysn
+-a--- 4      n_pagrm7
+-a--- 4      n_r0e_18
+-a--- 4      n028g62e
+-a--- 4      n1yjqqbl
+-a--- 4      n3n727we
+-a--- 4      n3y59i5v
+-a--- 4      n4_3la85
+-a--- 4      n4a0mpdf
+-a--- 4      n4cwxsnx
+-a--- 4      n5gyydfl
+-a--- 4      n6ublcj_
+-a--- 4      n6zl2i5_
+-a--- 4      n7_fvmwg
+-a--- 4      n95csft0
+-a--- 4      n96y1up2
+-a--- 4      n9y9pl8x
+-a--- 4      nc737yq1
+-a--- 4      ncyz6n_a
+-a--- 4      ndh6zopy
+-a--- 4      ngigu5wv
+-a--- 4      nh327eqi
+-a--- 4      nhfx_9gx
+-a--- 4      nhofoxzz
+-a--- 4      nisa8xsu
+-a--- 4      njqjyz26
+-a--- 4      nn76pjm3
+-a--- 4      nnxuayvm
+-a--- 4      npz7d21n
+-a--- 4      nrznyzfu
+-a--- 4      nsty8nfu
+-a--- 4      nthwhja6
+-a--- 4      nu_l7f2p
+-a--- 4      nu8ypsj8
+-a--- 164    nul
+-a--- 4      nuqu_vzr
+-a--- 4      nvwoo3e0
+-a--- 4      nxij2sq_
+-a--- 4      nym_a1ed
+-a--- 4      nz8ctw5c
+-a--- 4      o2_7bv22
+-a--- 4      o28i02p0
+-a--- 4      o5afrxvd
+-a--- 4      o5i6myoh
+-a--- 4      o5rarz2p
+-a--- 4      o7dl3s0j
+-a--- 4      o9a9was7
+-a--- 4      o9j50yy1
+-a--- 4      o9mtf4rb
+-a--- 4      o9zu02qd
+-a--- 4      oadu6e31
+-a--- 4      od5g7bwj
+-a--- 4      od8w17r8
+-a--- 4      odjnkd7z
+-a--- 4      ofpxb2hi
+-a--- 4      ogepjjdg
+-a--- 4      ok_9oh79
+-a--- 4      olptvef4
+-a--- 4      om6pup09
+-a--- 4      omqypl2w
+-a--- 4      on13zk5_
+-a--- 4      onzqyj03
+-a--- 4      ornit2_b
+-a--- 4      orstgu8s
+-a--- 4      ot7i7see
+-a--- 4      otgjk0r3
+-a--- 4      otig60qc
+-a--- 4      ou116xjh
+-a--- 4      oui5msya
+-a--- 4      ovagvkf3
+-a--- 4      ow5e7hz7
+-a--- 4      ow6e8cu1
+-a--- 4      owe9gwco
+-a--- 4      oyyswnkp
+-a--- 4      ozh88e2o
+-a--- 4      p1eloku5
+-a--- 4      p24gnpzu
+-a--- 4      p2id8cp8
+-a--- 4      p32i3iu9
+-a--- 4      p4efy66q
+-a--- 4      p4h5j_h4
+-a--- 4      p4l9whel
+-a--- 4      p5920kz6
+-a--- 4      p6gusvn4
+-a--- 4      p7498hs5
+-a--- 4      p7csek95
+-a--- 4      p8lh0ovj
+-a--- 4      p95ovgz7
+-a--- 4      p9iichm1
+-a--- 4      p9x7zztz
+-a--- 4      pbgq9iwm
+-a--- 4      pc5etvv5
+-a--- 4      pdhi0c3q
+-a--- 4      pgffqn4a
+-a--- 4      pirirhs3
+-a--- 4      pjhjiyff
+-a--- 4      pjy4r162
+-a--- 4      plfpys7b
+-a--- 4      pmn44ep0
+-a--- 4      pn8rtbry
+-a--- 4      pn92hy2j
+-a--- 4      pnnspsnx
+-a--- 4      ppre0hsx
+-a--- 4      pq4cro5r
+-a--- 4      pqahu1i4
+-a--- 4      pramxfb9
+-a--- 9700   PROGRESS.md
+-a--- 4      ps9d2x0a
+-a--- 4      ptms8qfs
+-a--- 4      pv0tzqlb
+-a--- 4      pwqxw2tf
+-a--- 4      pwth59kf
+-a--- 4      q_g6wmk3
+-a--- 4      q_zkrgb2
+-a--- 4      q2vzhfj3
+-a--- 4      q43hlfd5
+-a--- 4      q61itn8s
+-a--- 4      q61ka5s1
+-a--- 4      q7_fwoag
+-a--- 4      q9p18hx_
+-a--- 4      qawrcxs5
+-a--- 4      qbqm742z
+-a--- 4      qcrqr3yw
+-a--- 4      qdhy5l1d
+-a--- 4      qduel7pn
+-a--- 4      qewoq2jx
+-a--- 4      qey63_5a
+-a--- 4      qgnrvgdq
+-a--- 4      qh06ph2l
+-a--- 4      qh1dsuir
+-a--- 4      qi64jubf
+-a--- 4      qitnbqte
+-a--- 4      qjv4cgcl
+-a--- 4      ql7s69rk
+-a--- 4      qmvvswwj
+-a--- 4      qqrjlmpc
+-a--- 4      qrapj3t7
+-a--- 4      qtx28iyo
+-a--- 4      qty1bvwk
+-a--- 4      qvmd4lw5
+-a--- 4      qw54v06x
+-a--- 4      qy4q9vkj
+-a--- 4      qynzzysb
+-a--- 4      r_ekra90
+-a--- 4      r01355l9
+-a--- 4      r1u9elpn
+-a--- 4      r2kbl89w
+-a--- 4      r4zatce3
+-a--- 4      r5j4e27x
+-a--- 4      r5oiyz44
+-a--- 4      r68qrjwi
+-a--- 4      r7yadvu2
+-a--- 4      r8fwp693
+-a--- 4      ra_pgy8h
+-a--- 4      ra5pewds
+-a--- 4      rac9g6ti
+-a--- 4      rau9qmez
+-a--- 4      rddlx524
+-a--- 6488   README.md
+-a--- 4      rf7znbzk
+-a--- 4      rf8gcobg
+-a--- 4      rfbk1fht
+-a--- 4      rfxk2dj4
+-a--- 4      rhf80ors
+-a--- 4      rin_ud3c
+-a--- 4      rjrtfrpo
+-a--- 4      rjv64fep
+-a--- 4      rln6k5s9
+-a--- 4      rn0bsdi_
+-a--- 4      rn7v5qcz
+-a--- 4      rnmgtr6h
+-a--- 4      rpr6r5nz
+-a--- 4      rqcqe_67
+-a--- 4      rqxe_oth
+-a--- 4      rs1e6sw1
+-a--- 4      rs59rcku
+-a--- 4      rs7211d3
+-a--- 4      rvqdmkzk
+-a--- 4      rwmlcbki
+-a--- 4      ry1j3k6t
+-a--- 4      rzvmhtyl
+-a--- 4      s_gb9x4o
+-a--- 4      s_hxyhwt
+-a--- 4      s_zuo5xd
+-a--- 4      s00scpae
+-a--- 4      s07ltd_z
+-a--- 4      s0l9hax8
+-a--- 4      s1fw2vdm
+-a--- 4      s21gwxmy
+-a--- 4      s2385pnv
+-a--- 4      s3lxtxa2
+-a--- 4      s4a4wtrw
+-a--- 4      s56qtab6
+-a--- 4      s5u9n81j
+-a--- 4      s6bpuvu8
+-a--- 4      s6gcp4b5
+-a--- 4      s7nzwaxi
+-a--- 4      s8828v6c
+-a--- 4      s9p5u75x
+-a--- 4      s9rcm5qu
+-a--- 4      segfkckc
+-a--- 4      sgq1hsv7
+-a--- 4      sib74r17
+-a--- 4      sihc5bcl
+-a--- 4      sjp5_pa2
+-a--- 4      skolj0gc
+-a--- 4      smukw28_
+-a--- 4      sne12wh5
+-a--- 4      snlpmzw5
+-a--- 4      sobodcr1
+-a--- 4      son6nqq5
+-a--- 4      sp9q_r89
+-a--- 4      spwi00n5
+-a--- 4      sq3ejfer
+-a--- 4      sqi8va29
+-a--- 4      srxjxye5
+-a--- 4      ssofllgx
+-a--- 4      st_vifyd
+-a--- 4      stdvdp6r
+-a--- 4      stikpioj
+-a--- 4      su1sctxi
+-a--- 4      su754c8w
+-a--- 4      sw3kq6js
+-a--- 4      swckulgj
+-a--- 4      sxlv1jz0
+-a--- 4      sy2yyju4
+-a--- 4      syjy9gd_
+-a--- 4      szw1oi27
+-a--- 25     t
+-a--- 4      t_6fm344
+-a--- 4      t02upvch
+-a--- 4      t04xp54h
+-a--- 4      t0soyq5a
+-a--- 4      t2t3nxdv
+-a--- 4      t4e09nb3
+-a--- 4      t4q4kbtv
+-a--- 4      t4zpjwga
+-a--- 4      t53qm0zb
+-a--- 4      t6uky3l9
+-a--- 4      t7nln3pw
+-a--- 4      t8vi_0kr
+-a--- 4      taerkgnw
+-a--- 4      tbcutkt2
+-a--- 4      tbjdolba
+-a--- 4      tdwrj7mb
+-a--- 4      te494b9x
+-a--- 4      tgwt895n
+-a--- 4      thf55882
+-a--- 4      tk9zrlxf
+-a--- 4      tki1ue5c
+-a--- 4      tkjtap6z
+-a--- 25     tm
+-a--- 4      tm5ep9a4
+-a--- 4      tmk10f6k
+-a--- 2973   tmp_untracked_filtered.txt
+-a--- 4      tn9mm6uf
+-a--- 4      tna4qwp2
+-a--- 4      toaccfn6
+-a--- 4      togkyrbh
+-a--- 4      tok3qb0d
+-a--- 4      tp049xt6
+-a--- 4      tqldtqy9
+-a--- 4      tr76s2x4
+-a--- 4      tse8x1id
+-a--- 4      tsld2677
+-a--- 4      tslq79ab
+-a--- 4      tt6mw6ok
+-a--- 4      tu5r917z
+-a--- 4      tuawd5bh
+-a--- 4      tuemx4w2
+-a--- 4      tuic13nj
+-a--- 4      tv29a_km
+-a--- 4      tw_k1zwj
+-a--- 4      tw8x6_yc
+-a--- 4      twcdngir
+-a--- 4      tx10849l
+-a--- 4      txnbst0k
+-a--- 4      tz322t0i
+-a--- 4      u_jblo1d
+-a--- 4      u_oqfnbd
+-a--- 4      u0505674
+-a--- 4      u0b0_4c1
+-a--- 4      u1g0it53
+-a--- 4      u1ygbgur
+-a--- 4      u4zipg39
+-a--- 4      u5sf_zxf
+-a--- 4      u8l82ygj
+-a--- 4      u9anu_4m
+-a--- 4      ua1v68ek
+-a--- 4      ua54_688
+-a--- 4      uaiumw65
+-a--- 4      ubkqc_c9
+-a--- 4      ucn21dfg
+-a--- 4      ucx_dxri
+-a--- 4      uenoqfkp
+-a--- 4      uf2242oa
+-a--- 4      ug6g8grv
+-a--- 4      ug6z5oku
+-a--- 4      uhysae2_
+-a--- 4      ui0b0mpk
+-a--- 4      uid76z0e
+-a--- 4      uk59yzqx
+-a--- 4      ukkfvr5j
+-a--- 4      unvaqb4g
+-a--- 4      uo3hfvzr
+-a--- 4      upo1s4sk
+-a--- 4      upuhm2z8
+-a--- 4      uq_9oa05
+-a--- 4      urdruy_m
+-a--- 4      urjjtfmb
+-a--- 4      ury83vzu
+-a--- 4      uueas6tb
+-a--- 4      uum4yft5
+-a--- 4      uuvyn857
+-a--- 4      uvcn87_z
+-a--- 4      ux8tcuje
+-a--- 4      uxm1_sgj
+-a--- 4      uy4znw60
+-a--- 4      uy5ik01i
+-a--- 4      v_562qwr
+-a--- 4      v2rotaoy
+-a--- 4      v3rrsjry
+-a--- 4      v46oa145
+-a--- 4      v70sbmn0
+-a--- 4      v7itwdsl
+-a--- 4      va56i8rr
+-a--- 4      vb5o0jin
+-a--- 4      vb6qwoxb
+-a--- 4      vbbm4ajz
+-a--- 4      vckh53an
+-a--- 4      vcq_x12t
+-a--- 4      vdobbl3j
+-a--- 4      ve1yt4l0
+-a--- 4      veooq2ln
+-a--- 4      vg8jkp1e
+-a--- 4      vh1xp21g
+-a--- 4      viflk867
+-a--- 4      vinkf471
+-a--- 4      vk_9bcfc
+-a--- 4      vk3c4plu
+-a--- 4      vkfu72cb
+-a--- 4      vkkd7igr
+-a--- 4      vm9zumz4
+-a--- 4      vmv7owgd
+-a--- 4      vmwfpyyc
+-a--- 4      vp9kkrjj
+-a--- 4      vpxwu_dr
+-a--- 4      vrtcq3xy
+-a--- 4      vt08oc5t
+-a--- 4      vub0h30g
+-a--- 4      vuxb3typ
+-a--- 4      vv8vl3y0
+-a--- 4      vvbuejth
+-a--- 4      vvvxvwid
+-a--- 4      vww8rlet
+-a--- 4      vwyo5lpb
+-a--- 4      vyr_lo4q
+-a--- 4      vz1ap_cj
+-a--- 4      vzwtyhr7
+-a--- 4      w_mah1y1
+-a--- 4      w1exxm47
+-a--- 4      w22bc5sd
+-a--- 4      w3i0em_e
+-a--- 4      w48s08k4
+-a--- 4      w4ssj7wf
+-a--- 4      w578dc44
+-a--- 4      w697ejv9
+-a--- 4      w7ify2pm
+-a--- 4      w80f1g5_
+-a--- 4      w832f9vn
+-a--- 4      w8y82m9f
+-a--- 4      wagib7h8
+-a--- 4      wbvr9r4e
+-a--- 4      wcuxabkf
+-a--- 4      wdfu385e
+-a--- 4      wdy5f5ci
+-a--- 4      we3wiocs
+-a--- 4      we428smc
+-a--- 4      wf071nfy
+-a--- 4      wf2fcuel
+-a--- 4      wfyf9fs8
+-a--- 4      wfz3wd4e
+-a--- 4      wgywu_25
+-a--- 4      wh1xlebs
+-a--- 4      wh58af59
+-a--- 4      whuvn6cv
+-a--- 4      wj_4u269
+-a--- 4      wj8scw76
+-a--- 4      wm67o3d7
+-a--- 4      wnimf2uv
+-a--- 4      wnq2z_d4
+-a--- 4      wnq49bd9
+-a--- 4      wo07qc9e
+-a--- 4      wo9e0h8g
+-a--- 4      wp8xqjp6
+-a--- 4      wppt5vqn
+-a--- 4      wpy0kigt
+-a--- 4      wq7512_8
+-a--- 4      wql3azqc
+-a--- 4      ws24n227
+-a--- 4      wsw0q89n
+-a--- 4      wtgots68
+-a--- 4      ww439tq9
+-a--- 4      wx4n48fp
+-a--- 4      wxv9on98
+-a--- 4      wzmx75yt
+-a--- 4      x1ac6olh
+-a--- 4      x37s41d1
+-a--- 4      x3cf4lln
+-a--- 4      x5pd2kae
+-a--- 4      x76y6y4z
+-a--- 4      x80ir108
+-a--- 4      x8aocvi1
+-a--- 4      xae4e611
+-a--- 4      xayky15g
+-a--- 4      xbb_sr_w
+-a--- 4      xdvgu58g
+-a--- 4      xj_pgdir
+-a--- 4      xkjoqmd1
+-a--- 4      xleganu9
+-a--- 4      xmh5y80q
+-a--- 4      xmhe_bhg
+-a--- 4      xmz2p_ii
+-a--- 4      xo5dtf4e
+-a--- 4      xokacv0h
+-a--- 4      xpcf3y6e
+-a--- 4      xpsi8c7i
+-a--- 4      xq40cgwe
+-a--- 4      xqrno174
+-a--- 4      xsarj2lt
+-a--- 4      xt36k6g9
+-a--- 4      xtd3gueb
+-a--- 4      xtslgvce
+-a--- 4      xuem2ceb
+-a--- 4      xv0cz8x3
+-a--- 4      xwixfznc
+-a--- 4      xwrwcl_y
+-a--- 4      xxygh1ec
+-a--- 4      xycn2x9t
+-a--- 4      xyjj2r48
+-a--- 4      xyo1gx75
+-a--- 4      y_6xwc51
+-a--- 4      y094voqr
+-a--- 4      y0v_py4x
+-a--- 4      y17kui5l
+-a--- 4      y18n2l3_
+-a--- 4      y1k7g4op
+-a--- 4      y1qpma2d
+-a--- 4      y2gxus4_
+-a--- 4      y4uoqpmq
+-a--- 4      y5fzw7i4
+-a--- 4      y6e6bd_u
+-a--- 4      y75wahee
+-a--- 4      y785687j
+-a--- 4      y8lfduaj
+-a--- 4      y8tx5zlt
+-a--- 4      y99vu3ez
+-a--- 4      yeb70orf
+-a--- 4      yesb2s5c
+-a--- 4      yeturcpi
+-a--- 4      yhn8jukn
+-a--- 4      yib05k_u
+-a--- 4      yjjxucpj
+-a--- 4      yjuslae1
+-a--- 4      ykbo1cu9
+-a--- 4      ylq277ft
+-a--- 4      ylwswjum
+-a--- 4      yly_r9gt
+-a--- 4      ymo3hqh4
+-a--- 4      ynrfywzc
+-a--- 4      yo53oqny
+-a--- 4      yo9chc4h
+-a--- 4      yop1wbru
+-a--- 4      yov0lp7v
+-a--- 4      yoxzw_w_
+-a--- 4      ypf1eplg
+-a--- 4      ypflaafs
+-a--- 4      yptkm7h4
+-a--- 4      ypyyopmg
+-a--- 4      yr0sxhs9
+-a--- 4      yrslzi9v
+-a--- 4      yt562ih2
+-a--- 4      yub2esy5
+-a--- 4      yxajn_93
+-a--- 4      yyvcdb0m
+-a--- 4      yzay4mna
+-a--- 4      z_nm1bg9
+-a--- 4      z1bub416
+-a--- 4      z1m97_5s
+-a--- 4      z1s7tj6n
+-a--- 4      z2lugzwr
+-a--- 4      z3h5chxy
+-a--- 4      z4ymtd74
+-a--- 4      z6j0clsj
+-a--- 4      z6p9ygkc
+-a--- 4      z9x18860
+-a--- 4      zagmpiiw
+-a--- 4      zb6g_fkc
+-a--- 4      zbkjh_nm
+-a--- 4      zc53ypwe
+-a--- 4      zep7u_0p
+-a--- 4      zf24ls7_
+-a--- 4      zj226ws8
+-a--- 4      zjvi78u_
+-a--- 4      zk6g1txu
+-a--- 4      zl4gpyig
+-a--- 4      znb8ku4z
+-a--- 4      zoj4pg54
+-a--- 4      zoozreju
+-a--- 4      zp6om1qo
+-a--- 4      zpapixrv
+-a--- 4      zpxzrtwd
+-a--- 4      zqov_wca
+-a--- 4      zr85qrop
+-a--- 4      zti4q3sy
+-a--- 4      ztt5wo_x
+-a--- 4      zuc3n50l
+-a--- 4      zva6z_gm
+-a--- 4      zvkymj3v
+-a--- 4      zw30bdo_
+-a--- 4      zwp_v480
+-a--- 4      zyah9kpt
+-a--- 4      zydkb0vf
+-a--- 4      zz2kdt7r
+-a--- 4      zzebpenh
+
+
+2026-05-12T02:23:40.167116Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 7.8 seconds
+Output:
+
+FullName
+--------
+Z:\claude-sota-installed\AGENTS.md
+Z:\claude-sota-installed\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\zerocopy-0.8.48\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\addy-agent-skills\agent-skills\742dca58ae55\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\clickhouse\1.0.0\skills\clickho…
+Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\qdrant-skills\1.0.0\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\superpowers\5.1.0\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\codex\AGENTS.…
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\kilo\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\openclaw\AGEN…
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\opencode\AGEN…
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\pi\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\zed\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\marketplaces\addy-agent-skills\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\codex\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\kilo\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\openclaw\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\opencode\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\pi\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\zed\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\.codex\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\ja-JP\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\ko-KR\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\pt-BR\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\tr\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\tr\rules\common\agen…
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\zh-CN\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\zh-CN\rules\common\a…
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\zh-TW\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\rules\common\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\rules\zh\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\knowledge-work-plugins\partner-built\zoom-plugin…
+Z:\claude-sota-installed\.claude\worktrees\agent-a013c553f1313fc5e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a08ec11e742f73ed3\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a0f5f7e9593a5df5b\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a13c5cefb6d2c1811\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a17e927dc34de643f\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a234e177dd5ede07b\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a25ab442ef89d41df\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a26e0e224c17833b0\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a2b953b5f42b8e31a\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a2f11166549617f6a\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a35daaef530b6b95f\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a3c1227f1ad08c6f2\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a4c20152874d4fc9e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a6a4487924effd6db\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a6d186dfecabf2cd9\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a703b6ebef2c9fc38\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a771822a122f15ccc\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a8a57ee466aeea188\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a8e37394707168e08\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a8fd956ab78228317\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a9d68f4f4f440022e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ab12f3c5977a6f1d1\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-abf5b932a2363a331\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ad6318ac7b870af36\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ad79b4c9a5f9f76e8\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-adab913b577f8bbb6\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ae3108ee18d57240a\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ae4eac5d194df9343\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ae8239912ec1a2bb0\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-aeaacbbaf17e1b18e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-af5f9673e0a10a617\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-af96060763bcb2368\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-af98ec8d018556125\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-afa3b1d6f0c9a279f\AGENTS.md
+Z:\claude-sota-installed\.local\graphiti\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v10\claude_code_sota_frontier_v10_quality_convergenc…
+Z:\claude-sota-installed\docs\outer research\kits\v12\claude_code_sota_frontier_v12_quality_convergenc…
+Z:\claude-sota-installed\docs\outer research\kits\v14\claude_code_sota_frontier_v14_gap_closure_md_kit…
+Z:\claude-sota-installed\docs\outer research\kits\v15\claude_code_sota_frontier_v15_gap_closure_qualit…
+Z:\claude-sota-installed\docs\outer research\kits\v16\claude_code_sota_frontier_v16_gap_closure_qualit…
+Z:\claude-sota-installed\docs\outer research\kits\v17\claude_code_sota_frontier_v17_gap_deep_eval_md_k…
+Z:\claude-sota-installed\docs\outer research\kits\v18\claude_code_sota_frontier_v18_gap_eval_quality_m…
+Z:\claude-sota-installed\docs\outer research\kits\v19\claude_code_sota_frontier_v19_execution_gap_qual…
+Z:\claude-sota-installed\docs\outer research\kits\v20\claude_code_sota_v20_elite_convergence_md_kit\AG…
+Z:\claude-sota-installed\docs\outer research\kits\v21\claude_code_sota_v21_high_star_elite_convergence…
+Z:\claude-sota-installed\docs\outer research\kits\v22\claude_code_sota_v22_high_star_elite_convergence…
+Z:\claude-sota-installed\docs\outer research\kits\v23\claude_code_sota_v23_high_star_elite_convergence…
+Z:\claude-sota-installed\docs\outer research\kits\v24\claude_code_sota_v24_high_star_best_of_best_md_k…
+Z:\claude-sota-installed\docs\outer research\kits\v25\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v26\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v27\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v28\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v29\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v30\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v31\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v32\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v33\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v34\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v35\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v36\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v37\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v38\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v39\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v40\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v41\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v42\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v43\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v44\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v45\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v46\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v47\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v48\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v5\claude_code_sota_frontier_v5_md_kit\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v52\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v53\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v54\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v55\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v56\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v57\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v58\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v59\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v6\claude_code_sota_frontier_v6_quality_md_kit\AGENT…
+Z:\claude-sota-installed\docs\outer research\kits\v60\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v61\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v62\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v63\claude_code_sota_v63_ultimate_quality_execution_…
+Z:\claude-sota-installed\docs\outer research\kits\v64\claude_code_sota_v64_ultimate_sota_execution_md_…
+Z:\claude-sota-installed\docs\outer research\kits\v65\claude_code_sota_v65_ultimate_comprehensive_exec…
+Z:\claude-sota-installed\docs\outer research\kits\v7\claude_code_sota_frontier_v7_elite_md_kit\AGENTS.…
+Z:\claude-sota-installed\docs\outer research\kits\v8\claude_code_sota_frontier_v8_elite_quality_md_kit…
+Z:\claude-sota-installed\tmp\wave122-kits-extract\v63\claude_code_sota_v63_ultimate_quality_execution_…
+Z:\claude-sota-installed\tmp\wave122-kits-extract\v64\claude_code_sota_v64_ultimate_sota_execution_md_…
+Z:\claude-sota-installed\tmp\wave122-v63-extract\claude_code_sota_v63_ultimate_quality_execution_md_ki…
+Z:\claude-sota-installed\tmp\wave122-v64-extract\claude_code_sota_v64_ultimate_sota_execution_md_kit\A…
+
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.cache\pre-commit\repoetd_af1k' is denied.
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.cache\pre-commit\repop0y8hh4f' is denied.
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.cache\pre-commit\repoxfyzcyrc' is denied.
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.pytest_cache' is denied.
+
+ exited 1 in 7804ms:
+
+FullName
+--------
+Z:\claude-sota-installed\AGENTS.md
+Z:\claude-sota-installed\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\zerocopy-0.8.48\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\addy-agent-skills\agent-skills\742dca58ae55\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\clickhouse\1.0.0\skills\clickho…
+Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\qdrant-skills\1.0.0\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\superpowers\5.1.0\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\codex\AGENTS.…
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\kilo\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\openclaw\AGEN…
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\opencode\AGEN…
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\pi\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\context-mode\context-mode\1.0.111\configs\zed\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\cache\everything-claude-code\everything-claude-code\2.0.0-rc.…
+Z:\claude-sota-installed\.claude\plugins\marketplaces\addy-agent-skills\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\codex\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\kilo\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\openclaw\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\opencode\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\pi\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\context-mode\configs\zed\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\.codex\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\ja-JP\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\ko-KR\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\pt-BR\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\tr\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\tr\rules\common\agen…
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\zh-CN\AGENTS.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\zh-CN\rules\common\a…
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\docs\zh-TW\rules\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\rules\common\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\everything-claude-code\rules\zh\agents.md
+Z:\claude-sota-installed\.claude\plugins\marketplaces\knowledge-work-plugins\partner-built\zoom-plugin…
+Z:\claude-sota-installed\.claude\worktrees\agent-a013c553f1313fc5e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a08ec11e742f73ed3\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a0f5f7e9593a5df5b\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a13c5cefb6d2c1811\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a17e927dc34de643f\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a234e177dd5ede07b\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a25ab442ef89d41df\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a26e0e224c17833b0\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a2b953b5f42b8e31a\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a2f11166549617f6a\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a35daaef530b6b95f\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a3c1227f1ad08c6f2\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a4c20152874d4fc9e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a6a4487924effd6db\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a6d186dfecabf2cd9\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a703b6ebef2c9fc38\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a771822a122f15ccc\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a8a57ee466aeea188\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a8e37394707168e08\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a8fd956ab78228317\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-a9d68f4f4f440022e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ab12f3c5977a6f1d1\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-abf5b932a2363a331\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ad6318ac7b870af36\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ad79b4c9a5f9f76e8\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-adab913b577f8bbb6\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ae3108ee18d57240a\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ae4eac5d194df9343\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-ae8239912ec1a2bb0\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-aeaacbbaf17e1b18e\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-af5f9673e0a10a617\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-af96060763bcb2368\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-af98ec8d018556125\AGENTS.md
+Z:\claude-sota-installed\.claude\worktrees\agent-afa3b1d6f0c9a279f\AGENTS.md
+Z:\claude-sota-installed\.local\graphiti\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v10\claude_code_sota_frontier_v10_quality_convergenc…
+Z:\claude-sota-installed\docs\outer research\kits\v12\claude_code_sota_frontier_v12_quality_convergenc…
+Z:\claude-sota-installed\docs\outer research\kits\v14\claude_code_sota_frontier_v14_gap_closure_md_kit…
+Z:\claude-sota-installed\docs\outer research\kits\v15\claude_code_sota_frontier_v15_gap_closure_qualit…
+Z:\claude-sota-installed\docs\outer research\kits\v16\claude_code_sota_frontier_v16_gap_closure_qualit…
+Z:\claude-sota-installed\docs\outer research\kits\v17\claude_code_sota_frontier_v17_gap_deep_eval_md_k…
+Z:\claude-sota-installed\docs\outer research\kits\v18\claude_code_sota_frontier_v18_gap_eval_quality_m…
+Z:\claude-sota-installed\docs\outer research\kits\v19\claude_code_sota_frontier_v19_execution_gap_qual…
+Z:\claude-sota-installed\docs\outer research\kits\v20\claude_code_sota_v20_elite_convergence_md_kit\AG…
+Z:\claude-sota-installed\docs\outer research\kits\v21\claude_code_sota_v21_high_star_elite_convergence…
+Z:\claude-sota-installed\docs\outer research\kits\v22\claude_code_sota_v22_high_star_elite_convergence…
+Z:\claude-sota-installed\docs\outer research\kits\v23\claude_code_sota_v23_high_star_elite_convergence…
+Z:\claude-sota-installed\docs\outer research\kits\v24\claude_code_sota_v24_high_star_best_of_best_md_k…
+Z:\claude-sota-installed\docs\outer research\kits\v25\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v26\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v27\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v28\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v29\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v30\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v31\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v32\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v33\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v34\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v35\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v36\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v37\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v38\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v39\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v40\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v41\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v42\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v43\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v44\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v45\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v46\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v47\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v48\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v5\claude_code_sota_frontier_v5_md_kit\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v52\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v53\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v54\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v55\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v56\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v57\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v58\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v59\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v6\claude_code_sota_frontier_v6_quality_md_kit\AGENT…
+Z:\claude-sota-installed\docs\outer research\kits\v60\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v61\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v62\AGENTS.md
+Z:\claude-sota-installed\docs\outer research\kits\v63\claude_code_sota_v63_ultimate_quality_execution_…
+Z:\claude-sota-installed\docs\outer research\kits\v64\claude_code_sota_v64_ultimate_sota_execution_md_…
+Z:\claude-sota-installed\docs\outer research\kits\v65\claude_code_sota_v65_ultimate_comprehensive_exec…
+Z:\claude-sota-installed\docs\outer research\kits\v7\claude_code_sota_frontier_v7_elite_md_kit\AGENTS.…
+Z:\claude-sota-installed\docs\outer research\kits\v8\claude_code_sota_frontier_v8_elite_quality_md_kit…
+Z:\claude-sota-installed\tmp\wave122-kits-extract\v63\claude_code_sota_v63_ultimate_quality_execution_…
+Z:\claude-sota-installed\tmp\wave122-kits-extract\v64\claude_code_sota_v64_ultimate_sota_execution_md_…
+Z:\claude-sota-installed\tmp\wave122-v63-extract\claude_code_sota_v63_ultimate_quality_execution_md_ki…
+Z:\claude-sota-installed\tmp\wave122-v64-extract\claude_code_sota_v64_ultimate_sota_execution_md_kit\A…
+
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.cache\pre-commit\repoetd_af1k' is denied.
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.cache\pre-commit\repop0y8hh4f' is denied.
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.cache\pre-commit\repoxfyzcyrc' is denied.
+Get-ChildItem: 
+Line |
+   2 |  Get-ChildItem -Force -Recurse -Filter AGENTS.md | Select-Object FullN …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Access to the path 'Z:\claude-sota-installed\.pytest_cache' is denied.
+
+codex
+The root listing confirms the leak shape is present in the working tree: many root files are 4 bytes with short lowercase/digit/underscore names, plus the named shell artifacts. Next I’m checking collisions against tracked files and the actual lefthook config so the recommendation is based on this repo, not only the proposed snippets.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git ls-files | Where-Object { $_ -match '"'"'^[a-z0-9_]{1,10}$'"' }" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content lefthook.yml | ForEach-Object { $i++; '"'{0,4}: {1}' -f "'$i,$_ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git ls-files | Where-Object { $_ -match '"'"'^([a-z0-9_]{1,8}|=.*|nul|t|tm)$'"' }" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git status --short --untracked-files=all | Select-Object -First 120' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content .pre-commit-config.yaml | ForEach-Object { $i++; '"'{0,4}: {1}' -f "'$i,$_ }' in Z:\claude-sota-installed
+ succeeded in 361ms:
+justfile
+
+ succeeded in 303ms:
+   1: # EXAMPLE USAGE:
+   2: #
+   3: #   Refer for explanation to following link:
+   4: #   https://lefthook.dev/configuration/
+   5: #
+   6: # pre-push:
+   7: #   jobs:
+   8: #     - name: packages audit
+   9: #       tags:
+  10: #         - frontend
+  11: #         - security
+  12: #       run: yarn audit
+  13: #
+  14: #     - name: gems audit
+  15: #       tags:
+  16: #         - backend
+  17: #         - security
+  18: #       run: bundle audit
+  19: #
+  20: # pre-commit:
+  21: #   parallel: true
+  22: #   jobs:
+  23: #     - run: yarn eslint {staged_files}
+  24: #       glob: "*.{js,ts,jsx,tsx}"
+  25: #
+  26: #     - name: rubocop
+  27: #       glob: "*.rb"
+  28: #       exclude:
+  29: #         - config/application.rb
+  30: #         - config/routes.rb
+  31: #       run: bundle exec rubocop --force-exclusion -- {all_files}
+  32: #
+  33: #     - name: govet
+  34: #       files: git ls-files -m
+  35: #       glob: "*.go"
+  36: #       run: go vet -- {files}
+  37: #
+  38: #     - script: "hello.js"
+  39: #       runner: node
+  40: #
+  41: #     - script: "hello.go"
+  42: #       runner: go run
+
+ succeeded in 305ms:
+justfile
+
+ succeeded in 334ms:
+   1: # Wave 135 Fire 7 (2026-05-10) — Path P codex bg b3bdjahr8 REAL GPT-5.5 conf=0.94
+   2: # + Agent B exclude block augmentation (Mia OVER catch n=143 — gitleaks would scan 2GB
+   3: # .claude/plugins/cache/ without exclusion).
+   4: # Cite anchors:
+   5: #   gitleaks v8.30.1 @ HEAD 8863af47d64c3681422523e36837957c74d4af4b (.pre-commit-hooks.yaml:1-18)
+   6: #   ruff-pre-commit v0.15.12 @ HEAD 6fec9b7edb08fd9989088709d864a7826dc74e80 (README.md:21-28)
+   7: #   actionlint v1.7.12 @ HEAD 011a6d15e749bb3f2d771eed9c7aa0e7e3e10ee7 (.pre-commit-hooks.yaml:17-23)
+   8: 
+   9: exclude: |
+  10:   (?x)^(
+  11:     \.claude/state/.*|
+  12:     \.claude/plugins/.*|
+  13:     \.claude/projects/.*|
+  14:     \.claude/agent-memory/.*|
+  15:     \.claude/_archive/.*|
+  16:     \.claude/teams/.*|
+  17:     \.claude/worktrees/.*|
+  18:     \.local/.*|
+  19:     tmp/.*|
+  20:     docs/outer\ research/.*|
+  21:     .*\.zip|
+  22:     .*\.tar\.gz|
+  23:     .*\.lock
+  24:   )$
+  25: 
+  26: repos:
+  27:   - repo: https://github.com/gitleaks/gitleaks
+  28:     rev: v8.30.1
+  29:     hooks:
+  30:       - id: gitleaks-system
+  31: 
+  32:   - repo: https://github.com/astral-sh/ruff-pre-commit
+  33:     rev: v0.15.12
+  34:     hooks:
+  35:       - id: ruff-check
+  36:       - id: ruff-format
+  37: 
+  38:   - repo: https://github.com/rhysd/actionlint
+  39:     rev: v1.7.12
+  40:     hooks:
+  41:       - id: actionlint-system
+
+ succeeded in 584ms:
+ M .claude/.claude.json
+?? .bun/bin/bun.exe
+?? .bun/bin/bunx.exe
+?? .bun/install/cache/@clack/core/1.2.0@@@1/CHANGELOG.md
+?? .bun/install/cache/@clack/core/1.2.0@@@1/LICENSE
+?? .bun/install/cache/@clack/core/1.2.0@@@1/README.md
+?? .bun/install/cache/@clack/core/1.2.0@@@1/dist/index.d.mts
+?? .bun/install/cache/@clack/core/1.2.0@@@1/dist/index.mjs
+?? .bun/install/cache/@clack/core/1.2.0@@@1/dist/index.mjs.map
+?? .bun/install/cache/@clack/core/1.2.0@@@1/package.json
+?? .bun/install/cache/@clack/core@1.2.0@@@1/CHANGELOG.md
+?? .bun/install/cache/@clack/core@1.2.0@@@1/LICENSE
+?? .bun/install/cache/@clack/core@1.2.0@@@1/README.md
+?? .bun/install/cache/@clack/core@1.2.0@@@1/dist/index.d.mts
+?? .bun/install/cache/@clack/core@1.2.0@@@1/dist/index.mjs
+?? .bun/install/cache/@clack/core@1.2.0@@@1/dist/index.mjs.map
+?? .bun/install/cache/@clack/core@1.2.0@@@1/package.json
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/CHANGELOG.md
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/LICENSE
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/README.md
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/dist/index.d.mts
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/dist/index.mjs
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/dist/index.mjs.map
+?? .bun/install/cache/@clack/prompts/1.2.0@@@1/package.json
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/CHANGELOG.md
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/LICENSE
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/README.md
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/dist/index.d.mts
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/dist/index.mjs
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/dist/index.mjs.map
+?? .bun/install/cache/@clack/prompts@1.2.0@@@1/package.json
+?? .bun/install/cache/@esbuild/win32-x64/0.27.7@@@1/README.md
+?? .bun/install/cache/@esbuild/win32-x64/0.27.7@@@1/esbuild.exe
+?? .bun/install/cache/@esbuild/win32-x64/0.27.7@@@1/package.json
+?? .bun/install/cache/@esbuild/win32-x64@0.27.7@@@1/README.md
+?? .bun/install/cache/@esbuild/win32-x64@0.27.7@@@1/esbuild.exe
+?? .bun/install/cache/@esbuild/win32-x64@0.27.7@@@1/package.json
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/README.md
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/globals.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/globals.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/globals.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/globals.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/index.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/index.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/index.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/index.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/listener.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/listener.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/listener.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/listener.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/request.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/request.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/request.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/request.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/response.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/response.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/response.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/response.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/serve-static.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/serve-static.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/serve-static.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/serve-static.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/server.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/server.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/server.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/server.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/types.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/types.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/types.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/types.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response/constants.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response/constants.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response/constants.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/utils/response/constants.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/vercel.d.mts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/vercel.d.ts
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/vercel.js
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/dist/vercel.mjs
+?? .bun/install/cache/@hono/node-server/1.19.9@@@1/package.json
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/README.md
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/conninfo.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/conninfo.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/conninfo.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/conninfo.mjs
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/globals.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/globals.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/globals.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/globals.mjs
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/index.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/index.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/index.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/index.mjs
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/listener.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/listener.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/listener.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/listener.mjs
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/request.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/request.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/request.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/request.mjs
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/response.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/response.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/response.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/response.mjs
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/serve-static.d.mts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/serve-static.d.ts
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/serve-static.js
+?? .bun/install/cache/@hono/node-server@1.19.9@@@1/dist/serve-static.mjs
+warning: could not open directory '.pytest_cache/': Permission denied
+
+web search: 
+web search: lefthook configuration jobs run schema pre-commit jobs run official docs
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content AGENTS.md | ForEach-Object { $i++; if ($i -ge 35 -and $i -le 140) { '"'{0,4}: {1}' -f "'$i,$_ } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content AGENTS.md | ForEach-Object { $i++; if ($i -ge 141 -and $i -le 220) { '"'{0,4}: {1}' -f "'$i,$_ } }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem -Force -File | Where-Object { $_.Length -eq 4 -and $_.Name -match '"'"'^[a-z0-9_]{1,10}$'"' -and "'$_.Name -notmatch '"'\\.' } | Measure-Object | Select-Object Count" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=0; Get-Content .gitignore | ForEach-Object { $i++; '"'{0,4}: {1}' -f "'$i,$_ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git ls-files --stage .gitignore lefthook.yml .pre-commit-config.yaml AGENTS.md' in Z:\claude-sota-installed
+ succeeded in 312ms:
+  35: | **Codex CLI** (GPT-5.5 deep-review-exec) | Independent reviewer + adversarial challenger + CI rescue + alternative-hypothesis generator. NEVER permission-boundary replacement |
+  36: | **Opus-class subagents** | Architecture / security review / deep debugging / harness design / long-horizon research |
+  37: | **Sonnet-class workers** | Implementation / test writing / routine refactors / read-only Explore probes |
+  38: | **Haiku-class** | Summarization / classification / inline-judge passes |
+  39: 
+  40: ## Build and run
+  41: 
+  42: ```powershell
+  43: # Launch eee (Claude Code with Z:-portable env block)
+  44: eee
+  45: # OR explicit: tools/eee.ps1
+  46: 
+  47: # CPA fleet status (10-account CLIProxyAPI at port 8317)
+  48: curl -H "Authorization: Bearer $(cat Z:/claude-sota-installed-state/cliproxy-mgmt-secret.txt)" `
+  49:   http://127.0.0.1:8317/v0/management/auth-files
+  50: 
+  51: # Token efficiency layer (RTK 0.39.0 + cnighswonger session-affinity-prefix-cache)
+  52: rtk gain          # token savings dashboard
+  53: rtk cc-economics  # spending vs savings analysis
+  54: ccusage daily     # API spending
+  55: ```
+  56: 
+  57: ## Testing instructions
+  58: 
+  59: - **Cross-model gate (cardinal-rule-3)**: every architectural commit on a design
+  60:   surface MUST pass codex T1 pre-edit consult OR T2 commit-time hook gate.
+  61:   Foreground+tee path: `codex exec --ephemeral -p deep-review-exec --color never <
+  62:   .claude/state/codex_consult_<topic>.txt > .claude/state/codex_consult_<topic>_OUT.txt 2>&1`
+  63: - **Pattern A fix-forward** (per `Z:\claude-sota\.claude\rules\codex-t1-fix-forward-pattern.md`):
+  64:   on NEEDS-REVISION conf 0.88-0.93 with ≤10 prescriptions, apply ALL in single
+  65:   atomic commit (no iter-N→N.1 loops)
+  66: - **Pattern B HONEST-NON-FINDING**: T1 timeout-without-JSON-verdict → trace-mine for
+  67:   embedded evidence + ship as-designed + T2/T3 verify on commit/post-commit
+  68: - **Mia pre-apply** (per `mia-pre-apply.md`): every prescription with `prescribed_edits`
+  69:   / specific file:line claims gets cheap-probe verification BEFORE Edit (n=48
+  70:   cumulative OVER catches Wave 97-118)
+  71: - **No new tests required for descriptive doc edits** — runtime probe (`Read +
+  72:   Grep`) is verification
+  73: 
+  74: ## Code style guidelines
+  75: 
+  76: - **No comments unless WHY is non-obvious** (CLAUDE.md hard rule)
+  77: - **No speculative helpers / abstractions** (kiss-dry-yagni)
+  78: - **Three similar lines is better than premature abstraction** — defer DRY until
+  79:   ≥3 actual call sites
+  80: - **Cite SOTA primary at file:line + HEAD SHA** for every architectural claim
+  81:   (cardinal-rule-1)
+  82: - **Evidence markers** required on volatile claims: `[VERIFIED]` / `[INFERRED]` /
+  83:   `[UNKNOWN]` / `[MEASURED]` / `[REFUTED]` per `evidence-policy.md`
+  84: 
+  85: ## Security considerations (cardinal hard-rules)
+  86: 
+  87: - **NEVER commit secrets** — `.cli-proxy-api/` / `*.env` / `*.pem` / `*.key` /
+  88:   `secrets/**` are gitignored and `.claude/settings.json:permissions.deny[]` blocks
+  89:   reads
+  90: - **`safety_guard.py`** PreToolUse:Bash hook blocks 12 destructive patterns
+  91:   (`rm -rf` / `git push --force` / `git reset --hard` / SQL DROP / `chmod 777` /
+  92:   `mkfs` / `dd` / fork bomb / etc.)
+  93: - **`agent_plan_readonly_bash_guard.py`** restricts subagent Bash to readonly when
+  94:   `permissionMode: plan` — operator path retains full Bash via main session
+  95: - **`gitleaks_pre_commit_gate.py`** blocks `git commit`/`git push` if secrets
+  96:   detected
+  97: - **`codex_t2_pre_commit_gate.py`** cross-model gate on every commit
+  98: - **NEVER use `--no-verify`** to bypass hooks (canonical Must-Never #3); fix the
+  99:   hook OR the underlying issue
+ 100: 
+ 101: ## PR / commit instructions
+ 102: 
+ 103: - **Conventional commits**: `feat(scope)` / `fix(scope)` / `docs(scope)` / `chore` /
+ 104:   `refactor` / `test` / `perf`
+ 105: - **Wave-N attribution**: include `Wave <N> Ship <ID>` in subject; commit body
+ 106:   includes CR-1..CR-12 conformance + Mia OVER catches + cross-model T1 verdict
+ 107:   pointer
+ 108: - **Atomic single-shell commits** per `audit-action-loop.md` step 4 + `git-cli-grammar-discipline.md`:
+ 109:   `git add -- <file> && git commit -o -F msg.txt -- <file>`
+ 110: - **One logical unit per commit** per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE
+ 111: - **No PR title format constraint** — solo eee runtime
+ 112: 
+ 113: ## Done criteria (cross-agent handoff contract)
+ 114: 
+ 115: A change ships clean when ALL hold:
+ 116: 
+ 117: - ✅ Diff is minimal and scoped to the user's request
+ 118: - ✅ Quality gates pass OR failures are documented in commit body
+ 119: - ✅ Codex review findings are triaged (APPROVE / NEEDS-REVISION applied / Pattern B
+ 120:   HNF documented)
+ 121: - ✅ No new secrets, unsafe permissions, unbounded MCPs, or hidden memory writes
+ 122: - ✅ Handoff includes: goal, files touched, commands run, test results, unresolved
+ 123:   risks, next actions
+ 124: - ✅ Mia pre-apply probe passed on every prescription before Edit
+ 125: - ✅ TIER-1-DIRECT cite trail per cardinal-rule-1
+ 126: 
+ 127: ## Architecture pointers (where to look)
+ 128: 
+ 129: - **Cardinal rules**: `CLAUDE.md` — 12 cardinal rules (CR-1 cite SOTA primary
+ 130:   through CR-12 upstream-install-priority)
+ 131: - **Personal env**: `CLAUDE.local.md` — Z:-portable env block (per-machine,
+ 132:   gitignored)
+ 133: - **Sister rule layer**: `Z:\claude-sota\.claude\rules\` — 37 sister rules
+ 134:   cite-imported AMBER per CLAUDE.md Section 14.5 (sibling-novel discipline that has
+ 135:   no upstream parity)
+ 136: - **Install discipline**: `docs/install-from-github-discipline.md` — the
+ 137:   "pull-from-newest-via-official-native-channel" rule that gates every install
+ 138: - **Install manifest**: `docs/sota-installed-manifest.md` — single source of truth
+ 139:   for what's installed + why
+ 140: - **Install provenance**: `docs/install-provenance.md` — append-only install log
+
+ succeeded in 337ms:
+ 141:   with timestamps + commands + HEAD SHAs + outcomes
+ 142: - **Latest architecture audit**: `docs/wave118-architecture-audit-2026-05-09.md` —
+ 143:   comprehensive eee status (~85% SOTA per v65 standards; gap matrix; Wave 119+
+ 144:   ranked ship sequence)
+ 145: 
+ 146: ## Key primitives reference
+ 147: 
+ 148: - **CLI proxy fleet**: CLIProxyAPI v6.10.9 at port 8317, 10-account fleet (3 active
+ 149:   claude P30 round-robin equalized + 4 disabled cycle-rotation + 1 codex Pro + 1
+ 150:   antigravity + 1 gemini)
+ 151: - **MCPs**: 10 active — context7 / deepwiki / github / gitnexus / graphiti / memory
+ 152:   (mcp-memory-service v10.51.3 sqlite_vec) / phoenix / playwright / repomix / serena
+ 153: - **Plugins**: 21 enabled across 11 marketplaces — superpowers / openai-codex /
+ 154:   everything-claude-code / context-mode / addy-agent-skills / claude-plugins-official
+ 155:   (multi) / + others. 644 SKILL.md available
+ 156: - **Agents**: 8 in `.claude/agents/` — architect / code-reviewer / debugger /
+ 157:   evaluator / gpt5-archaeologist / gpt5-reviewer / sota-researcher / verifier
+ 158: - **Slash commands**: `/codex:review`, `/codex:adversarial-review`, `/codex:rescue`,
+ 159:   `/codex:status`, `/codex:result`, `/codex:cancel` from `codex@openai-codex@1.0.4`,
+ 160:   plus `/recall` (Wave 113) / `/harvest` (Wave 115) / `/mistake-search` (Wave 116) /
+ 161:   `/mistake-add` (Wave 117). Use `/codex:rescue --background <task>` for long build-error
+ 162:   investigation and `/codex:rescue --wait <task>` for bounded foreground fixes.
+ 163: - **Spec-Kit** (W152-F18 install at `3f5ef38`, AXIS-C complex system building) — spec-driven
+ 164:   research→plan→implement→review→ship workflow chain. **Claude-Code-only slash commands**
+ 165:   (installed via `specify init --integration claude`): `/speckit-constitution` (project
+ 166:   principles) → `/speckit-specify` (baseline spec) → `/speckit-plan` (impl plan) →
+ 167:   `/speckit-tasks` (actionable tasks) → `/speckit-implement` (execute); enhancement skills
+ 168:   `/speckit-clarify` / `/speckit-analyze` / `/speckit-checklist` / `/speckit-taskstoissues`.
+ 169:   **Tool-agnostic fallback for non-Claude consumers** (Codex CLI / Cursor / Gemini CLI /
+ 170:   Antigravity / Aider / Kilo / Cline / Copilot CLI): operate directly on `.specify/`
+ 171:   filesystem artifacts — read `.specify/memory/constitution.md` (principles), edit
+ 172:   `.specify/templates/{constitution,spec,plan,tasks,checklist}-template.md` (templates),
+ 173:   consult `.specify/workflows/workflow-registry.json` (workflow definitions). Re-run
+ 174:   `specify init --here --integration <agent>` to install agent-native commands; documented
+ 175:   `--integration` targets per spec-kit v0.8.7 examples: `claude` / `codex` / `copilot` /
+ 176:   `cursor-agent` / `codebuddy` / `gemini` / `vibe` / `generic` (full list: `specify init --help`).
+ 177:   Note `--integration` (new system) and `--ai` are mutually exclusive — prefer `--integration`.
+ 178:   Source: github/spec-kit v0.8.7.
+ 179: - **PreToolUse:Bash hooks (7)**: safety_guard / block_no_verify_guard /
+ 180:   gitleaks_pre_commit_gate (×2 for git commit/push) / codex_t2_pre_commit_gate (×2)
+ 181:   / **rtk hook claude** (Wave 118 — 80% token-efficiency rewrite layer)
+ 182: - **Token-efficiency layer**: ccusage 18.0.11 + RTK 0.39.0 + Serena 1.2.0 +
+ 183:   Repomix 1.14.0 (v65 default install core 12/12 verified)
+ 184: - **Structural code search/rewrite**: `ast-grep` 0.42.0 (npm-global @ast-grep/cli
+ 185:   @ HEAD `4c35a206`; verified `ast-grep --version`). Use for AST-pattern matching
+ 186:   and structural rewrite across 13+ languages (TS/JS/Python/Rust/Go/Java/C++/Ruby/
+ 187:   PHP/Swift/Kotlin/etc). Subcommands: `run` (one-time search/rewrite) / `scan`
+ 188:   (config-driven rule scan) / `test` (rule tests) / `new` (project scaffolding) /
+ 189:   `lsp` (language server). Pattern syntax: `$VAR` wildcards (e.g. `def $NAME($$$)`
+ 190:   matches any Python function). **Probe 4 verdict: COMPLEMENTARY** to serena
+ 191:   (LSP-semantic-graph) + repomix (codebase compression) — different concern
+ 192:   (structural-pattern-rewrite layer). NO upstream MCP server (CLI-only); invoke via
+ 193:   Bash. Recommended use: structural code patterns where regex is brittle (e.g.,
+ 194:   "find all `console.log(...)` calls but not in test files", "rewrite async/await
+ 195:   patterns"). Cite: `https://ast-grep.github.io/` + `Z:/repos/deps/ast-grep @ HEAD
+ 196:   4c35a206 [VERIFIED 2026-05-09]`
+ 197: - **Phase**: Operationally Phase 3 (`defaultMode: bypassPermissions`) per cardinal-
+ 198:   rule-7 graduated-unleash; safety floor mechanically enforced via PreToolUse hooks
+ 199: 
+ 200: ## Cite trail
+ 201: 
+ 202: - agents.md standard: https://agents.md/ (60k+ projects; root/nested precedence + recommended sections)
+ 203: - openai/codex AGENTS.md: `Z:/repos/deps/codex/AGENTS.md:1-56,103-123 @ HEAD 993e3f407ea8213f7d32cb9367ae7616b7e15b4a` (TIER-1 OFFICIAL openai example)
+ 204: - CCBP claude-subagents: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-subagents.md:17-36,40-48 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd`
+ 205: - Anthropic CC docs: https://code.claude.com/docs/en/settings, https://code.claude.com/docs/en/sub-agents, https://code.claude.com/docs/en/hooks, https://code.claude.com/docs/en/permission-modes
+ 206: - Local adaptation source: `Z:/temp_v65/claude_code_sota_v65_ultimate_comprehensive_execution_md_kit/AGENTS.md` (local composition input, not TIER-1 authority)
+
+ succeeded in 368ms:
+100644 a10a4c0ef7625619ae73c7cc9ba1dc55294e32f8 0	.gitignore
+100644 4da26b1215f7efea4b13d518f5dc7c7ddffe68e4 0	.pre-commit-config.yaml
+100644 c8d005d21c94cc32b84f907c704d45d67321bff9 0	AGENTS.md
+
+ succeeded in 402ms:
+   1: # claude-sota-installed gitignore
+   2: # Bootstrap-only — installs add their own gitignore patterns post-install
+   3: 
+   4: # Local-only env / preferences (NEVER commit per CCBP claude-memory.md:113)
+   5: CLAUDE.local.md
+   6: 
+   7: # Plugin caches (populated by /plugin install — opaque to git)
+   8: .claude/plugins/cache/
+   9: 
+  10: # Plugin marketplace clones (populated by `claude plugin marketplace add` — upstream-managed; do NOT re-vendor per cardinal-rule-12)
+  11: .claude/plugins/marketplaces/
+  12: 
+  13: # CC auto-backups (transient; opaque to git)
+  14: .claude/backups/
+  15: 
+  16: # Temp / state
+  17: tmp/
+  18: .claude/state/
+  19: .claude/debug/
+  20: .claude/projects/
+  21: .claude/sessions/
+  22: .claude/agent-memory/
+  23: .claude/worktrees/
+  24: 
+  25: # Auth + credentials (NEVER commit) — codex T2 BLOCK conf=0.93 prescribed-edit #1 expansion
+  26: .codex/
+  27: .codex/auth.json
+  28: .claude/.credentials.json
+  29: .env
+  30: .env.local
+  31: .env.*.local
+  32: auth/
+  33: 
+  34: # CC runtime state files (auto-generated, never source) — Wave 62B T2 prescribed-edit #1
+  35: .claude/history.jsonl
+  36: .claude/file-history/
+  37: .claude/metrics/
+  38: .claude/paste-cache/
+  39: .claude/homunculus/
+  40: .claude/cost-tracker.log
+  41: .claude/bash-commands.log
+  42: .claude/cache/
+  43: .claude/.claude.json
+  44: .claude/tasks/
+  45: .claude/quotas/
+  46: 
+  47: # Tool / runtime caches — Wave 62B T2 prescribed-edit #1
+  48: .config/
+  49: .gateguard/
+  50: .rustup/
+  51: .semgrep/
+  52: .uv/
+  53: .cargo/
+  54: 
+  55: # Install artifacts (reproducible from upstream — per CR-5 install-priority + CR-6 fresh-from-github)
+  56: .local/cwc/
+  57: .local/bin/
+  58: .local/share/
+  59: .local/state/
+  60: .local/cpa-usage-keeper/
+  61: 
+  62: # Outer-research kits (sibling-claude-sota lives elsewhere; if any local scratch exists, exclude)
+  63: docs/outer research/
+  64: 
+  65: # Python venv (if local)
+  66: .venv/
+  67: venv/
+  68: 
+  69: # Node / npm
+  70: node_modules/
+  71: .npm/
+  72: 
+  73: # OS
+  74: .DS_Store
+  75: Thumbs.db
+  76: desktop.ini
+  77: 
+  78: # Editors
+  79: .vscode/
+  80: .idea/
+  81: *.swp
+  82: *~
+  83: 
+  84: # Install provenance — partial / in-flight install logs
+  85: docs/install-provenance.md.tmp
+  86: 
+  87: # Runtime caches (auto-populated; opaque to git)
+  88: .cache/
+  89: .serena/
+  90: 
+  91: # Windows native install side-effects
+  92: AppData/
+  93: 
+  94: # Z-portable install scaffolds (populated by Tier 2 install execution per docs/sota-installed-manifest.md PHASE A/B/C)
+  95: .npm-global/
+  96: .qdrant/
+  97: .litellm/
+  98: .falkordb/
+  99: .gitnexus/
+ 100: installers/
+ 101: 
+ 102: # CLIProxyAPI 8-account fleet — operator-private (config has secret-key + OAuth tokens in auths/)
+ 103: # Cite: docs/eee-launch-design-cliproxyapi.md §2 + §13 (Mgmt API secret) + §3.2 (OAuth onboarding)
+ 104: .cli-proxy-api/
+
+ succeeded in 467ms:
+
+Count
+-----
+ 1500
+
+
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git ls-files --others --exclude-standard lefthook.yml .bun .npm-cache .local .cargo | Select-Object -First 40' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git check-ignore -v .bun/install/cache/@clack/core/1.2.0@@@1/README.md .cargo/config.toml .local/bin/foo .npm-cache/foo 2>$null' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Command lefthook -ErrorAction SilentlyContinue | Select-Object Source,Version' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'git check-ignore -v justfile t tm nul =500 2>$null' in Z:\claude-sota-installed
+ succeeded in 314ms:
+.gitignore:53:.cargo/	.cargo/config.toml
+.gitignore:57:.local/bin/	.local/bin/foo
+
+ succeeded in 306ms:
+
+Source                                                        Version
+------                                                        -------
+C:\Users\42\AppData\Local\Microsoft\WinGet\Links\lefthook.exe 0.0.0.0
+
+
+2026-05-12T02:24:21.166113Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.3 seconds
+Output:
+
+ exited 1 in 312ms:
+ succeeded in 585ms:
+.bun/bin/bun.exe
+.bun/bin/bunx.exe
+.bun/install/cache/@clack/core/1.2.0@@@1/CHANGELOG.md
+.bun/install/cache/@clack/core/1.2.0@@@1/LICENSE
+.bun/install/cache/@clack/core/1.2.0@@@1/README.md
+.bun/install/cache/@clack/core/1.2.0@@@1/dist/index.d.mts
+.bun/install/cache/@clack/core/1.2.0@@@1/dist/index.mjs
+.bun/install/cache/@clack/core/1.2.0@@@1/dist/index.mjs.map
+.bun/install/cache/@clack/core/1.2.0@@@1/package.json
+.bun/install/cache/@clack/core@1.2.0@@@1/CHANGELOG.md
+.bun/install/cache/@clack/core@1.2.0@@@1/LICENSE
+.bun/install/cache/@clack/core@1.2.0@@@1/README.md
+.bun/install/cache/@clack/core@1.2.0@@@1/dist/index.d.mts
+.bun/install/cache/@clack/core@1.2.0@@@1/dist/index.mjs
+.bun/install/cache/@clack/core@1.2.0@@@1/dist/index.mjs.map
+.bun/install/cache/@clack/core@1.2.0@@@1/package.json
+.bun/install/cache/@clack/prompts/1.2.0@@@1/CHANGELOG.md
+.bun/install/cache/@clack/prompts/1.2.0@@@1/LICENSE
+.bun/install/cache/@clack/prompts/1.2.0@@@1/README.md
+.bun/install/cache/@clack/prompts/1.2.0@@@1/dist/index.d.mts
+.bun/install/cache/@clack/prompts/1.2.0@@@1/dist/index.mjs
+.bun/install/cache/@clack/prompts/1.2.0@@@1/dist/index.mjs.map
+.bun/install/cache/@clack/prompts/1.2.0@@@1/package.json
+.bun/install/cache/@clack/prompts@1.2.0@@@1/CHANGELOG.md
+.bun/install/cache/@clack/prompts@1.2.0@@@1/LICENSE
+.bun/install/cache/@clack/prompts@1.2.0@@@1/README.md
+.bun/install/cache/@clack/prompts@1.2.0@@@1/dist/index.d.mts
+.bun/install/cache/@clack/prompts@1.2.0@@@1/dist/index.mjs
+.bun/install/cache/@clack/prompts@1.2.0@@@1/dist/index.mjs.map
+.bun/install/cache/@clack/prompts@1.2.0@@@1/package.json
+.bun/install/cache/@esbuild/win32-x64/0.27.7@@@1/README.md
+.bun/install/cache/@esbuild/win32-x64/0.27.7@@@1/esbuild.exe
+.bun/install/cache/@esbuild/win32-x64/0.27.7@@@1/package.json
+.bun/install/cache/@esbuild/win32-x64@0.27.7@@@1/README.md
+.bun/install/cache/@esbuild/win32-x64@0.27.7@@@1/esbuild.exe
+.bun/install/cache/@esbuild/win32-x64@0.27.7@@@1/package.json
+.bun/install/cache/@hono/node-server/1.19.9@@@1/README.md
+.bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.d.mts
+.bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.d.ts
+.bun/install/cache/@hono/node-server/1.19.9@@@1/dist/conninfo.js
+
+codex
+**Audit Result**
+
+[VERIFIED] The leak is live: root contains exactly `1500` files matching length 4 plus short lowercase/digit/underscore names. [VERIFIED] Existing repo root collision for the proposed Layer 2 short-name ignore is `justfile`, which is tracked. It will not be ignored while tracked, but the proposed patterns would hide any future untracked root file named like `a`, `go`, `rust`, `test`, `config`, `justfile`, etc.
+
+Main blockers:
+
+1. **Layer 2 is too broad.** The `/[a-z0-9_]...` root globs are repository-policy landmines. They match legitimate root filenames by shape, not leak evidence. They also only cover 1-8 chars while Layer 1 deletes 1-10. Use a narrower cleanup/gate based on root-only + content/size canary, not global ignore by filename entropy.
+
+2. **Layer 1 predicate is acceptable only with a dry-run manifest.** `$_.Name -match '^[a-z0-9_]{1,10}$'` is over-broad by itself. It is made much safer by `Length -eq 4` and content `blat`, but should still emit the candidate list/count before deletion and use `Remove-Item -LiteralPath`.
+
+3. **Layer 3 schema is plausible, but behavior is wrong for this repo.** Lefthook `pre-commit.jobs[].run` is canonical per lefthook docs, but counting all untracked files will false-block because `.bun/` is currently unignored and very large, while `.gitignore` already ignores only `.cargo/`, partial `.local/`, etc. Anchors: `.gitignore:47-60`, `.gitignore:69-71`; `AGENTS.md:113-125` requires scoped gates and handoff quality. Fix `.gitignore` for protected install state (`.bun/`, `.npm-cache/`, likely `.local/` if CR-5 says protect all) or make Layer 3 count only root leak candidates.
+
+4. **Layer 4 is directionally good.** No observed `.claude/state/leak_audit.jsonl` conflict, and `.claude/state/` is ignored at `.gitignore:16-23`. But async PostToolUse on `git commit *` is not sufficient as a defense by itself; it is observability, not prevention. Keep it, but do not treat it as replacing Layer 3.
+
+5. **Cardinal conformance is incomplete until revised.** CR-3 is satisfied by this T1 review path (`AGENTS.md:57-70`). CR-1 requires cite anchors for any architectural claim (`AGENTS.md:80-83`, `AGENTS.md:124-125`). CR-5/CR-9 are currently at risk because protected install-state dirs are not consistently ignored despite the Class 3 protect list.
+
+```json
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "prescribed_edits": [
+    {
+      "layer": "1",
+      "issue": "PowerShell deletion predicate is safe only because of size/content checks; the name regex alone is over-broad and can match legitimate root files.",
+      "fix": "Split discovery and deletion: emit candidate count plus manifest first, require Length == 4 and exact raw content 'blat', then delete using Remove-Item -LiteralPath on resolved root-child paths only. Keep named artifact deletion explicit."
+    },
+    {
+      "layer": "2",
+      "issue": "Root .gitignore patterns /[a-z0-9_]... hide legitimate short root files; tracked collision verified: justfile. They also cover only 1-8 while Layer 1 matches 1-10.",
+      "fix": "Do not ship filename-shape ignore globs. Instead add ignores for protected install/cache dirs currently leaking into status, especially /.bun/ and /.npm-cache/, and optionally a narrow documented root quarantine path if future leak artifacts are moved there."
+    },
+    {
+      "layer": "3",
+      "issue": "The lefthook jobs schema is canonical, but counting all untracked files false-blocks this repo because protected install-state directories produce many untracked files.",
+      "fix": "Replace the wc count with a repo-root leak-candidate detector, preferably a checked-in cross-platform script. Count root files with exact canary predicates and separately warn on total untracked count after protected cache ignores are fixed."
+    },
+    {
+      "layer": "4",
+      "issue": "JSONL filename does not conflict, but PostToolUse git-commit async audit is only observability and may miss non-commit write events.",
+      "fix": "Keep schema leak_audit.v1 in .claude/state/leak_audit.jsonl, include root_untracked_count, candidate_count, named_artifact_count, severity, and sampled paths. Wire SessionStart context plus pre-commit blocking script; do not rely on async audit as the blocking layer."
+    }
+  ],
+  "cardinal_rule_conformance": {
+    "cr1": false,
+    "cr3": true,
+    "cr5": false,
+    "cr8": true,
+    "cr9": false
+  },
+  "launch_d1_axes": {
+    "code_quality": "FAIL",
+    "security": "PASS",
+    "performance": "PASS",
+    "infra": "FAIL",
+    "comms": "PASS"
+  },
+  "ship_recommendation": "ATOMIC-LAYERS-1-2-ONLY"
+}
+```
+tokens used
+70,276
+**Audit Result**
+
+[VERIFIED] The leak is live: root contains exactly `1500` files matching length 4 plus short lowercase/digit/underscore names. [VERIFIED] Existing repo root collision for the proposed Layer 2 short-name ignore is `justfile`, which is tracked. It will not be ignored while tracked, but the proposed patterns would hide any future untracked root file named like `a`, `go`, `rust`, `test`, `config`, `justfile`, etc.
+
+Main blockers:
+
+1. **Layer 2 is too broad.** The `/[a-z0-9_]...` root globs are repository-policy landmines. They match legitimate root filenames by shape, not leak evidence. They also only cover 1-8 chars while Layer 1 deletes 1-10. Use a narrower cleanup/gate based on root-only + content/size canary, not global ignore by filename entropy.
+
+2. **Layer 1 predicate is acceptable only with a dry-run manifest.** `$_.Name -match '^[a-z0-9_]{1,10}$'` is over-broad by itself. It is made much safer by `Length -eq 4` and content `blat`, but should still emit the candidate list/count before deletion and use `Remove-Item -LiteralPath`.
+
+3. **Layer 3 schema is plausible, but behavior is wrong for this repo.** Lefthook `pre-commit.jobs[].run` is canonical per lefthook docs, but counting all untracked files will false-block because `.bun/` is currently unignored and very large, while `.gitignore` already ignores only `.cargo/`, partial `.local/`, etc. Anchors: `.gitignore:47-60`, `.gitignore:69-71`; `AGENTS.md:113-125` requires scoped gates and handoff quality. Fix `.gitignore` for protected install state (`.bun/`, `.npm-cache/`, likely `.local/` if CR-5 says protect all) or make Layer 3 count only root leak candidates.
+
+4. **Layer 4 is directionally good.** No observed `.claude/state/leak_audit.jsonl` conflict, and `.claude/state/` is ignored at `.gitignore:16-23`. But async PostToolUse on `git commit *` is not sufficient as a defense by itself; it is observability, not prevention. Keep it, but do not treat it as replacing Layer 3.
+
+5. **Cardinal conformance is incomplete until revised.** CR-3 is satisfied by this T1 review path (`AGENTS.md:57-70`). CR-1 requires cite anchors for any architectural claim (`AGENTS.md:80-83`, `AGENTS.md:124-125`). CR-5/CR-9 are currently at risk because protected install-state dirs are not consistently ignored despite the Class 3 protect list.
+
+```json
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "prescribed_edits": [
+    {
+      "layer": "1",
+      "issue": "PowerShell deletion predicate is safe only because of size/content checks; the name regex alone is over-broad and can match legitimate root files.",
+      "fix": "Split discovery and deletion: emit candidate count plus manifest first, require Length == 4 and exact raw content 'blat', then delete using Remove-Item -LiteralPath on resolved root-child paths only. Keep named artifact deletion explicit."
+    },
+    {
+      "layer": "2",
+      "issue": "Root .gitignore patterns /[a-z0-9_]... hide legitimate short root files; tracked collision verified: justfile. They also cover only 1-8 while Layer 1 matches 1-10.",
+      "fix": "Do not ship filename-shape ignore globs. Instead add ignores for protected install/cache dirs currently leaking into status, especially /.bun/ and /.npm-cache/, and optionally a narrow documented root quarantine path if future leak artifacts are moved there."
+    },
+    {
+      "layer": "3",
+      "issue": "The lefthook jobs schema is canonical, but counting all untracked files false-blocks this repo because protected install-state directories produce many untracked files.",
+      "fix": "Replace the wc count with a repo-root leak-candidate detector, preferably a checked-in cross-platform script. Count root files with exact canary predicates and separately warn on total untracked count after protected cache ignores are fixed."
+    },
+    {
+      "layer": "4",
+      "issue": "JSONL filename does not conflict, but PostToolUse git-commit async audit is only observability and may miss non-commit write events.",
+      "fix": "Keep schema leak_audit.v1 in .claude/state/leak_audit.jsonl, include root_untracked_count, candidate_count, named_artifact_count, severity, and sampled paths. Wire SessionStart context plus pre-commit blocking script; do not rely on async audit as the blocking layer."
+    }
+  ],
+  "cardinal_rule_conformance": {
+    "cr1": false,
+    "cr3": true,
+    "cr5": false,
+    "cr8": true,
+    "cr9": false
+  },
+  "launch_d1_axes": {
+    "code_quality": "FAIL",
+    "security": "PASS",
+    "performance": "PASS",
+    "infra": "FAIL",
+    "comms": "PASS"
+  },
+  "ship_recommendation": "ATOMIC-LAYERS-1-2-ONLY"
+}
+```
+
+=== V2 dispatch end: 22:24:59 exit=0 ===

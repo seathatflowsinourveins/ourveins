@@ -1,0 +1,228 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 583d0bb546d8794d720fe435c7804c1ed3bb392b
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md                         |    95 +
+ docs/sota-architecture-audit/00-master-tracker.md  |   253 +
+ .../01-current-state-baseline.md                   |   342 +
+ docs/sota-architecture-audit/02-gap-matrix.md      |   243 +
+ .../03-sota-target-architecture.md                 |   294 +
+ .../sota-architecture-audit/04-decision-tracker.md |   821 ++
+ .../05-audit-coverage-tracker.md                   |   194 +
+ .../_all-batches-consolidated.json                 | 11136 +++++++++++++++++++
+ docs/sota-architecture-audit/_batch1-metadata.json |   207 +
+ docs/sota-architecture-audit/_batch2-metadata.json |   186 +
+ docs/sota-architecture-audit/_batch3-metadata.json |  3661 ++++++
+ docs/sota-architecture-audit/_batch3-table.md      |   123 +
+ docs/sota-architecture-audit/_batch4-metadata.json |  1949 ++++
+ docs/sota-architecture-audit/_batch5-metadata.json |  2566 +++++
+ docs/sota-architecture-audit/_batch6-metadata.json |  1978 ++++
+ docs/sota-architecture-audit/_priority-queue.txt   |   605 +
+ docs/sota-architecture-audit/_repo-baseline.txt    |   609 +
+ 17 files changed, 25262 insertions(+)
+
+=== git show --format=fuller ===
+commit 583d0bb546d8794d720fe435c7804c1ed3bb392b
+Author:     42 <42@local>
+AuthorDate: Sun May 10 15:20:16 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 15:20:16 2026 -0400
+
+    audit(w134-f5): v1-v65 line-by-line repo audit — 91.13% coverage via 6 batches
+    
+    Wave 134 Fire 5 closes the user-directive line-by-line audit of v1-v65 outer-research
+    kits with mass parallel programmatic SRA D1-D10 probing.
+    
+    ## Headline metrics (user-directive: "percentage of repos line-by-line audited")
+    
+    | Coverage classification              | Count        | %       |
+    |--------------------------------------|--------------|---------|
+    | Programmatic SRA D1-D10 probe        | 555 / 609    | 91.13%  |
+    | Attempted line-by-line               | 599 / 609    | 98.36%  |
+    | Strict line-by-line (LICENSE+README) | 17 / 609     | 2.79%   |
+    | Pre-existing baseline already-cited  | 7 / 609      | 1.15%   |
+    
+    ## Methodology
+    
+    1. Python pass over 55 REPO_METADATA.json + REPOS_BY_CATEGORY.json across
+       v5/v6/v7/v8/v10/v12/v14-v48/v52-v65 -> 609 unique repos baseline
+    2. Frequency-sorted priority queue (top-cited 47-50× across 55 kits)
+    3. Batches 1+2 strict (LICENSE-content + README + manual SRA): 17 repos
+    4. Batches 3-6 programmatic (gh api + auto-scored): 538 attempted, 494 successful
+    5. Honest dual classification: STRICT / PROGRAMMATIC / ATTEMPTED
+    
+    ## Verdict distribution (555 successful probes)
+    
+    - STUDY-PILOT-CANDIDATE:   161 (29.0%)
+    - REJECT-FOR-FIT-LICENSE:  136 (24.5%)  [78 NO LICENSE + 58 NOASSERTION]
+    - REJECT-FOR-FIT-PRE-BURN: 94  (16.9%)  [age <90d + stars <1000]
+    - DEFER:                   71  (12.8%)
+    - DEFER-LOW-STAR:          61  (11.0%)
+    - ? unclassified:          20  (3.6%)
+    - REJECT-NONPERMISSIVE/STALE/ARCHIVED/multi-fail: 8 (1.5%)
+    - UNREACHABLE 404 (kit-typo'd): 44
+    
+    ## Top-15 STUDY-PILOT candidates for Wave 134 Fire 6+ deep-dive
+    
+    sst/opencode (157k) / nousresearch/hermes-agent (142k) / langchain-ai/langchain (136k)
+    microsoft/markitdown (122k) / firecrawl/firecrawl (118k AGPL-CLI) / google-gemini/gemini-cli (104k)
+    github/spec-kit (95k) / browser-use/browser-use (93k) / garrytan/gstack (93k)
+    microsoft/playwright (88k) / mermaid-js/mermaid (88k) / junegunn/fzf (80k)
+    thedotmack/claude-mem (74k) / farion1231/cc-switch (66k) / unclecode/crawl4ai (65k)
+    
+    ## Already-installed/cited subset confirmed
+    
+    44 of 555 owned by known T1 orgs already in cardinal-rule cites OR marketplace:
+    anthropics + openai + google + microsoft + github + astral-sh + huggingface +
+    langchain-ai + voltagent + modelcontextprotocol + tree-sitter + aaif-goose +
+    mozilla + apache + ossf + cli + sharkdp + getzep + gitleaks + shanraisshan +
+    gsd-build + pre-commit + biomejs + oxc-project + burntsushi + mikefarah
+    
+    ## Files (17 new + 1 modified)
+    
+    - docs/sota-architecture-audit/00-master-tracker.md (18.3K)
+    - docs/sota-architecture-audit/01-current-state-baseline.md (18.8K)
+    - docs/sota-architecture-audit/02-gap-matrix.md (20.0K)
+    - docs/sota-architecture-audit/03-sota-target-architecture.md (17.4K)
+    - docs/sota-architecture-audit/04-decision-tracker.md (60.0K)
+    - docs/sota-architecture-audit/05-audit-coverage-tracker.md (12.8K)
+    - docs/sota-architecture-audit/_repo-baseline.txt (609 unique repos)
+    - docs/sota-architecture-audit/_priority-queue.txt (frequency-sorted queue)
+    - docs/sota-architecture-audit/_batch{1..6}-metadata.json (raw gh API probe data)
+    - docs/sota-architecture-audit/_all-batches-consolidated.json (aggregate)
+    - docs/sota-architecture-audit/_batch3-table.md (alt markdown format)
+    - docs/install-provenance.md (Wave 134 Fire 5 close entry appended)
+    
+    ## Sister-rule conformance
+    
+    - SRA D1-D10 framework applied (sota-research-architecture.md)
+    - audit-action-loop Wire/Surface/Close discipline (Surface stage closed)
+    - convergence-gate Axis-3 5-band stability applied across 555 probes
+    - synthesis-layer-verify HONEST-NON-FINDING class for 44 unreachable
+    - cardinal-rule-8 SOTA-content + cardinal-rule-11 META-process applied
+    - Mia ladder n=130 -> n=853 (599 probe verifications + already-counted baseline)
+    
+    ## Next fires queued
+    
+    - Wave 134 Fire 6: Deep line-by-line of Top-15 STUDY-PILOT (LICENSE-content +
+      README + Probe 7.b 5-clause check)
+    - Wave 134 Fire 7: Re-audit Anthropic-OFFICIAL repos in REJECT-LICENSE bucket
+    - Wave 134 Fire 8-10: Deep-dive next 30-50 STUDY-PILOT by stars
+    - Wave 134 Fire N: Address 20 unclassified verdicts
+    - Wave 134 Fire N+: Re-attempt 44 unreachable 404 repos with alternate spellings
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 261f37e..bf30398 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -12695,3 +12695,98 @@ Voice 2 + Voice 3 (latter not dispatched) are Sonnet stand-ins per `cross-model-
+ - 📋 task #88 FM-17.h candidate Path P codex BG heredoc-write-context-failure
+ - 📋 task #91 Wave 130 followup sibling fm17 update for FM-17.f sub-class
+ - 📋 task #100 Wave 132 Fire 4 gitnexus@1.6.4-rc.112 → 1.6.4 stable bump (auto-fire on dist-tags.latest change)
++
++---
++
++## Wave 134 Fire 5 — v1-v65 line-by-line audit close (2026-05-10)
++
++**Operator directive** (verbatim re-issue): *"deep dive into your architecture ... please deep dive into v1-65 untill all repos and references been audited, give me persentage of repos you line byline aduited againt our architecture and your ultimatre architecture ecosystem."*
++
++### Deliverables shipped this fire
++
++| File | Size | Purpose |
++|---|---|---|
++| `docs/sota-architecture-audit/05-audit-coverage-tracker.md` | 12.8K | Coverage tracker with 3 honest metrics (strict / programmatic / attempted) + per-batch breakdown |
++| `docs/sota-architecture-audit/04-decision-tracker.md` | 60.0K | Per-repo SRA D1-D10 verdict rows for all 6 batches |
++| `docs/sota-architecture-audit/00-master-tracker.md` | 18.3K | Updated with Fire 5 close summary + headline metrics |
++| `docs/sota-architecture-audit/_repo-baseline.txt` | 16.2K | 609 unique repos extracted from v5-v65 kit metadata |
++| `docs/sota-architecture-audit/_priority-queue.txt` | 17.5K | Frequency-sorted queue (most-cited unaudited first) |
++| `docs/sota-architecture-audit/_batch{1..6}-metadata.json` | total ~310K | Raw `gh api repos/<slug>` results for all 6 batches |
++| `docs/sota-architecture-audit/_all-batches-consolidated.json` | 323K | Aggregate JSON for downstream cross-batch analysis |
++| `docs/sota-architecture-audit/_batch3-table.md` | 12.4K | Markdown mega-table for Batch 3 (alternative format) |
++
++### Methodology
++
++1. **Baseline extraction**: Python pass over 55 REPO_METADATA.json + REPOS_BY_CATEGORY.json files across kits v5/v6/v7/
+
+[prompt truncated]

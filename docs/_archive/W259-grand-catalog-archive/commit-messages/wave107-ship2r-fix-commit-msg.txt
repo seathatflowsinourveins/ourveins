@@ -1,0 +1,75 @@
+fix(launcher): Wave 107 Ship 2R-launcher-fix — add skills/ + .claude-plugin/ to HARD-GATE recognized-artifacts list (unblocks session-report and skills-only plugins)
+
+Closes operator launch failure on Ship 2R-followup retry.
+
+ROOT CAUSE:
+  tools/eee.ps1 HARD-GATE preflight check (T0.3 plugin cache integrity) at L325-338
+  recognized only README.md / commands/ / scripts/ / agents/ / hooks/ as valid plugin
+  artifacts. session-report layout is LICENSE + skills/ ONLY (skills-only plugin per
+  Anthropic CC plugin convention) — fails the check despite being a fully-valid plugin.
+
+  Per Anthropic CC plugin convention `https://code.claude.com/docs/en/plugins`,
+  `skills/` is a CANONICAL plugin artifact dir alongside commands/agents/hooks/scripts/.
+  `.claude-plugin/plugin.json` is the plugin metadata manifest (required for plugin
+  registration). Both should pass the artifact-recognition check.
+
+CHANGES (1 file / +4 / -2 LOC):
+  tools/eee.ps1 L325-336 — add `skills/` + `.claude-plugin/` to recognized-artifacts
+                            test list (Or-chained Test-Path conditions) + update error
+                            message to enumerate the new recognized artifacts
+
+WHY skills/ + .claude-plugin/ ADDED:
+  - skills/ — CC plugins ship Claude Agent Skills under skills/<skill-name>/SKILL.md;
+              session-report / playground / mcp-server-dev / agent-skills all use this
+              layout. Per Anthropic CC plugin convention this is canonical.
+  - .claude-plugin/ — plugin metadata manifest dir (.claude-plugin/plugin.json); every
+                      Anthropic OFFICIAL marketplace plugin has this. If a future plugin
+                      ships ONLY .claude-plugin/ (metadata-only entry), it should still
+                      pass the integrity check (presence of metadata = registered plugin).
+
+PRE-FIX EVIDENCE (Mia probe; cache layouts verified):
+  - code-review:      .claude-plugin + LICENSE + README.md + commands/   (passes)
+  - feature-dev:      .claude-plugin + LICENSE + README.md + agents/ + commands/  (passes)
+  - code-simplifier:  .claude-plugin + LICENSE + agents/                  (passes via agents/)
+  - commit-commands:  .claude-plugin + LICENSE + README.md + commands/   (passes)
+  - session-report:   LICENSE + skills/                                   (FAILS pre-fix; PASSES post-fix via skills/)
+  - playground:       .claude-plugin + LICENSE + README.md + skills/     (passes via README)
+  - mcp-server-dev:   .claude-plugin + LICENSE + README.md + skills/     (passes via README)
+  - agent-skills:     LICENSE + README.md + agents/ + docs/ + hooks/ + skills/  (passes)
+
+POST-FIX SMOKE (verified via PowerShell Test-Path simulation):
+  session-report cache → "PASS via skills" → hasContent=True → HARD-GATE will pass
+
+CR-3 SATISFIED (cross-model consensus):
+  Per CLAUDE.md "Bootstrap-only files" enumeration, tools/eee.ps1 is bootstrap-class.
+  Per cardinal-rule-3 Phase 1 bootstrap exception: codex T1 e2e DEFERRED for bootstrap
+  files when fix is operational bug-fix (correctness fix to launcher pre-flight check;
+  NOT REJECT/REPLACEMENT verdict per Ship 2X SRA cross-model T1 mandate).
+  T2 commit-time hook (codex_t2_pre_commit_gate.py at PreToolUse Bash(git commit *))
+  IS the cross-model verification net for this commit per cross-model-consensus.md
+  §The contract.
+
+OPERATOR-BLOCKER PRIORITY:
+  User explicit "don't delay anymore" mandate + eee launch failed; fix-time prioritized
+  over codex T1 round-trip per Phase 1 bootstrap exception. T2 hook satisfies CR-3.
+
+CR COMPLIANCE:
+  CR-1 (cite SOTA primary): TIER-1-DIRECT https://code.claude.com/docs/en/plugins (CC plugin convention)
+  CR-3 (cross-model T1):    DEFERRED per Phase 1 bootstrap exception; T2 commit-gate is verification net
+  CR-5 (install-priority):  N/A (bootstrap launcher fix; no install action)
+  CR-7 (graduated unleash): Phase 3 destination preserved (no behavior change for non-skills-only plugins)
+  CR-9 (install-risk):      LOW (bootstrap file edit; reversible via revert; OR-chained additions don't
+                            tighten check — strictly relax it)
+  CR-10 (research-first):   Mia probe of all 8 cache layouts preceded fix
+  CR-11 (META-process):     Smoke-test of fixed check on session-report cache verified pre-commit
+
+CITE CHAIN:
+  TIER-1-DIRECT: https://code.claude.com/docs/en/plugins (Anthropic CC plugin artifact convention)
+  TIER-3-LOCAL: tools/eee.ps1 L325-338 (operator-discovered launcher bug; pre-existing check
+                missed skills/ from canonical artifacts list)
+
+QUEUE (post Wave 107 launcher fix):
+  Operator retry: `eee` should pass HARD-GATE
+  Wave 105-106 ships activate on next session: repomix MCP + gateway-discovery + safety_guard
+
+Wave 107 — Ship 2R-launcher-fix (32nd commit in this session arc).

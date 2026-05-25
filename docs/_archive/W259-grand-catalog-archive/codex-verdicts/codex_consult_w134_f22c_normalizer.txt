@@ -1,0 +1,60 @@
+You are GPT-5.5 with codex CLI. Audit a fresh-written Python script (~180 LOC) before its first commit. Single-file audit; focused 3-claim review.
+
+## Subject file (untracked; pre-commit)
+Path: `Z:/claude-sota-installed/tools/codex_verdict_normalizer.py`
+
+## Context
+W134-F22-C P1 ship: closes Fire 19 P1-1 gap (bifurcated codex verdict architecture).
+Reads `.claude/state/codex_review_HEAD_*.txt` JSON verdicts (schema at
+`.claude/schemas/review-output.schema.json`) + writes normalized records to
+`.claude/state/codex_verdict_summary.jsonl`.
+
+Sister ship: `evals/evolve_pass_rate_gate.py` (W134-F22-B; commit `e4cefa6`) — reads
+same source files for pass-rate gate. Both follow same `.prompt.txt` filter pattern.
+
+## Claim 1 — Schema parsing correctness
+The normalizer extracts `severity_dist` + `max_severity` + `max_confidence` from
+the `findings` array per record. Schema enum: severity ∈ {critical, high, medium, low};
+confidence is per-finding 0-1 float.
+- Audit: `extract_record()` correctness on severity counting + max-severity tie-break
+- Audit: `max_confidence` reduction across findings
+- Edge case: findings array with mixed-shape items (some lack `severity` or `confidence` keys)
+- Output: VERIFIED-CORRECT if logic sound, NEEDS-REVISION if logic bug found, REJECT if severe
+
+## Claim 2 — Incremental mode cutoff logic
+`--incremental` mode uses `latest_mtime` from existing JSONL summary as cutoff.
+- Audit: is `f.stat().st_mtime <= latest_mtime` the correct comparison?
+- Edge case: what if NORMALIZED_PATH exists but has malformed records?
+- Edge case: first run with --incremental (latest_mtime=0.0) — should process all files
+- Output: VERIFIED-CORRECT / NEEDS-REVISION / REJECT
+
+## Claim 3 — Dedup / idempotency
+Non-incremental re-scan should be IDEMPOTENT — existing sha keys skipped.
+- Audit: `if sha in existing and not incremental: skipped_existing += 1; continue` correctness
+- Edge case: same sha re-emitted with newer verdict (sha doesn't change but file content does)
+- Concern: dedup-by-sha may MISS legitimate verdict updates if same SHA gets re-reviewed
+- Output: VERIFIED-CORRECT / NEEDS-REVISION / REJECT
+
+## Output schema (JSON at EOF)
+Emit verbatim at EOF:
+VERDICT_JSON_AT_EOF:
+{
+  "claim_1_schema_parsing": {
+    "status": "VERIFIED-CORRECT|NEEDS-REVISION|REJECT",
+    "evidence_summary": "<1-line>"
+  },
+  "claim_2_incremental_cutoff": {
+    "status": "VERIFIED-CORRECT|NEEDS-REVISION|REJECT",
+    "evidence_summary": "<1-line>"
+  },
+  "claim_3_dedup_idempotency": {
+    "status": "VERIFIED-CORRECT|NEEDS-REVISION|REJECT",
+    "concern_severity": "low|medium|high|critical|none",
+    "evidence_summary": "<1-line>"
+  },
+  "overall_verdict": "APPROVE|NEEDS-REVISION|REJECT",
+  "confidence": 0.0-1.0,
+  "prescribed_edits": [
+    {"file_line": "<path>:<line>", "issue": "<1-line>", "fix": "<1-line>"}
+  ]
+}

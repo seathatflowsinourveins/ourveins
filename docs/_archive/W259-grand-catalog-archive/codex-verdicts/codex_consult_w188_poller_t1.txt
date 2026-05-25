@@ -1,0 +1,42 @@
+W188 P0a-Agent-C poller script T1 review per CR-3 Phase 1 bootstrap exception.
+
+TARGET: `Z:/claude-sota-installed/scripts/cpa_oauth_quota_poller.py` (475 LOC stdlib-only Python; designed by Agent C; Aperant-pattern-port per CR-9 read-only research probe exemption)
+
+EMPIRICAL EVIDENCE (live-smoke 2026-05-13 23:43 EDT):
+- `--probe-only` dry-run: emits request payload structure correctly (HTTP method/URL/headers/timeout schema)
+- `--tick` live HTTP probe: HTTP 200 PASS on `claude-739955940fc@gmail.com` returning `five_hour={utilization:56, resets_at:2026-05-14T04:00Z}` + `seven_day={utilization:45, resets_at:2026-05-17T06:00Z}` + `limit_type:weekly`
+- Atomic state.json + JSONL append working: 332B JSONL + 390B state.json persisted
+- Mia diagnostics: 2 minor Pyright warnings fixed (unused `key` → `for rec in .values()`; Optional subscript narrowing via `if five_hour is None or seven_day is None`)
+
+AXES TO REVIEW (3 narrow):
+
+AXIS-1 — Schema conformance vs Aperant cite anchor:
+- Does `_normalize_anthropic_response` correctly handle BOTH new nested + legacy flat schemas per Aperant L2369-2425?
+- Is `limit_type` derivation correct? (Logic: `"weekly" if seven_day["utilization"] > five_hour["utilization"] else "session"`)
+- **NOTE**: First live-tick had `5h=56% + 7d=45%`. 45 < 56, so condition returns False, `limit_type` SHOULD be "session". But output says "weekly". REVIEW this logic for OVER/incorrect-condition bug.
+
+AXIS-2 — Rate-limit + sibling-cooldown adherence:
+- Does Retry-After parser handle BOTH integer seconds and HTTP-date formats?
+- Does cross-sibling 10min cooldown propagate correctly per Aperant L2200-2216 mechanism?
+- Are state-mutations atomic via tempfile+rename?
+
+AXIS-3 — Stdlib + autonomous /loop mode compat:
+- ZERO external dependencies (urllib + json + pathlib + datetime + email only)?
+- ZERO HARD-GATE interactive prompts (autonomous /loop compatible)?
+- Tick budget 60s + per-request 30s timeout reasonable?
+- Daemon mode survives single-tick failures via top-level try/except?
+
+CITES (TIER-1-DIRECT):
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:65-69,2369-2425,2200-2216,2218-2268`
+- `https://code.claude.com/docs/en/env-vars` (CLAUDE_CONFIG_DIR)
+- W188 Agent C design at `tmp/w188-C-design-2026-05-13.md`
+
+OUTPUT SCHEMA: JSON-strict
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-NN","severity":"P0|P1|P2|P3","axis":1|2|3,"claim":"...","evidence":"..."}],
+  "prescribed_edits": [{"target":"...","edit":"..."}]
+}
+```

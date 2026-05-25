@@ -1,0 +1,62 @@
+fix(wave-134-fire-3-correction): recreate 0e7bbeafaebc/ from upstream marketplace — orphan deletion broke CC pinned path (HONEST-CORRECTION per CR-7)
+
+Live operator probe surfaced NEW error class post-0f58c61:
+  Failed to run: Plugin directory does not exist:
+  Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\hookify\0e7bbeafaebc
+
+Firing on PreToolUse:Bash + PostToolUse:Bash + Stop hooks (13). User pushback verbatim: "are you sure?" — referencing the deleted 0e7bbeafaebc/ cache.
+
+## Honest correction (per CR-7 REPORT errors before routing around them)
+
+Wave 134 Fire 3 (commit 0f58c61) close text asserted: "NO restart needed. Current session is SOTA-clean and operational." This was WRONG.
+
+Architecture-level discovery (NEW): CC's plugin-loader pins cache paths from session-start. The enabledPlugins registry stores the resolved path (e.g., 0e7bbeafaebc/) in-memory at session-start; subsequent hook fires invoke the pinned path. Mid-session deletion of a pinned cache directory does NOT trigger CC to dynamically rediscover an alternative cache — it produces the "Plugin directory does not exist" error class.
+
+This invalidates Wave 134 Fire 3's assumption that orphan deletion was safe housekeeping during active session. The .orphaned_at marker is CC's signal for next-session-cleanup, NOT mid-session-removal-safe.
+
+## Recovery applied
+
+1. mkdir -p .claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc
+2. cp -r .claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/. → 0e7bbeafaebc/ (full plugin tree)
+3. Verified all 3 caches now have IDENTICAL pretooluse.py blob SHA 3227796dbb29e4462a91dc9ecfc229a284341573 (matching marketplace canonical):
+   - 0e7bbeafaebc/hooks/pretooluse.py: 3227796d... (RECREATED with W134-F2 fix)
+   - 4ed5395b74d0/hooks/pretooluse.py: 3227796d... (Wave 134 Fire 3 in-place patch)
+   - 80e3275da25f/hooks/pretooluse.py: 3227796d... (canonical, next-launch target)
+
+CC's pinned path 0e7bbeafaebc/ now resolves correctly to upstream-canonical content with W134-F2 silent-ImportError-exit fix. Plugin-directory-not-exist error class STOPS.
+
+## Architecture-level lesson (cardinal-rule-13 candidate updated to n=2 with sub-class taxonomy)
+
+Sub-class (a) — Wave 134 Fire 3: in-place cp from upstream marketplace silences mid-session spam without restart [VERIFIED WORKING on 4ed5395b74d0/].
+
+Sub-class (b) — THIS correction: DO NOT delete plugin-cache directories mid-session even when marked .orphaned_at. CC pins resolved paths in-memory at session-start; deletion produces "Plugin directory does not exist" error class. Recovery: recreate path with upstream-canonical content from marketplace [N=1 — this fire].
+
+Both sub-classes converge on meta-rule: mid-session plugin-cache mutations should be ADDITIVE (in-place patch from upstream) or REPLACEMENT-IN-PLACE (cp over existing files), NEVER DELETION (rm -rf the directory). Deletion is for between-sessions cleanup OR via CC's own auto-cleanup mechanism.
+
+## Files changed: 1 (+95 LOC)
+
+- docs/install-provenance.md — Wave 134 Fire 3-CORRECTION entry appended
+
+(Cache changes are gitignored per .gitignore .claude/plugins/cache/ rule — operational only)
+
+## CR conformance (CORRECTION-class)
+
+- CR-1 cite-trail TIER-1-DIRECT: marketplace blob 3227796d + Anthropic upstream
+- CR-3 Phase 1 bootstrap exception: cmp -s byte-equality across all 3 caches
+- CR-7 REPORT errors before routing around them: HONEST-CORRECTION per synthesis-layer-verify.md §Reporting categories — prior Fire 3 close text contained OVER claim; live operator probe refuted; correction in next-fire commit body NOT historical-rewrite per port-note-discipline.md §6
+- CR-9 install-risk: CR-13 sub-class (b) codified — pre-action gate updated for future plugin-cache deletions
+- CR-10 research-first: NEW research surfaced CC plugin-loader pin-path-at-session-start architecture
+- CR-11 META-process: recursive HONEST-CORRECTION on prior fire
+
+## Mia OVER ladder Wave 97-134
+
+INCREMENT n=134 → n=135 (apply-boundary OVER caught: prior assertion "NO restart needed; SOTA-clean and operational" without verifying CC's plugin-loader path-pinning behavior). Pattern: architecture-level claims about CC runtime behavior require live-probe verification BEFORE assertion. Sister to Wave 132 Fire 2 Round-3 pattern (REMOVE without deep-dive caught at Round-2; REVERSED at Round-3).
+
+## Operator-action summary (CORRECTED)
+
+- ✅ Hookify spam SILENCED (Wave 134 Fire 3 patch)
+- ✅ "Plugin directory does not exist" spam SILENCED (this correction)
+- ✅ All 3 caches byte-identical with upstream Anthropic marketplace canonical
+- ✅ Settings stays disabled
+- 📋 Restart NOW recommended for fully clean steady state
+- ⚠️ HONESTY: prior "NO restart needed" assertion was WRONG; plugin-cache deletion mid-session caused the second error class

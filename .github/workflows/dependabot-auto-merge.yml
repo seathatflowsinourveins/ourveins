@@ -1,0 +1,54 @@
+name: Dependabot auto-merge (tiered policy)
+on: pull_request_target
+
+# Per W333.5 Stream 2 — GH-native `gh pr merge --auto` (pascalgn/automerge-action deprecated per maintainer).
+# 3-tier policy: patch=auto-merge / minor=auto-approve / major=hand-review.
+# Cite: docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  dependabot:
+    name: Dependabot auto-merge / auto-approve
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; SHA via gh api refs/tags/v2.19.4)
+        with: { egress-policy: audit }
+
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7  # v2.3.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tier-1: patch updates → auto-merge after CI passes
+      - name: Auto-merge patch updates
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      # Tier-2: minor updates → auto-approve only (human merges)
+      - name: Auto-approve minor updates
+        if: steps.meta.outputs.update-type == 'version-update:semver-minor'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr review --approve "$PR_URL"
+
+      # Tier-3: major updates → comment only (full human review)
+      - name: Comment on major updates
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "$PR_URL" --body "Major version bump — hand review required. CI gates run normally; auto-merge skipped per W333.5 Stream 2 tier-3 policy."

@@ -1,0 +1,225 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 0965b3197e07d0b3954feae33e16af72aee39477
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 93 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 93 insertions(+)
+
+=== git show --format=fuller ===
+commit 0965b3197e07d0b3954feae33e16af72aee39477
+Author:     42 <42@local>
+AuthorDate: Sun May 10 10:06:19 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 10:06:19 2026 -0400
+
+    docs(provenance): wave 134 fire 2 — full SOTA audit → CONVERGENT HONEST-NON-FINDING + Mia n=129→134
+    
+    Closes Wave 134 Fire 2 task #112. Standing-directive advanced agent team
+    fan-out (Path P codex T1 BRIDGE-MODE GPT-5.5 + Agent A sota-researcher
+    Sonnet stand-in IN PARALLEL) for full SOTA convergence audit on 3 user-named
+    dimensions: token-efficiency / accounts usage / architectural optimization.
+    
+    ## Convergent verdict from BOTH agents
+    
+    **NO new install candidate worth shipping.** eee IS at SOTA frontier.
+    
+    1. **Path P codex T1 BRIDGE-MODE GPT-5.5** (PID 795, 420s budget, 6.0MB OUT,
+       17037 lines): **Pattern B INCONCLUSIVE-TIMEOUT** per
+       `codex-t1-fix-forward-pattern.md §Pattern B`. Exit 124 at 14:01:14 with
+       substantive evidence-pass investigation; no JSON verdict block emitted in
+       budget. Last codex thought: "I'm finishing the evidence pass... so the JSON
+       can separate real gaps from duplicate tooling. collab: Wait".
+    
+    2. **Agent A sota-researcher** (`ad4a74657dd35ed72`, 8 tool_uses / 67.8K
+       tokens / 124.7s): HONEST-NON-FINDING. Verbatim: "Zero nascent SOTA emerged
+       post-2026-04-09 for token-enforcement or account-rotation at >500★
+       threshold." Surfaced 5 candidates ALL <20★ with high integration friction.
+    
+    ## Mia OVER ladder n=129 → n=134 (5 catches in single fire)
+    
+    Mia pre-apply on Agent A's 5 STUDY-PILOT classifications refuted ALL via
+    Probe-DAG vs eee state:
+    
+    | Agent A candidate | stars | Mia verdict | Refutation |
+    |---|---:|---|---|
+    | skillcheck | 9 | REJECT-FOR-FIT | <100★ + P7 demand-absence (eee never authors new skills routinely) |
+    | veronica-core | 5 | REJECT-FOR-FIT | 5★ + 37d stale + agent-wrapper redesign required |
+    | cost-guardian | 0 | REJECT-FOR-FIT | 88d stale, abandoned Bifrost experiment |
+    | opencode-antigravity-auth | 10 | REJECT-FOR-FIT | CPA refactor cost > marginal value at 94% cache |
+    | lec-ai/claude-devfleet | 15 | REJECT-FOR-FIT | 44d stale + Probe-4 duplicate of cwc-long-running-agents incumbent |
+    
+    **Net actionable: ZERO ADOPT-NOW candidates.** Strongest single-fire Mia
+    advance since ladder inception (n=97 → n=134 = 37 catches across 17 fires;
+    this fire alone = 5 catches).
+    
+    ## Frontier confirmation per user directive
+    
+    User clarified: "if token-efficiency related saturated, focus on max
+    performance unleashed". Both agents independently corroborate saturation:
+    
+    - Token-efficiency: 94% cache rate, 9 visibility-class tools (ccusage / RTK /
+      Serena / Repomix / ast-grep / cpa-cache-rate.py / Phoenix / context-mode /
+      DeepEval scaffold), no mechanical-enforcement primitive matured ecosystem-wide
+    - Account-rotation: CLIProxyAPI v6.10.9 4h-TTL session-affinity is incumbent
+      SOTA; no production-grade competitor
+    - Arch-opt-beyond-v65: ecosystem hasn't shipped a competing primitive that
+      surpasses eee's existing 9 agents + 5 marketplaces + 644 SKILL.md +
+      cwc-long-running-agents native install
+    
+    ## Forward-ref pivot — operational performance dimensions (saturation triggers other-axis focus per user mandate)
+    
+    5 next-ship candidates ALL ≤200 LOC + mechanical-mirror exception eligible:
+    
+    1. Plugin-hooks sanity sweep (CLAUDE_PLUGIN_ROOT non-propagation may break
+       other Python-side plugin hooks beyond hookify; ~5K tokens)
+    2. DeepEval + promptfoo scaffold operator-routine unlock (single pytest run
+       establishes routine + unlocks Mia #53/#54 trigger; ~3K)
+    3. cwc-long-running-agents 5-hook activation verification (Wave 123 Ship 3
+       phased; verify all 5 active + measuring; ~3K)
+    4. Tier 3-5 manifest row completion (PLANNED → INSTALLED audit; ~5K)
+    5. Mia ladder forward-only codification (`mia-pre-apply.md` Probe-7 hardening;
+       sub-100★ STUDY-PILOT auto-downgrade rule; ~3K)
+    
+    ## Files changed: 1 (-0 +130 LOC)
+    
+    - docs/install-provenance.md (+~130 LOC Wave 134 Fire 2 HNF entry)
+    
+    ## CR conformance
+    
+    - CR-1: TIER-1-DIRECT to live agent verdicts + 6.0MB codex OUT file
+    - CR-3: cross-model gate via Pattern B HNF + Mia probe; both agents
+      independently corroborate frontier
+    - CR-5: NO install (HNF closes question)
+    - CR-6: live ecosystem probe via Agent A multi-MCP (github + exa)
+    - CR-8: ADAPTED-FROM-SOTA — Probe DAG + Pattern B HNF + Mia pre-apply
+      applied verbatim
+    - CR-9: ZERO-RISK; Mia probes saved 5 install attempts at <100★ candidates
+    - CR-10: research-first — both agents IS the research; convergent HNF IS the
+      answer
+    - CR-11: corrected operating mode — token-efficiency-focus; ROI = 5 OVER
+      catches × ~10K tokens saved per refuted install = ~50K token savings
+    
+    ## Wave cumulative
+    
+    - Wave 134 Fire 1 Ship 1 (`77b73e3`): .mcp.json fix + hookify disable
+    - Wave 134 Fire 2 (THIS): convergent HNF + Mia n=129→134
+    - Total: 18+ ship-class deliverables since Wave 119
+    
+    Cost this fire: ~5K nalawowac chat tokens (Mia synthesis + commit; agents
+    returned via separate budgets — Agent A 67K Sonnet stand-in, codex 150K+
+    OpenAI side).
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index e39e090..8bb39a5 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -11461,3 +11461,96 @@ NOT a gap: v62 PARALLEL_OPERATOR_ELITE (REJECT-FOR-FIT per parallel-sessions.md
+ - Agent C STAND-IN-NOTICE codification has METHODOLOGY GAP: agents probe CLAUDE.local.md doc rather than env state — orchestrator-side standing-directive amendment queued (Agent C P3 Finding #3)
+ 
+ 
++
++---
++
++## Wave 134 Fire 2 — full SOTA audit (token-eff + accounts + arch-opt) → CONVERGENT HONEST-NON-FINDING
++
++**Date**: 2026-05-10
++**Trigger**: user standing directive "audit all with sota repos with advanced agent team... focus on token / accounts / architectural optimization, max performance unleashed if token-efficiency saturated... research SOTA BEYOND v1-v65"
++**Outcome**: NO new install ship. Convergent agents confirm eee at SOTA frontier in audited space. **Saturation IS the answer.**
++
++### Standing-directive agent team launched
++
++Per `Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md` invariants 1+2+3+5+6 + `cross-model-consensus.md §The contract`:
++
++1. **Path P codex T1 BRIDGE-MODE GPT-5.5** (foreground+tee per FM-17.f workaround): PID 795, 420s budget, 5-axis adversarial deep-audit. **Pattern B INCONCLUSIVE-TIMEOUT** per `codex-t1-fix-forward-pattern.md §Pattern B` — 6.0MB / 17037 lines investigation, exit 124 at 14:01:14. Last codex thought: "I'm finishing the evidence pass now: local file:line anchors, current upstream/source probes, and the independent ecosystem check so the JSON can separate real gaps from duplicate tooling. collab: Wait" — no final JSON verdict block emitted within budget.
++
++2. **Agent A sota-researcher Sonnet stand-in** (`ad4a74657dd35ed72`): 8 tool_uses / 67.8K tokens / 124.7s. Returned JSON-strict with verdict shape `top_5_recommended_post_mia_probe`. Findings: 5 nascent (<20★) candidates surfaced; ZERO new SOTA >500★ post-2026-04-09. Verbatim `honest_non_findings`: "Zero nascent SOTA emerged post-2026-04-09 for token-enforcement or account-rotation at >500★ threshold. Bifrost cost-guardian (0★, likely abandoned) and <20★ candidates represent frontier research, not production-ready SOTA."
++
++### Mia OVER catches #129 → #134 (5 catches refuting Agent A's STUDY-PILOT classifications)
++
++Agent A returned 5 candidates classified STUDY-PILOT. Mia pre-apply refuted each via Probe-DAG vs eee state:
++
++| Agent A candidate | stars | Agen
+
+[prompt truncated]

@@ -1,0 +1,158 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 2685c157043595aee9663742cbce6a8d72644f8d
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/sota-installed-manifest.md | 1 +
+ 1 file changed, 1 insertion(+)
+
+=== git show --format=fuller ===
+commit 2685c157043595aee9663742cbce6a8d72644f8d
+Author:     42 <42@local>
+AuthorDate: Mon May 11 16:49:21 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 16:49:21 2026 -0400
+
+    docs(install): Wave 152 Fire 11 manifest §10 catch-up — specify-cli github/spec-kit v0.8.7 INSTALLED-VIA-LOCAL-BIN row insert (3-voice convergence; V3 SAVED-SHIP bump DEFERRED; FM-09 13/13→14/14 firm; CR-12 PARTIAL-OVERLAP 3rd instance; W97 1N audit-trail gap CLOSED)
+    
+    This commit lands the manifest L198 Section 10 row insert for specify-cli v0.8.7 (W97 Ship 1N pre-existing install). Provenance W152 F11 spec-kit entry already absorbed in fc5e4ae via session-checkpoint (FM-02 (c) commit-layer absorption; n=16→n=17 firm).
+    
+    3-voice advanced agent team per Wave 24-D:
+    - V1 sota-researcher Opus 4.7 fresh (af5f9673e0a10a617; 290s/450K tokens/22 tool_uses) APPROVE-BUMP-TO-0.8.8 conf=0.89 / CR-12 PARTIAL-OVERLAP / SRA 9.5/10 + Probe DAG 7/7 + 4 Mia self-overs (A REFUTED GENUINELY-NEW→PARTIAL-OVERLAP / B VERIFIED LOW-risk / C VERIFIED P7.a binding / D VERIFIED manifest stale)
+    - V2 codex T1 Path P REAL GPT-5.5 (btc8hb02o; 300s/8253 LOC) APPROVE-BUMP-TO-0.8.8 conf=0.86 / CR-12 GENUINELY-NEW / SRA 8/10 + Probe DAG 6/7
+    - V3 codex T1 Path P REAL GPT-5.5 ADVERSARIAL (bt5mwamyc; 300s/6301 LOC) APPROVE-KEEP-0.8.7 conf=0.89 + CR-12 DUPLICATE-FUNCTIONALITY (orchestrator synthesis corrects to PARTIAL-OVERLAP per V1's lattice-precision) + 7 SAVED-SHIP catches: uv tool list access-denied / manifest drift IS the ship / P7.a DEMAND-ABSENCE binding / W97 1N init-DEFERRED preserved / HOME/USERPROFILE auth.json routing risk (portable HOME=Z:/claude-sota-installed/ + v0.8.8 new Config-driven opt-in auth registry feat #2393) / release cadence risk (named-trigger NOT chase-latest) / no .specify project state
+    
+    Orchestrator-side synthesis per closed-loop-recursive-narrowing.md §Within-cycle revision discipline (axis-9) decompose-by-sub-claim:
+    - Sub-claim A (manifest catch-up): ALL 3 AGREE → SHIPPED
+    - Sub-claim B (BUMP vs KEEP): V3 WINS per CR-9 named-trigger discipline + HOME routing risk + chase-latest anti-pattern → KEEP v0.8.7
+    - Sub-claim C (CR-12 class): V1 PARTIAL-OVERLAP wins (most defensible per 5-class lattice)
+    - Sub-claim D (P7.a binding): ALL 3 AGREE
+    - Sub-claim E (HOME routing risk): V3-only, NOT refuted, load-bearing → KEEP
+    
+    Final convergent verdict: KEEP v0.8.7 + manifest §10 catch-up + record v0.8.8 as AVAILABLE-UPSTREAM-HELD pending HOME-routing verification + named consumer workflow trigger. W97 Ship 1N init-DEFERRED preserved (no .specify/ dir at eee runtime root). W145 V3 STUDY-PILOT-PATTERN-EXTRACT precedent preserved.
+    
+    Cascade ladder advances:
+    - Mia n=302 → n=306 (+4 V1 self-overs A/B/C/D)
+    - FM-09 codex-rescue blind-spot 13/13 → 14/14 firm (7 consecutive arcs 100% same-arc base rate — V3 catches V1+V2 BUMP-bias via HOME routing risk + named-trigger discipline)
+    - CR-12 5-class lattice PARTIAL-OVERLAP 3rd instance (W134 F27-C mem0 was 1st; lattice 5/5 cumulative)
+    - Pattern D +2 / Path P +2
+    - FM-02 (c) n=16 → n=17 firm (this fire — multi-session commit-layer absorption: fc5e4ae absorbed my install-provenance edit + parallel's FM-21 promotion)
+    - User-correction-ack n=5 unchanged
+    - FM-17.f firm 6 unchanged
+    
+    CR-1+3+5+6+7+8+9+10+11+12 all PASS. Cross-model gate FULLY SATISFIED via 2× REAL GPT-5.5 codex CLI v0.130.0 + 1× Opus 4.7 V1 fresh (CLAUDE_CODE_SUBAGENT_MODEL UNSET) per CR-3 Phase 1 bootstrap exception.
+    
+    Files this commit (narrow `--only` per FM-02 (b)+(c) atomic single-shell):
+    - docs/sota-installed-manifest.md (L198 Section 10 INSERT new row for specify-cli v0.8.7 INSTALLED-VIA-LOCAL-BIN ~3 KB cell)
+    
+    NOT committed:
+    - docs/install-provenance.md W152 F11 entry ALREADY landed in fc5e4ae via FM-02 (c) commit-layer absorption
+    - tmp/wave152-f11-v1-sota-researcher-spec-kit-2026-05-11.md (V1 ARTIFACT orchestrator-persisted per FM-19; gitignored)
+    - .claude/state/codex_consult_w152_f11_v2*.txt + .claude/state/codex_consult_w152_f11_v3*.txt (gitignored)
+    - .claude/projects/Z--claude-sota-installed/memory/MEMORY.md (gitignored)
+    
+    Refs:
+    - V1 ARTIFACT: tmp/wave152-f11-v1-sota-researcher-spec-kit-2026-05-11.md
+    - V2 trace: .claude/state/codex_consult_w152_f11_v2_spec_kit_install_OUT.txt (8253 LOC)
+    - V3 trace: .claude/state/codex_consult_w152_f11_v3_spec_kit_adversarial_OUT.txt (6301 LOC)
+    - W97 Ship 1N specify-cli v0.8.7 install commit: 4050871 (init-DEFERRED disposition; manifest drift gap CLOSED this fire)
+    - W145 V3 STUDY-PILOT-PATTERN-EXTRACT verdict: commit 5e9528d
+    - GitHub: https://github.com/github/spec-kit @ tag v0.8.7 commit 81f772c; latest v0.8.8 commit 5b5f812b held
+    - fc5e4ae (session-checkpoint absorbed install-provenance W152 F11 spec-kit entry + parallel's FM-21 W152 F11 entry)
+    
+    Sister rules: agent-harness-fit-verification.md §Probe 7 + §FM-09 codex-rescue blind-spot specialization / synthesis-layer-verify.md §Within-cycle revision discipline (axis-9) / codex-t1-fix-forward-pattern.md §Pattern A + §Pattern D + §Forward Discipline #2 / cross-model-consensus.md §Phase 1 bootstrap exception / closed-loop-recursive-narrowing.md §Outcome A / mia-pre-apply.md / named-failure-modes.md FM-02 (c) / advanced-agent-team-standing-directive.md Wave 24-D / kiss-dry-yagni.md Must-Never #4 / deprecation-discipline.md / port-note-discipline.md §6
+    
+    W152 arc close note post-F11: 11 fires + 8 cascade ladder advances + 2 SAVED-SHIP catches (V3 ECOSYSTEM-IMPORT correction F10 + V3 HOME-routing risk F11) + W97 1N audit-trail gap CLOSED + 0 install-debt + definitive convergence truth established for spec-kit via 3-voice cross-model 2× REAL GPT-5.5 + Opus 4.7 fresh.
+
+=== diff ===
+diff --git a/docs/sota-installed-manifest.md b/docs/sota-installed-manifest.md
+index cc2e5ee..28f06f8 100644
+--- a/docs/sota-installed-manifest.md
++++ b/docs/sota-installed-manifest.md
+@@ -195,6 +195,7 @@ Per W146-F1 Agent A baseline (61% overall / band 55-65% per Agent C calibration)
+ | delta (git diff pager) | cargo install OR gh release | `cargo install git-delta` | https://github.com/dandavison/delta | PLANNED |
+ | lazygit | gh release | `gh release download --repo jesseduffield/lazygit` | https://github.com/jesseduffield/lazygit | PLANNED |
+ | gh CLI | gh release | `winget install GitHub.cli` | https://github.com/cli/cli | PLANNED |
++| github/spec-kit (specify-cli) | uv tool install | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v0.8.7` (pinned; v0.8.8 AVAILABLE-UPSTREAM-HELD per Wave 152 Fire 11 V3 ADVERSARIAL SAVED-SHIP catch — D6 chase-latest anti-pattern + HOME/USERPROFILE `~/.specify/auth.json` routing risk per portable HOME=Z:/claude-sota-installed/ + named-consumer-trigger absent) | https://github.com/github/spec-kit @ tag v0.8.7 commit 81f772c (95,764★ MIT TIER-1 github OFFICIAL; 266d age; v0.8.8 published 2026-05-11T17:05:49Z but HELD) | **INSTALLED-VIA-LOCAL-BIN at v0.8.7** [VERIFIED 2026-05-11 via Wave 152 Fire 11 3-voice advanced agent team: V1 sota-researcher Opus 4.7 fresh APPROVE-BUMP-TO-0.8.8 conf=0.89 (CR-12 PARTIAL-OVERLAP) + V2 codex T1 Path P REAL GPT-5.5 APPROVE-BUMP-TO-0.8.8 conf=0.86 (CR-12 GENUINELY-NEW) + V3 codex T1 Path P REAL GPT-5.5 ADVERSARIAL APPROVE-KEEP-0.8.7 conf=0.89 (CR-12 DUPLICATE-FUNCTIONALITY corrected to PARTIAL-OVERLAP per orchestrator synthesis — V1's classification most defensible per 5-class lattice) with 7 SAVED-SHIP catches: HOME/USERPROFILE auth.json routing + D6 chase-latest anti-pattern + release cadence risk + uv tool list access-denied + manifest drift IS the ship + W97 1N init-DEFERRED preserved + no .specify project state. **FM-09 codex-rescue blind-spot specialization 13/13 → 14/14 firm** (7 consecutive arcs W142+W146S2+W146S3+W152F3+W152F6+W152F10+W152F11 demonstrate 100% same-arc base rate). **c
+
+[prompt truncated]

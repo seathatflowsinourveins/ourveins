@@ -1,0 +1,234 @@
+## §4 The 9-Layer Architecture (L0 → L7 + L0.5 security)
+
+### Architecture diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  L7  TEAM UX                       SKIP — 1-orchestrator profile         │
+│                                    (multica REJECTED r30 LICENSE)        │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L6  PATTERN-CITE LAYER            18 patterns (NOT installs):           │
+│                                    1.  claude-quickstarts/autonomous-    │
+│                                        coding (Anthropic-OFFICIAL ralph) │
+│                                    2.  P14 stall-detection (Magentic-One)│
+│                                    3.  Tool search tool (API only)       │
+│                                    4.  Programmatic tool calling         │
+│                                    5.  Anthropic Mar 24 3-agent          │
+│                                        planner/generator/evaluator       │
+│                                    6.  Stripe Minions fork-of-goose      │
+│                                    7.  incident.io 12-parallel-reviewer  │
+│                                    8.  Spotify Honk thin-wrapper-on-CC   │
+│                                    9.  ccpm Issues-as-state              │
+│                                    10. TandemKit Planner/Gen/Eval        │
+│                                    11. KARIMO stall+complexity-routing   │
+│                                    12. DSPy compile-loop                 │
+│                                    13. iannuttall/ralph (origin)         │
+│                                    14. aattaran/deepclaude reference     │
+│                                    15. claude-quickstarts/computer-use   │
+│                                        -best-practices                   │
+│                                    16. grill-me adversarial self-critique│
+│                                    17. think-in-code pattern             │
+│                                    18. task-lifecycle pattern            │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L5  SCAFFOLD (use-bounded, 3-way) Claude Managed Agents (NEW Apr 8 beta)│
+│                                    [Windows-preferred — Anthropic hosts] │
+│                                    /  live-SWE-agent  /  mini-SWE-agent  │
+│                                    [Both: WSL2 required on Windows]      │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L4  EVAL/OBSERVABILITY            Phoenix ✓  +  Promptfoo (T1 pilot)    │
+│                                    [Langfuse DEFERRED at solo scale]     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L3  PEER CLI                      opencode + goose (stage one first)    │
+│                                    + `ant` CLI WATCHLIST (NEW r33)       │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L2  DRIVER                        Claude Code + 37 plugins ✓            │
+│                                    + REFRESH AGENTS.md (exists at 15K)   │
+│                                    + Claude Code auto mode (NEW r33)     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L1  CROSS-MODEL PROXY             LiteLLM (5-tier validated r30 YAML)   │
+│                                    + codex CLI (Path P; SEPARATE)        │
+│                                    + Advisor tool API (NEW r33 beta)     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L0.5 SECURITY/PROVENANCE          NEW LAYER (codex audit P0 fix)        │
+│                                    Path allowlist + secrets boundary +   │
+│                                    MCP source-verify (cardinal-rule #6) +│
+│                                    PowerShell risk mitigations +         │
+│                                    Z:-portable cross-machine threat-model│
+│                                    + Phoenix telemetry secret-redaction  │
+├──────────────────────────────────────────────────────────────────────────┤
+│  L0  SUBSTRATE                     MCP everywhere (AAIF foundation)      │
+│        ├── Memory:        Graphiti ✓ (+ mem0 alt T2 + Managed Memory)    │
+│        ├── Code intel:    Serena ✓ + Repomix ✓ + GitNexus ✓ + Ruff ✓     │
+│        │                  + ast-grep NEW T1 (AST-codemod, r29)           │
+│        ├── Cost lever:    rtk-ai/rtk NEW T1 (60-90% token tree-shake)    │
+│        ├── Browser/GUI:   Playwright ✓ + Chrome-devtools ✓               │
+│        ├── Eval/observ:   Phoenix ✓                                      │
+│        ├── ADD (T2):      Filesystem (reference-grade, path-allowlist)   │
+│        ├── ADD (T1):      Tavily OR Firecrawl (live web search)          │
+│        ├── ADD (T2):      Sentry MCP (getsentry-OFFICIAL, conditional)   │
+│        ├── ADD (T1-PyPI): semgrep-mcp (via pipx — r30 correction)        │
+│        ├── STUDY-PILOT:   zilliztech/claude-context (vector code MCP)    │
+│        ├── ADD (T2):      NVIDIA garak (LLM red-team CLI)                │
+│        └── Anthropic API: Tool search tool GA (canonical MCP-flood fix)  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Per-layer rationale
+
+#### L0 — SUBSTRATE: MCP everywhere
+
+**What:** Universal substrate for tool/resource exposure to LLM agents. Operator runs 12 MCP servers covering github / context7 / deepwiki / playwright / chrome-devtools / repomix / serena / ccusage / gitnexus / memory / phoenix / graphiti.
+
+**Operator state:** ✓ INSTALLED at correct shape.
+
+**Convergence evidence (9/17 axes):** r1+r3+r7+r10+r14+r15+r17+r23+r33. **Strongest single signal of entire study** — 8/10 production orgs use MCP per r7. AAIF Linux Foundation governance Dec 9 2025.
+
+**MCP spec 2025-11-25 current state (r36):**
+- 9 major SEPs including MCP Tasks (SEP-1686 durable requests) / sampling + tool-calling / OIDC Discovery 1.0 / tool icons / JSON Schema 2020-12 default
+- **OAuth 2.1 PKCE NOW MANDATORY** for remote MCP — S256 challenge method REQUIRED
+- **Streamable HTTP is THE long-term transport** — HTTP+SSE deprecated March 2025
+- 17+ reference servers ARCHIVED (Postgres / SQLite / Slack / GitHub / GitLab / Google Drive); 7 maintained: Everything / Fetch / Filesystem / Git / Memory / Sequential Thinking / Time
+- Registry v0.1 API freeze Oct 24 2025; v1.7.9 May 12 2026 (PREVIEW, not GA)
+- AAIF: 170+ members in 4 months; MCP at 110M+ monthly downloads; A2A v1.0 GA April 2026
+
+**Anthropic Feb 17 2026 GA: Tool search tool (r33):**
+> Structural fix for "12-MCP context flood" via dynamic tool loading from large catalogs.
+>
+> **codex v3 audit P1 caveat:** Tool search tool works when **the application controls the Messages API tool catalog / `defer_loading`**. It is **NOT automatically a Claude Code MCP/plugin-context switch**. Scope to: API / Managed-Agent harnesses + MCP connector/catalog flows. **Claude Code local MCP support must be verified separately** before claiming it replaces operator's 12-MCP context burden.
+
+**OpenAI Agents SDK `include_server_in_tool_names` (r35):** v0.16.0 May 7 2026 — second canonical MCP-context-flood fix. Both vendors converged on namespace-based solutions.
+
+#### L0.5 — SECURITY / PROVENANCE / PERMISSION (NEW per codex audit P0)
+
+**What:** First-class security layer between substrate and application — addresses path allowlists / secrets boundaries / MCP source provenance / sandbox requirements.
+
+**Operator state:** PARTIAL — current `bypassPermissions: true` blanket + denylist of `.env*` / `secrets/**` / `id_rsa*` / `*.pem` / `*.pfx` / `*.key`. NEEDS expansion per r37 specialist audit.
+
+**11 required disciplines (per r37 + codex audit + r33):**
+
+1. **Path policy — REWRITE:** Replace `bypassPermissions: true` with **explicit allowlist + Claude Code auto mode default-deny** (Mar 25 2026 Anthropic-OFFICIAL per r33). Filesystem MCP restricted to `Z:/<project>/`; Bash command allowlist narrows to specific orgs.
+
+2. **Secrets boundary — EXPANDED denylist (r37 §2 — 12+ classes missing):**
+   - `Read(./.aws/**)` / `Read(./.azure/**)` / `Read(./.gcloud/**)` / `Read(./.kube/**)` / `Read(./.ssh/**)`
+   - `Read(./.docker/config.json)` / `Read(./.npmrc)` / `Read(./.git-credentials)`
+   - `Read(./.codex/**)` / `Read(./*.kdbx)` / `Read(./*.tfstate)`
+   - PSReadLine history: `$env:USERPROFILE\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt`
+   - Browser cookies / Anthropic + OpenAI key dirs
+
+3. **MCP server source verification — CODIFY as CARDINAL-RULE #6:**
+   - Probe official MCP Registry (`github.com/modelcontextprotocol/registry`) FIRST
+   - Cross-check Smithery.ai
+   - Verify maintainership badge + last-commit < 90 days + LICENSE file before any install
+   - **Verify PyPI/npm if repo archived** — r30 §2 lesson: semgrep-mcp's GitHub archived but PyPI alive
+   - No cryptographic server signing yet (r36 gap) — rely on Registry verification
+
+4. **OAuth 2.1 PKCE — MANDATORY for remote MCP (r36):** MCP spec 2025-11-25 requires OAuth 2.1 PKCE with S256 challenge.
+
+5. **Update policy:** Pin MCP server versions in `.mcp.json` (operator already does this); review changelog before bump; never `@latest` for L0 substrate.
+
+6. **Sandbox requirements:** Tool search tool preferred over code-execution-with-MCP. If code-execution required: path/data policy + resource limits + monitoring + WSL2 boundary OR Windows Sandbox container.
+
+7. **Claude Code auto mode (Mar 25 2026 NEW r33):** Replaces blanket `bypassPermissions:true` with scoped invocation. Availability: Max/Team/Enterprise/API plans (NOT Pro alone). Operator's Pro+Max stack qualifies.
+
+8. **PowerShell tool risks — Windows-specific (r37 §3):**
+   - AMSI bypass risk; PSReadLine history exfiltration; DPAPI/Credential Vault access; Transcripts; PSModulePath DLL planting
+   - Never persist credentials in env vars; use Windows Credential Manager
+
+9. **Z:-portable cross-machine threat model (r37 §4):**
+   - USB/network-mount attack surface
+   - BitLocker-at-rest on Z:; Windows Credential Manager; integrity manifest (sha256 of critical files); host-UUID lock; recovery procedure
+
+10. **Phoenix telemetry secret-redaction (r37 §7):**
+    - `OTEL_LOG_USER_PROMPTS=1` writes full prompts to trace DB
+    - Add OTel span processor with regex redaction (API keys: `sk-ant-*` / `sk-*` / `ghp_*`; bearer tokens; passwords)
+
+11. **AAIF founding-three alignment (r14 + r33):** MCP ✓ / goose (install) / AGENTS.md (refresh)
+
+#### L1 — CROSS-MODEL PROXY: LiteLLM + codex CLI (separate) + Advisor tool
+
+**What:** Routes API calls across providers (LiteLLM) + cross-model verification gate (codex CLI Path P) + first-class API-level executor/advisor pairing (Anthropic Advisor tool).
+
+**Operator state:** codex CLI ✓ INSTALLED via openai-codex plugin; LiteLLM TO INSTALL as T1.
+
+**codex audit P0 correction:** codex CLI is **NOT a LiteLLM model provider** — separate roles:
+- **codex CLI** = cross-model consensus/verification (Path P cardinal-rule-3 gate); dispatched via `codex exec` foreground+tee; NOT routed through LiteLLM
+- **LiteLLM** = cross-model cascade routing for cost optimization; API calls only
+- **Advisor tool API** (Apr 9 2026 Anthropic-OFFICIAL beta `advisor-tool-2026-03-01` per r33) = first-class plan/execute decoupling at API level
+- **Codex CLI 0.130.0 `remote-control` (May 8 2026 r35):** Headless app-server entrypoint — upgrade path for operator's existing Path P foreground+tee pattern for long-arc unattended runs
+- **OpenAI Agents SDK `include_server_in_tool_names`** (v0.16.0 May 7 2026 r35) — second canonical MCP-context-flood fix at SDK level
+
+#### L2 — DRIVER: Claude Code + 37 plugins + AGENTS.md REFRESH + auto mode
+
+**What:** Interactive driver / orchestration plane.
+
+**Operator state:** ✓ INSTALLED, optimal shape per r23 Anthropic-internal audit.
+
+**Convergence:** 9/17 axes. Anthropic-internal teams use exactly this shape (r23). Mass Cursor → CC migration confirmed (r12).
+
+**Actions:**
+- **REFRESH AGENTS.md** (15K file exists per r26) — sync with AAIF founding-three + Code with Claude 2026 keynote announcements
+- **MIGRATE bypassPermissions → auto mode** (Mar 25 2026 Anthropic-OFFICIAL r33) — safer scoped invocation
+- Plugin dep enforcement (May 2026 release per r31) — auto-validates dependency chains
+- Worktree background isolation (`worktree.bgIsolation: "none"`) — new setting per r31
+
+#### L3 — PEER CLI: opencode + goose (stage one first) + `ant` watchlist
+
+**What:** Peer CLI for provider-redundancy + cross-model swarming.
+
+**Operator state:** NEW — install one first.
+
+**codex audit anti-pattern:** Installing both opencode and goose immediately may create tool sprawl for a solo operator. Install ONE first.
+
+**Recommended order:**
+- **opencode first** — 6-axis convergence + DHH endorsement (Jan 7 2026 r12) + 160,923 stars (r15 verified). Install: `npm install -g opencode-ai`.
+- **goose later** — only if pattern-cite from Stripe Minions becomes load-bearing reference. Install: per `block.github.io/goose/`.
+- **`ant` CLI WATCHLIST** — Anthropic-OFFICIAL Apr 8 2026 (r33); characterize on next probe.
+
+#### L4 — EVAL / OBSERVABILITY: Phoenix ✓ + Promptfoo (pilot first)
+
+**What:** Runtime tracing (Phoenix) + CI-gate eval (Promptfoo).
+
+**Operator state:** Phoenix ✓ INSTALLED; Promptfoo NEW T1 PILOT.
+
+**r21 resolved r16's DRY critique cleanly:**
+- Phoenix ↔ Langfuse = substantial runtime-tracing overlap (r16 was correct)
+- Phoenix ↔ Promptfoo = **zero overlap** (different lifecycle: runtime trace vs CI-gate eval)
+
+**Anthropic Jan 9 2026 endorsement (r33):** *"Demystifying evals for AI agents"* — ratifies r6's 4-T2 evals-first convergence.
+
+**Defer Langfuse** until ≥3 concurrent CC instances OR >10 RPS OR prompt-versioning exceeds git+CLAUDE.md. Port collision: Langfuse :3000 ↔ OpenHands :3000 — port-allocation map needed before any future L4 scaling.
+
+#### L5 — SCAFFOLD (use-bounded, 3-way contest)
+
+**What:** Unattended autonomous-run scaffold.
+
+**Operator state:** NONE installed; choose by use-case.
+
+**3-way contest per r33:**
+
+1. **Claude Managed Agents (Apr 8 2026 Anthropic-OFFICIAL beta `managed-agents-2026-04-01`)** — PREFERRED for Windows operator. Anthropic hosts the sandbox (no Windows-container concerns). 60-90% TTFT reduction. May 6 expansion: multiagent sessions + Outcomes + Webhooks + Vault credential refresh. Apr 23: persistent Memory beta.
+   - **Prerequisites:** API access + beta header + spend limits + data residency review + sandbox/container validation + ONE bounded pilot first
+
+2. **Live-SWE-agent (academic SOTA, MIT)** — 79.2% SWE-bench Verified on Opus 4.5 (r15 verified). **Label per codex v3 audit P2:** *"historical/contaminated-benchmark signal, useful for scaffold-comparison only; not a current frontier authority metric"* (r31: OpenAI+Anthropic confirmed Verified contamination, 59.4% hard tasks flawed). Self-host requires Linux/WSL2 — fails on native Windows.
+
+3. **OpenHands** — best for fully-isolated overnight autonomous Docker runs. Same Windows-container limitation. Round-5's 68.4% Verified claim was **REFUTED** by r15 primary-source audit.
+
+**Use-bounded triggers:**
+- Unattended runs on Windows-Z:-portable → **Claude Managed Agents**
+- Linux/WSL2 benchmark-grade unattended Docker → `live-SWE-agent` (caveated)
+- Embedded benchmarking / 100-LOC fork → `mini-SWE-agent` (WSL2 required)
+- Batch CI parallel-fix runs → keep claude-code-action + agent-teams plugins; no separate L5
+
+**Anthropic guidance (r23 + r33):** *"Workflows > agents until you need agents."* Solo-developer daily work is workflow-class; don't default to L5 scaffold.
+
+#### L6 — PATTERN-CITE LAYER (do NOT install black-box)
+
+See §7 for full 18-pattern catalog. **Anthropic explicit (r23 + r33):** *"simple composable patterns > frameworks."*
+
+#### L7 — TEAM UX: SKIP for operator
+
+multica-ai/multica HARD REJECT per r30 §3 LICENSE inspection. Durable execution layer (Temporal / Inngest / LangGraph) OVER-BUILT at solo+5-task scale per r24.
+
+---
+
+## §5 Install Priority — DETAILED (T0 → T4)

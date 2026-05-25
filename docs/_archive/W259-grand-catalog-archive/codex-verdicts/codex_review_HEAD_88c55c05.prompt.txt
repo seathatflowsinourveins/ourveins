@@ -1,0 +1,73 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 88c55c055168f12798992b8a37b194f5f94448e2</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+docs/install-provenance.md | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+=== git show --format=fuller ===
+commit 88c55c055168f12798992b8a37b194f5f94448e2
+Author:     42 <42@local>
+AuthorDate: Thu May 14 14:11:10 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 14 14:11:10 2026 -0400
+
+    fix(hooks): disable protect-mcp@0.1.0 broken hooks.json — W195a CLI signature mismatch
+    
+    UPSTREAM BUG in wshobson/agents/protect-mcp@0.1.0 plugin. Plugin's hooks/hooks.json invokes:
+      npx protect-mcp@0.5.5 evaluate ...
+      npx protect-mcp@0.5.5 sign ...
+    
+    Neither `evaluate` nor `sign` are valid subcommands in protect-mcp@0.5.5 CLI [VERIFIED 2026-05-14 via live `npx protect-mcp@0.5.5 --help` probe]. CLI v0.5.5 subcommand set: serve / init-hooks / quickstart / connect / init / demo / doctor / trace / status / digest / receipts / bundle / simulate / report. Unrecognized subcommand → falls back to default wrap-pattern `protect-mcp [options] <-> <command>` → throws `Missing "<->" separator before the command to wrap` on every PreToolUse + PostToolUse hook fire.
+    
+    User-visible: 4x non-blocking `[PROTECT_MCP] Error: Missing "<->" separator before the command to wrap.` errors during W194/W195 work.
+    
+    Compounding: settings.json:577 `protect-mcp@claude-code-workflows: false` does NOT prevent the plugin hooks.json from auto-loading. CC hook discovery scans cache + marketplace dirs regardless of `enabledPlugins` flag.
+    
+    Fix: rename both hooks.json files (suffix carries root-cause for audit):
+      .claude/plugins/cache/claude-code-workflows/protect-mcp/0.1.0/hooks/hooks.json
+      .claude/plugins/marketplaces/claude-code-workflows/plugins/protect-mcp/hooks/hooks.json
+      -> hooks.json.disabled-v0.5.5-cli-mismatch
+    
+    Verification: post-rename smoke probe Bash returned clean — no [PROTECT_MCP] error.
+    
+    Reversibility HIGH: rename back if user wants protect-mcp active, then `npx protect-mcp@0.5.5 init-hooks --dir .claude` regenerates matching v0.5.5 hooks.json per CCBP CR-6 official-native-channel.
+    
+    Files changed (tracked): docs/install-provenance.md only. Both renamed hooks.json live in gitignored .claude/plugins/ dirs.
+    
+    Cite: TIER-1-DIRECT Anthropic CC hooks docs + TIER-1-DIRECT live `npx --help` probe. effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8.
+    
+    Forward note: 6 other disabled plugins (clickhouse/outputai/qdrant-skills/cwc-makers/hookify/claude-mem) also have cached hooks.json — not firing visible errors so deferred to W196+ orphan-hook-hygiene audit.
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 93765a2..cc2fb5e 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -24946,3 +24946,24 @@ npm install -g claude-mem@13.2.0
+ - **W196 forward**: TRUE preload fix (MEMORY.md 36-line >150ch trim + CLAUDE.md audit + MCP-schema/plugin-cache/skill-desc reduction — the actual residual ~24%) + 3 SOTA-CITE-UPGRADE applies (Path-P tight ≤30-LOC prompt) + `CLAUDE*.md` narrow on ~17 non-foundational C-only rules (codex-T1-gated)
+ - **Manifest row updated**: no (cross-arc synthesis, not install)
+ - **Artifacts**: `tmp/wave194-orchestrator-close-synthesis-2026-05-14.md` + cross-cite `tmp/wave194-p1-close-synthesis-2026-05-14.md` (parallel `2efabdd`) + `tmp/wave195-redux-close-synthesis-2026-05-14.md`
++
++## 2026-05-14T15:00Z — W195a HOOK-FIX [PROTECT_MCP] CLI-signature-mismatch resolution
++
++- **Section**: §3 disabled plugin orphan-hooks hygiene (non-section / runtime-error resolution)
++- **Pattern**: orphan-hook disable via filename suffix rename (NOT install-class — disables broken upstream hooks.json that fires on every Bash regardless of plugin `enabledPlugins: false` flag in settings.json:577)
++- **Trigger**: 4× user-visible `[PROTECT_MCP] Error: Missing "--" separator before the command to wrap.` PreToolUse non-blocking errors during W194/W195 work (PostToolUse fired same shape; suppressed by status-code policy)
++- **Root cause**: `protect-mcp@claude-code-workflows` plugin v0.1.0 ships `hooks/hooks.json` invoking `npx protect-mcp@0.5.5 evaluate ...` + `npx protect-mcp@0.5.5 sign ...`. Live `npx protect-mcp@0.5.5 --help` probe [VERIFIED 2026-05-14] shows CLI v0.5.5 only supports subcommands: `serve / init-hooks / quickstart / connect / init / demo / doctor / trace / status / digest / receipts / bundle / simulate / report`. **`evaluate` and `sign` are NOT subcommands in v0.5.5**. CLI falls back to default wrap-pattern `protect-mcp [options] -- <command>` → throws "Missing `--` separator before the command to wrap" because the hooks.json invocation has no `--` separator. UPSTREAM HOOKS-AUTHORING BUG in protect-mcp@0.1.0 plugin (wshobson/agents/protect-mcp) — hooks.json was written for a different/older CLI shape than the v0.5.5 pinned in the hooks.json itself.
++- **Compounding factor**: `enabledPlugins["protect-mcp@claude-code-workflows"]: false` in settings.json:577 does NOT prevent the plugin's `hooks/hooks.json` from auto-loading — CC's hook discovery scans cache + marketplace dirs regardless of enable-flag (empirical observation; behavior consistent with `outputai` / `hookify` / `clickhouse` / `cwc-makers` / `qdrant-skills` / `claude-mem` also showing 1500+ orphan hooks.json files in disabled-plugin cache subdirs — those are not currently firing user-visible errors but represent the same disabled-plugin-with-active-hooks class).
++- **Fix**: rename both `hooks.json` → `hooks.json.disabled-v0.5.5-cli-mismatch` (descriptive suffix carries root-cause for future audit):
++  - `mv .claude/plugins/cache/claude-code-workflows/protect-mcp/0.1.0/hooks/hooks.json .claude/plugins/cache/claude-code-workflows/protect-mcp/0.1.0/hooks/hooks.json.disabled-v0.5.5-cli-mismatch`
++  - `mv .claude/plugins/marketplaces/claude-code-workflows/plugins/protect-mcp/hooks/hooks.json .claude/plugins/marketplaces/claude-code-workflows/plugins/protect-mcp/hooks/hooks.json.disabled-v0.5.5-cli-mismatch`
++- **Verification**: post-rename smoke probe `echo "post-fix probe"` Bash returned clean — NO `[PROTECT_MCP]` error in stderr [VERIFIED 2026-05-14 via Bash echo probe]. PreToolUse hook chain executes without the protect-mcp wire.
++- **Cite anchors per CR-1 cite-class lattice**:
++  - TIER-1-DIRECT @ Anthropic CC hooks docs `https://code.claude.com/docs/en/hooks` (hooks.json command shape + PreToolUse/PostToolUse contract)
++  - TIER-1-DIRECT @ `npx protect-mcp@0.5.5 --help` live probe output 2026-05-14 (CLI v0.5.5 subcommand set; NOT `evaluate`/`sign`)
++  - TIER-2 @ broken plugin source: `Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-code-workflows/plugins/protect-mcp/hooks/hooks.json` (now `.disabled-v0.5.5-cli-mismatch`) — plugin.json declares `name: protect-mcp, version: 0.1.0, author: Tom Farley` MIT
++  - `constituents=[TIER-1-DIRECT @ Anthropic hooks docs, TIER-1-DIRECT @ live CLI v0.5.5 probe, TIER-2 @ broken upstream hooks.json, TIER-3-LOCAL-OPERATOR-DERIVED @ 4× user-visible error trigger 2026-05-14]; effective_tier=TIER-3-LOCAL-COMPOSITION` per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE
++- **Reversibility**: HIGH — rename `hooks.json.disabled-v0.5.5-cli-mismatch` back to `hooks.json` restores prior state. If user wants protect-mcp ACTIVE, the SOTA path per CCBP CR-6 official-native-channel: (1) set `enabledPlugins["protect-mcp@claude-code-workflows"]: true` in settings.json (2) run `npx protect-mcp@0.5.5 init-hooks --dir .claude` to regenerate matching v0.5.5-CLI hooks.json (3) follow plugin README `Quick Start` to create Cedar policy file + key.
++- **Files changed (tracked)**: docs/install-provenance.md (this row only — both renamed hooks.json are in `.claude/plugins/cache/` + `.claude/plugins/marketplaces/` which are gitignored; fix is operator-side state, audit-trail lives in this tracked row)
++- **Forward note for orphan-hook hygiene**: 6 other disabled plugins (`clickhouse`/`outputai`/`qdrant-skills`/`cwc-makers`/`hookify`/`claude-mem`) ALSO have hooks.json in cache subdirs (hookify alone has ~250 versioned-hash dirs each with own hooks.json — likely CC loads only LATEST version per plugin). Not currently firing user-visible errors so deferred to W196+ orphan-hook-hygiene audit. If similar `[<PLUGIN>] Error` patterns surface, apply same fix shape per this row's discipline.
++- **Sister-rule integration**: `Z:/claude-sota-installed/.claude/rules/cardinal-rule-9-install-risk-discipline.md` (install-risk discipline — pre-cite-import REVERT check applied: confirmed protect-mcp is NOT a REVERT-AND-REMOVE precedent; the disable here is a separate class) + `Z:/claude-sota-installed/.claude/rules/audit-action-loop.md` Wire/Surface/Close (Wire = upstream broken hooks.json firing; Surface = user-visible 4× error trigger; Close = rename + this row) + `Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting categories` OVER detection (verified via live `npx --help` probe NOT just file-read inference)</repository_context>

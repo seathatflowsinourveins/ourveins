@@ -1,0 +1,257 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b153e81458c141bd0967f7a915ec9580f31d5e14
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-24-b-ccpm-path-p-audit/00-tracker.md      |  83 ++++++++++
+ .../fire-24-b-ccpm-path-p-audit/01-ccpm-anatomy.md | 133 +++++++++++++++
+ .../02-probe-dag-application.md                    | 138 ++++++++++++++++
+ .../03-codex-t1-verdict.md                         | 106 ++++++++++++
+ .../99-close-synthesis.md                          | 182 +++++++++++++++++++++
+ 5 files changed, 642 insertions(+)
+
+=== git show --format=fuller ===
+commit b153e81458c141bd0967f7a915ec9580f31d5e14
+Author:     42 <42@local>
+AuthorDate: Sun May 10 19:43:54 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 19:43:54 2026 -0400
+
+    docs(sota-audit): Wave 134 Fire 24-B — CCPM CITE-PATTERN-ONLY (NEW verdict shape introduced)
+    
+    Second of 5 Tier 1 NEW PROBE-DAG-CANDIDATE audits queued at Fire 23 close.
+    Path P codex T1 (REAL GPT-5.5 foreground+tee) returned CITE-PATTERN-ONLY @
+    conf=0.90 — install REJECTED but 4 EXTRACTABLE patterns identified. This is
+    a NEW verdict shape in Wave 134 arc (distinct from REJECT-FOR-FIT pure-decline).
+    
+    ## Fire 24-B deliverables (5 files + provenance append, ~500 LOC)
+    
+    - 00-tracker.md (~95 LOC) — Fire 24-B framing + 3 pre-codex blockers
+    - 01-ccpm-anatomy.md (~115 LOC) — single-skill repo anatomy + Row-2 AUTO-FAIL
+    - 02-probe-dag-application.md (~130 LOC) — Probe DAG 1-7 + convergence analysis
+    - 03-codex-t1-verdict.md (~95 LOC) — verbatim REAL GPT-5.5 verdict
+    - 99-close-synthesis.md (~150 LOC) — adoption verdict + 4 extract candidates
+    - docs/install-provenance.md — Fire 24-B CITE-PATTERN-ONLY entry appended
+    
+    ## Subject
+    
+    automazeio/ccpm HEAD 7d7e462 MIT (Agent Skills cross-tool compatible,
+    single-skill arch ~80 LOC SKILL.md + 6 reference files + 12 bash scripts)
+    user's Tier 2 🥇 PM pick.
+    
+    ## Three decisive Probe-DAG blockers (orchestrator + codex T1 converge)
+    
+    1. Probe 4 plugin-namespace DUPLICATE FAIL: CCPM Execute parallel-agent
+       overlaps eee's `parallel-agent-wave.md` + T1-T7; Track overlaps per-fire
+       MD folder + TaskCreate (kiss-dry-yagni Must-Never #4 violation)
+    
+    2. Probe 5 mode-harness-shape FAIL: codex T1 caught that CCPM's abstract
+       triggers still presume PM-loop feature-shipping semantics. eee is
+       autonomous /loop audit-driven, not feature-shipping mode.
+    
+    3. Probe 7.a demand-absence FAIL: eee has NO PRD-driven feature backlog.
+    
+    Plus: Row-2 fabrication-test AUTO-FAIL on README "Eval Score 100%" badge
+    (unsourced; no methodology citation, no benchmark repo).
+    
+    ## Codex T1 verdict (verbatim at EOF)
+    
+    ```json
+    {
+      "verdict": "CITE-PATTERN-ONLY",
+      "confidence": 0.9,
+      "probe_dag_verdicts": {
+        "P1_count_over": "FAIL",
+        "P2_sdk_vs_cli": "PASS",
+        "P3_arch_api": "PASS",
+        "P4_plugin_namespace": "FAIL",
+        "P5_mode_harness": "FAIL",
+        "P6_blockers": "PASS",
+        "P7a_demand_absence": "FAIL",
+        "P7b_demand_creates": "NOT-ELIGIBLE"
+      },
+      "github_issues_decisive_blocker": "MITIGABLE",
+      "row2_fabrication_test_eval_score": "AUTO-FAIL",
+      "cite_pattern_extract_candidates": [
+        "Task/frontmatter schema: acceptance_criteria/effort/depends_on/parallel/conflicts_with/status/updated",
+        "Script-first deterministic status/search/blocked/next/validate operations over per-fire folders",
+        "Local-only PRD/Epic/Task naming taxonomy as reference pattern, excluding GitHub sync",
+        "Per-agent progress/update files for long-running fire execution tracking"
+      ],
+      "prescribed_edits": []
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f24b_ccpm_OUT.txt` (115,741 tokens)
+    
+    ## Orchestrator-codex probe convergence: 5/8 + 3 codex-stricter-corrections
+    
+    - Codex caught Row-2 AUTO-FAIL on "Eval 100%" (orchestrator didn't apply gate)
+    - Codex correctly identified P2 + P3 PASS (orchestrator was NEUTRAL)
+    - Codex caught P5 PM-loop assumption (orchestrator over-credited abstract triggers)
+    - Codex caught P7b strict eligibility (orchestrator was borderline)
+    
+    Cross-model T1 discipline validated AGAIN — codex's adversarial review surfaces
+    nuances orchestrator missed.
+    
+    ## 4 cite-pattern-extract candidates queued (W134-F24-B1/2/3/4)
+    
+    1. Frontmatter schema enrichment for per-fire MD folders (~30min ship)
+    2. Script-first deterministic ops cli over per-fire folders (~1-2hr ship)
+    3. PRD/Epic/Task naming taxonomy doc reference (<30min doc edit)
+    4. Per-agent progress/update files for multi-agent fires (~45min ship)
+    
+    ## NEW verdict shape codified: CITE-PATTERN-ONLY
+    
+    Distinct from REJECT-FOR-FIT — install declined BUT extractable subset patterns
+    identified. Wave 134 arc verdict-shape enum extended:
+    - APPROVE / NEEDS-REVISION / REJECT-FOR-FIT / STUDY-PILOT (existing)
+    - + CITE-PATTERN-ONLY (NEW from Fire 24-B)
+    
+    ## Mia ladder advance
+    
+    n=1535 (Fire 24-A close) → n=1555 (Fire 24-B close, +20 across 6 deliverable files)
+    
+    ## Path P recipe ladder
+    
+    n=9/9 → n=10/10 reproducible (foreground+tee deep-review-exec @ 300s; 115,741 tokens;
+    JSON verdict at EOF; 5/8 orchestrator-codex convergence + 3 codex-stricter-corrections)
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-1-DIRECT @ file:line @ HEAD SHA throughout
+    - CR-3 cross-model: REAL GPT-5.5 codex CLI verdict (CR-3 Phase 1 bootstrap exception)
+    - CR-9 install-risk: REJECT decisive — ZERO install-debt added
+    - CR-11 META-process: Fire follows META-process discipline
+    - FM-02 sub-class (b) defense: atomic git add + commit --only -- pathspec
+    - Row-2 fabrication-test discipline: applied to README "Eval 100%" → AUTO-FAIL
+    - New verdict shape codification: CITE-PATTERN-ONLY introduced
+    
+    ## Forward fire roadmap (post-Fire-24-B)
+    
+    Tier 1 NEW (3 remaining of 5):
+    - W134-F24-C Task Master (eyaltoledano)
+    - W134-F24-D Agent OS v3 (buildermethods)
+    - W134-F24-E Claude Memory Bank (russbeye)
+    
+    Tier 1.5 NEW (4 cite-pattern extracts):
+    - W134-F24-B1 frontmatter schema
+    - W134-F24-B2 script-first cli
+    - W134-F24-B3 PRD/Epic taxonomy doc
+    - W134-F24-B4 per-agent progress files
+    
+    ## Trailers
+    
+    Refs: docs/sota-architecture-audit/fire-24-b-ccpm-path-p-audit/
+    Cite: TIER-1-DIRECT `Z:/repos/deps/ccpm` @ HEAD 7d7e462 MIT
+    Verify: `[VERIFIED via .claude/state/codex_consult_w134_f24b_ccpm_OUT.txt — REAL GPT-5.5 CITE-PATTERN-ONLY conf=0.90]`
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-24-b-ccpm-path-p-audit/00-tracker.md b/docs/sota-architecture-audit/fire-24-b-ccpm-path-p-audit/00-tracker.md
+new file mode 100644
+index 0000000..eb75db0
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-24-b-ccpm-path-p-audit/00-tracker.md
+@@ -0,0 +1,83 @@
++# Fire 24-B — CCPM (automazeio/ccpm) Path P Codex T1 Audit
++
++> **Position**: Second of 5 Tier 1 NEW PROBE-DAG-CANDIDATE audits queued at Fire 23 close.
++> **Subject**: `automazeio/ccpm` (user's external SOTA Tier 2 🥇 "files-as-source-of-truth" PM pick)
++> **Method**: Path P recipe (codex exec foreground+tee — n=9/9 reproducible after Fire 24-A)
++> **Convergence-gate**: 3-axis audit (anatomy / Probe DAG 1-7 / cross-model verdict)
++> **Pre-codex hypothesis**: STUDY-PILOT-NARROW (Probe 7.b eligible) OR REJECT-FOR-FIT (P7.a + P4 DUPLICATE risk)
++
++## Subject identification (TIER-1-DIRECT cite anchors)
++
++| Field | Value | Cite |
++|---|---|---|
++| Repo | `automazeio/ccpm` | `Z:/repos/deps/ccpm` |
++| HEAD | `7d7e462` (2026-05-10) | `git -C Z:/repos/deps/ccpm log -1 --oneline` |
++| License | MIT | `Z:/repos/deps/ccpm/LICENSE:1` |
++| Org | automazeio (named) | `README.md:3` Agent Skills compatible badge |
++| Author | @aroussi | `README.md:11` X handle |
++| Skill name | `ccpm` | `skill/ccpm/SKILL.md:2` frontmatter `name:` |
++| Workflow | PRD → Epic → GitHub Issues → Parallel Agents → Shipped Code | `SKILL.md:13-15` |
++| Agent Skills compatible | Yes (cross-tool: Claude C
+
+[prompt truncated]

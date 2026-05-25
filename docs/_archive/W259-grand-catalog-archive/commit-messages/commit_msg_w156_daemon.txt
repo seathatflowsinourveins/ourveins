@@ -1,0 +1,162 @@
+refactor(infra): Wave 156 — convert aperant poller + rotation planner to daemon mode
+
+Resolves the constant `Z:\venvs\claude\Scripts\python.exe` spawning surfaced by
+the operator. Root cause was two Windows Scheduled Tasks (`EEE-Aperant-Poller`
+60s, `EEE-Rotation-Planner` 5min) firing `--once` invocations — spawn-per-tick
+churn ≈ 72 python.exe spawn-die events per hour.
+
+# Before / After
+
+- BEFORE: 0 long-lived daemons + ~60 short-lived poller spawns/hr + ~12 planner
+  spawns/hr = ~72 spawn-die events/hr observable as constant python.exe flicker
+  in Task Manager.
+- AFTER: 2 long-lived `--start` daemons (1 poller + 1 planner) — each launches
+  ONCE at boot (or at -Install time via Start-ScheduledTask), polls internally
+  on its own loop. spawn-die events/hr → ≈ 0. Polling cadence preserved
+  (60s poller / 5min planner) via existing `--interval-seconds` flag.
+
+Daemons stable + verified writing JSONL post-deploy. Poller still emits one
+JSONL row per account per 60s tick — observable signal unchanged.
+
+# Discovery
+
+The fix is a one-flag rewire because the daemon-mode is ALREADY CODED in both
+target scripts:
+- tools/aperant_rate_limit_poller.py:339-426 — `--once` / `--start` / `--stop`
+  / `--interval-seconds`; --start branch implements PID file at L381 + stop
+  sentinel polled mid-loop at L416 + `interval = max(15, args.interval_seconds)`
+  floor at L414 + finally cleanup at L423-426. F-2 logic at L382-386 proactively
+  clears prior `.stop` sentinel before entering loop (eliminates restart race).
+- tools/eee_account_rotation_planner.py:217-240 — same --once/--start contract.
+
+Old Wave 94 installer wired `--once`. This Wave 156 ship rewires to `--start`
+with `-AtStartup` trigger + `-ExecutionTimeLimit (New-TimeSpan -Days 0)` (PT0S
+= unlimited per Microsoft Learn) + `-RestartCount 3 -RestartInterval 1min` for
+crash recovery.
+
+# Cite chain (per CR-1 + citation-discipline.md rule #8 lattice)
+
+constituents=[
+  TIER-1-NAMED-AUTHOR-QUOTE @ Adam Wiggins (Heroku co-founder) Twelve-Factor App
+    §VIII "Disposability" https://12factor.net/disposability — "Processes are
+    disposable, meaning they can be started or stopped at a moment's notice",
+  TIER-1-DIRECT @ Microsoft Learn `New-ScheduledTaskTrigger -AtStartup`
+    https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasktrigger,
+  TIER-1-DIRECT @ Microsoft Learn `New-ScheduledTaskSettingsSet
+    -ExecutionTimeLimit` (PT0S=disabled, here `New-TimeSpan -Days 0`)
+    https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset,
+  TIER-1-DIRECT @ Aperant rate-limits research
+    Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027,
+  TIER-1-DIRECT @ local poller --start impl
+    tools/aperant_rate_limit_poller.py:378-426,
+  TIER-1-DIRECT @ local planner --start impl
+    tools/eee_account_rotation_planner.py:218,240,
+  TIER-3-LOCAL-COMPOSITION @ claude-sota-installed Wave 156 daemon-mode glue
+]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8
+MIN_PRECEDENCE.
+
+# CR-3 cross-model gate satisfaction
+
+Phase 1 bootstrap exception per CLAUDE.md cardinal-rule-3 Phase 1 — codex T1
+fired via Path P foreground+tee (per codex-t1-fix-forward-pattern.md Pattern D
+recipe: default profile + --skip-git-repo-check + --color never + focused
+prompt). Verdict file:
+  .claude/state/codex_consult_w156_aperant_daemon_mode_OUT.txt
+  [VERIFIED via tail JSON-at-EOF parse]
+
+Verdict: NEEDS-REVISION conf=0.89 — "Approve the daemon-mode direction, but
+require explicit stop/uninstall handling so the OS-state mutation is reversible
+for already-running long-lived tasks."
+
+Pattern A single-fix-forward apply per codex-t1-fix-forward-pattern.md §Pattern A
+— all 4 prescribed_edits integrated in this single atomic commit:
+  #1: Install-Tasks pre-Register Stop-ScheduledTask of any running task
+  #2: Uninstall-Tasks cooperative --stop sentinel + Stop-ScheduledTask + Unregister
+  #3: Start-ScheduledTask immediately post-Register (poller)
+  #4: Start-ScheduledTask immediately post-Register (planner)
+
+Plus 1 self-caught defect during deploy verification: PowerShell
+`$ErrorActionPreference='Stop'` treats python.exe stderr (its INFO logging)
+as terminating error via NativeCommandError record. Changed `2>$null` →
+`*>$null` to redirect all streams (per Microsoft Learn about_Redirection)
+so the cooperative --stop call doesn't abort the Uninstall path.
+
+# Launch-discipline D1 (per .claude/rules/launch-discipline.md)
+
+REVERSIBLE: `-Uninstall` sends cooperative `--stop` to poller (writes
+  .stop sentinel; daemon exits at next iteration boundary, max 60s); then
+  Stop-ScheduledTask handles planner (no --stop contract) + non-cooperative
+  remainder; then Unregister-ScheduledTask. `git revert` of this commit
+  restores Wave 94 spawn-per-tick (TESTED in DryRun, syntax-clean).
+
+OBSERVABLE: daemons append to .claude/state/aperant_poller.jsonl (every 60s)
+  and .claude/state/eee_rotation_planner.jsonl (every 5min). -Status shows
+  task state + LastRunTime + LastTaskResult + NextRunTime.
+
+INCREMENTAL: -DryRun preview before mutation. PROBE 18 OS-State-Mutation
+  precondition check passed pre-deploy: both tasks state=Ready, LastResult=0,
+  no live python.exe matching aperant/rotation. 55s window between scheduled
+  fires safe for unregister+reregister.
+
+OS-State-Mutation 7th-axis (launch-discipline.md §7th axis) — Scheduled Task
+admin-class change verified via Get-ScheduledTask + Get-ScheduledTaskInfo
+pre/post; unregister/reregister race window bounded; cooperative stop path
+added for daemon mode per codex T1 prescribed_edit #2.
+
+# Deprecation-discipline (per .claude/rules/deprecation-discipline.md)
+
+Wave 94 `--once` spawn-per-tick model deprecated → replaced by `--start`
+long-running daemon. 4-stage migration:
+  - parallel deploy: N/A (single-instance Scheduled Task, can't run both)
+  - telemetry: existing JSONL signal preserved (still 1 row/account/60s for
+    poller, 1 row/5min for planner)
+  - cutover: -Uninstall (Wave 94) + -Install (Wave 156) atomic; no
+    consumer-side migration required (downstream SQLite UPDATE contract
+    unchanged)
+  - removal: old --once registrations replaced; no orphan code
+
+Churn Rule (deprecation-discipline.md): I own the surface being deprecated +
+I own the migration. Single-installer rewire — no consumers to migrate.
+
+# Verification (post-deploy, in-fire)
+
+  $ powershell ... Get-ScheduledTask EEE-Aperant-Poller
+  state=Running
+  $ powershell ... Get-CimInstance Win32_Process ... aperant_rate_limit
+  PID 80648 age 155s (parent) + PID 11128 age 154s (child worker)
+  $ tail -3 .claude/state/aperant_poller.jsonl
+  2026-05-12T13:36:15+00:00 / nalawowac@gmail.com / ok
+  2026-05-12T13:36:15+00:00 / zfan7@sva.edu / ok
+  2026-05-12T13:36:15+00:00 / zfan7@sva.edu (Codex Pro) / ok
+
+Daemons stable past first 60s interval (no .stop sentinel race; F-2 clear
+logic in poller L382-386 handles prior-sentinel proactively).
+
+# Sister-rule conformance
+
+- CR-1 cite-trail: ✅ TIER-1-DIRECT + TIER-1-NAMED-AUTHOR-QUOTE + TIER-3-LOCAL-COMPOSITION
+- CR-3 cross-model gate: ✅ Phase 1 bootstrap codex T1 NEEDS-REVISION conf=0.89 + Pattern A 4-edit apply
+- CR-5 install-priority: ✅ leverages already-shipped --start/--stop impl in poller + planner; no new code
+- CR-6 fresh-from-github: N/A (no upstream install — config-only rewire)
+- CR-7 Phase 1 bootstrap: ✅ orchestrator-side codex exec foreground+tee satisfies cross-model gate per Phase 1 exception
+- CR-8 ADAPTED-FROM-SOTA: ✅ adapts Twelve-Factor §VIII Disposability + Microsoft Learn ScheduledTask docs
+- CR-9 install-risk: ✅ MEDIUM — reversible via `git revert` + `-Uninstall`; 2-round fix-forward budget consumed (1 round = codex T1; 1 self-caught fix = `*>$null`)
+- CR-10 research-first: ✅ deep-dive into Aperant upstream + sibling claude-sota + Microsoft Learn + NSSM before edit
+- CR-11 META-process: ✅ used superpowers:systematic-debugging skill + harness-audit; Iron Law verification-before-completion; Pattern A apply; FM-02 narrow-`--only` defense; git-cli-grammar-discipline options-before-`--`
+- CR-12 upstream-install-priority: ✅ TIER-1-DIRECT Aperant + Microsoft Learn + Twelve-Factor; sibling-cite-import NOT used
+
+# Out of scope (queued separate)
+
+- Path B NSSM Windows Service wrapper (true-SOTA — provides Services.msc UI +
+  auto stdout/stderr log rotation). NSSM already installed via WinGet
+  (Get-Command nssm → C:\Users\42\AppData\Local\Microsoft\WinGet\Packages\
+  NSSM.NSSM_*\nssm.exe). Path A daemon-via-ScheduledTask shipped first as
+  minimal-LOC win; NSSM upgrade is separate ship.
+- Hook stack dedup (initially flagged as 24 pure duplicates but Iron Law
+  re-probe revealed they are 6 distinct `Bash(...)` command-shape matchers
+  per script — NO actual duplicates; the 43 hooks are SOTA-essential).
+- Dead ref `cli_path_audit.py` (SessionStart hook script missing on disk —
+  silent fail each session). Separate cleanup ship.
+- 6 orphan scripts on disk (agent_plan_readonly_bash_guard.py, codex_gate.py,
+  codex_review_queue.py, codex_review_thread_bridge.py, fm17d_stall_detector.py,
+  utils.py [shared module — correct]). Wire-up separate ships.

@@ -1,0 +1,83 @@
+feat(routing): Wave 97 Ship 1J — CLIProxyAPI strategy fill-first → round-robin (FM-17.b.i root-cause closure)
+
+User mandate: "avoid API Error: Server is temporarily limiting requests
+(not your usage limit) · Rate limited, investigiate the limit and offload
+ours within limits form our advanced accounts rotation".
+
+ROOT CAUSE (from Wave 97 fan-2 + orchestrator-direct investigation):
+  Wave 97 fan-2 Agent fan2-C 429'd at <12s with FM-17.b.i wrapper-funneling
+  PRE-FIRE class. Pool starvation: 4/7 Claude accounts disabled by Ship 1X
+  cycle-aware rotation (7d-capped); 3 active with UNEQUAL priorities
+  (aesthetic9c=P30, mr.euphoriaincarnate=P20, nalawowac=P10). Live poller
+  cycle 2026-05-08T20:39:13Z showed 2/3 active accounts hitting 429.
+
+  fill-first burns highest-priority account first → burst load (3 parallel
+  agents) all hit P30 until burned → 429 cascades.
+
+CROSS-MODEL T1 GATE (real GPT-5.5 e2e via codex CLI foreground+tee):
+  R1 NEEDS-REVISION conf=0.88 — caught Mia OVER #7:
+    My initial design claimed "round-robin distributes across 3 active
+    accounts" but per CLIProxyAPI source selector.go, round-robin
+    operates WITHIN priority-bucket FIRST. Under unequal P30/P20/P10
+    priorities, lower tiers are standby-overflow, not burst-shared.
+  Pattern A 4-prescription apply:
+    F1: Keep round-robin + session-affinity:true + 4h TTL (verified)
+    F2: Document priority-bucket behavior + defer equalization to
+        separate operator-decision ship
+    F3: Keep disable-cooling=false + don't retune ttl
+    F4: Update comment to state round-robin operates WITHIN highest-
+        priority bucket NOT across unequal priorities
+  R2 APPROVE conf=0.94 — Pattern A success
+  Verdict files:
+    .claude/state/codex_consult_wave97_ship1j_strategy_flip_OUT.txt
+    .claude/state/codex_consult_wave97_ship1j_round2_OUT.txt
+
+EDIT (1 file: .cli-proxy-api/config.yaml — gitignored runtime state):
+  L70: strategy: "fill-first" → "round-robin"
+  L60-77: Wave 86 Ship 1Q comment REPLACED with Wave 97 Ship 1J comment
+          per port-note-discipline.md §6 forward-only (Wave 86 commit
+          body 824523f history NOT rewritten)
+  session-affinity:true + session-affinity-ttl:"4h" PRESERVED
+
+PROVENANCE: docs/install-provenance.md +Wave 97 Ship 1J entry (~150 LOC)
+
+OPERATOR-ACTION REQUIRED:
+  CLIProxyAPI restart needed (routing.strategy NOT in hot-reload list per
+  internal/api/modules/amp/amp.go:OnConfigUpdated — hot-reload covers
+  model-mappings/upstream-api-key/upstream-url/restrict-management only).
+  Operator restart paths:
+    1. Next eee.ps1 launch picks up new config naturally
+    2. Manual: kill cli-proxy-api.exe + relaunch
+
+TIER-1 SOTA CITE CHAIN:
+  sdk/cliproxy/auth/selector.go:26 @ HEAD 785b00c3 (RoundRobinSelector)
+  sdk/cliproxy/auth/selector.go:283 @ HEAD 785b00c3 (two-level RR)
+  README.md:51 @ HEAD 785b00c3 ("round-robin load balancing")
+  config.example.yaml:112-114 ("round-robin (default), fill-first")
+  internal/api/modules/amp/amp.go:OnConfigUpdated (hot-reload list)
+
+LAUNCH-DISCIPLINE D1:
+  REVERSIBLE: 1-line revert + restart
+  OBSERVABLE: Aperant poller JSONL .claude/state/aperant_poller.jsonl
+              will show 429 frequency change post-restart
+  INCREMENTAL: 1-line strategy flip; orthogonal to existing tuning
+
+HONEST LIMITATION (per R1 catch documented in R2 APPROVE):
+  Ship 1J does NOT fully solve burst-load 429 under current unequal-
+  priorities state. With P30/P20/P10 split + 1 active account per tier,
+  behavior approximates fill-first. For TRUE 3-account burst-distribution,
+  operator must equalize active priorities (Ship 1J-followup candidate).
+
+  What Ship 1J DOES fix:
+    - Post-7d-reset auto-rebalance (no fill-first burn-first delay)
+    - When priorities ARE equal (operator decision), burst-distribution
+      kicks in
+    - Aligned with upstream default (CLIProxyAPI README:51)
+
+WAVE 97 IS THE 14TH SHIP IN THIS SESSION ARC:
+  86 824523f -> 89 15dad8e -> 91 6ebcf08 -> 92 861ee43 -> 93 63cc261
+  -> 90 f8134e7 -> 94 b7207e9 -> 95 840db40 -> 96 51d74d6
+  -> 97-1A 3c00615 -> 97-1B a1f19f0 -> 97-1G 58be220 -> 97-1C+1D 0110a9f
+  -> 97-1J THIS
+
+Satisfies cardinal-rule-1+3+5+6+7+8+9+10+11.

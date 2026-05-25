@@ -1,0 +1,17 @@
+/goal W200 BYTE-COLLAPSE top-3 + FM-20 row 20 codify + cite-drift sweep + 17-repo arch-audit refresh. branch=w194-glob-narrow per CCBP Boris-6-tips+parallel-session-worktree-isolation.md §14.5.
+
+CONTEXT: W194-arc CLOSED P1+P2+P3 (tmp/wave194-close-synthesis-2026-05-14.md aggregate). W199 caught n=9 recursive FM-20 at synthesis-COMPOSE boundary; n=10 same-fire (W194-aggregate absorbed `228e55b` despite `--only`). Preload 18.86%/200k post-W198 P1.2. W196 EMPIRICAL: all 64 rules cold-load regardless of `paths:`-narrow → byte-collapse is the real lever.
+
+P1 [BLOCKS P2-P4]: BYTE-COLLAPSE TOP-3 — per W196 FORWARD-REF, collapse `fm20-path-drift-cascade.md` (40K) + `fm17-subagent-fleet-depletion.md` (33K) + `karpathy-adapted.md` (33K). MOVE-not-DELETE per port-note-discipline.md §6: dedupe sub-class enumerations + collapse repeated cite-trails to authoritative source + retire FORWARD-REFs that landed. Target 106K→62K = ~44K reclaim. Atomic Pattern A per codex-t1-fix-forward-pattern.md.
+
+P2 [parallel-safe P1]: FM-20 ROW 20 CODIFICATION — parallel-cron-absorption-during-multi-step-defense-execution sub-class. n=2 same-day 2026-05-14 (W199 absorbed `1815232` + W194-aggregate absorbed `228e55b`). Codify row 20 in fm20-path-drift-cascade.md + sister recovery: (a) single-shell `git add && git commit -F repo-msg-file --only` ONE-INVOCATION discipline; (b) FORWARD-REF eee launcher cron-pause-during-commit-window enhancement; (c) PostToolUse `Bash(git commit)` cron-quiesce hook candidate.
+
+P3 [parallel-safe P1+P2]: CITE-DRIFT SWEEP + 17-REPO ARCH-AUDIT REFRESH — (i) close 2 W197 P2 outstanding items: L98 runtime-HEAD + L13 repomix-HEAD; (ii) re-run 17-repo SOTA-equivalence probe at FRESH HEAD-SHAs (wshobson superpowers ECC GSD CCBP vercel-labs mattpocock hesreallyhim alirezarezvani karpathy-skills GitNexus quemsah Shubhamsaboo vinta shareAI ComposioHQ affaan-m); surface drift since W197 baseline; quantify %-NOT-FROM-SOTA per CR-8 column. 3-agent BRIDGE-MODE team per advanced-agent-team-standing-directive.md invariants 1-8.
+
+MANDATES: CR-1+5+6+8+9+10+11+12 per CLAUDE.md. CR-10 RESEARCH-FIRST every gap. Agent team 3-5 BRIDGE-MODE (CADP max-3 unless ≥50% cache verified; ARTIFACT-INLINE FM-19; OUTPUT_BUDGET 400-600 LOC; TERMINATION max_turns:25; per-codex 90-180s FM-17.d-defense). Mia pre-apply EVERY prescription. Cite-class per citation-discipline.md rule #8 constituents+effective_tier=MIN_PRECEDENCE.
+
+UNLEASH: Path P codex exec foreground+tee (300s DEFAULT --skip-git-repo-check --color never ≤50 LOC JSON-at-EOF) per ctff-patterns-cd.md Pattern D. GitNexus impact analysis BEFORE every byte-collapse Edit. Memory: graphiti L3 FalkorDB:16379 + mcp-memory L1 sqlite_vec.
+
+SHIP: commit body [VERIFIED via .claude/state/codex_consult_*_OUT.txt verdict path]. Forward-only per port-note-discipline.md §6. **Anti-absorption mandate (P2 row 20 dogfood)**: use single-shell heredoc `git add -f <files> && git commit -F .claude/state/<msg> --only -- <files>` ONE-INVOCATION to minimize cron-window absorption vulnerability. If absorbed → accept per FM-02 sub-c + document forward.
+
+STOP: close-synthesis tmp/wave200-close-synthesis-2026-05-14.md + MEMORY.md L2 entry (≤150 chars) + docs/install-provenance.md row + graphiti episode + mcp-memory store. 5-backend hash verify ≥4/5 PASS per sessionstart-preload-discipline.md §step 4. Cross-arc cite W194/W196/W197/W198/W199. FM-20 row 20 codified in fm20-path-drift-cascade.md Origin & promotion table.

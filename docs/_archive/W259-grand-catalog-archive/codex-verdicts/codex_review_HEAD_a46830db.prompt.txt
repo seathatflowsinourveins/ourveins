@@ -1,0 +1,211 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit a46830db78dc167417ee019714feead2c05844e7
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit a46830db78dc167417ee019714feead2c05844e7
+Author:     42 <42@local>
+AuthorDate: Mon May 11 10:41:51 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 10:41:51 2026 -0400
+
+    chore(settings): Wave 146 Fire 7 — _comment_graduated_unleash L602 reconcile to Wave 82d override actual state (same-class as W146-F6; mechanical-mirror exception 5× chain; FM-21 JSON-validation discipline n=1 SUCCESSFUL demonstration)
+    
+    Per Wave 146 Fire 7 mechanical-mirror exception apply (T1 SKIPPED per
+    `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Mechanical-mirror exception`
+    activation predicates ALL satisfied; cross-model gate cumulative 5× REAL GPT-5.5
+    satisfied across W146 arc): `_comment_graduated_unleash` block at L602 of
+    `.claude/settings.json` had stale claim "Phase 1 (NOW): defaultMode='default'"
+    — contradicting both (a) CANONICAL destination per CR-7 Wave 146 Fire 2 update
+    at commit `92812e8` (= 'auto' per CCBP Wave 61.5) AND (b) ACTUAL ACTIVE state
+    of `defaultMode: "bypassPermissions"` per Wave 82d operator override (2026-05-08).
+    
+    This is the SAME-CLASS staleness as W146-F6 (`_comment_phase3_transition` L86)
+    shipped at `82413db → 977fff4` — same WITHIN-FILE mechanical-mirror propagation
+    of Wave 82d / CR-7 reconcile pattern.
+    
+    ## The reconcile (single Edit; replacement-with-pointer)
+    
+    OLD (stale Phase 1 claim):
+    "Phase 1 (NOW): defaultMode='default' — every non-SOTA-cited operation requires explicit confirm."
+    
+    NEW (canonical + override pointer):
+    "Phase 1 CANONICAL (per Wave 146 Fire 2 commit 92812e8 + CCBP Wave 61.5):
+    defaultMode='auto' (CCBP claude-settings.md:251 SOTA-superior to bypassPermissions
+    because auto handles .git/.claude/.vscode/.idea/.husky paths via classifier
+    instead of prompts; user-trigger 'all setting must be fully unleashed with sota
+    harness' satisfied via classifier no-prompt for safe ops) — ⚠️ CURRENTLY OVERRIDDEN
+    per Wave 82d 2026-05-08 to defaultMode='bypassPermissions' (Anthropic classifier
+    outage ~30min blocked all Bash/Edit/Write under auto-mode); see
+    _comment_temporary_override at L82 above + CLAUDE.md §\"Intentional divergences\"
+    (d) for full override rationale + 3 revert predicates."
+    
+    ## NEW DISCIPLINE n=1 SUCCESSFUL DEMONSTRATION — FM-21 JSON-validation PRE-COMMIT
+    
+    Per `Z:/claude-sota-installed` Wave 146 Fire 6.1 codification (commit `977fff4`
+    trailer): JSON-class Edits MUST run `python -m json.tool` VALID validation BEFORE
+    commit, regardless of T1 SKIP / mechanical-mirror exception / Pattern A status.
+    
+    W146-F7 application: post-Edit + pre-commit `python -m json.tool .claude/settings.json`
+    returned JSON_VALID ✅. This is the FIRST SUCCESSFUL application of the discipline
+    codified at F6.1 — proves the discipline catches what mechanical-mirror exception
+    T1 SKIP doesn't.
+    
+    **FM-21 ladder advances**: n=1 (W146-F6 incident, AVOIDED in F7 via discipline
+    application). The discipline's purpose is PREVENTING FM-21 from happening; a clean
+    F7 application = ladder advances by APPLICATION COUNT, not FAILURE COUNT.
+    Per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 jurisdiction:
+    n=2 same-class APPLICATIONS would promote the discipline to dedicated sub-rule
+    (needs another JSON-class Edit fire to advance ladder).
+    
+    ## Mechanical-mirror exception activation predicates (per codex-t1-fix-forward-pattern.md)
+    
+    1. **Single-file ship + ≤24 LOC delta**: PASS — single file `.claude/settings.json`;
+       0-line delta (Edit extends existing single-line JSON string value); ~3-5
+       sentence character delta well under 24 LOC ceiling
+    2. **Pure pointer-extension**: PASS — replaces stale Phase 1 framing with canonical
+       CR-7 Wave 146 Fire 2 framing + pointer to L82 `_comment_temporary_override`
+       + CLAUDE.md §"Intentional divergences" (d) revert predicates; NO new mechanics
+       inline / lifecycle semantics / enforcement behavior / source-admissibility rules
+    3. **NO new authority/cite/status class introduced**: PASS — Wave 82d override class
+       already established by W146-F2 commit `92812e8`; CCBP Wave 61.5 auto-mode
+       canonical already cited at L82 + L86 + CLAUDE.md §(d); this Edit only
+       PROPAGATES the established marker WITHIN-file to L602
+    4. **Mirror chain context (n≥2 prior mirror ships within session)**: PASS at n=5 —
+       chain firms cycle-322 PROMOTION-MET cumulative:
+       - W146-F2 commit `92812e8` Edit 1: CLAUDE.md L68 CR-7 Phase 1 reconcile
+       - W146-F2 commit `92812e8` Edit 2: settings.json L82 `_comment_temporary_override` added
+       - W146-F6 commit `82413db`: settings.json L86 `_comment_phase3_transition` reconcile
+       - W146-F6.1 commit `977fff4`: settings.json L86 fix-forward 1-char delete
+       - W146-F7 (this commit): settings.json L602 `_comment_graduated_unleash` reconcile
+    5. **Target-surface compatibility preflight**: PASS — Read confirmed L602 text +
+       L82 marker + CLAUDE.md §(d) cross-ref + L81 ACTIVE state
+    
+    ALL 5 PREDICATES PASS → T1 SKIPPED per mechanical-mirror exception. Cross-model gate
+    FULLY SATISFIED via cumulative 5× REAL GPT-5.5 across W146 arc per CR-3 Phase 1
+    bootstrap exception.
+    
+    ## Mia probes 2/2 GENUINE (n=291→n=293)
+    
+    - Probe #1 L602 `_comment_graduated_unleash` exact stale text "Phase 1 (NOW): defaultMode='default'": VERIFIED GENUINE (Read confirmed exact match)
+    - Probe #2 L81 `defaultMode: "bypassPermissions"` ACTIVE state (post-W146-F6 reconcile): VERIFIED GENUINE (Edit target Phase 1 claim contradicts ACTIVE state per established W146-F6 reconcile pattern)
+    
+    Zero FM-20 OVER cascades caught (Mia probes confirmed all targets BEFORE Edit landed).
+    
+    ## Ladder advances
+    
+    - Mia pre-apply n=291 → n=293 (+2 verified GENUINE pre-Edit probes)
+    - Path P REAL GPT-5.5 n=30 unchanged (T1 SKIPPED per mechanical-mirror exception)
+    - Pattern D foreground+tee n=22 unchanged (no codex dispatch this fire)
+    - Forward Discipline #2 n=7 unchanged (no codex dispatch)
+    - FM-20 path-drift cascade n=16 unchanged (zero new catches; clean Edit with full Mia coverage)
+    - **FM-21 JSON-validation-skip ladder**: n=1 (W146-F6 incident) + n=1 SUCCESSFUL APPLICATION (this W146-F7 commit; JSON_VALID confirmed BEFORE commit) — the discipline WORKS; n=2+ same-class APPLICATIONS would promote to dedicated sub-rule per cycle-322
+    - **Mechanical-mirror exception ladder**: 5× cumulative within session (firms cycle-322 PROMOTION-MET well past gate)
+    - Cross-model gate FULLY SATISFIED cumulative 5× REAL GPT-5.5 W146 arc (no additional dispatch this fire)
+    - SOTA cleanliness % baseline 61% unchanged (no re-audit; 4 fires remaining to next 10-fire cadence trigger)
+    
+    ## REVISED Forward Top-5 (post-W146-F7)
+    
+    🥇 W145-F11/F12/F13 — dep_lock/test_command/replay-tool codification + manifest
+       drift sweep PART-2 (~64 remaining PLANNED entries from W145-F8); split into
+       single-logical-unit fires per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE
+    🥈 W146-F-ADDY-REFRESH — addyosmani/agent-skills marketplace refresh (Agent C
+       UNDER-claim #1 stale-against-upstream)
+    🥉 W146-F8 candidate — re-audit cadence check (W146-F1 SOTA cleanliness 61%
+       baseline + 7 fires elapsed; 3 fires until next 10-fire trigger)
+    #4 W147-COORD — parallel-session arc coordination (task #178 SHIPPED; coordinate
+       any follow-up between W146 docs + W147 install evidence)
+    #5 W146-F9 candidate — FM-21 discipline n=2 needed for cycle-322 promotion;
+       queued for next JSON-class Edit opportunity
+    OPERATOR-GATED: W145-F5b cwc wire-activation + W146-F3-INSTALL promptfoo +
+       mcp-inspector install fires (HIGH-RISK per CR-7 Phase 1 + CR-9)
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-1-DIRECT Wave 82
+
+[prompt truncated]

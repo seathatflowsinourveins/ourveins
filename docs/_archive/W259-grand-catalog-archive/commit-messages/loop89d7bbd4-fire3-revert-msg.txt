@@ -1,0 +1,191 @@
+revert(hooks): wave loop89d7bbd4 fire 3 — REVERT-AND-REMOVE Fire 2 cwc NEW-path duplicates (Pattern A fix-forward per T3 NEEDS-ATTENTION conf=0.82)
+
+Closes T3 codex postcommit NEEDS-ATTENTION verdict on Fire 2 commit
+`94a3248` per `.claude/state/codex_review_HEAD_94a32488.txt` (medium
+severity finding "Duplicate hook tree leaves CWC behavior path-dependent
+and potentially inert"). Outcome B REVERT-AND-REMOVE per
+`Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md`
+§Disposition signal + §REVERT-then-recovery trajectory.
+
+## Concrete operational verification supporting REVERT
+
+Per `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md`
+§Severity gate: medium severity requires concrete-verification before
+Outcome A ACCEPT-WITH-DOC; concrete-verification IS available and points
+to REVERT not ACCEPT:
+
+1. **Wave 153 fire 1 commit `5495bbd`** ("cwc-active-wire-path-
+   reconciliation") INTENTIONALLY wired the 4 cwc PreToolUse hooks
+   (kill-switch / steer / track-read / verify-gate) at OLD path
+   `.claude/hooks/cwc/`. The OLD-path files are LOCAL ADAPTATIONS (blob
+   SHAs c8765d28 / b5d1bf77 / eb08e2f1 / 2751ab3b — ALL diverge from
+   upstream @ffd563d6). The local adaptations were made for a reason
+   (path expansion, env-var resolution) and are the wired canonical.
+
+2. **`.claude/settings.json` hooks confirm wiring at OLD path**:
+   - L137: kill-switch.sh → `.claude/hooks/cwc/`
+   - L142: steer.sh → `.claude/hooks/cwc/`
+   - L152: track-read.sh → `.claude/hooks/cwc/`
+   - L162: verify-gate.sh → `.claude/hooks/cwc/`
+   - L404: commit-on-stop-throttled.sh → `.claude/hooks/scripts/cwc/`
+     (LOCAL Wave 101 Ship 2Q wrapper; bypasses both via
+     `${CLAUDE_PROJECT_DIR}/.local/cwc/...` direct call to upstream
+     install)
+
+3. **`commit-on-stop-throttled.sh:62` bypasses both local cwc trees**:
+   `UPSTREAM_HOOK="${CLAUDE_PROJECT_DIR}/.local/cwc/claude-code-config/
+   .claude/hooks/commit-on-stop.sh"` then `bash "$UPSTREAM_HOOK"`. This
+   means commit-on-stop.sh in `.claude/hooks/scripts/cwc/` (Fire 2
+   addition) is UNUSED — never invoked by any hook wire.
+
+4. **CLAUDE.md §Section 17 canonical install location**: per CLAUDE.md
+   L274-277 the canonical install is `.local/cwc/` (Wave 6 port; per-file
+   SHAs recorded in `docs/install-provenance.md` Wave 62B fix-forward).
+   The 5 files Fire 2 added at `.claude/hooks/scripts/cwc/` are NOT at
+   the canonical install path AND are NOT wired AND are NOT consumed.
+
+5. **5 Fire-2 files = pure DEAD CODE**: 4 byte-match-upstream cite
+   anchors that duplicate already-wired (but locally-adapted) OLD-path
+   versions + 1 unconsumed commit-on-stop.sh whose throttle wrapper
+   bypasses to `.local/cwc/` directly. Per `kiss-dry-yagni.md`
+   Must-Never #4 (no duplicate functionality without clear reason), 5/5
+   are duplicate-without-reason.
+
+## Cite-anchor preservation (REVERT does NOT lose CR-1 cite trail)
+
+The CR-1 cite-trail purpose Fire 2 attempted (anchor 5 cwc primitives at
+upstream @ffd563d6) is preserved WITHOUT the files in repo via:
+
+- **CLAUDE.md §Architecture L274-277** ("Native install at
+  `Z:/claude-sota-installed/.local/cwc/` per Wave 6 port; per-file blob
+  SHAs recorded in `docs/install-provenance.md` Wave 62B fix-forward
+  entry") — already TIER-1-DIRECT cite anchor at HEAD ffd563d6
+- **`.local/cwc/` native install** — Wave 6 port (the actual canonical
+  Anthropic install)
+- **`docs/install-provenance.md` Wave 62B fix-forward entry** —
+  per-file blob SHAs already recorded
+- **Fire 2 commit `94a3248`** preserved in git history as audit trail
+  (this REVERT does NOT rewrite history per `port-note-discipline.md §6`)
+
+REVERT-then-narrower-re-introduction trajectory per
+`closed-loop-recursive-narrowing.md §REVERT-then-recovery`: this commit
+closes arc 1 (Fire 2 over-broad install-at-wrong-path); next-fire
+candidate is narrower provenance-log append (operational closure of
+`94a3248` via Wire→Surface→Close per `audit-action-loop.md`) without
+file duplication.
+
+## Files removed (5; reverses Fire 2 additions)
+
+- .claude/hooks/scripts/cwc/commit-on-stop.sh (17 lines)
+- .claude/hooks/scripts/cwc/kill-switch.sh (9 lines)
+- .claude/hooks/scripts/cwc/steer.sh (14 lines)
+- .claude/hooks/scripts/cwc/track-read.sh (11 lines)
+- .claude/hooks/scripts/cwc/verify-gate.sh (29 lines)
+
+`.claude/hooks/scripts/cwc/commit-on-stop-throttled.sh` PRESERVED — it
+is the LOCAL Wave 101 Ship 2Q wrapper (already tracked pre-Fire-2; wired
+at L404; not part of this REVERT).
+
+## CR conformance
+
+- CR-1: ✅ cite-trail preserved via CLAUDE.md §Section 17 + provenance
+  log (no need for files-in-repo)
+- CR-3: ✅ T3 codex postcommit verdict drove this REVERT (cross-model
+  gate; Phase 1 bootstrap exception — T3 hook IS active per
+  `codex_review_HEAD_94a32488.txt` written automatically; Mia OVER on
+  own Fire 2 brief which claimed Tier 1a NOT-yet-INSTALLED — manifest
+  §Section 2 row needs reconciliation forward-only)
+- CR-5: ✅ install-priority preserved — `.local/cwc/` (canonical
+  upstream install) is unchanged by this REVERT
+- CR-7: ✅ Phase 1 bootstrap discipline + REPORT mandate satisfied (T3
+  verdict cited inline; concrete-verification per Wave 153 fire 1
+  + settings.json wiring + throttled wrapper bypass)
+- CR-8: ✅ ADAPTED-FROM-SOTA — local adaptations at OLD path are the
+  canonical wired install (Wave 153 decision); upstream cite anchor
+  preserved in CLAUDE.md §Section 17
+- CR-9: ✅ install-risk discipline — Fire 2 ship-with-immediate-T3-
+  catch is exactly the 2-round fix-forward Pattern A budgeted (per
+  cardinal-rule-9 "2-round fix-forward expectation: hook installs and
+  rule installs historically require NEEDS-REVISION → fix-forward →
+  APPROVE per sibling first-50-commits evidence (8/12 ports needed 2
+  rounds)")
+- CR-11: ✅ META-process SOTA — T3 verdict → Pattern A fix-forward →
+  Outcome B REVERT-AND-REMOVE per closed-loop-recursive-narrowing IS
+  the canonical lifecycle
+- CR-12: ✅ disposition lattice — Fire 2's DUPLICATE-FUNCTIONALITY at
+  wrong path → REJECT-FOR-FIT class; REVERT is correct disposition
+
+## FM-class risk
+
+- FM-02 (b)+(c): LOW — narrow `git rm ... && git commit --only -F ... --`
+  atomic single-shell chain per git-cli-grammar-discipline
+- FM-17.f: ZERO — orchestrator-direct REVERT (no BRIDGE-MODE subagent)
+- FM-19: ZERO — file removal is Edit-class; safety_guard.py passes
+- FM-20: ZERO — REVERT cites concrete operational evidence (Wave 153
+  commit SHA + settings.json line refs + throttled wrapper code path);
+  no cite-propagation drift
+
+## Concurrent observations (NOT primary fire action; documented per
+cardinal-rule-7 REPORT mandate)
+
+### Wave 1 Agent A FM-17.e close-synthesis
+
+Wave 1 Agent A (codex:codex-rescue "GPT-5.5 rule layer staleness audit",
+task `a26f4db993e3f8926`) returned FM-17.e signature per
+`Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md §FM-17.e`:
+
+- `<status>completed</status>` + literal "Autocompact is thrashing: the
+  context refilled to the limit within 3 turns of the previous compact,
+  3 times in a row"
+- Minimal usage: 4 tool_uses / 169 tokens / 1516765ms (~25.3 min)
+- Failure surface: CC-runtime autocompact mechanism (NOT codex-CLI
+  subprocess — codex never invoked per the minimal tool_uses signature)
+
+Per FM-17.e recovery: HONEST-NON-FINDING per
+`Z:/claude-sota/.claude/rules/synthesis-layer-verify.md §Reporting
+categories`. Re-dispatch with SAME brief is anti-pattern (will
+autocompact-thrash again). Brief tightening required for future
+re-dispatch: substitute `Read` of large rule files with
+`mcp__plugin_context-mode_context-mode__ctx_execute_file`; substitute
+`WebFetch` with `ctx_fetch_and_index`; cap exa/perplexity with
+`head_limit`; bound Bash with `head -N`. Sister to FM-17.d in recovery:
+orchestrator-direct foreground+tee from main session bypasses subagent
+context entirely.
+
+Wave 1 Agent A cumulative ladder: cross-arc evidence for FM-17.e
+advances to N+1 per cycle-322 jurisdiction (named-failure-modes META-
+router; mechanics owned by FM-17 dedicated rule).
+
+### Cycle-322 candidate strengthening: dead-code-anchor-class
+
+T3 verdict + Wave 153 evidence + throttled wrapper analysis surfaces a
+NEW failure class candidate beyond FM-17.e: **dead-code install-class
+anchor at wrong path**. Pattern signature: operator adds files claiming
+install-class status at a NON-WIRED path (not `.local/cwc/` not wired
+in settings.json) and not consumed by any wrapper. n=1 firm (this fire's
+Fire 2 → Fire 3 REVERT). Future-fire candidate: codify as cycle-322 if
+n=2+ recurrence in another wave.
+
+## Cite trail
+
+- T3 verdict: `.claude/state/codex_review_HEAD_94a32488.txt` (1.5K;
+  NEEDS-ATTENTION conf=0.82 medium)
+- Fire 2 commit: `94a3248` (preserved in history; not rewritten per
+  port-note-discipline §6)
+- Wave 153 reconciliation: commit `5495bbd` ("cwc-active-wire-path-
+  reconciliation"; chose OLD path as canonical wired)
+- Throttled wrapper: `.claude/hooks/scripts/cwc/commit-on-stop-
+  throttled.sh:62-64` (UPSTREAM_HOOK bypass to `.local/cwc/`)
+- settings.json wiring: L137, L142, L152, L162 (OLD path), L404 (NEW
+  path throttle wrapper only)
+- Sister rules (cite-import-AMBER per CLAUDE.md Section 14.5):
+  - `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md`
+    §Disposition signal + §REVERT-then-recovery
+  - `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md`
+    §Pattern A
+  - `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md`
+    §FM-17.e (Agent A close)
+  - `Z:/claude-sota/.claude/rules/kiss-dry-yagni.md` Must-Never #4
+  - `Z:/claude-sota/.claude/rules/git-cli-grammar-discipline.md`
+  - `Z:/claude-sota/.claude/rules/parallel-session-worktree-isolation.md`
+    §FM-02 (b)+(c)

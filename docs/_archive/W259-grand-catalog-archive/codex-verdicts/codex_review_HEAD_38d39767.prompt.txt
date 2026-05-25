@@ -1,0 +1,242 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 38d39767d706ac776a8cc119598d54b8daab349a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../fire-12-saturation-cleanup/00-tracker.md       |  54 +++++
+ .../01-fresh-paint-probe.md                        | 168 ++++++++++++++
+ .../02-broader-discovery-pass-3.md                 | 155 +++++++++++++
+ .../03-definitive-architecture-v3.md               | 197 +++++++++++++++++
+ .../04-final-coverage-tracker-v6.md                | 192 ++++++++++++++++
+ .../_pass3-discoveries.json                        | 242 +++++++++++++++++++++
+ 6 files changed, 1008 insertions(+)
+
+=== git show --format=fuller ===
+commit 38d39767d706ac776a8cc119598d54b8daab349a
+Author:     42 <42@local>
+AuthorDate: Sun May 10 16:59:43 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 16:59:43 2026 -0400
+
+    audit(w134-f12): saturation cleanup — fresh-paint REJECT + broader discovery pass-3 + architecture v3
+    
+    Wave 134 Fire 12 closes the multi-fire audit arc at 99.84% TRUE-baseline strict coverage.
+    New folder: docs/sota-architecture-audit/fire-12-saturation-cleanup/
+    
+    ## What this fire delivers
+    
+    ### Fresh-paint probe (file 01) — 3 Fire 11 top-25 suspects investigated
+    
+    Convergence-gate Axis-3 deep GraphQL probe (createdAt + diskUsage + topics + parent + languages):
+    
+    - 🟢 NousResearch/hermes-agent (142k★ MIT) — LEGITIMATE (density 1.42 KB/★, 22k forks, multi-toolchain)
+    - ⚠️ nextlevelbuilder/ui-ux-pro-max-skill (76k★ MIT) — **FRESH-PAINT CONFIRMED REJECT-FOR-FIT**
+      (density 0.0517 KB/★ — 10× thinner than threshold; vendor-spam topics; vanity uupm.cc domain)
+    - 🟢 farion1231/cc-switch (66k★ MIT) — LEGITIMATE (Rust+Tauri desktop, 4.2k forks, 45MB disk)
+    
+    1 of 3 (33%) detected as fresh-paint → convergence-gate rubric operationally validated.
+    
+    ### Broader discovery pass-3 (file 02) — 5 NEW topic angles → 30 candidates
+    
+    NEW topic angles: context-engineering / agentic-rag / autonomous-agents / llm-agent-frameworks / claude-skills-newest.
+    
+    Top 10 NEW high-signal candidates:
+    1. Fission-AI/OpenSpec (46k★ MIT) — DIRECT spec-kit competitor (W134-F13 head-to-head)
+    2. VectifyAI/PageIndex (30k★ MIT) — vectorless-RAG (Tier-3 memory alternative)
+    3. letta-ai/letta (22k★ Apache-2.0) — stateful-agents platform
+    4. agentscope-ai/agentscope (25k★ Apache-2.0) — observable agents framework
+    5. zilliztech/claude-context (11k★ MIT) — code-search MCP for Claude Code
+    6. wanshuiyin/Auto-claude-code-research-in-sleep (8.7k★ MIT) — ARIS autonomous research
+    7. microsoft/autogen (58k★ CC-BY-4.0) — Microsoft agentic framework (CITE-only)
+    8. HKUDS/DeepCode (15k★ MIT) — academic Paper2Code agentic-coding
+    9. The-Pocket/PocketFlow (11k★ MIT) — 100-line minimalist meta-framework
+    10. uditgoenka/autoresearch (4.4k★ MIT) — Claude Autoresearch skill
+    
+    ### Definitive Architecture v3 (file 03) — 6-tier post-Fire-12 synthesis
+    
+    Updates from Fire 8 v2:
+    - 4 corrections (anthropics/skills license / Wave 102 reject reclassifications / 555 GraphQL-verified / ui-ux REJECT)
+    - 10 NEW Fire 12 Tier integrations
+    - 1 FRESH-PAINT REJECT (nextlevelbuilder/ui-ux-pro-max-skill — removed from top-25 architecture audit)
+    
+    ## Coverage % final (Fire 11 → Fire 12)
+    
+    | Metric                              | Fire 11 | Fire 12 FINAL | Δ |
+    |-------------------------------------|---------|---------------|---|
+    | Cumulative baseline                  | 640 raw / 603 true | 654 raw / **616 true** | +14 |
+    | Strict A1+A2 / true-baseline         | 99.83%  | **99.84%** | +0.01pp |
+    | Strict A1+A2 / raw-baseline          | 94.06%  | 94.04%   | -0.02pp (denominator grew) |
+    | Mia ladder                           | n=1130  | **n=1180** | +50 |
+    
+    ## Cumulative arc Fire 5-12
+    
+    | Fire | Folder                                          | Files | LOC |
+    |------|-------------------------------------------------|-------|-----|
+    | 5+6  | sota-architecture-audit/ + future-evolution/    | 12    | ~2300 |
+    | 8    | fire-8-comprehensive-deep-dive/                 | 12    | ~1940 |
+    | 9    | fire-9-saturation-push/                          | 8     | ~1150 |
+    | 10   | fire-10-graphql-resolve/                         | 5+3J  | ~715 |
+    | 11   | fire-11-full-graphql-resweep/                    | 7+3J+1Py | ~960 |
+    | 12   | fire-12-saturation-cleanup/                      | 5+1J  | ~730 |
+    | **Total arc** | 6 folders                              | **49** | **~7795 LOC** |
+    
+    Mia ladder n=130 (pre-arc) → n=1180 (Fire 12) = +1050 across 7-fire arc.
+    
+    ## "100% and beyond" final verdict
+    
+    Phase 1 100% attempted: ✅ 99.84% TRUE-repo strict A1+A2
+    Phase 2 beyond v1-v65: ✅ 45 NEW SOTA candidates across 5 discovery passes
+    Phase 3 architecture beyond: ✅ Definitive 6-tier architecture v3 + 10 NEW integrations
+    Phase 4 methodology beyond: ✅ GraphQL methodology + 4-axis fresh-paint rubric + dual-accounting + reusable Python helper
+    
+    ## Forward fires queued (W134-F13+ — 12 candidates)
+    
+    Gated on Fire 7 install plan T1 recovery: 4 install fires
+    Independent audits: 12 new candidates (OpenSpec-vs-spec-kit / PageIndex / letta / zilliztech / ARIS / cite-imports / adrs-intro / cli-tools / mcp-prune / verified-avoid / hermes-cite / cc-switch-pilot)
+    
+    ## Conformance
+    
+    - CR-1: every claim cites file:line + HEAD SHA (49 files audit trail)
+    - CR-3: cross-model gate preserved (install gate DEFERRED-PENDING-FIX)
+    - CR-5: AUDIT-only fire (zero installs)
+    - CR-6: install commands documented use canonical official channels
+    - CR-8: full-SOTA-content invariant
+    - CR-11: META-process audit-action-loop Wire/Surface/Close
+    - CR-12: upstream-install-priority preserved
+    
+    ## Files changed (5 MD + 1 JSON = 6 new files)
+    
+    docs/sota-architecture-audit/fire-12-saturation-cleanup/
+    ├── 00-tracker.md (~80 LOC)
+    ├── 01-fresh-paint-probe.md (~150 LOC)
+    ├── 02-broader-discovery-pass-3.md (~165 LOC)
+    ├── 03-definitive-architecture-v3.md (~200 LOC)
+    ├── 04-final-coverage-tracker-v6.md (~135 LOC)
+    └── _pass3-discoveries.json (30 entries)
+    Total: ~730 LOC + 1 JSON
+    
+    ## Commits arc (final)
+    
+    583d0bb (F5) → ac8ea8a (F6) → 88adcd6 (F7 HNF) → 55204a2 (F8) → e785fc5 (F9)
+    → f0c2ca2 (F10) → e087cbc (F11) → THIS (F12)
+
+=== diff ===
+diff --git a/docs/sota-architecture-audit/fire-12-saturation-cleanup/00-tracker.md b/docs/sota-architecture-audit/fire-12-saturation-cleanup/00-tracker.md
+new file mode 100644
+index 0000000..1f4a1ce
+--- /dev/null
++++ b/docs/sota-architecture-audit/fire-12-saturation-cleanup/00-tracker.md
+@@ -0,0 +1,54 @@
++# Wave 134 Fire 12 — Saturation cleanup (fresh-paint + broader discovery + final synthesis)
++
++> **Folder**: `Z:/claude-sota-installed/docs/sota-architecture-audit/fire-12-saturation-cleanup/`
++> **Created**: 2026-05-10 post-Fire-11 (commit `e087cbc`)
++> **Driver**: continuation of user directive — push beyond 99.83% strict coverage with
++> deeper discovery + actionable verdicts on Fire 11's queued candidates
++
++## Arc state at Fire 12 open
++
++**Fire 11 baseline** (commit `e087cbc`):
++- 640 raw / 603 TRUE-repo baseline
++- 99.83% strict A1+A2 (602/603 true-baseline)
++- 555/555 GraphQL-deep-probed (100% success)
++- 3 fresh-paint suspects flagged for Fire 12 probe
++- 30+ NEW SOTA candidates beyond v1-v65
++- Mia ladder n=1130
++
++## Fire 12 mission
++
++Three saturation-cleanup tasks:
++1. **Fresh-paint probe** — investigate 3 top-25 suspects (Fire 11 file 04) via density + velocity + provenance analysis
++2. **Broader discovery pass 3** — 5 NEW topic angles beyond Fire 8/9 (context-engineering, agentic-rag, autonomous-agents, llm-agent-frameworks, claude-skills-newest)
++3. **Synthesis update** — integrate findings into definitive architecture + final coverage
++
++## Fire 12 deliverables
++
++| # | File | Purpose | Status |
++|---|---|---|---|
++| 00 | `00-tracker.md` | This file | ✓ |
++| 01 | `01-fresh-paint-probe.md` | 3 suspects investigated; 1 CONFIRMED suspicious | PENDING |
++| 02 | `02-broader-discovery-pass-3.md` 
+
+[prompt truncated]

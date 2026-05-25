@@ -1,0 +1,144 @@
+W321 P0b(d) Codex GPT-5.5 Adversarial Review
+Artifact: docs/architecture/W320-RESEARCH-ARCHITECTURE-ENHANCEMENT/STREAM-E-OPEN-SOURCE-REPLACEMENT-PORTFOLIO.md
+Pass 2: Swapped evaluation order
+
+Overall pass verdict: NEEDS-REVISION
+
+Position-swap method: instead of walking criteria 1-7 first, this pass walks the artifact in document order and then maps the observed evidence back to the criteria. This tests whether the verdict changes when the artifact's own narrative, rather than the review checklist, anchors the analysis.
+
+Artifact-first observations
+
+A. Executive summary and top-line recommendation (Section 1)
+
+Artifact evidence:
+- Section 1.1 labels SEARCH as "PARTIAL -> FULL via hybrid", CRAWL as "FULL", ANSWER as "PARTIAL", and INDEX as "FULL".
+- Section 1.2 recommends: "HYBRID PORTFOLIO ... Keep commercial-MCP for now as fast-path; ship parallel open-source stack via Docker Compose; phased cutover over 4-6 weeks."
+- Section 1.2 explicitly says: "NOT pure cutover this wave" because answer parity depends on local LLM quality and single-day cutover has operational risk.
+
+Mapped criteria:
+- Criterion 1: Supports PASS because the artifact does not claim all-open-source parity at the top; it marks SEARCH and ANSWER as partial/hybrid.
+- Criterion 5: Supports WARN/PASS boundary because staged hybrid cutover is acknowledged, but the later implementation still accumulates many services quickly.
+- Criterion 6: Supports PASS because commercial fallback remains by design.
+
+B. Replacement candidate sections (Section 2)
+
+Artifact evidence:
+- Section 2.1.1 lists SearXNG as AGPL-3.0 and says the Tavily adapter is "Same client code, zero refactor".
+- Section 2.2.1 lists Firecrawl self-host cloud-only features: "Fire-engine ... NOT available self-hosted" and "Actions ... NOT available self-hosted".
+- Section 2.2.1 says self-hosted Firecrawl plus shim "covers ~95% of Firecrawl-cloud capabilities."
+- Section 2.2.2 lists Crawl4AI as Apache-2.0 with native MCP and anti-bot features.
+- Section 2.4.2 states LearningCircuit/local-deep-research has "95% SimpleQA (tested with GPT-4.1-mini) - beats Perplexity Deep Research's 93.9% per Awesome-Agents".
+- Section 2.4.2 then treats that as high-confidence: "Quality signal (95% SimpleQA) outweighs" and "D-EMP HARD GATE: PASS - public benchmark".
+
+Mapped criteria:
+- Criterion 1: PASS with one caveat. The Fire-engine gap is named, but the "covers ~95%" Firecrawl statement risks overconfidence because the missing feature is exactly the hard commercial differentiator for hostile sites.
+- Criterion 2: FAIL. The artifact elevates the 95% SimpleQA number without an independent anchor. The source trail visible in the artifact does not show an arXiv paper, benchmarking org, or independent practitioner field report validating this claim.
+- Criterion 7: FAIL. SearXNG and Firecrawl are both AGPL-3, but early candidate presentation focuses on "drop-in" convenience and does not yet specify the legal boundary needed for CC plugin hooks.
+
+C. Bias audit (Section 3)
+
+Artifact evidence:
+- Section 3.1.2 says: "single docker-compose with 4 services ... ~15 min initial setup + ~30 min/month maintenance".
+- Section 3.3 says: "License audit: MIT (4), Apache-2.0 (3), AGPL-3 (1 - Firecrawl self-host). No GPL contamination of the host runtime if MCP-shim is the integration boundary."
+
+Mapped criteria:
+- Criterion 3: FAIL. The maintenance estimate in Section 3.1.2 is not realistic for a Windows 11 Docker/WSL stack running SearXNG, crawler(s), Perplexica, gpt-researcher, and local LLM routing, and it conflicts with later 6-12 hour setup, 2-4 hrs/month maintenance, and 36-hour hybrid ops estimates.
+- Criterion 7: FAIL. This is the strongest license failure in the artifact. The AGPL count is wrong because SearXNG is also AGPL-3, and the "No GPL contamination" sentence is too broad without a formal no-vendoring/no-import/no-linking boundary and service-modification obligations.
+
+D. Install scoring (Section 4)
+
+Artifact evidence:
+- Section 4.2 scores Firecrawl D1 license as "3 | AGPL-3.0 - cardinal-rule consideration; MCP-shim isolates host from AGPL" and concludes "never bundle Firecrawl code into host runtime, talk only via HTTP."
+- Section 4.5 scores SearXNG D1 license as "4 | AGPL-3.0; same isolation as Firecrawl applies."
+- Section 4.5 still gives SearXNG "Composite 4.80 | T1 INSTALL".
+
+Mapped criteria:
+- Criterion 7: FAIL remains stable. The artifact contains the right boundary concept for Firecrawl and indirectly for SearXNG, but it under-weights SearXNG AGPL by assigning D1=4 and making it the foundational T1 install without a formal compliance gate.
+- Criterion 4: WARN. The artifact repeatedly cites deepwiki verification and repo metadata, but no explicit W316 Delta-33 Stage-0 table appears.
+
+E. Capability matrix (Section 5)
+
+Artifact evidence:
+- Section 5.1 gives negative deltas for SearXNG against Exa/Tavily: neural rank "-2", recency "-1", raw content "-1", LLM snippets "-2".
+- Section 5.2 says Fire-engine is "NO (cloud-only)" for Firecrawl-self-host, while Crawl4AI has "3-tier built-in".
+- Section 5.4 says Perplexity Sonar-deep-research has overall "5 (incumbent SOTA)", while the hybrid open-source stack reaches "4.5".
+- Section 5.4 states: "Perplexity has a single-tool advantage = 5" and open-source only reaches that by combining Perplexica, gpt-researcher, and STORM.
+
+Mapped criteria:
+- Criterion 1: PASS. This section is the strongest evidence that the capability gaps are not buried.
+- Criterion 6: PASS. The artifact explicitly shows commercial wins in a quantified matrix before recommending hybrid.
+
+F. Cost analysis (Section 6)
+
+Artifact evidence:
+- Section 6.1 calculates commercial as "$115-195/mo at 1k tasks".
+- Section 6.2 calculates self-host as "~$11/mo electricity only".
+- Section 6.2 says "Local-LLM inference ... electricity included above".
+- Section 6.5 says Llama-3.3-70B on RTX 4090 is "~150W x 3min/task = 7.5Wh/task = ~$0.001/task electric - at 1k tasks = ~$1/mo".
+- Section 6.5 warns worst-case MLOps can be "5-10 hrs/mo".
+
+Mapped criteria:
+- Criterion 3: FAIL. Commercial math is internally consistent, but the self-host electricity model is not plausible for the whole host. Review grounding gives a typical RTX 4090 system load of ~500W, which means roughly 360 kWh/month and about $43/month at $0.12/kWh. The artifact's $11/month is a marginal burst-only view that cannot be presented as the recurring cost of the self-hosted stack. Maintenance is more honest later, but earlier and later estimates conflict.
+
+G. Where open source falls short (Section 7)
+
+Artifact evidence:
+- Section 7.1 says "open-source closes ~70% of Perplexity capability" and the last 30% needs heavier local LLMs or cloud reasoner fallback.
+- Section 7.3 says Exa's "indexed-and-pre-embedded web" is hard to replicate and recommends retaining Exa for webset/find-similar if active.
+- Section 7.4 says Fire-engine is needed for hostile anti-bot targets.
+- Section 7.5 says open-source answer quality is "not GPT-5/o3/Sonnet 4.6 level" and may be unacceptable for high-stakes reasoning.
+- Section 7.6 says "5-7 Docker services to babysit" and "The savings are real; the work is real too."
+
+Mapped criteria:
+- Criterion 1: PASS. The named commercial gaps are documented directly.
+- Criterion 5: WARN. Section 7.6 makes the operational complexity real, which contradicts Section 8.2's "LOW" risk label.
+- Criterion 6: PASS. This section satisfies anti-newshiny-bias strongly.
+
+H. Recommended portfolio and cutover (Section 8)
+
+Artifact evidence:
+- Section 8.2 phases SearXNG/Trafilatura in W321, SearXNG primary in W322, Crawl4AI + Firecrawl-self-host in W323, Perplexica + gpt-researcher in W324, and Perplexity-cloud evaluation in W325.
+- Section 8.2 claims "Risk: LOW - each phase fully rollback-able".
+- Section 8.2 estimates "hybrid = ~$50/mo cloud (reduced volume) + $132/yr electricity + ~36 hrs ops over 5 waves."
+
+Mapped criteria:
+- Criterion 5: WARN. The wave-by-wave sequence is credible as a hybrid approach, but "LOW" risk is too optimistic because W323 installs both crawler stacks despite earlier "pick one" guidance, and W324 adds two answer systems on top of SearXNG/local LLM/MCP shims.
+- Criterion 3: FAIL remains stable because $132/year electricity inherits the Section 6 undercount.
+
+I. Bibliography (Section 9)
+
+Artifact evidence:
+- Section 9.1 lists real GitHub URLs for Perplexica, Firecrawl, Crawl4AI, gpt-researcher, SearXNG, and Trafilatura, each marked "deepwiki verified".
+- Section 9.1 lists LearningCircuit/local-deep-research as "4k stars 95% SimpleQA Docker-compose" but without "deepwiki verified".
+- Section 9.2 lists broad comparison/benchmark sources, including AwesomeAgents, ithy, and Anycap.
+- Section 9.3 lists the LearningCircuit docker-compose guide, not an independent SimpleQA benchmark source.
+
+Mapped criteria:
+- Criterion 4: WARN. The six primary repos have real GitHub URLs and verification labels, but the artifact does not show a Stage-0/W316 Delta-33 existence-probe record.
+- Criterion 2: FAIL remains stable. The source list does not contain an independent validation of LearningCircuit/local-deep-research's 95% SimpleQA claim.
+
+Swapped-order final criterion map
+
+1. Honest capability-parity matrix vs commercial: PASS
+Rationale: Section 5 and Section 7 explicitly document Sonar reasoning-depth, Exa neural-rank, and Firecrawl Fire-engine gaps.
+
+2. LearningCircuit/local-deep-research 95% SimpleQA claim: FAIL
+Rationale: the artifact states the 95% claim but does not provide the required independent benchmark/practitioner citation.
+
+3. Cost analysis and maintenance realism: FAIL
+Rationale: commercial cost math is plausible, but $11/month electricity and $132/year self-host recurring cost are materially low for an RTX 4090-class always-on stack, and maintenance estimates conflict.
+
+4. Stage-0 existence-probe: WARN
+Rationale: six primary repos have GitHub URLs and "deepwiki verified" status, but no explicit W316 Delta-33 Stage-0 probe table or timestamped evidence appears.
+
+5. Path-B HYBRID sequencing: WARN
+Rationale: staged cutover is directionally realistic, but risk is under-labeled LOW and W323/W324 create a dense multi-service operating burden.
+
+6. Anti-newshiny-bias: PASS
+Rationale: Section 7 explicitly documents where commercial wins and where self-hosted loses.
+
+7. License compatibility / AGPL-3: FAIL
+Rationale: the artifact recognizes AGPL isolation but miscounts AGPL exposure, under-weights SearXNG AGPL, and lacks a formal no-vendoring/no-import boundary policy.
+
+Position-swap result:
+Stable. Evaluating from artifact order produced the same verdict and the same top three issues as the checklist-first pass: unsupported SimpleQA benchmark, understated self-host cost, and under-specified/under-weighted AGPL compliance.

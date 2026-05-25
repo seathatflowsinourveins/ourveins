@@ -1,0 +1,84 @@
+CODEX T1 PRE-EDIT CONSULT — W195 P0 GLOB-NARROW CORRECTED-SCOPE
+
+Profile: deep-review-exec (or default if -p unavailable). Budget: ≤120s per call FM-17.d defense.
+
+CONTEXT (Mia-verified runtime state 2026-05-14):
+- claude-sota-installed runtime at Z:/claude-sota-installed
+- W194 claimed 63/64 rules carry `.claude/rules/**` self-ref paths: glob
+- DIRECT PROBE result: only 8/64 rules carry that glob (not 63)
+- 8 self-ref rules: agent-harness-fit-verification.md, auto-compact-discipline.md, cardinal-rule-11-meta-process-sota.md, codex-t1-pattern-b-forward-discipline.md, deprecation-discipline.md, launch-discipline.md, sessionstart-preload-discipline.md, sota-research-architecture.md
+- 56/64 rules already have narrow paths: globs (fm17/mia/fm20/audit-action-loop/etc per direct probe)
+- Total rule-files bytes: 1,033,784 (~1MB)
+- CLAUDE.md 40759 / CLAUDE.local.md 15483 / MEMORY.md 25694 = 81936B always-loaded baseline
+
+CCBP CANONICAL LAZY-LOAD (TIER-1-DIRECT):
+- `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-memory.md:34-40 @ HEAD 48f2ceb` — descendant loading mechanism: rules WITH paths: glob auto-load conditionally when editing files matching the glob; rules WITHOUT paths: glob always-load
+- Per the lazy-load contract: NARROW glob = lazier load = lower cold-start cost
+
+W195 P0 DESIGN (corrected scope):
+
+For each of the 8 self-ref rules above, REPLACE `.claude/rules/**` in the paths: glob with the actual edit-surface scope this rule governs:
+
+1. agent-harness-fit-verification.md
+   CURRENT: [".claude/agents/**", ".claude/rules/**", ".claude/state/codex_consult_*", "reports/sota-*", ".claude/rules/ahfv-seven-sub-classes.md", ".claude/rules/ahfv-probe-dag.md", ".claude/rules/ahfv-codex-rescue-blind-spot.md"]
+   RECOMMENDED: [".claude/agents/**", ".claude/rules/ahfv-*.md", ".claude/rules/agent-harness-fit-verification.md", ".claude/state/codex_consult_*", "reports/sota-*"]
+   (replace `.claude/rules/**` with specific siblings — ahfv-*.md + this rule's own file)
+
+2. auto-compact-discipline.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: [".claude/hooks/scripts/*compact*", ".claude/hooks/scripts/precompact*", ".claude/hooks/scripts/sessionstart*", ".claude/settings.json", "CLAUDE.local.md", ".claude/rules/auto-compact-discipline.md"]
+
+3. cardinal-rule-11-meta-process-sota.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: ["CLAUDE.md", ".claude/rules/cardinal-rule-*.md", "docs/sota-installed-manifest.md", "docs/install-provenance.md"]
+
+4. codex-t1-pattern-b-forward-discipline.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: [".claude/state/codex_consult_*.txt", ".claude/rules/codex-t1-*.md", ".claude/rules/ctff-*.md"]
+
+5. deprecation-discipline.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: ["docs/sota-installed-manifest.md", "docs/install-provenance.md", ".mcp.json", ".claude/settings.json", ".claude/plugins/installed_plugins.json"]
+
+6. launch-discipline.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: ["tools/eee.ps1", "bin/eee.cmd", "bin/install-path.ps1", ".claude/settings.json", "CLAUDE.local.md"]
+
+7. sessionstart-preload-discipline.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: [".claude/hooks/scripts/sessionstart*.py", ".claude/settings.json", "CLAUDE.md", "CLAUDE.local.md"]
+
+8. sota-research-architecture.md
+   CURRENT: contains `.claude/rules/**` self-ref
+   RECOMMENDED: [".claude/agents/sota-researcher.md", ".claude/skills/sota-research/**", ".claude/rules/sota-research-architecture.md", ".claude/rules/convergence-gate.md", "docs/sota-*"]
+
+DISCIPLINE: MOVE-not-DELETE — replace the over-broad self-ref `.claude/rules/**` with specific surfaces. Each rule retains its own file in paths: glob (so editing the rule auto-loads itself). No content deletion. Pure frontmatter `paths:` array edit.
+
+EXPECTED IMPACT (downgraded from W194 hypothesis):
+- W194 over-claim: 44%→17% preload reduction
+- Realistic: marginal reduction (~5-10KB cold-load savings per rule × 8 rules ≈ ~40-80KB max)
+- TRUE root cause of high preload: CLAUDE.md/CLAUDE.local.md/MEMORY.md baseline + skill descriptions + plugin cache + MCP tool schemas (NOT rule paths: globs)
+- W194 hypothesis PARTIALLY REFUTED; this P0 ship is still worth doing as CCBP-discipline-conformance but is NOT the silver-bullet for 44% preload
+
+AXES FOR CODEX REVIEW (3-axis bounded):
+
+AXIS 1 — CCBP lazy-load conformance: do the proposed paths: arrays for each of 8 rules correctly invoke CCBP descendant-loading per claude-memory.md:34-40 @ 48f2ceb? Are any globs still over-broad or under-specified?
+
+AXIS 2 — Probe-DAG 5 mode-harness-shape verification: for each of 8 rules, does the proposed narrow scope still cover the edit-surfaces this rule needs to govern? Cite specific edit boundaries where the rule's normative claims apply. Check W195-C architect Task 3 Mia-probe defense — do any Tier 2 manifest rows depend on these 8 rules auto-loading? Risk = HIGH if Tier 2 smoke-probe breaks under narrowed glob.
+
+AXIS 3 — TRUE preload composition: is the W194 "63/64 → 44% preload" hypothesis worth retiring entirely (CR-9 stale-cite-trail)? Should the focus shift to MEMORY.md trim / CLAUDE.md trim / skill-description pruning instead?
+
+VERDICT SHAPE (JSON-strict at EOF):
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.0,
+  "axis_1_ccbp_conformance": "PASS | FAIL + reason",
+  "axis_2_probe5_harness_fit": "PASS | FAIL + reason",
+  "axis_3_true_preload_focus": "P0-confirmed | P0-pivot-needed + recommended-pivot",
+  "prescribed_edits": [...] (per-rule paths array if NEEDS-REVISION),
+  "verbatim_severity": "P0 | P1 | P2 | P3"
+}
+
+Cite-class: TIER-1-DIRECT @ CCBP claude-memory.md:34-40 @ 48f2ceb + TIER-3-LOCAL-OPERATOR-DERIVED @ direct-probe runtime evidence. effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8 MIN_PRECEDENCE.
+
+OUTPUT VERDICT AT EOF.

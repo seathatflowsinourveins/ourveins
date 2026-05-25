@@ -1,0 +1,172 @@
+personality = "pragmatic"
+# Codex config.toml — Z:\claude-sota-installed runtime (Wave 75 2026-05-08)
+#
+# Cite anchors (TIER-1-DIRECT to openai/codex):
+#   - codex-rs/core/config.schema.json — profile/sandbox/projects schema
+#   - codex-rs/windows-sandbox-rs/src/spawn_prep.rs — Win32 RestrictedToken sandbox path
+#   - openai/codex README.md — `codex exec -p <profile>` invocation surface
+#
+# Cite-import-AMBER (CR-12 fallback path C with sibling-bleed defense per CR-9):
+#   - Adapted from Z:\claude-sota-state\.codex\config.toml (sibling) with PATH-REWRITE for claude-sota-installed runtime context.
+#   - Removed sibling-specific [agents.*] (paths to C:/Users/42/.codex/agents/*.toml not in this runtime's scope)
+#   - Removed sibling [[hooks.*]] (referenced Z:/claude/scripts/codex_hooks_writer.py not in this runtime)
+#   - Removed [model_providers.litellm] (no litellm at port 4000 in this runtime)
+#   - Trust levels rewritten to claude-sota-installed paths only
+
+# ------------------------------------------------------------------
+# Project trust
+# ------------------------------------------------------------------
+[projects.'z:\claude-sota-installed']
+trust_level = "trusted"
+
+[projects.'z:\repos\deps']
+trust_level = "trusted"
+
+[projects.'z:\repos\deps\cwc-long-running-agents']
+trust_level = "trusted"
+
+[projects.'z:\claude-sota-installed\.claude\plugins\marketplaces\addy-agent-skills']
+trust_level = "trusted"
+
+[projects.'z:\claude-sota-pure']
+trust_level = "trusted"
+
+# ------------------------------------------------------------------
+# Windows sandbox — `unelevated` avoids Win32 1326 logon-failure that `elevated` triggers without DPAPI sandbox accounts.
+# Cite: openai/codex@a2db6f97f codex-rs/windows-sandbox-rs/src/spawn_prep.rs:259-328 (RestrictedToken path).
+# ------------------------------------------------------------------
+[windows]
+sandbox = "unelevated"
+
+# ------------------------------------------------------------------
+# Sandbox workspace-write
+# Wave 89 Ship 1Y CR-7 graduated-unleash: network_access true for SOTA repo discovery
+# (Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage polling + WebFetch).
+# Cite: codex-rs/core/src/config/config_tests.rs:1438,1572 @ HEAD 993e3f407ea8213f7d32cb9367ae7616b7e15b4a
+# ------------------------------------------------------------------
+[sandbox_workspace_write]
+writable_roots = ["Z:/claude-sota-installed", "Z:/repos/deps", "Z:/claude-sota-installed-state"]
+network_access = true
+exclude_slash_tmp = false
+exclude_tmpdir_env_var = false
+
+# ------------------------------------------------------------------
+# Profiles — `codex exec -p <name>` applies the bundled overrides.
+#
+# `deep-review-exec` is the EXACT profile name expected by the cardinal-rule-3 hook chain:
+#   - .claude/hooks/scripts/codex_t1_consult_gate.py (PreToolUse:Edit)
+#   - .claude/hooks/scripts/codex_t2_pre_commit_gate.py (PreToolUse:Bash git commit)
+#   - .claude/hooks/scripts/codex_postcommit_review.py (PostToolUse:Bash)
+#   - .claude/hooks/scripts/codex_prepush_review.py (PostToolUse:Bash git push)
+#   - .claude/plugins/marketplaces/openai-codex/plugins/codex/scripts/stop-review-gate-hook.mjs (Stop)
+#
+# Without this profile defined, the gate falls to WARN-mode (decision: warn_t1_missing) and provides ZERO actual review.
+# ------------------------------------------------------------------
+
+# Wave 89 Ship 1Y 2026-05-08 — CR-7 graduated-unleash per user directive
+# "codex and all sandbox must be unleashed, full premision with sota harness references".
+# All 3 profiles flipped sandbox_mode: read-only -> danger-full-access.
+# TIER-1-DIRECT cite chain (verbatim syntax verification):
+#   - codex-rs/core/src/config/config_tests.rs:1438,1572 @ HEAD 993e3f40
+#     verbatim string `sandbox_mode = "danger-full-access"` in upstream tests
+#   - codex-rs/core/src/config/config_tests.rs:842 @ HEAD 993e3f40
+#     `&SandboxPolicy::DangerFullAccess` enum variant
+#   - codex-rs/core/config.schema.json:255-257 @ HEAD 993e3f40
+#     approval_policy = "never" verbatim "Never ask the user to approve commands"
+# Wave 87+88 evidence: read-only blocked PowerShell/sqlite3/git/web search probes,
+# leading to Pattern B HNF on terminal verdicts. danger-full-access lifts the gate
+# while preserving CC-side safety floor (safety_guard.py + agent_plan_readonly_bash_guard.py
+# + permissions.deny[] for secrets per Wave 75 baseline).
+
+[profiles.deep-review-exec]
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+model_reasoning_summary = "detailed"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"
+plan_mode_reasoning_effort = "xhigh"
+service_tier = "fast"
+
+[profiles.review]
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+model_reasoning_summary = "detailed"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"
+
+[profiles.headless-exec]
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+model_reasoning_summary = "concise"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"
+
+# ------------------------------------------------------------------
+# Features
+# ------------------------------------------------------------------
+[features]
+multi_agent = true
+# Wave 83b 2026-05-08 — `codex_hooks` deprecated → renamed to `hooks` per
+# Z:/repos/deps/codex/codex-rs/features/src/tests.rs `codex_hooks_is_legacy_alias_for_hooks`
+# at GitHub HEAD cce059467af64f05d0a1521344847d2b558b6a80 (codex-cli v0.129.0).
+# Direct probe confirmed deprecation now emits as item.completed:type=error
+# (NOT just stderr warning) breaking T2 gate parse_failure_empty_output class.
+hooks = true
+
+# ------------------------------------------------------------------
+# UI hint — surface gpt-5.5 in TUI model-availability NUX
+# ------------------------------------------------------------------
+[tui.model_availability_nux]
+"gpt-5.5" = 1
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+# ------------------------------------------------------------------
+# Wave 126 ship 2026-05-09 — close Agent E P0 finding (3-agent fan-out
+# Z:/claude-sota-installed/tmp/wave126-agentE-gpt5-architecture-audit-2026-05-09.md
+# AXIS-2 PARTIAL) verified by orchestrator Mia probe vs sibling
+# Z:/claude-sota/.codex/config.toml @ HEAD (sibling has 7 profiles total;
+# eee runtime had 3: deep-review-exec + review + headless-exec; missing 4
+# but ONLY 2 are SOTA-relevant for T1-T7 lifecycle per
+# Z:/claude-sota/.claude/rules/cross-model-consensus.md §Profile selection rule).
+# Profiles cite-imported VERBATIM from sibling per CR-12 Path A native
+# install (codex CLI native config.toml is canonical install surface);
+# constituents=[TIER-1-DIRECT @ codex CLI native config @ codex 0.130.0,
+# TIER-3-LOCAL-COMPOSITION @ Wave 126 cite-import from sibling profile
+# blocks @ HEAD]; effective_tier=TIER-3-LOCAL-COMPOSITION per
+# citation-discipline.md rule #8 lattice. CR-9 sibling-bleed defense
+# PASS (no Z:/claude-sota paths in profile bodies — pure codex-CLI
+# config syntax). REVERT check N/A (codex CLI native config; sibling
+# profile blocks stable across 4+ commits per cross-model-consensus.md
+# §Profile selection rule).
+# ------------------------------------------------------------------
+
+[profiles.deep-review]
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+model_reasoning_summary = "detailed"
+model_verbosity = "high"
+sandbox_mode = "read-only"
+approval_policy = "never"
+plan_mode_reasoning_effort = "xhigh"
+service_tier = "fast"
+# T5 plan-stage profile per cross-model-consensus.md §Profile selection rule.
+# read-only sandbox suffices for prompt-context bounded reads (no destructive ops).
+# Used by /plan-codex-review slash command.
+
+[profiles.t2-exec]
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+model_reasoning_summary = "concise"
+model_verbosity = "medium"
+sandbox_mode = "read-only"
+approval_policy = "never"
+service_tier = "fast"
+# Operator-side custom-prompt T2 review profile per cross-model-consensus.md
+# §Profile selection rule. NOT for runtime T2 commit-time hook (that uses
+# codex CLI default profile per `codex exec review --uncommitted` rejecting
+# `-p` flag per codex-cli-flag-positioning.md matrix row 1). Used for
+# `codex exec --ephemeral -p t2-exec < .claude/state/codex_t2_<topic>.txt
+# > .claude/state/codex_t2_<topic>_OUT.txt 2>&1` operator-side ad-hoc T2.
+# Token budget ~1K-3K per invocation.

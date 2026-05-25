@@ -1,0 +1,12 @@
+The current changes are not source changes; they are runtime inboxes, a duplicated settings backup, and a large generated build directory in a nested repo. These should be removed or ignored before the change is considered clean.
+
+Full review comments:
+
+- [P2] Do not commit unread agent-team inbox state — Z:\claude-sota-installed\.claude\teams\claude-sota-installed\inboxes\orchestrator.json:6-6
+  If these `.claude/teams/**/inboxes/*.json` files are committed, every checkout gets the same unread task assignments (`"read": false`), so agent-team sessions can reprocess stale, machine/session-specific work instead of starting clean. These look like runtime queue state rather than source configuration and should be ignored or kept outside the repo.
+
+- [P2] Remove generated CLIProxyAPI build artifacts — Z:\claude-sota-installed\accounts\repos\CLIProxyAPI\.codex-build\bundle12-defer-loading-cache-control-skip-20260430.patch:1-1
+  The dirty `accounts/repos/CLIProxyAPI` submodule is only untracked `.codex-build` output, including Go caches and a built `.exe` totaling about 1.1 GB. If this is committed in the submodule or left unignored, it will bloat the repo and keep the parent worktree dirty without changing source behavior.
+
+- [P3] Drop duplicate settings backup from the change — Z:\claude-sota-installed\.claude\settings.json.bak:1-1
+  This untracked `.bak` is an exact copy of the already tracked `.claude/settings.json`; if it is added, future settings changes can drift between the two copies while Claude Code will only read the real settings file. Treat this as local backup state and ignore or remove it from the pending changes.

@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claude-sota-installed/schemas/sca-v18-repo-verdict.schema.json",
+  "title": "sca-v18 Repo Verdict",
+  "description": "Pareto-frontier multi-dimensional verdict for SOTA-candidate repos. Cite-anchored to DSPy GEPA Pareto-frontier (arxiv 2507.19457), OSSF Criticality Score formula (stars EXCLUDED), inspect_ai EvalLog (UK AISI), Jury-on-Demand K=4 weighted-by-reliability (arxiv 2512.01786), Minority-Veto n>=2 BLOCK override (arxiv 2510.11822, 95.5% TPR + 30.9% TNR vs naive-majority 19.2% TNR), Council-Mode heterogeneity (arxiv 2604.02923), fake-star detection (Kapravelos ICSE-26 + arxiv 2603.10265 MALTA). Replaces sca-v17 binary INSTALL/BLOCK hard-gate with 5-tier soft-gate (W288 §4 lineage). Authored 2026-05-22 from R1 research-architecture-meta-upgrade stream.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repo", "evaluated_at", "dimensions", "tier", "confidence", "rationale", "convergence", "cardinal_rule_compliance"],
+  "properties": {
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "owner/name in GitHub canonical form"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_id", "subagent_type"],
+      "properties": {
+        "model_id": {"type": "string", "description": "e.g. claude-opus-4-7[1m]"},
+        "subagent_type": {"type": "string", "description": "FQN per CR-3 (e.g. general-purpose)"}
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "dispatch_fit", "license_class", "maintainership_tier", "category_niche"],
+      "properties": {
+        "capability": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "0=none/research-only; 1=demo; 2=tested-uneventful; 3=measured-benchmark + production"
+        },
+        "dispatch_fit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "0=library-only no entrypoint; 1=CLI only; 2=CLI+SDK; 3=REST+MCP+CLI+SDK (multi-shape)"
+        },
+        "license_class": {
+          "type": "string",
+          "enum": ["permissive", "source-available", "copyleft", "proprietary", "noassertion"],
+          "description": "permissive=MIT/Apache-2.0/BSD/ISC/MPL; source-available=Elastic/BSL/PolyForm; copyleft=AGPL/SSPL; noassertion=no recognized SPDX"
+        },
+        "maintainership_tier": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D", "F"],
+          "description": "A=corporate-backed AND >=3 named-logo prod users AND <=30d commits; B=corporate/foundation/academic peer-reviewed + active; C=community-maintained <=90d commits; D=academic-only/pre-launch/single-maintainer; F=stale/abandoned"
+        },
+        "category_niche": {
+          "type": "string",
+          "description": "e.g. 'autonomous-SWE-coding', 'browser-automation', 'durable-orchestration', 'tool-aggregator', 'stateful-memory-agent', 'multi-agent-framework'"
+        },
+        "pareto_dominated_by": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of other repos that strictly dominate THIS candidate on ALL non-incomparable dimensions. Empty means non-dominated (Pareto-frontier candidate)."
+        }
+      }
+    },
+    "convergence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class_a", "class_b", "class_c", "passes_install_minimum"],
+      "description": "Multi-MCP convergence per R1 §4 class-weighted-counting. CLASS-A=raw facts (gh+repomix+codegraph); CLASS-B=LLM web judges (perplexity+exa+firecrawl); CLASS-C=AI-on-repo+academic (deepwiki+hf-papers). 3 LLM-judges parroting same blog != 3 sources.",
+      "properties": {
+        "class_a": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "github_api": {"type": "boolean"},
+            "repomix": {"type": "boolean"},
+            "codegraph": {"type": "boolean"}
+          }
+        },
+        "class_b": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "perplexity": {"type": "boolean"},
+            "exa": {"type": "boolean"},
+            "firecrawl": {"type": "boolean"}
+          }
+        },
+        "class_c": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "deepwiki": {"type": "boolean"},
+            "hf_papers": {"type": "boolean"}
+          }
+        },
+        "passes_install_minimum": {
+          "type": "boolean",
+          "description": "True iff >=1 CLASS-A hit AND >=1 CLASS-C hit. CLASS-B alone is insufficient for INSTALL tier."
+        }
+      }
+    },
+    "ossf_criticality": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OSSF Criticality Score formula signals + computed score. Stars are NOT in this formula (per primary source).",
+      "required": ["criticality_score"],
+      "properties": {
+        "created_since": {"type": "number", "description": "Months since repo created. weight alpha=1"},
+        "updated_since": {"type": "number", "description": "Months since last commit. NEGATIVE weight alpha=-1"},
+        "contributor_count": {"type": "integer", "description": "weight alpha=2"},
+        "org_count": {"type": "integer", "description": "Number of orgs in top 20 contributors. weight alpha=1"},
+        "commit_frequency": {"type": "number", "description": "Commits/week last 12mo. weight alpha=1"},
+        "recent_releases_count": {"type": "integer", "description": "Releases last 12mo. weight alpha=0.5"},
+        "closed_issues_count": {"type": "integer", "description": "Closed issues last 90d. weight alpha=0.5"},
+        "comment_frequency": {"type": "number", "description": "Comments/issue last 90d. weight alpha=1"},
+        "dependents_count": {"type": "integer", "description": "Number of dependents on this repo. weight alpha=2"},
+        "criticality_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Composite per OSSF formula. Range 0-1."}
+      }
+    },
+    "stars_informational": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Stars carried INFORMATIONAL-ONLY per R1 §5 (anchored 6x: PkgPulse, Kapravelos ICSE-26 fake-stars paper, arxiv 2603.10265 MALTA, beeble.com, dev.to, academic surveys). NEVER weighted into quality score.",
+      "properties": {
+        "current_count": {"type": "integer"},
+        "fake_stars_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {"type": "string", "enum": ["MALTA", "Kapravelos-ICSE-26", "PkgPulse", "skipped"]},
+            "result": {"type": "string", "enum": ["clean", "suspected-inflated", "verified-organic"]}
+          }
+        },
+        "star_velocity_30d": {"type": "number", "description": "Stars/day in last 30 days. Drift detector only."}
+      }
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["INSTALL", "PATTERN-STUDY", "CITE-ONLY", "MONITOR", "BLOCK"],
+      "description": "Soft-gate ladder per W288 §4 + R1 §3. INSTALL routes UP from PATTERN-STUDY/CITE-ONLY when criteria met; downward routing is automatic on dimension shortfall; BLOCK requires AFFIRMATIVE evidence (license / archived / abandoned)."
+    },
+    "tier_rationale_per_dim": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-dimension rationale for why this tier was assigned. Pareto-frontier preserved.",
+      "properties": {
+        "capability_drives": {"type": "string"},
+        "dispatch_fit_drives": {"type": "string"},
+        "license_drives": {"type": "string"},
+        "maintainership_drives": {"type": "string"},
+        "convergence_drives": {"type": "string"}
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+      "description": "TOP-LEVEL/SAFE-DEFAULT confidence (= MIN over confidence_by_dimension axes — surface-this-to-tooling rule per codex r2 G2 MEDIUM 2026-05-22). HIGH requires: passes_install_minimum + no disagreements + jury_verdict APPROVE + replayable eval_log_ref AND ALL confidence_by_dimension axes >= HIGH."
+    },
+    "confidence_by_dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-dimension confidence breakdown — Pareto-frontier-aware. Prevents the codex r2 G2 failure mode where scalar HIGH hides integration-risk MEDIUM. Tooling SHOULD surface MIN across axes (= the top-level confidence field) for install-decisions. Each axis confidence orthogonal.",
+      "properties": {
+        "capability": {
+          "type": "string",
+          "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+          "description": "Confidence in capability dimension (benchmark + community + paper convergence)"
+        },
+        "integration_stability": {
+          "type": "string",
+          "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+          "description": "Confidence in integration stability (migration-risk, API stability, breaking-change-rate)"
+        },
+        "license": {
+          "type": "string",
+          "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+          "description": "Confidence in license verification (gh-API SPDX + LICENSE-file read)"
+        },
+        "maintainership": {
+          "type": "string",
+          "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+          "description": "Confidence in maintainership signal (corporate-backing + commit cadence + contributor diversity)"
+        },
+        "production_evidence": {
+          "type": "string",
+          "enum": ["HIGH", "MEDIUM-HIGH", "MEDIUM", "MEDIUM-LOW", "LOW"],
+          "description": "Confidence in named-logo production deployments (verified-by-independent-source vs vendor-PR)"
+        }
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Free-text rationale for the tier + confidence. Should reference specific dimension scores + convergence sources."
+    },
+    "disagreements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_a", "source_b", "dimension", "claim_a", "claim_b"],
+        "properties": {
+          "source_a": {"type": "string"},
+          "source_b": {"type": "string"},
+          "dimension": {"type": "string"},
+          "claim_a": {"type": "string"},
+          "claim_b": {"type": "string"},
+          "resolution": {"type": "string", "description": "How the disagreement was resolved (e.g., primary-source-verification, codex-mediation)."},
+          "resolution_pending": {"type": "boolean", "default": false},
+          "triggers_codex_mediation": {"type": "boolean", "default": false}
+        }
+      }
+    },
+    "eval_log_ref": {
+      "type": "string",
+      "description": "Path or URI to the inspect_ai .eval file containing replayable model-pinned + prompt-captured + score-edit-history. Per UK AISI inspect_ai standard. Empty for tier=CITE-ONLY/MONITOR (eval not required)."
+    },
+    "jury_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "K=4 weighted-by-per-instance-reliability jury per arxiv 2512.01786. Minority-veto n>=2 BLOCK overrides INSTALL per arxiv 2510.11822 (95.5% TPR + 30.9% TNR empirical). K=2 minimum for INSTALL-tier verdicts (e.g., two distinct codex rounds OR codex+human). codex r4 I1 closure: schema-extended to include structured jurors[] array for audit-trail.",
+      "properties": {
+        "K": {"type": "integer", "minimum": 2, "maximum": 8, "default": 4},
+        "approve_count": {"type": "integer", "minimum": 0},
+        "block_count": {"type": "integer", "minimum": 0},
+        "needs_revision_count": {"type": "integer", "minimum": 0},
+        "minority_veto_triggered": {"type": "boolean", "default": false, "description": "True iff block_count >= 2 (forces tier downgrade from INSTALL to MONITOR/BLOCK regardless of majority)"},
+        "per_juror_reliability": {
+          "type": "array",
+          "items": {"type": "number", "minimum": 0, "maximum": 1},
+          "description": "Per-instance reliability weight 0-1 per juror"
+        },
+        "jurors": {
+          "type": "array",
+          "description": "Structured per-juror audit trail (codex r4 I1 closure). Each entry captures the juror identity + verdict + reference + optional non-juror cross-reference note. Length should match K when juror entries are accumulated; cross-references can be tagged via 'note' field.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "verdict"],
+            "properties": {
+              "id": {"type": "string", "description": "Juror identity (e.g., 'codex-gpt-5.5-round-1', 'human-operator', 'sonnet-4-6-second-opinion')"},
+              "verdict": {"type": "string", "enum": ["APPROVE", "NEEDS-REVISION", "BLOCK"]},
+              "findings_count": {"type": "integer", "minimum": 0},
+              "ref": {"type": "string", "description": "Path or URL to the juror's review artifact"},
+              "note": {"type": "string", "description": "Optional: tag this entry as cross-reference (counted) OR adjacent-review (informational, may or may not count toward K)."}
+            }
+          }
+        },
+        "unique_findings": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Findings raised by only ONE juror (high-signal even if others missed)"
+        }
+      }
+    },
+    "cardinal_rule_compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cr1_trust_tuple", "cr6_verify_before_claim"],
+      "description": "CLAUDE.md Cardinal Rules compliance check.",
+      "properties": {
+        "cr1_trust_tuple": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["license_verified", "license_class_verified_via"],
+          "properties": {
+            "license_verified": {"type": "boolean"},
+            "license_class_verified_via": {"type": "string", "enum": ["gh-api-license-spdx", "license-file-read", "operator-attestation"]},
+            "signed_releases": {"type": "boolean"},
+            "slsa_level": {"type": "integer", "minimum": 0, "maximum": 4, "description": "SLSA provenance level if verified"},
+            "dep_blast_radius_clean": {"type": "boolean", "description": "Per npm-audit / Socket.dev / Snyk transitive scan"},
+            "maintainer_identity_verified": {"type": "boolean", "description": "Sigstore OR npm-provenance OR signed-git-tags"}
+          }
+        },
+        "cr6_verify_before_claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_verified_via_gh_api": {"type": "boolean"},
+            "license_verified_via_primary_source": {"type": "boolean"},
+            "production_users_verified": {"type": "boolean", "description": "Named-logo production users have INDEPENDENT verification (case study URL, customer page, engineering blog) — NOT vendor-PR alone"},
+            "benchmark_scores_verified_to_source": {"type": "boolean"}
+          }
+        },
+        "cr9_pinning_strategy": {
+          "type": "string",
+          "enum": ["image-digest-sha256", "git-commit-sha", "npm-exact-version", "uvx-exact-version", "not-applicable"]
+        }
+      }
+    },
+    "migration_notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Migration notes for adopters of this verdict. e.g., if repo moved or rebranded.",
+      "properties": {
+        "previous_repo_path": {"type": "string", "description": "Old GitHub path if rebranded/forked/moved"},
+        "v0_to_v1_migration_active": {"type": "boolean"},
+        "stability_caveat": {"type": "string"}
+      }
+    },
+    "follow_up_streams": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Queued follow-up research streams (per R1 punt-list: R-CALIBRATION, R-TOOLING, R-IMPL, R-STORAGE, R-CODEX, R-COST)"
+    }
+  }
+}

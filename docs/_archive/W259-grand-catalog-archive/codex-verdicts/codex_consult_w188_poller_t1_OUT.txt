@@ -1,0 +1,1299 @@
+Reading prompt from stdin...
+OpenAI Codex v0.130.0
+--------
+workdir: Z:\claude-sota-installed
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+reasoning effort: none
+reasoning summaries: none
+session id: 019e249d-1eb3-7c42-b1bc-6efae7b1cfd2
+--------
+user
+W188 P0a-Agent-C poller script T1 review per CR-3 Phase 1 bootstrap exception.
+
+TARGET: `Z:/claude-sota-installed/scripts/cpa_oauth_quota_poller.py` (475 LOC stdlib-only Python; designed by Agent C; Aperant-pattern-port per CR-9 read-only research probe exemption)
+
+EMPIRICAL EVIDENCE (live-smoke 2026-05-13 23:43 EDT):
+- `--probe-only` dry-run: emits request payload structure correctly (HTTP method/URL/headers/timeout schema)
+- `--tick` live HTTP probe: HTTP 200 PASS on `claude-739955940fc@gmail.com` returning `five_hour={utilization:56, resets_at:2026-05-14T04:00Z}` + `seven_day={utilization:45, resets_at:2026-05-17T06:00Z}` + `limit_type:weekly`
+- Atomic state.json + JSONL append working: 332B JSONL + 390B state.json persisted
+- Mia diagnostics: 2 minor Pyright warnings fixed (unused `key` → `for rec in .values()`; Optional subscript narrowing via `if five_hour is None or seven_day is None`)
+
+AXES TO REVIEW (3 narrow):
+
+AXIS-1 — Schema conformance vs Aperant cite anchor:
+- Does `_normalize_anthropic_response` correctly handle BOTH new nested + legacy flat schemas per Aperant L2369-2425?
+- Is `limit_type` derivation correct? (Logic: `"weekly" if seven_day["utilization"] > five_hour["utilization"] else "session"`)
+- **NOTE**: First live-tick had `5h=56% + 7d=45%`. 45 < 56, so condition returns False, `limit_type` SHOULD be "session". But output says "weekly". REVIEW this logic for OVER/incorrect-condition bug.
+
+AXIS-2 — Rate-limit + sibling-cooldown adherence:
+- Does Retry-After parser handle BOTH integer seconds and HTTP-date formats?
+- Does cross-sibling 10min cooldown propagate correctly per Aperant L2200-2216 mechanism?
+- Are state-mutations atomic via tempfile+rename?
+
+AXIS-3 — Stdlib + autonomous /loop mode compat:
+- ZERO external dependencies (urllib + json + pathlib + datetime + email only)?
+- ZERO HARD-GATE interactive prompts (autonomous /loop compatible)?
+- Tick budget 60s + per-request 30s timeout reasonable?
+- Daemon mode survives single-tick failures via top-level try/except?
+
+CITES (TIER-1-DIRECT):
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:65-69,2369-2425,2200-2216,2218-2268`
+- `https://code.claude.com/docs/en/env-vars` (CLAUDE_CONFIG_DIR)
+- W188 Agent C design at `tmp/w188-C-design-2026-05-13.md`
+
+OUTPUT SCHEMA: JSON-strict
+```json
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-NN","severity":"P0|P1|P2|P3","axis":1|2|3,"claim":"...","evidence":"..."}],
+  "prescribed_edits": [{"target":"...","edit":"..."}]
+}
+```
+
+codex
+I’ll inspect the target script and the cited Aperant sections, then check the specific schema/rate-limit/autonomy claims against the implementation.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path scripts/cpa_oauth_quota_poller.py' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts | Select-Object -Skip 2198 -First 72' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path tmp/w188-C-design-2026-05-13.md' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts | Select-Object -Skip 63 -First 8' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts | Select-Object -Skip 2367 -First 60' in Z:\claude-sota-installed
+ succeeded in 461ms:
+
+const PROVIDER_USAGE_ENDPOINTS: readonly ProviderUsageEndpoint[] = [
+  {
+    provider: 'anthropic',
+    usagePath: '/api/oauth/usage'
+  },
+  {
+    provider: 'openai',
+
+ succeeded in 467ms:
+---
+title: W188 P0a-Agent-C — Design — cpa_oauth_quota_poller.py
+status: AUTHORITATIVE
+date: 2026-05-13
+agent: architect (everything-claude-code:architect; Sonnet stand-in per CLAUDE.local.md ENV (f))
+wave: 188 P0a
+stand_in_notice: agent ran under CLAUDE_CODE_SUBAGENT_MODEL Sonnet stand-in per CLAUDE.local.md ENV (f) (currently commented-out per W119 FM-17.f DEPRECATED, BUT subagent dispatch under main-thread Opus 4.7 inherits env-funneling unless ENV (h) Path D activates 1M kill-switch). Cross-model consensus gate satisfied at PATTERN level (Aperant TIER-1 source-anchor + Anthropic CC env-vars TIER-1 + CPA upstream code), NOT at design-review level. Orchestrator MUST file 2nd-stage codex T1 validation on the script body before applying to runtime per cross-model-consensus.md §The contract HARD GATE + agent-harness-fit-verification.md §FM-09 codex-rescue blind-spot specialization. **W188 orchestrator note**: Path P codex T1 fired retroactively for .mcp.json + settings.json edits returned Pattern B HONEST-NON-FINDING (JSON parse PASS + paths verified; bash sandbox-quirk surfaced but is codex-sandbox-specific). T1 review of THIS script body is REQUIRED as a separate fire BEFORE running the script in autonomous /loop mode.
+---
+
+# W188 P0a-Agent-C — Design: cpa_oauth_quota_poller.py
+
+## Goal
+
+Per-account Anthropic OAuth `/api/oauth/usage` 5h+7d utilization poller respecting 1-call/hour-per-credential rate limit (live-verified W188 — 5 sequential probes ALL returned HTTP 429 with Retry-After 1310-3600s).
+
+## Pattern source (TIER-1 cite-anchor, CR-9 read-only research exemption)
+
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:65-69` — Anthropic provider usage path `/api/oauth/usage`
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:2369-2425` — Response normalization (new nested + legacy flat schema)
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:2200-2216` — 429 RATE_LIMIT_COOLDOWN_MS (10min cross-sibling propagation)
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:2218-2268` — 401/403 auth-failure detection + auth-pattern body-scan
+- `Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:1424-1444` — Cooldown retry mechanism + sibling-profile family check
+- HEAD SHA: pin per `git -C Z:/repos/deps/Aperant rev-parse HEAD` at install commit body
+
+## Cite anchors (cardinal-rule-1 conformance)
+
+- TIER-1-DIRECT @ Aperant usage-monitor.ts (cite source, NOT install source per CR-9 read-only research probe exemption)
+- TIER-1-DIRECT @ Anthropic CC env-vars `https://code.claude.com/docs/en/env-vars` (CLAUDE_CONFIG_DIR resolution)
+- TIER-1-DIRECT @ CPA `POST /v0/management/api-call` route — `Z:/repos/deps/CLIProxyAPI/internal/api/server.go @ HEAD 785b00c3`
+- TIER-1-DIRECT @ W187 §6.1 `tmp/wave187-sota-accounts-fetch-methods-research-2026-05-13.md`
+- Cite-class lattice per `.claude/rules/citation-discipline.md` rule #8: `constituents=[TIER-1-DIRECT @ Aperant L65-69+L2369-2425, TIER-1-DIRECT @ Anthropic CC env-vars, TIER-1-DIRECT @ CPA server.go, TIER-3-LOCAL-COMPOSITION @ eee-local poller assembly]; effective_tier=TIER-3-LOCAL-COMPOSITION` per MIN_PRECEDENCE
+
+## CR-12 disposition
+
+**GENUINELY-NEW** for claude-sota-installed runtime. No incumbent per-account `/api/oauth/usage` poller exists. Aperant is operationally retired (W183 F1 daemon-mode REVERT); pattern survives ONLY as cite-anchor. CR-9 read-only research probe exemption applies — pattern source consumed as RESEARCH input, NOT runtime dependency.
+
+CR-9 install-risk:
+- Version-pin: N/A (stdlib only; no `@latest` install primitives)
+- 2-round fix-forward budget: expected (NEW DENY-emitting-class? NO — observer-only no decision:block); 1-round APPROVE plausible
+- Pre-cite-import REVERT check: `git -C Z:/claude-sota log --all --oneline -- 'scripts/cpa_oauth_quota_poller.py'` MUST return 0 results before install
+- Sibling-bleed defense: N/A (no `Z:/claude-sota/` paths in script body; only `Z:/claude-sota-installed/`)
+
+## Requirements (10 mandatory + 1 HONEST-NON-FINDING)
+
+1. **Stagger**: 8-account round-robin; 7.5min sleep between probes (8 × 7.5 = 60min full cycle); respects 1-call/hour Anthropic rate limit
+2. **Auth file iteration**: glob `.cli-proxy-api/claude-*.json` (exclude `antigravity-*` / `codex-*` / `gemini-*`); per-account state JSON
+3. **Adaptive backoff**: parse 429 Retry-After header; replan next probe AFTER reset_at; cross-sibling propagation (any account 429 → blocks family for 10min per Aperant L2200-2216)
+4. **Persist schema**: one JSONL line per probe to `.claude/state/cpa_oauth_quota.jsonl`
+5. **Daemon mode** + **tick mode**: BOTH supported via `--daemon` flag (long-running) OR `--tick` (Windows Task Scheduler / eee.ps1 cron-loop friendly)
+6. **Idempotent re-entry**: `--tick` reads state.json, picks oldest-probed account where (now > retry_after_unblock_ts), probes ONE then exits
+7. **Mgmt key**: read from `Z:/claude-sota-installed-state/cliproxy-mgmt-secret.txt` (NEVER hardcode) — RESERVED for Path B fix-forward
+8. **Timeout**: per-request 30s; total tick budget 60s
+9. **Logging**: stderr only on errors; stdout JSON summary on success for SessionStart consumption
+10. **Mia-pre-apply compatibility**: `--probe-only` dry-run mode emits payload structure without firing requests
+
+**HONEST-NON-FINDING** (per `synthesis-layer-verify.md §Reporting categories`): CPA `POST /v0/management/api-call` exact request schema for passing through `/api/oauth/usage` was NOT fully verified during design phase — Aperant calls Anthropic directly with bearer token (NOT via CPA). Two paths exist:
+- **Path A**: bypass CPA, call `https://api.anthropic.com/api/oauth/usage` directly with bearer = `access_token` from auth file
+- **Path B**: route through CPA `POST /v0/management/api-call` per W187 §6.1 to preserve rate-limit-header response
+
+**Design decision**: Path A (direct-to-Anthropic) — matches Aperant pattern exactly; CPA routing adds latency + uncertainty about endpoint schema. Path B reserved as fix-forward if Path A surfaces unexpected header-stripping.
+
+## Mechanism
+
+```
+[--tick mode (preferred; Windows Task Scheduler / cron-loop friendly)]
+  1. Load state.json (per-account last_probe_ts + retry_after_unblock_ts)
+  2. Glob .cli-proxy-api/claude-*.json (exclude non-Anthropic prefixes)
+  3. Filter accounts where (now > retry_after_unblock_ts)
+  4. Sort by (last_probe_ts ASC) — oldest first
+  5. Pick TOP-1; if none eligible, exit 0 (silent skip)
+  6. Read access_token from auth file
+  7. HTTP GET https://api.anthropic.com/api/oauth/usage
+     Headers: Authorization: Bearer <access_token>
+              anthropic-beta: oauth-2025-04-20 (per Aperant default)
+  8. Parse response:
+     - 200 → normalize per Aperant L2396-2411 (new nested OR legacy flat)
+            → append to cpa_oauth_quota.jsonl
+            → update state.json: last_probe_ts=now, retry_after_unblock_ts=now+3600
+     - 429 → parse Retry-After header (seconds OR HTTP-date)
+            → update state.json: retry_after_unblock_ts=now+retry_after
+            → propagate to all sibling accounts (set retry_after_unblock_ts=now+600 for siblings per Aperant L2200-2216)
+            → append 429 record to jsonl
+     - 401/403 → mark account auth-fail; do NOT retry-loop; emit stderr
+     - other → record failure timestamp; cooldown retry after API_FAILURE_COOLDOWN_MS (60s)
+  9. Atomic write state.json via tempfile+rename
+  10. Atomic append jsonl via _atomic_jsonl_append helper (existing in scripts/)
+  11. Emit stdout JSON summary: {account, status_code, five_hour_pct, seven_day_pct, ts}
+  12. Exit 0
+
+[--daemon mode (long-running)]
+  while True:
+    invoke --tick logic
+    sleep 7.5 * 60 = 450s
+```
+
+## State schema
+
+`Z:/claude-sota-installed/.claude/state/cpa_oauth_quota_state.json`:
+```json
+{
+  "schema_version": 1,
+  "last_updated": "2026-05-13T22:30:00-04:00",
+  "accounts": {
+    "claude-mr.euphoriaincarnate@gmail.com": {
+      "last_probe_ts": "2026-05-13T22:25:00-04:00",
+      "last_status_code": 200,
+      "retry_after_unblock_ts": "2026-05-13T23:25:00-04:00",
+      "consecutive_failures": 0,
+      "last_auth_fail_ts": null
+    }
+  }
+}
+```
+
+`Z:/claude-sota-installed/.claude/state/cpa_oauth_quota.jsonl` (append-only):
+```json
+{"ts": "2026-05-13T22:25:00-04:00", "account": "claude-mr.euphoriaincarnate@gmail.com", "status_code": 200, "five_hour": {"utilization": 72, "resets_at": "2026-05-14T03:25:00Z"}, "seven_day": {"utilization": 45, "resets_at": "2026-05-20T22:25:00Z"}, "limit_type": "session", "error_class": null, "retry_after": null}
+```
+
+For 429:
+```json
+{"ts": "2026-05-13T22:25:00-04:00", "account": "claude-mr.euphoriaincarnate@gmail.com", "status_code": 429, "retry_after": 3600, "error_class": "rate_limit_error", "five_hour": null, "seven_day": null, "limit_type": null}
+```
+
+## Failure modes
+
+| Failure | Detection | Recovery |
+|---------|-----------|----------|
+| Auth file missing/malformed | `json.JSONDecodeError` | Skip account; log stderr |
+| 429 rate limit | `response.status_code == 429` | Parse Retry-After; cross-sibling propagate (10min); exit 0 silent |
+| 401/403 auth fail | `response.status_code in (401, 403)` | Mark account; emit stderr; do NOT retry loop |
+| Timeout | `socket.timeout` after 30s | Record failure; 60s cooldown |
+| State corruption | `json.JSONDecodeError` on state.json | Fresh start (recreate empty state); log stderr |
+| Anthropic API down | `urllib.error.URLError` connection refused | Record failure; 60s cooldown; exit 1 |
+
+## CR-9 install-risk discipline check
+
+- Version-pin: N/A (stdlib only — pathlib, urllib, json, datetime, time, sys, argparse, os)
+- 2-round fix-forward expected: yes — likely codex T1 NEEDS-REVISION on first round at conf 0.85-0.92; budget 1 fix-forward iter per Pattern A
+- Pre-cite-import REVERT check: required pre-install (run `git -C Z:/claude-sota log --all --oneline -- 'scripts/*poller*'` BEFORE Write)
+- Sibling-bleed defense: NO `Z:/claude-sota/` paths in script body; all paths `Z:/claude-sota-installed/`
+
+## Mia-pre-apply verification clauses (4-clause gate)
+
+1. **Dispatch scope**: single script file + cite-anchor design doc per cycle-300 ONE-LOGICAL-UNIT
+2. **Probe DAG return**: Probe 1 count-OVER (8 auth files verified via Glob), Probe 2 SDK-vs-CLI (stdlib-only mechanism), Probe 4 plugin-namespace (no `<plugin>:cpa_oauth_quota_poller` exists), Probe 5 mode-harness-shape (compatible with autonomous /loop mode; no HARD-GATE interactive prompts), Probe 6 direct-file blockers (no LICENSE/badge issues; stdlib only)
+3. **HNF shape**: Path A vs Path B uncertainty explicitly recorded above as HONEST-NON-FINDING with design decision rationale
+4. **Manifest row record**: `docs/sota-installed-manifest.md` MUST record this script with cite-class `TIER-3-LOCAL-COMPOSITION` + CR-8 status `ADAPTED-FROM-SOTA` (Aperant pattern cite-anchor) + CR-9 risk profile `INSTALL-RISK-LOW` (stdlib-only + observer-only no decision:block)
+
+## DESIGN-COMPLETE
+
+Design ready for codex T1 review + Pattern A apply. Single atomic commit expected at conf 0.88-0.93.
+
+ succeeded in 498ms:
+   * {
+   *   "five_hour": {
+   *     "utilization": 19,  // integer 0-100
+   *     "resets_at": "2025-01-17T15:00:00Z"
+   *   },
+   *   "seven_day": {
+   *     "utilization": 45,  // integer 0-100
+   *     "resets_at": "2025-01-20T12:00:00Z"
+   *   }
+   * }
+   */
+  private normalizeAnthropicResponse(
+    data: any,
+    profileId: string,
+    profileName: string,
+    profileEmail?: string
+  ): ClaudeUsageSnapshot {
+    // Support both new nested format and legacy flat format for backward compatibility
+    //
+    // NEW format (current API): { five_hour: { utilization: 72, resets_at: "..." } }
+    // OLD format (legacy):      { five_hour_utilization: 0.72, five_hour_reset_at: "..." }
+
+    let fiveHourUtil: number;
+    let sevenDayUtil: number;
+    let sessionResetTimestamp: string | undefined;
+    let weeklyResetTimestamp: string | undefined;
+
+    // Check for new nested format first
+    if (data.five_hour !== undefined || data.seven_day !== undefined) {
+      // New nested format - utilization is already 0-100 integer
+      fiveHourUtil = data.five_hour?.utilization ?? 0;
+      sevenDayUtil = data.seven_day?.utilization ?? 0;
+      sessionResetTimestamp = data.five_hour?.resets_at;
+      weeklyResetTimestamp = data.seven_day?.resets_at;
+    } else {
+      // Legacy flat format - utilization is 0-1 float, needs *100
+      const rawFiveHour = data.five_hour_utilization ?? 0;
+      const rawSevenDay = data.seven_day_utilization ?? 0;
+      // Convert 0-1 float to 0-100 integer
+      fiveHourUtil = Math.round(rawFiveHour * 100);
+      sevenDayUtil = Math.round(rawSevenDay * 100);
+      sessionResetTimestamp = data.five_hour_reset_at;
+      weeklyResetTimestamp = data.seven_day_reset_at;
+    }
+
+    return {
+      sessionPercent: fiveHourUtil,
+      weeklyPercent: sevenDayUtil,
+      // Omit sessionResetTime/weeklyResetTime - renderer uses timestamps with formatTimeRemaining
+      sessionResetTime: undefined,
+      weeklyResetTime: undefined,
+      sessionResetTimestamp,
+      weeklyResetTimestamp,
+      profileId,
+      profileName,
+      profileEmail,
+      fetchedAt: new Date(),
+      limitType: sevenDayUtil > fiveHourUtil ? 'weekly' : 'session',
+      usageWindows: {
+        sessionWindowLabel: 'common:usage.window5Hour',
+
+ succeeded in 522ms:
+        });
+
+        // Handle rate limiting with a much longer backoff than general API failures
+        // Propagate to all sibling profiles sharing the same configDir (same API endpoint)
+        if (response.status === 429) {
+          const now = Date.now();
+          const siblingIds = this.getProfileIdFamily(profileId);
+          console.warn('[UsageMonitor] Rate limited (429) by provider, backing off for 10 minutes:', {
+            provider,
+            endpoint: usageEndpoint,
+            cooldownMs: UsageMonitor.RATE_LIMIT_COOLDOWN_MS,
+            affectedProfiles: siblingIds.length
+          });
+          for (const id of siblingIds) {
+            this.rateLimitedProfiles.set(id, now);
+          }
+          return null;
+        }
+
+        // Check for auth failures via status code (works for all providers)
+        if (response.status === 401 || response.status === 403) {
+          const error = new Error(`API Auth Failure: ${response.status} (${provider})`);
+          (error as any).statusCode = response.status;
+          throw error;
+        }
+
+        // For other error statuses, try to parse response body to detect auth failures
+        // This handles cases where providers might return different status codes for auth errors
+        let errorData: any;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          // If we can't parse the error response, just log it and continue
+          this.traceLog('[UsageMonitor:AUTH_DETECTION] Could not parse error response body:', {
+            provider,
+            status: response.status,
+            parseError
+          });
+          // Record failure timestamp for cooldown retry
+          this.apiFailureTimestamps.set(profileId, Date.now());
+          return null;
+        }
+
+        this.traceLog('[UsageMonitor:AUTH_DETECTION] Checking error response for auth failure:', {
+          provider,
+          status: response.status,
+          errorData
+        });
+
+        // Check for common auth error patterns in response body
+        const authErrorPatterns = [
+          'unauthorized',
+          'authentication',
+          'invalid token',
+          'invalid api key',
+          'expired token',
+          'forbidden',
+          'access denied',
+          'credentials',
+          'auth failed'
+        ];
+
+        const errorText = JSON.stringify(errorData).toLowerCase();
+        const hasAuthError = authErrorPatterns.some(pattern => errorText.includes(pattern));
+
+        if (hasAuthError) {
+          const error = new Error(`API Auth Failure detected in response body (${provider}): ${JSON.stringify(errorData)}`);
+          (error as any).statusCode = response.status; // Include original status code
+          (error as any).detectedInBody = true;
+          throw error;
+        }
+
+
+ succeeded in 576ms:
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""cpa_oauth_quota_poller.py — Per-account Anthropic OAuth /api/oauth/usage poller.
+
+Polls each .cli-proxy-api/claude-*.json account on a staggered ~60min cycle
+respecting Anthropic's 1-call/hour-per-credential rate limit. Outputs to
+.claude/state/cpa_oauth_quota.jsonl for SessionStart-preload visibility.
+
+Cite anchors (TIER-1-DIRECT, CR-9 read-only research probe exemption):
+- Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:65-69
+  (Anthropic provider usage path /api/oauth/usage)
+- Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:2369-2425
+  (Response normalization: new nested + legacy flat schema)
+- Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:2200-2216
+  (429 RATE_LIMIT_COOLDOWN_MS cross-sibling propagation)
+- Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts:2218-2268
+  (401/403 auth-failure detection)
+- https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR resolution)
+- W187 §6.1 tmp/wave187-sota-accounts-fetch-methods-research-2026-05-13.md
+- W188 P0a-Agent-C design doc tmp/w188-C-design-2026-05-13.md
+
+Cite-class lattice per .claude/rules/citation-discipline.md rule #8:
+constituents=[TIER-1-DIRECT @ Aperant L65-69+L2369-2425,
+              TIER-1-DIRECT @ Anthropic CC env-vars,
+              TIER-3-LOCAL-COMPOSITION @ eee-local poller assembly]
+effective_tier=TIER-3-LOCAL-COMPOSITION per MIN_PRECEDENCE.
+
+CR-12 disposition: GENUINELY-NEW (no incumbent per-account poller exists).
+CR-9 install-risk: LOW (stdlib only; observer-only no decision:block; reversible).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
+from pathlib import Path
+from typing import Any, Optional
+
+ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+ANTHROPIC_BETA_HEADER = "oauth-2025-04-20"
+REQUEST_TIMEOUT_SEC = 30
+TICK_BUDGET_SEC = 60
+ACCOUNT_COOLDOWN_SEC = 3600
+SIBLING_COOLDOWN_SEC = 600
+API_FAILURE_COOLDOWN_SEC = 60
+STAGGER_INTERVAL_SEC = 450
+
+WORKSPACE_ROOT = Path("Z:/claude-sota-installed")
+AUTH_DIR = WORKSPACE_ROOT / ".cli-proxy-api"
+STATE_DIR = WORKSPACE_ROOT / ".claude" / "state"
+STATE_FILE = STATE_DIR / "cpa_oauth_quota_state.json"
+JSONL_FILE = STATE_DIR / "cpa_oauth_quota.jsonl"
+
+CLAUDE_ACCOUNT_PREFIX = "claude-"
+
+
+def _iso_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
+    if not ts:
+        return None
+    try:
+        if ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        return datetime.fromisoformat(ts)
+    except (ValueError, TypeError):
+        return None
+
+
+def _log_stderr(msg: str) -> None:
+    print(f"[cpa_oauth_quota_poller] {msg}", file=sys.stderr, flush=True)
+
+
+def _atomic_write_json(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
+
+def _append_jsonl(path: Path, record: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(record, ensure_ascii=False) + "\n"
+    with path.open("a", encoding="utf-8") as f:
+        f.write(line)
+        f.flush()
+
+
+def _load_state() -> dict:
+    if not STATE_FILE.exists():
+        return {"schema_version": 1, "last_updated": _iso_now(), "accounts": {}}
+    try:
+        with STATE_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict) or "accounts" not in data:
+            _log_stderr(f"State file malformed; resetting: {STATE_FILE}")
+            return {"schema_version": 1, "last_updated": _iso_now(), "accounts": {}}
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        _log_stderr(f"State load failed ({type(e).__name__}); resetting: {e}")
+        return {"schema_version": 1, "last_updated": _iso_now(), "accounts": {}}
+
+
+def _save_state(state: dict) -> None:
+    state["last_updated"] = _iso_now()
+    _atomic_write_json(STATE_FILE, state)
+
+
+def _list_anthropic_accounts() -> list[Path]:
+    if not AUTH_DIR.exists():
+        return []
+    return sorted(
+        p for p in AUTH_DIR.glob(f"{CLAUDE_ACCOUNT_PREFIX}*.json")
+        if p.is_file() and not p.name.startswith(
+            ("claude-antigravity", "claude-codex", "claude-gemini")
+        )
+    )
+
+
+def _account_key(auth_path: Path) -> str:
+    return auth_path.stem
+
+
+def _read_access_token(auth_path: Path) -> Optional[str]:
+    try:
+        with auth_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        token = data.get("access_token")
+        if not isinstance(token, str) or not token.startswith("sk-ant-oat"):
+            _log_stderr(f"Auth file invalid access_token: {auth_path.name}")
+            return None
+        return token
+    except (json.JSONDecodeError, OSError) as e:
+        _log_stderr(f"Auth file read failed ({type(e).__name__}): {auth_path.name}: {e}")
+        return None
+
+
+def _select_account_for_tick(
+    state: dict, accounts: list[Path], now: datetime
+) -> Optional[Path]:
+    eligible: list[tuple[float, Path]] = []
+    for auth_path in accounts:
+        key = _account_key(auth_path)
+        rec = state["accounts"].get(key, {})
+        unblock_ts = _parse_iso(rec.get("retry_after_unblock_ts"))
+        if unblock_ts is not None and now < unblock_ts:
+            continue
+        last_probe = _parse_iso(rec.get("last_probe_ts"))
+        sort_key = last_probe.timestamp() if last_probe else 0.0
+        eligible.append((sort_key, auth_path))
+    if not eligible:
+        return None
+    eligible.sort(key=lambda x: x[0])
+    return eligible[0][1]
+
+
+def _probe_anthropic_usage(
+    access_token: str, probe_only: bool = False
+) -> tuple[int, dict, dict]:
+    if probe_only:
+        payload = {
+            "method": "GET",
+            "url": ANTHROPIC_USAGE_URL,
+            "headers": {
+                "Authorization": "Bearer sk-ant-oat...<redacted>",
+                "anthropic-beta": ANTHROPIC_BETA_HEADER,
+                "User-Agent": "cpa-oauth-quota-poller/1.0",
+            },
+            "timeout_sec": REQUEST_TIMEOUT_SEC,
+        }
+        print(json.dumps({"probe_only": True, "request": payload}, indent=2))
+        return 0, {}, {}
+
+    req = urllib.request.Request(
+        ANTHROPIC_USAGE_URL,
+        method="GET",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "anthropic-beta": ANTHROPIC_BETA_HEADER,
+            "User-Agent": "cpa-oauth-quota-poller/1.0",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SEC) as resp:
+            status = resp.status
+            headers = dict(resp.headers)
+            body_bytes = resp.read()
+            try:
+                body = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                body = {"_raw": body_bytes.decode("utf-8", errors="replace")[:500]}
+            return status, body, headers
+    except urllib.error.HTTPError as e:
+        status = e.code
+        headers = dict(e.headers) if e.headers else {}
+        try:
+            body = json.loads(e.read().decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+            body = {}
+        return status, body, headers
+    except urllib.error.URLError as e:
+        _log_stderr(f"URLError: {e.reason}")
+        return -1, {}, {}
+    except (TimeoutError, OSError) as e:
+        _log_stderr(f"Network error: {type(e).__name__}: {e}")
+        return -1, {}, {}
+
+
+def _normalize_anthropic_response(
+    body: dict,
+) -> tuple[Optional[dict], Optional[dict], Optional[str]]:
+    """Normalize per Aperant usage-monitor.ts:2396-2411."""
+    if "five_hour" in body or "seven_day" in body:
+        fh = body.get("five_hour") or {}
+        sd = body.get("seven_day") or {}
+        five_hour = {
+            "utilization": int(fh.get("utilization", 0)),
+            "resets_at": fh.get("resets_at"),
+        }
+        seven_day = {
+            "utilization": int(sd.get("utilization", 0)),
+            "resets_at": sd.get("resets_at"),
+        }
+    elif "five_hour_utilization" in body or "seven_day_utilization" in body:
+        five_hour = {
+            "utilization": round(float(body.get("five_hour_utilization", 0)) * 100),
+            "resets_at": body.get("five_hour_reset_at"),
+        }
+        seven_day = {
+            "utilization": round(float(body.get("seven_day_utilization", 0)) * 100),
+            "resets_at": body.get("seven_day_reset_at"),
+        }
+    else:
+        return None, None, None
+
+    limit_type = "weekly" if seven_day["utilization"] > five_hour["utilization"] else "session"
+    return five_hour, seven_day, limit_type
+
+
+def _parse_retry_after(headers: dict, default_sec: int = ACCOUNT_COOLDOWN_SEC) -> int:
+    retry_after = headers.get("Retry-After") or headers.get("retry-after")
+    if not retry_after:
+        return default_sec
+    try:
+        return int(retry_after)
+    except ValueError:
+        try:
+            target = parsedate_to_datetime(retry_after)
+            delta = (target - datetime.now(timezone.utc)).total_seconds()
+            return max(int(delta), 60)
+        except (ValueError, TypeError):
+            return default_sec
+
+
+def _propagate_sibling_cooldown(state: dict, sibling_unblock_ts: datetime) -> None:
+    """Per Aperant L2200-2216: 429 propagates 10min cooldown to siblings."""
+    iso_unblock = sibling_unblock_ts.isoformat(timespec="seconds")
+    for rec in state["accounts"].values():
+        existing = _parse_iso(rec.get("retry_after_unblock_ts"))
+        if existing is None or existing < sibling_unblock_ts:
+            rec["retry_after_unblock_ts"] = iso_unblock
+
+
+def _run_tick(probe_only: bool = False) -> int:
+    start_ts = time.monotonic()
+    state = _load_state()
+    accounts = _list_anthropic_accounts()
+    if not accounts:
+        _log_stderr(f"No Anthropic accounts found in {AUTH_DIR}")
+        return 0
+
+    now = datetime.now(timezone.utc)
+    selected = _select_account_for_tick(state, accounts, now)
+
+    if selected is None:
+        return 0
+
+    key = _account_key(selected)
+    access_token = _read_access_token(selected)
+    if access_token is None:
+        state["accounts"].setdefault(key, {})
+        state["accounts"][key]["last_probe_ts"] = now.isoformat(timespec="seconds")
+        state["accounts"][key]["retry_after_unblock_ts"] = (
+            now + timedelta(seconds=API_FAILURE_COOLDOWN_SEC)
+        ).isoformat(timespec="seconds")
+        state["accounts"][key]["consecutive_failures"] = (
+            state["accounts"][key].get("consecutive_failures", 0) + 1
+        )
+        _save_state(state)
+        return 1
+
+    if time.monotonic() - start_ts > TICK_BUDGET_SEC:
+        _log_stderr("Tick budget exhausted before HTTP probe")
+        return 2
+
+    status_code, body, headers = _probe_anthropic_usage(access_token, probe_only=probe_only)
+
+    if probe_only:
+        return 0
+
+    record_ts = _iso_now()
+    state["accounts"].setdefault(key, {})
+    rec = state["accounts"][key]
+    rec["last_probe_ts"] = record_ts
+    rec["last_status_code"] = status_code
+
+    if status_code == 200:
+        five_hour, seven_day, limit_type = _normalize_anthropic_response(body)
+        if five_hour is None or seven_day is None:
+            _log_stderr(f"Parse failed for {key}; body keys: {list(body.keys())[:5]}")
+            jsonl_record = {
+                "ts": record_ts, "account": key, "status_code": 200,
+                "error_class": "parse_failure", "five_hour": None,
+                "seven_day": None, "limit_type": None, "retry_after": None,
+            }
+            rec["consecutive_failures"] = rec.get("consecutive_failures", 0) + 1
+            rec["retry_after_unblock_ts"] = (
+                now + timedelta(seconds=API_FAILURE_COOLDOWN_SEC)
+            ).isoformat(timespec="seconds")
+        else:
+            jsonl_record = {
+                "ts": record_ts, "account": key, "status_code": 200,
+                "five_hour": five_hour, "seven_day": seven_day,
+                "limit_type": limit_type, "error_class": None, "retry_after": None,
+            }
+            rec["consecutive_failures"] = 0
+            rec["last_five_hour_pct"] = five_hour["utilization"]
+            rec["last_seven_day_pct"] = seven_day["utilization"]
+            rec["retry_after_unblock_ts"] = (
+                now + timedelta(seconds=ACCOUNT_COOLDOWN_SEC)
+            ).isoformat(timespec="seconds")
+        _append_jsonl(JSONL_FILE, jsonl_record)
+        print(json.dumps({
+            "ok": jsonl_record["error_class"] is None,
+            "account": key, "ts": record_ts, "status_code": 200,
+            "five_hour_pct": (five_hour or {}).get("utilization") if five_hour else None,
+            "seven_day_pct": (seven_day or {}).get("utilization") if seven_day else None,
+            "limit_type": limit_type,
+        }))
+
+    elif status_code == 429:
+        retry_after = _parse_retry_after(headers, default_sec=ACCOUNT_COOLDOWN_SEC)
+        unblock = now + timedelta(seconds=retry_after)
+        rec["retry_after_unblock_ts"] = unblock.isoformat(timespec="seconds")
+        rec["consecutive_failures"] = 0
+        sibling_unblock = now + timedelta(seconds=SIBLING_COOLDOWN_SEC)
+        _propagate_sibling_cooldown(state, sibling_unblock)
+        jsonl_record = {
+            "ts": record_ts, "account": key, "status_code": 429,
+            "five_hour": None, "seven_day": None, "limit_type": None,
+            "error_class": "rate_limit_error", "retry_after": retry_after,
+        }
+        _append_jsonl(JSONL_FILE, jsonl_record)
+        _log_stderr(f"429 for {key}; retry-after={retry_after}s; sibling-cooldown={SIBLING_COOLDOWN_SEC}s")
+        print(json.dumps({
+            "ok": False, "account": key, "ts": record_ts,
+            "status_code": 429, "retry_after": retry_after,
+        }))
+
+    elif status_code in (401, 403):
+        rec["last_auth_fail_ts"] = record_ts
+        rec["consecutive_failures"] = rec.get("consecutive_failures", 0) + 1
+        rec["retry_after_unblock_ts"] = (
+            now + timedelta(seconds=ACCOUNT_COOLDOWN_SEC * 6)
+        ).isoformat(timespec="seconds")
+        jsonl_record = {
+            "ts": record_ts, "account": key, "status_code": status_code,
+            "five_hour": None, "seven_day": None, "limit_type": None,
+            "error_class": "auth_failure", "retry_after": None,
+        }
+        _append_jsonl(JSONL_FILE, jsonl_record)
+        _log_stderr(f"AUTH FAIL {status_code} for {key}; cooling down 6h")
+        print(json.dumps({
+            "ok": False, "account": key, "ts": record_ts,
+            "status_code": status_code, "error_class": "auth_failure",
+        }))
+        _save_state(state)
+        return 3
+
+    else:
+        rec["consecutive_failures"] = rec.get("consecutive_failures", 0) + 1
+        rec["retry_after_unblock_ts"] = (
+            now + timedelta(seconds=API_FAILURE_COOLDOWN_SEC)
+        ).isoformat(timespec="seconds")
+        jsonl_record = {
+            "ts": record_ts, "account": key, "status_code": status_code,
+            "five_hour": None, "seven_day": None, "limit_type": None,
+            "error_class": "other" if status_code > 0 else "network_error",
+            "retry_after": None,
+        }
+        _append_jsonl(JSONL_FILE, jsonl_record)
+        _log_stderr(f"Probe failed for {key}: status={status_code}")
+        print(json.dumps({
+            "ok": False, "account": key, "ts": record_ts,
+            "status_code": status_code,
+            "error_class": jsonl_record["error_class"],
+        }))
+
+    _save_state(state)
+    return 0
+
+
+def _run_daemon() -> int:
+    _log_stderr(f"Daemon mode start; stagger={STAGGER_INTERVAL_SEC}s")
+    try:
+        while True:
+            try:
+                _run_tick(probe_only=False)
+            except Exception as e:  # noqa: BLE001 — daemon must survive any tick failure
+                _log_stderr(f"Tick exception (continuing): {type(e).__name__}: {e}")
+            time.sleep(STAGGER_INTERVAL_SEC)
+    except KeyboardInterrupt:
+        _log_stderr("Daemon interrupted")
+        return 0
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="cpa_oauth_quota_poller",
+        description=(
+            "Per-account Anthropic OAuth /api/oauth/usage poller. "
+            "Respects 1-call/hour Anthropic rate limit via staggered round-robin."
+        ),
+    )
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--tick", action="store_true",
+                      help="Single tick (probe ONE eligible account then exit).")
+    mode.add_argument("--daemon", action="store_true",
+                      help="Daemon mode (loop with 7.5min stagger).")
+    mode.add_argument("--probe-only", action="store_true",
+                      help="Dry-run: emit request payload structure without firing HTTP.")
+    args = parser.parse_args(argv)
+
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    if args.probe_only:
+        return _run_tick(probe_only=True)
+    if args.tick:
+        return _run_tick(probe_only=False)
+    if args.daemon:
+        return _run_daemon()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+codex
+The current script body has the Aperant `limitType` condition as `seven_day > five_hour`, so the 56/45 live-smoke example should normalize to `session`. I’m checking the persisted output next to see whether the reported `weekly` came from an older script revision or another path.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'if (Test-Path .claude/state/cpa_oauth_quota.jsonl) { Get-Content .claude/state/cpa_oauth_quota.jsonl -Tail 5 }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'if (Test-Path .claude/state/cpa_oauth_quota_state.json) { Get-Content .claude/state/cpa_oauth_quota_state.json }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n \"def _normalize_anthropic_response|limit_type|def _parse_retry_after|def _propagate_sibling_cooldown|def _atomic_write_json|def _append_jsonl|def _run_daemon|input\\(|getpass|requests|httpx|aiohttp|urllib|email\" scripts/cpa_oauth_quota_poller.py" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/repos/deps/Aperant/apps/desktop/src/main/claude-profile/usage-monitor.ts | Select-Object -Skip 1418 -First 32' in Z:\claude-sota-installed
+ succeeded in 511ms:
+{"ts": "2026-05-14T03:43:54+00:00", "account": "claude-739955940fc@gmail.com", "status_code": 200, "five_hour": {"utilization": 56, "resets_at": "2026-05-14T04:00:00.497407+00:00"}, "seven_day": {"utilization": 96, "resets_at": "2026-05-17T06:00:00.497428+00:00"}, "limit_type": "weekly", "error_class": null, "retry_after": null}
+
+ succeeded in 540ms:
+{
+  "schema_version": 1,
+  "last_updated": "2026-05-14T03:43:54+00:00",
+  "accounts": {
+    "claude-739955940fc@gmail.com": {
+      "last_probe_ts": "2026-05-14T03:43:54+00:00",
+      "last_status_code": 200,
+      "consecutive_failures": 0,
+      "last_five_hour_pct": 56,
+      "last_seven_day_pct": 96,
+      "retry_after_unblock_ts": "2026-05-14T04:43:54+00:00"
+    }
+  }
+}
+
+ succeeded in 492ms:
+39:import urllib.error
+40:import urllib.request
+42:from email.utils import parsedate_to_datetime
+83:def _atomic_write_json(path: Path, data: Any) -> None:
+100:def _append_jsonl(path: Path, record: dict) -> None:
+193:    req = urllib.request.Request(
+204:        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SEC) as resp:
+213:    except urllib.error.HTTPError as e:
+221:    except urllib.error.URLError as e:
+229:def _normalize_anthropic_response(
+256:    limit_type = "weekly" if seven_day["utilization"] > five_hour["utilization"] else "session"
+257:    return five_hour, seven_day, limit_type
+260:def _parse_retry_after(headers: dict, default_sec: int = ACCOUNT_COOLDOWN_SEC) -> int:
+275:def _propagate_sibling_cooldown(state: dict, sibling_unblock_ts: datetime) -> None:
+328:        five_hour, seven_day, limit_type = _normalize_anthropic_response(body)
+334:                "seven_day": None, "limit_type": None, "retry_after": None,
+344:                "limit_type": limit_type, "error_class": None, "retry_after": None,
+358:            "limit_type": limit_type,
+370:            "five_hour": None, "seven_day": None, "limit_type": None,
+388:            "five_hour": None, "seven_day": None, "limit_type": None,
+407:            "five_hour": None, "seven_day": None, "limit_type": None,
+423:def _run_daemon() -> int:
+
+ succeeded in 569ms:
+  }
+
+  /**
+   * Check if API method should be used for a specific profile
+   *
+   * Uses cooldown-based retry: API is retried after API_FAILURE_COOLDOWN_MS
+   *
+   * @param profileId - Profile identifier
+   * @returns true if API should be tried, false if CLI should be used
+   */
+  private shouldUseApiMethod(profileId: string): boolean {
+    // Check rate-limit (429) cooldown first — longer backoff than general API failures
+    // Also check sibling profiles that share the same configDir (same underlying API endpoint).
+    // When Anthropic 429s one profile, all profiles sharing the same credential are also blocked.
+    const profileIdsToCheck = this.getProfileIdFamily(profileId);
+
+    for (const id of profileIdsToCheck) {
+      const lastRateLimit = this.rateLimitedProfiles.get(id);
+      if (lastRateLimit) {
+        const elapsed = Date.now() - lastRateLimit;
+        if (elapsed < UsageMonitor.RATE_LIMIT_COOLDOWN_MS) {
+          return false; // Any sibling is rate-limited → block all
+        }
+        this.rateLimitedProfiles.delete(id); // Cooldown expired, clear the marker
+      }
+    }
+
+    // Check general API failure cooldown
+    const lastFailure = this.apiFailureTimestamps.get(profileId);
+    if (!lastFailure) return true; // No previous failure, try API
+    // Check if cooldown has expired (use >= to allow retry at exact boundary)
+    const elapsed = Date.now() - lastFailure;
+
+codex
+The local JSONL/state files show the last persisted live tick as `seven_day=96`, not `45`, which explains the `weekly` output for that saved record. I’m doing one focused pass now for less obvious behavioral risks, especially where the script diverges from Aperant’s in-memory sibling-family cooldown.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content scripts/cpa_oauth_quota_poller.py | ForEach-Object { if ($i -ge 229 -and $i -le 282) { '"'{0,4}: {1}' -f "'$i, $_ }; $i++ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content scripts/cpa_oauth_quota_poller.py | ForEach-Object { if ($i -ge 83 -and $i -le 105) { '"'{0,4}: {1}' -f "'$i, $_ }; $i++ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content scripts/cpa_oauth_quota_poller.py | ForEach-Object { if ($i -ge 423 -and $i -le 463) { '"'{0,4}: {1}' -f "'$i, $_ }; $i++ }' in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$i=1; Get-Content scripts/cpa_oauth_quota_poller.py | ForEach-Object { if ($i -ge 286 -and $i -le 424) { '"'{0,4}: {1}' -f "'$i, $_ }; $i++ }' in Z:\claude-sota-installed
+ succeeded in 440ms:
+  83: def _atomic_write_json(path: Path, data: Any) -> None:
+  84:     path.parent.mkdir(parents=True, exist_ok=True)
+  85:     tmp = path.with_suffix(path.suffix + ".tmp")
+  86:     try:
+  87:         with tmp.open("w", encoding="utf-8") as f:
+  88:             json.dump(data, f, indent=2, ensure_ascii=False)
+  89:             f.flush()
+  90:             os.fsync(f.fileno())
+  91:         os.replace(tmp, path)
+  92:     finally:
+  93:         if tmp.exists():
+  94:             try:
+  95:                 tmp.unlink()
+  96:             except OSError:
+  97:                 pass
+  98: 
+  99: 
+ 100: def _append_jsonl(path: Path, record: dict) -> None:
+ 101:     path.parent.mkdir(parents=True, exist_ok=True)
+ 102:     line = json.dumps(record, ensure_ascii=False) + "\n"
+ 103:     with path.open("a", encoding="utf-8") as f:
+ 104:         f.write(line)
+ 105:         f.flush()
+
+ succeeded in 499ms:
+ 229: def _normalize_anthropic_response(
+ 230:     body: dict,
+ 231: ) -> tuple[Optional[dict], Optional[dict], Optional[str]]:
+ 232:     """Normalize per Aperant usage-monitor.ts:2396-2411."""
+ 233:     if "five_hour" in body or "seven_day" in body:
+ 234:         fh = body.get("five_hour") or {}
+ 235:         sd = body.get("seven_day") or {}
+ 236:         five_hour = {
+ 237:             "utilization": int(fh.get("utilization", 0)),
+ 238:             "resets_at": fh.get("resets_at"),
+ 239:         }
+ 240:         seven_day = {
+ 241:             "utilization": int(sd.get("utilization", 0)),
+ 242:             "resets_at": sd.get("resets_at"),
+ 243:         }
+ 244:     elif "five_hour_utilization" in body or "seven_day_utilization" in body:
+ 245:         five_hour = {
+ 246:             "utilization": round(float(body.get("five_hour_utilization", 0)) * 100),
+ 247:             "resets_at": body.get("five_hour_reset_at"),
+ 248:         }
+ 249:         seven_day = {
+ 250:             "utilization": round(float(body.get("seven_day_utilization", 0)) * 100),
+ 251:             "resets_at": body.get("seven_day_reset_at"),
+ 252:         }
+ 253:     else:
+ 254:         return None, None, None
+ 255: 
+ 256:     limit_type = "weekly" if seven_day["utilization"] > five_hour["utilization"] else "session"
+ 257:     return five_hour, seven_day, limit_type
+ 258: 
+ 259: 
+ 260: def _parse_retry_after(headers: dict, default_sec: int = ACCOUNT_COOLDOWN_SEC) -> int:
+ 261:     retry_after = headers.get("Retry-After") or headers.get("retry-after")
+ 262:     if not retry_after:
+ 263:         return default_sec
+ 264:     try:
+ 265:         return int(retry_after)
+ 266:     except ValueError:
+ 267:         try:
+ 268:             target = parsedate_to_datetime(retry_after)
+ 269:             delta = (target - datetime.now(timezone.utc)).total_seconds()
+ 270:             return max(int(delta), 60)
+ 271:         except (ValueError, TypeError):
+ 272:             return default_sec
+ 273: 
+ 274: 
+ 275: def _propagate_sibling_cooldown(state: dict, sibling_unblock_ts: datetime) -> None:
+ 276:     """Per Aperant L2200-2216: 429 propagates 10min cooldown to siblings."""
+ 277:     iso_unblock = sibling_unblock_ts.isoformat(timespec="seconds")
+ 278:     for rec in state["accounts"].values():
+ 279:         existing = _parse_iso(rec.get("retry_after_unblock_ts"))
+ 280:         if existing is None or existing < sibling_unblock_ts:
+ 281:             rec["retry_after_unblock_ts"] = iso_unblock
+ 282: 
+
+ succeeded in 503ms:
+ 286:     state = _load_state()
+ 287:     accounts = _list_anthropic_accounts()
+ 288:     if not accounts:
+ 289:         _log_stderr(f"No Anthropic accounts found in {AUTH_DIR}")
+ 290:         return 0
+ 291: 
+ 292:     now = datetime.now(timezone.utc)
+ 293:     selected = _select_account_for_tick(state, accounts, now)
+ 294: 
+ 295:     if selected is None:
+ 296:         return 0
+ 297: 
+ 298:     key = _account_key(selected)
+ 299:     access_token = _read_access_token(selected)
+ 300:     if access_token is None:
+ 301:         state["accounts"].setdefault(key, {})
+ 302:         state["accounts"][key]["last_probe_ts"] = now.isoformat(timespec="seconds")
+ 303:         state["accounts"][key]["retry_after_unblock_ts"] = (
+ 304:             now + timedelta(seconds=API_FAILURE_COOLDOWN_SEC)
+ 305:         ).isoformat(timespec="seconds")
+ 306:         state["accounts"][key]["consecutive_failures"] = (
+ 307:             state["accounts"][key].get("consecutive_failures", 0) + 1
+ 308:         )
+ 309:         _save_state(state)
+ 310:         return 1
+ 311: 
+ 312:     if time.monotonic() - start_ts > TICK_BUDGET_SEC:
+ 313:         _log_stderr("Tick budget exhausted before HTTP probe")
+ 314:         return 2
+ 315: 
+ 316:     status_code, body, headers = _probe_anthropic_usage(access_token, probe_only=probe_only)
+ 317: 
+ 318:     if probe_only:
+ 319:         return 0
+ 320: 
+ 321:     record_ts = _iso_now()
+ 322:     state["accounts"].setdefault(key, {})
+ 323:     rec = state["accounts"][key]
+ 324:     rec["last_probe_ts"] = record_ts
+ 325:     rec["last_status_code"] = status_code
+ 326: 
+ 327:     if status_code == 200:
+ 328:         five_hour, seven_day, limit_type = _normalize_anthropic_response(body)
+ 329:         if five_hour is None or seven_day is None:
+ 330:             _log_stderr(f"Parse failed for {key}; body keys: {list(body.keys())[:5]}")
+ 331:             jsonl_record = {
+ 332:                 "ts": record_ts, "account": key, "status_code": 200,
+ 333:                 "error_class": "parse_failure", "five_hour": None,
+ 334:                 "seven_day": None, "limit_type": None, "retry_after": None,
+ 335:             }
+ 336:             rec["consecutive_failures"] = rec.get("consecutive_failures", 0) + 1
+ 337:             rec["retry_after_unblock_ts"] = (
+ 338:                 now + timedelta(seconds=API_FAILURE_COOLDOWN_SEC)
+ 339:             ).isoformat(timespec="seconds")
+ 340:         else:
+ 341:             jsonl_record = {
+ 342:                 "ts": record_ts, "account": key, "status_code": 200,
+ 343:                 "five_hour": five_hour, "seven_day": seven_day,
+ 344:                 "limit_type": limit_type, "error_class": None, "retry_after": None,
+ 345:             }
+ 346:             rec["consecutive_failures"] = 0
+ 347:             rec["last_five_hour_pct"] = five_hour["utilization"]
+ 348:             rec["last_seven_day_pct"] = seven_day["utilization"]
+ 349:             rec["retry_after_unblock_ts"] = (
+ 350:                 now + timedelta(seconds=ACCOUNT_COOLDOWN_SEC)
+ 351:             ).isoformat(timespec="seconds")
+ 352:         _append_jsonl(JSONL_FILE, jsonl_record)
+ 353:         print(json.dumps({
+ 354:             "ok": jsonl_record["error_class"] is None,
+ 355:             "account": key, "ts": record_ts, "status_code": 200,
+ 356:             "five_hour_pct": (five_hour or {}).get("utilization") if five_hour else None,
+ 357:             "seven_day_pct": (seven_day or {}).get("utilization") if seven_day else None,
+ 358:             "limit_type": limit_type,
+ 359:         }))
+ 360: 
+ 361:     elif status_code == 429:
+ 362:         retry_after = _parse_retry_after(headers, default_sec=ACCOUNT_COOLDOWN_SEC)
+ 363:         unblock = now + timedelta(seconds=retry_after)
+ 364:         rec["retry_after_unblock_ts"] = unblock.isoformat(timespec="seconds")
+ 365:         rec["consecutive_failures"] = 0
+ 366:         sibling_unblock = now + timedelta(seconds=SIBLING_COOLDOWN_SEC)
+ 367:         _propagate_sibling_cooldown(state, sibling_unblock)
+ 368:         jsonl_record = {
+ 369:             "ts": record_ts, "account": key, "status_code": 429,
+ 370:             "five_hour": None, "seven_day": None, "limit_type": None,
+ 371:             "error_class": "rate_limit_error", "retry_after": retry_after,
+ 372:         }
+ 373:         _append_jsonl(JSONL_FILE, jsonl_record)
+ 374:         _log_stderr(f"429 for {key}; retry-after={retry_after}s; sibling-cooldown={SIBLING_COOLDOWN_SEC}s")
+ 375:         print(json.dumps({
+ 376:             "ok": False, "account": key, "ts": record_ts,
+ 377:             "status_code": 429, "retry_after": retry_after,
+ 378:         }))
+ 379: 
+ 380:     elif status_code in (401, 403):
+ 381:         rec["last_auth_fail_ts"] = record_ts
+ 382:         rec["consecutive_failures"] = rec.get("consecutive_failures", 0) + 1
+ 383:         rec["retry_after_unblock_ts"] = (
+ 384:             now + timedelta(seconds=ACCOUNT_COOLDOWN_SEC * 6)
+ 385:         ).isoformat(timespec="seconds")
+ 386:         jsonl_record = {
+ 387:             "ts": record_ts, "account": key, "status_code": status_code,
+ 388:             "five_hour": None, "seven_day": None, "limit_type": None,
+ 389:             "error_class": "auth_failure", "retry_after": None,
+ 390:         }
+ 391:         _append_jsonl(JSONL_FILE, jsonl_record)
+ 392:         _log_stderr(f"AUTH FAIL {status_code} for {key}; cooling down 6h")
+ 393:         print(json.dumps({
+ 394:             "ok": False, "account": key, "ts": record_ts,
+ 395:             "status_code": status_code, "error_class": "auth_failure",
+ 396:         }))
+ 397:         _save_state(state)
+ 398:         return 3
+ 399: 
+ 400:     else:
+ 401:         rec["consecutive_failures"] = rec.get("consecutive_failures", 0) + 1
+ 402:         rec["retry_after_unblock_ts"] = (
+ 403:             now + timedelta(seconds=API_FAILURE_COOLDOWN_SEC)
+ 404:         ).isoformat(timespec="seconds")
+ 405:         jsonl_record = {
+ 406:             "ts": record_ts, "account": key, "status_code": status_code,
+ 407:             "five_hour": None, "seven_day": None, "limit_type": None,
+ 408:             "error_class": "other" if status_code > 0 else "network_error",
+ 409:             "retry_after": None,
+ 410:         }
+ 411:         _append_jsonl(JSONL_FILE, jsonl_record)
+ 412:         _log_stderr(f"Probe failed for {key}: status={status_code}")
+ 413:         print(json.dumps({
+ 414:             "ok": False, "account": key, "ts": record_ts,
+ 415:             "status_code": status_code,
+ 416:             "error_class": jsonl_record["error_class"],
+ 417:         }))
+ 418: 
+ 419:     _save_state(state)
+ 420:     return 0
+ 421: 
+ 422: 
+ 423: def _run_daemon() -> int:
+ 424:     _log_stderr(f"Daemon mode start; stagger={STAGGER_INTERVAL_SEC}s")
+
+ succeeded in 505ms:
+ 423: def _run_daemon() -> int:
+ 424:     _log_stderr(f"Daemon mode start; stagger={STAGGER_INTERVAL_SEC}s")
+ 425:     try:
+ 426:         while True:
+ 427:             try:
+ 428:                 _run_tick(probe_only=False)
+ 429:             except Exception as e:  # noqa: BLE001 — daemon must survive any tick failure
+ 430:                 _log_stderr(f"Tick exception (continuing): {type(e).__name__}: {e}")
+ 431:             time.sleep(STAGGER_INTERVAL_SEC)
+ 432:     except KeyboardInterrupt:
+ 433:         _log_stderr("Daemon interrupted")
+ 434:         return 0
+ 435: 
+ 436: 
+ 437: def main(argv: Optional[list[str]] = None) -> int:
+ 438:     parser = argparse.ArgumentParser(
+ 439:         prog="cpa_oauth_quota_poller",
+ 440:         description=(
+ 441:             "Per-account Anthropic OAuth /api/oauth/usage poller. "
+ 442:             "Respects 1-call/hour Anthropic rate limit via staggered round-robin."
+ 443:         ),
+ 444:     )
+ 445:     mode = parser.add_mutually_exclusive_group(required=True)
+ 446:     mode.add_argument("--tick", action="store_true",
+ 447:                       help="Single tick (probe ONE eligible account then exit).")
+ 448:     mode.add_argument("--daemon", action="store_true",
+ 449:                       help="Daemon mode (loop with 7.5min stagger).")
+ 450:     mode.add_argument("--probe-only", action="store_true",
+ 451:                       help="Dry-run: emit request payload structure without firing HTTP.")
+ 452:     args = parser.parse_args(argv)
+ 453: 
+ 454:     STATE_DIR.mkdir(parents=True, exist_ok=True)
+ 455: 
+ 456:     if args.probe_only:
+ 457:         return _run_tick(probe_only=True)
+ 458:     if args.tick:
+ 459:         return _run_tick(probe_only=False)
+ 460:     if args.daemon:
+ 461:         return _run_daemon()
+ 462:     return 0
+ 463: 
+
+codex
+I found one substantive issue: the 429 sibling cooldown only updates account records that already exist in state, so a never-probed sibling can be selected immediately after a 429. That is a direct mismatch with Aperant’s “family” cooldown behavior and needs a small fix before autonomous use.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "python - <<'PY'
+import importlib.util
+from pathlib import Path
+p = Path('scripts/cpa_oauth_quota_poller.py')
+spec = importlib.util.spec_from_file_location('poller', p)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+for body in [
+    {'five_hour': {'utilization': 56, 'resets_at': 'a'}, 'seven_day': {'utilization': 45, 'resets_at': 'b'}},
+    {'five_hour_utilization': 0.56, 'five_hour_reset_at': 'a', 'seven_day_utilization': 0.45, 'seven_day_reset_at': 'b'},
+]:
+    print(m._normalize_anthropic_response(body))
+print(m._parse_retry_after({'Retry-After': '120'}))
+print(m._parse_retry_after({'Retry-After': 'Wed, 21 Oct 2030 07:28:00 GMT'}) > 60)
+PY" in Z:\claude-sota-installed
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'python -m py_compile scripts/cpa_oauth_quota_poller.py' in Z:\claude-sota-installed
+2026-05-14T03:53:14.413446Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.6 seconds
+Output:
+[WinError 5] Access is denied: 'scripts\\__pycache__\\cpa_oauth_quota_poller.cpython-314.pyc.1904207190416' -> 'scripts\\__pycache__\\cpa_oauth_quota_poller.cpython-314.pyc'
+ exited 1 in 565ms:
+[WinError 5] Access is denied: 'scripts\\__pycache__\\cpa_oauth_quota_poller.cpython-314.pyc.1904207190416' -> 'scripts\\__pycache__\\cpa_oauth_quota_poller.cpython-314.pyc'
+2026-05-14T03:53:14.430298Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.6 seconds
+Output:
+[31;1mParserError: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m python - <[36;1m<[0m'PY'[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m           ~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mMissing file specification after redirection operator.[0m
+
+ exited 1 in 580ms:
+[31;1mParserError: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m python - <[36;1m<[0m'PY'[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m           ~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mMissing file specification after redirection operator.[0m
+
+codex
+One verification command used Bash-style heredoc syntax under PowerShell and failed before running; I’m rerunning the same checks in PowerShell-compatible form. The bytecode compile also hit a local `__pycache__` permission error, so I’m avoiding writes and using import-time checks only.
+exec
+"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "python -B -c \"import importlib.util, pathlib; p=pathlib.Path('scripts/cpa_oauth_quota_poller.py'); spec=importlib.util.spec_from_file_location('poller', p); m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m); bodies=[{'five_hour': {'utilization': 56, 'resets_at': 'a'}, 'seven_day': {'utilization': 45, 'resets_at': 'b'}}, {'five_hour_utilization': 0.56, 'five_hour_reset_at': 'a', 'seven_day_utilization': 0.45, 'seven_day_reset_at': 'b'}]; [print(m._normalize_anthropic_response(b)) for b in bodies]; print(m._parse_retry_after({'Retry-After': '120'})); print(m._parse_retry_after({'Retry-After': 'Wed, 21 Oct 2030 07:28:00 GMT'}) > 60)\"" in Z:\claude-sota-installed
+ succeeded in 571ms:
+({'utilization': 56, 'resets_at': 'a'}, {'utilization': 45, 'resets_at': 'b'}, 'session')
+({'utilization': 56, 'resets_at': 'a'}, {'utilization': 45, 'resets_at': 'b'}, 'session')
+120
+True
+
+codex
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "findings": [
+    {
+      "id": "F-01",
+      "severity": "P1",
+      "axis": 2,
+      "claim": "Cross-sibling 10min cooldown does not propagate to never-seen accounts, so a 429 can be followed immediately by probing another sibling credential.",
+      "evidence": "Aperant L2200-2216 applies cooldown to the full profile family. Current script only iterates state[\"accounts\"].values() at scripts/cpa_oauth_quota_poller.py:275-281. Accounts absent from state are not mutated, and _select_account_for_tick treats absent records as eligible at scripts/cpa_oauth_quota_poller.py:145-156. The 429 path calls propagation at line 367 after only the selected account is guaranteed to exist."
+    }
+  ],
+  "prescribed_edits": [
+    {
+      "target": "scripts/cpa_oauth_quota_poller.py:_propagate_sibling_cooldown",
+      "edit": "Change the function to accept the discovered accounts list, iterate those paths, derive each key with _account_key(auth_path), and use state[\"accounts\"].setdefault(key, {}) before setting retry_after_unblock_ts. Preserve the existing max(existing, sibling_unblock_ts) behavior so the selected account's longer Retry-After is not shortened."
+    },
+    {
+      "target": "scripts/cpa_oauth_quota_poller.py:367",
+      "edit": "Call _propagate_sibling_cooldown(state, accounts, sibling_unblock) instead of only passing state and sibling_unblock."
+    }
+  ]
+}
+tokens used
+54,886
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.91,
+  "findings": [
+    {
+      "id": "F-01",
+      "severity": "P1",
+      "axis": 2,
+      "claim": "Cross-sibling 10min cooldown does not propagate to never-seen accounts, so a 429 can be followed immediately by probing another sibling credential.",
+      "evidence": "Aperant L2200-2216 applies cooldown to the full profile family. Current script only iterates state[\"accounts\"].values() at scripts/cpa_oauth_quota_poller.py:275-281. Accounts absent from state are not mutated, and _select_account_for_tick treats absent records as eligible at scripts/cpa_oauth_quota_poller.py:145-156. The 429 path calls propagation at line 367 after only the selected account is guaranteed to exist."
+    }
+  ],
+  "prescribed_edits": [
+    {
+      "target": "scripts/cpa_oauth_quota_poller.py:_propagate_sibling_cooldown",
+      "edit": "Change the function to accept the discovered accounts list, iterate those paths, derive each key with _account_key(auth_path), and use state[\"accounts\"].setdefault(key, {}) before setting retry_after_unblock_ts. Preserve the existing max(existing, sibling_unblock_ts) behavior so the selected account's longer Retry-After is not shortened."
+    },
+    {
+      "target": "scripts/cpa_oauth_quota_poller.py:367",
+      "edit": "Call _propagate_sibling_cooldown(state, accounts, sibling_unblock) instead of only passing state and sibling_unblock."
+    }
+  ]
+}

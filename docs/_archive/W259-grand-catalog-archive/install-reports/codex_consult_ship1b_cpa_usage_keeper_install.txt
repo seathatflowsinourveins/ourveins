@@ -1,0 +1,81 @@
+You are GPT-5.5 reviewing a pre-commit Ship 1B install plan for cpa-usage-keeper v1.5.2 in the eee runtime.
+
+CONTEXT
+- Wave 80 closed with HONEST-NON-FINDING: per-account observability is the real eee architectural gap (eee cannot detect when round-robin starts destroying cache locality on a single account; capacity_score data is 10-day stale; 3/7 accounts have score=0 or missing)
+- Wave 81 cardinal-rule-10 research-first surfaced: CLIProxyAPI README documents an OFFICIAL ECOSYSTEM of monitoring tools — picked Willxup/cpa-usage-keeper (382★ MIT Go, pushed today, v1.5.2 released 2026-05-07T20:02:39Z)
+- This is install-class via cardinal-rule-6 official-native-channel (`gh release download`); per CR-12 step 1 PRIMARY upstream-install path satisfied (no cite-import-AMBER fallback needed)
+
+SHIP 1B SCOPE (install-only; wire deferred to Ship 1C)
+
+EDIT 1: Download + extract
+  cd Z:/claude-sota-installed/.local
+  gh release download v1.5.2 --repo Willxup/cpa-usage-keeper --pattern 'cpa-usage-keeper_v1.5.2_windows_amd64.zip' --dir .local/cpa-usage-keeper/
+  cd .local/cpa-usage-keeper/
+  unzip cpa-usage-keeper_v1.5.2_windows_amd64.zip
+  # Resulting binary: cpa-usage-keeper.exe (likely at top-level of zip)
+
+EDIT 2: Smoke probe binary
+  ./cpa-usage-keeper.exe --help (expect non-error exit + version banner)
+  ./cpa-usage-keeper.exe --version (expect v1.5.2)
+
+EDIT 3: Create .env config (file: Z:/claude-sota-installed/.local/cpa-usage-keeper/.env)
+  CPA_BASE_URL=http://127.0.0.1:8317
+  CPA_MANAGEMENT_KEY=<read from Z:/claude-sota-installed-state/cliproxy-mgmt-secret.txt>
+  (gitignored at .local/.env per existing .gitignore .local/ rule — verify)
+
+EDIT 4: docs/sota-installed-manifest.md
+  Add Section 17 row OR Section 4.5 row: cpa-usage-keeper v1.5.2 INSTALLED-VIA-GH-RELEASE-DOWNLOAD smoke-probe PASS.
+  CR-8 status: ADAPTED-FROM-SOTA (cite to https://github.com/Willxup/cpa-usage-keeper README).
+  CR-9 status: pinned v1.5.2 (NOT @latest); release SHA from gh release download verifiable.
+
+EDIT 5: docs/install-provenance.md
+  Append Wave 81 Ship 1B entry with:
+  - GPT-5.5 e2e review verdict path
+  - Ship scope (install-only; wire deferred)
+  - Smoke-probe outcome
+  - cardinal-rule-9 risk assessment
+
+NOT IN SHIP 1B (deferred to Ship 1C)
+- Integration into tools/eee.ps1 startup orchestration (wire phase)
+- .mcp.json entry (this is NOT an MCP server — it's a sidecar HTTP service consuming Redis)
+- Web Dashboard wire to ANTHROPIC_BASE_URL or ccusage statusline integration
+- Cache-key migration of existing 95.6% baseline ccusage data into the new SQLite
+
+KEY DESIGN DECISIONS (please verify)
+1. Install-only first, wire second (F-A.1 "ship one tool at a time" discipline)
+2. Pin v1.5.2 (not @latest) — CR-9 install-risk explicit pin
+3. Use gh release download (NOT npm/uvx/cargo) since this is Go binary released via GitHub
+4. Place at .local/cpa-usage-keeper/ (NOT .local/bin/) since it's a sidecar service with web UI + .env config + SQLite db, not a single CLI binary
+5. .env contains CPA_MANAGEMENT_KEY (sensitive) — verify .local/ is gitignored
+6. Smoke probe validates binary works without firing actual sync (no Redis writes; no API calls to Anthropic)
+
+REVIEW AXES
+
+AXIS 1 — CR-9 install-risk discipline
+- Is `gh release download v1.5.2` adequate version-pin? Should we capture the release tag SHA?
+- Is .env separation correct (gitignored, not in repo)?
+- Is .local/cpa-usage-keeper/ the right install location (vs .local/bin/cpa-usage-keeper.exe alone)?
+
+AXIS 2 — Ship scope appropriateness
+- Is install-only (no wire) the right Ship 1B scope, or should wire-to-eee.ps1 be in same ship?
+- F-A.1 discipline says one-tool-at-a-time; cpa-usage-keeper is one tool but install + wire are 2 distinct semantic layers — split correct?
+
+AXIS 3 — CR-12 upstream-install-priority verification
+- Is Willxup/cpa-usage-keeper the canonical upstream? Or is there a more authoritative Anthropic/CLIProxyAPI-org-maintained alternative?
+- README says "Standalone persistence and visualization service for CLIProxyAPI" — language suggests it's third-party but ecosystem-blessed (linked from CLIProxyAPI README).
+- Per cardinal-rule-12 step 1 PRIMARY: official-native-channel via gh release ✓; CR-12 not blocked.
+
+AXIS 4 — Smoke-probe coverage
+- Is `--help` + `--version` enough smoke before commit?
+- Should Ship 1B include a "no-op dry-run sync" probe (binary connects to Redis + Mgmt API, reads zero events, exits cleanly)?
+- F-C.4 mandate (from Ship 1A): version + fixture + real CC request through proxy + ccusage visibility + rollback. Adapted to Ship 1B install-only: version-check + .env-validation + (optional) dry-run-sync + rollback.
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-4,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

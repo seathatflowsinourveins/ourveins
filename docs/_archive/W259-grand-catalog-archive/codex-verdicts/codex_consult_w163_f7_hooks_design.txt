@@ -1,0 +1,53 @@
+# W163 F7 Path P codex T1 — verify advanced-automation hooks design
+
+## Scope (focused codification audit per ctff-patterns-cd §Pattern D + Forward Discipline #2)
+
+Verify the design doc at `docs/advanced-automation-hooks-design.md` proposing 7 NEW hooks for advanced automation. DO NOT explore broader historical fire context. Target budget 60-120s.
+
+## Design summary (full doc at docs/advanced-automation-hooks-design.md)
+
+Identified 7 hook gaps in current 28-script / 17-registered hook surface:
+1. `memory_persist_post_commit_hook.py` — PostToolUse Bash(git commit *) async 30s → auto graphiti+mcp-memory store per commit
+2. `memory_md_layer2_auto_index_hook.py` — PostToolUse Write|Edit on memory/reference_*.md sync 5s → auto-append MEMORY.md pointer
+3. `codex_t1_pattern_a_queue_hook.py` — fs-watch on codex T1 OUT files async → auto-queue Pattern A apply candidates
+4. `goal_paste_ready_freshness_hook.py` — SessionStart + UserPromptSubmit sync 3s → surface stale-goal warning
+5. `fm02_atomic_narrow_enforce_hook.py` — PreToolUse Bash(git commit *) sync 2s → require `--only` form under parallel-session count ≥2
+6. `sota_convergence_audit_auto_trigger_hook.py` — UserPromptSubmit sync 3s → detect new SOTA repo mentions
+7. `cron_freshness_monitor_hook.py` — SessionStart sync 5s → probe CronList staleness per FM-21
+
+Ship strategy: per cycle-300 ONE-UNIT-PER-FIRE — F7 ships design doc only; F8-F12 ship 1 hook each as PA cycle. F8 = Hook #2 (smallest scope ~100 LOC); F9 = Hook #1; F10 = Hook #5; F11 = Hook #4; F12+ = Hooks #3, #6, #7.
+
+## Audit dimensions
+
+1. **Hook event/matcher correctness** — Are PostToolUse `Bash` + `if: "Bash(git commit *)"` matchers correctly specified per Anthropic CC hooks docs? Per `if` clause semantics (https://code.claude.com/docs/en/hooks)? Is Write|Edit + path-filter the right pattern for Hook #2? Is fs-watch approach for Hook #3 feasible given Anthropic CC hook subprocess model (no fs-watch primitive built-in)?
+
+2. **Cite-class lattice correctness** — Does `constituents=[TIER-1-DIRECT @ Anthropic CC hooks docs + claude-agent-sdk-python b512f256 HookInput, TIER-1-DIRECT @ existing eee hooks, TIER-2 @ 7 sister-rule cites, TIER-3-LOCAL-OPERATOR-DERIVED @ /goal P0-P6 mandates]; effective_tier=TIER-3-LOCAL-COMPOSITION per rule #8 MIN_PRECEDENCE` correctly classify per citation-discipline.md rule #8?
+
+3. **Sister-rule integration soundness** — Are the 8 sister-rule cites (layered-gates-architecture.md / audit-action-loop.md / codex-t1-fix-forward-pattern.md / mia-pre-apply.md / parallel-session-worktree-isolation.md / fm21-queue-time-prompt-freeze.md / karpathy-adapted.md / cross-model-consensus.md) load-bearing for the design OR cite-decoration?
+
+4. **Ship strategy feasibility** — Is F8-F12 5-fire roll-out realistic given cap-25 remaining? Each hook ships under Pattern A: codex T1 NEEDS-REVISION → ≤10 prescribed → Mia n=200+ → FM-02 atomic narrow + tests/test_<hook>_security.py per layered-gates-architecture.md §9 DENY-emit HARD GATE.
+
+5. **Anti-pattern coverage** — Are the 5 anti-patterns (skip-T1 / MCP-direct-call / unpinned-@latest / sync-on-slow / no-fail-open) sufficient? Missing any?
+
+6. **Forward usability** — Would future operators (or me in future fires) correctly apply this design? Are the hook responsibilities cleanly partitioned (no overlap with existing 28 scripts)? Particularly: does Hook #1 overlap with existing codex_postcommit_review.py? Does Hook #2 overlap with audit-action-loop.md JSONL discipline? Does Hook #4 overlap with auto_proceed_gate or codex_stuck_detector?
+
+## Verdict shape (JSON-strict at EOF — neutral framing)
+
+Respond at EOF with single JSON object (APPROVE when clean, NEEDS-REVISION only when concrete text refinements required, REJECT only when fundamentally unsound):
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "dim_1_hook_event_matcher_correctness": "VERIFIED | REFUTED | PARTIAL",
+  "dim_2_cite_class_lattice": "VERIFIED | REFUTED | PARTIAL",
+  "dim_3_sister_rule_integration": "VERIFIED | REFUTED | PARTIAL",
+  "dim_4_ship_strategy_feasibility": "VERIFIED | REFUTED | PARTIAL",
+  "dim_5_anti_pattern_coverage": "VERIFIED | REFUTED | PARTIAL",
+  "dim_6_forward_usability": "VERIFIED | REFUTED | PARTIAL",
+  "prescribed_edits": [],
+  "rationale": "2-3 sentence summary"
+}
+```
+
+Be adversarial. Be thorough. No compliments — just the verdict.

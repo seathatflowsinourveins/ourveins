@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# W259-v9 P1-UNLEASH — REAL Promptfoo eval suite for the L4 cadence.
+# Reference: docs/architecture/W259-grand-catalog/07-final-synthesis/CC-DIMENSIONS-UNLEASHED-W259v7.md
+#   §4 U7 — "Host the W259 L4 eval cadence (Inspect AI + Promptfoo)".
+# Reference: promptfoo official config schema — Z:/claude-sota-installed-repos/promptfoo-promptfoo
+#   (examples/getting-started/promptfooconfig.yaml + docs/configuration/guide).
+#
+# This is a SMALL but GENUINE eval suite — it is run by `promptfoo eval --output <file.json>`
+# from harness/eval_harness.py `run_promptfoo_lane()`, which parses the resulting
+# OutputFile JSON (results.results[] -> success/score/cost) into harness eval rows.
+#
+# PROVIDER CHOICE: `openai:chat:gpt-5.4-mini` — the runtime has a working OPENAI_API_KEY in
+# the environment; the Anthropic provider would need ANTHROPIC_API_KEY (the runtime only
+# carries ANTHROPIC_AUTH_TOKEN for the proxy, which the promptfoo anthropic provider does
+# not read). gpt-5.4-mini is a low-cost model — the whole suite is 2 cheap cases.
+#
+# ASSERTIONS are deterministic NON-LLM types only (contains / icontains / is-json /
+# is-valid-openai-tools-call-style equals) so the suite needs no grader model and is
+# cheap + reproducible. Cost ceilings are enforced per case via the `cost` assertion.
+
+description: "claude-sota-installed L4 eval cadence — real promptfoo smoke suite (W259-v9)"
+
+prompts:
+  - "{{task}}"
+
+providers:
+  - id: openai:chat:gpt-5.4-mini
+    config:
+      max_tokens: 256
+      temperature: 0
+
+tests:
+  # Case 1 — instruction-following: produce exactly a known token.
+  - description: "exact-token-echo"
+    vars:
+      task: "Reply with exactly the single word OK and nothing else. No punctuation."
+    assert:
+      - type: icontains
+        value: "OK"
+      - type: cost
+        threshold: 0.01   # per-case USD ceiling — keeps the lane cheap
+
+  # Case 2 — structured-output: emit a small valid JSON object.
+  - description: "json-object-emit"
+    vars:
+      task: >
+        Output ONLY a JSON object (no markdown fences, no prose) with exactly two keys:
+        "status" set to the string "ok" and "count" set to the number 3.
+    assert:
+      - type: is-json
+      - type: contains
+        value: '"status"'
+      - type: cost
+        threshold: 0.01

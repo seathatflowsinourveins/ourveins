@@ -1,0 +1,61 @@
+ROLE: cross-model T1 reviewer (REAL GPT-5.5 BRIDGE-MODE foreground+tee per cross-model-consensus.md §"On codex unavailable" Path P). Phase 1 bootstrap exception per CLAUDE.md cardinal-rule-3. FM-17.f blocks BRIDGE-MODE Agent() subagent dispatch under [1m] parent — Path P (orchestrator-side codex exec) is the sanctioned route.
+
+CONTEXT: Wave 121 SHIP A0-FP-FIX-V2 round-2 enrichment to process_hygiene_audit.py — closes 2nd FALSE-POSITIVE class caught on codex-plugin-cc app-server-broker.mjs PID 70384 (named-pipe IPC daemon NOT TCP, so V1 port-LISTEN exemption MISSED it). FM-process-hygiene-false-positive-on-detached-daemon n=2 evidence ladder advance.
+
+Per CR-10 research-first probed:
+- Path A: Anthropic CC + ECC marketplaces — NO process-hygiene named-pipe-daemon detector skill
+- Path B HONEST-NON-FINDING: sibling Z:/claude-sota/tools/process_hygiene_audit.py has SAME blind-spot (no daemon-allowlist mechanism for named-pipe IPC)
+- Path A localized enrichment: argv-marker + on-disk PID-file content match per codex T1 W121 SHIP A0-FP-FIX AXIS-2 explicit guidance ("should be handled by explicit allowlist, not broad ESTABLISHED exemption")
+
+EDIT APPLIED (uncommitted, retroactive T1 per discipline):
+- File: Z:/claude-sota-installed/tools/process_hygiene_audit.py
+- Change 1: list_processes_with_parent() Get-CimInstance query extended from "Name, ProcessId, ParentProcessId, CreationDate" to "Name, ProcessId, ParentProcessId, CreationDate, CommandLine" (line 62-66) + cmdline field added to returned dict (line 104)
+- Change 2: NEW is_pidfile_daemon(pid, cmdline) function (lines 144-170) — detects --pid-file argv marker AND verifies on-disk PID-file content == this PID (precise: rejects unrelated mentions of --pid-file in argv text)
+- Change 3: NEW is_namedpipe_daemon(cmdline) function (lines 172-187) — detects Win32 named-pipe argv pattern `pipe:\\.\pipe\<name>` OR `\\.\pipe\<name>`
+- Change 4: find_reap_candidates() now calls is_pidfile_daemon() and is_namedpipe_daemon() AFTER port-LISTEN exemption (preserves audit-trail order: target-name → age → dead-parent → port-LISTEN → PID-file → named-pipe)
+
+Empirical evidence (this fire):
+- codex-plugin-cc app-server-broker.mjs PID 70384: parent_pid=DEAD, age=1.5h, name=node.exe, cmdline contains BOTH `--pid-file C:/Users/42/AppData/Local/Temp/cxc-FiuO6B/broker.pid` AND `pipe:\\.\pipe\cxc-FiuO6B-codex-app-server`
+- broker.pid file alive at C:/Users/42/AppData/Local/Temp/cxc-FiuO6B/broker.pid (6 bytes; content = "70384")
+- POST-V2 smoke probe (--target-names "codex.exe,node.exe" --min-age-hours 0): PID 70384 EXEMPT (was in V1 candidate list per Monitor event "[zombie-watcher 13:16:03] NEW orphan(s): cur=1 prev=0"; absent from V2 output)
+- V2 candidates: PID 72744 only (different node.exe; age 0.0h fresh-spawn — likely still-initializing)
+
+REVIEW AXES (TIGHT — ≤120s budget):
+
+AXIS-1 — Cite admissibility:
+  Is the constituents/effective_tier mapping correct?
+    constituents=[
+      TIER-1-DIRECT @ Microsoft NetTCPIP Get-NetTCPConnection https://learn.microsoft.com/powershell/module/nettcpip/get-nettcpconnection (port-LISTEN, prior fire-3),
+      TIER-1-DIRECT @ codex-plugin-cc app-server-broker.mjs argv-marker observed at Z:/claude-sota-installed/.claude/plugins/cache/openai-codex/codex/1.0.4/scripts/app-server-broker.mjs (named-pipe + PID-file convention),
+      TIER-3-LOCAL-COMPOSITION @ argv-regex + on-disk-PID-file content-match allowlist
+    ]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline.md rule #8 lattice.
+  Is this satisfactory cite-trail per CR-1 + CR-8?
+
+AXIS-2 — Mechanism correctness for is_pidfile_daemon():
+  - Regex `r"--pid-file[=\s]+([^\s]+)"` — correct for `--pid-file PATH` AND `--pid-file=PATH` forms?
+  - Edge cases:
+    (a) PID-file path contains spaces → regex `[^\s]+` STOPS at first space (would miss path "C:/Program Files/...")
+    (b) PID-file content has leading/trailing whitespace → handled via `.strip()`
+    (c) PID-file content has trailing newline → handled via `.strip()`
+    (d) PID-file content is multi-line (e.g., PID + boot-time) → ONLY first line used? Actually `.strip()` keeps internal newlines; `content == str(pid)` would fail. Should use `content.split("\n")[0].strip()` for robust parsing?
+    (e) Stale PID-file (old daemon dead, new process at same PID) → content == str(pid) catches this if PID happens to match (RARE accidental-match risk; acceptable per kiss-dry-yagni)
+    (f) PID-file unreadable (permission) → caught by `except OSError` returning False (safe-default: NOT exempt → reap proceeds)
+
+AXIS-3 — Mechanism correctness for is_namedpipe_daemon():
+  - Regex `r"(pipe:)?\\\\\.\\pipe\\"` — escaping: 4 backslashes in raw-string source → 2 backslashes in pattern → matches literal `\\` in input
+  - Empirical match: cmdline contains literal `pipe:\\.\pipe\cxc-FiuO6B-codex-app-server`
+  - Edge cases:
+    (a) Cmdline-args may quote pipe path (e.g., `"pipe:\\.\pipe\foo"`) → regex matches inside quotes too (no `^` or `\b` anchor)
+    (b) UNIX socket pattern `unix:/tmp/foo.sock` — NOT matched (intentional; sss is Windows-only per platform check at line 60-61)
+    (c) Substring false-positive risk: argv with literal text `\\.\pipe\` in unrelated context (very low — Win32 path conventions reserve `\\.\` for device namespace)
+
+AXIS-4 — Pattern A correctness + exemption-precedence:
+  - Order: target-name-match → age-check → dead-parent-check → port-LISTEN → PID-file → named-pipe (current order)
+  - Alternative: bundle all 3 daemon-discriminators after dead-parent-check (current); OR exit-early on FIRST exemption (currently uses `continue`, which IS exit-early)
+  - Per W121 SHIP A0-FP-FIX AXIS-3 ratification: "exempt-after-parent-check ordering correct" — preserves audit-trail visibility into "would have reaped but exempted" if logging added later
+
+OUTPUT_BUDGET: 200 LOC
+
+VERDICT SHAPE per cross-model-consensus.md §Verdict shapes:
+  APPROVE | NEEDS-REVISION conf=<0.85-0.95> + prescribed_edits | REJECT
+  + ONE-LINE: "[VERIFIED via TIER-1 cite] <approach correct/needs adjust>"

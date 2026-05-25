@@ -1,0 +1,81 @@
+AUDITOR ROLE (V2): perform W155 F40 cross-model AUDIT of docs/sota-installed-manifest.md §Section 17 cwc-long-running-agents primitives (TIER-1 Anthropic OFFICIAL per CLAUDE.md Architecture §17). Verify each of 18 rows against fresh 2026-05-12 state probe.
+
+CONTEXT:
+- W155 F1-F39 all shipped; F39 just closed §Section 3 cached marketplace fan-out cycle at commit `c1886a8`
+- F40 PIVOTS to §Section 17 audit (FIRST section-batch audit in W155; pattern departure from §Section 3 row-by-row inserts)
+- §Section 17 has 18 data rows L106-L123 enumerating cwc-long-running-agents primitives + reference plugins
+- TIER-1 Anthropic OFFICIAL authority: `anthropics/cwc-long-running-agents` repo cloned at HEAD `ffd563d668a97a38d4aa092bf0d5b1507c046629` per `.local/cwc/`
+- AUDIT GOAL: verify each row's (Primitive / Install pattern / Install command / Upstream / Status) cells against FRESH 2026-05-12 state probe; identify any DRIFT, OVERCLAIM, or stale-status claim
+
+§Section 17 18 ROWS (verbatim labels):
+- L106: **Default-FAIL contract** (track-read + verify-gate) — claimed INSTALLED-DORMANT
+- L107: **Fresh-context evaluator subagent** — claimed INSTALLED
+- L108: **PROGRESS.md handoff pattern** — claimed CITE-ONLY
+- L109: **Kill-switch hook** — claimed INSTALLED-DORMANT
+- L110: **Steer mid-run hook** — claimed INSTALLED-DORMANT
+- L111: **commit-on-stop hook** — claimed INSTALLED-DORMANT
+- L112: **CWC PreToolUse hooks ACTIVE-ADAPTED** (kill-switch + steer + track-read + verify-gate) — claimed ACTIVE
+- L113: `agent-sdk-dev` reference plugin — claimed INSTALLED
+- L114: `ralph-loop` reference plugin — claimed status TBD
+- L115: `frontend-design` reference plugin — claimed status TBD
+- L116: `pyright-lsp` plugin — claimed status TBD
+- L117: `clickhouse` plugin — claimed status TBD
+- L118: `outputai` plugin — claimed status TBD
+- L119: `qdrant-skills` plugin — claimed status TBD
+- L120: `cwc-makers` plugin — claimed status TBD
+- L121: `dash0` plugin — claimed status TBD
+- L122: `pigment` plugin — claimed status TBD
+- L123: `zilliz` plugin — claimed status TBD
+
+FRESH 2026-05-12 STATE PROBE (V2 baseline — V3 will independently re-probe):
+(i) cwc clone PROVEN: `Z:/claude-sota-installed/.local/cwc/` exists with 5 entries; HEAD = `ffd563d668a97a38d4aa092bf0d5b1507c046629` (MATCHES manifest claim)
+(ii) cwc .claude/ subdirs PROVEN: agents/ + CLAUDE.md + hooks/ + settings.json (at `.local/cwc/claude-code-config/.claude/`)
+(iii) cwc upstream hooks PROVEN at `.local/cwc/claude-code-config/.claude/hooks/`: commit-on-stop.sh + kill-switch.sh + steer.sh + track-read.sh + verify-gate.sh (5 hooks)
+(iv) cwc upstream agents PROVEN at `.local/cwc/claude-code-config/.claude/agents/`: evaluator.md (1 agent)
+(v) Local installed hooks at `.claude/hooks/scripts/cwc/` PROVEN: commit-on-stop-throttled.sh 2564B + commit-on-stop.sh 767B + kill-switch.sh 400B + steer.sh 768B + track-read.sh 575B + verify-gate.sh 1359B (6 hooks — 5 upstream + 1 LOCAL VARIANT commit-on-stop-throttled.sh)
+(vi) Local installed agents at `.claude/agents/cwc/` PROVEN: cwc-CLAUDE-reference.md 1748B + evaluator.md 1765B (2 agents)
+(vii) Settings.json hooks block has 5 'cwc' string occurrences PROVEN — at least SOME cwc hooks ARE WIRED (challenges manifest "INSTALLED-DORMANT" claims for rows 1/4/5/6 IF those hooks are part of the 5 wired)
+(viii) Plugin status for L113-L123 (11 plugin rows): require fresh probe of `.claude/plugins/cache/` + `.claude/marketplaces/` for `agent-sdk-dev` / `ralph-loop` / `frontend-design` / `pyright-lsp` / `clickhouse` / `outputai` / `qdrant-skills` / `cwc-makers` / `dash0` / `pigment` / `zilliz` plugin installations
+
+WHAT TO PRESCRIBE — V2 OUTPUT FORMAT:
+For each of 18 rows, provide a structured verification verdict:
+- VERIFY-CLEAN: row content matches fresh state probe (status accurate, cite anchor resolvable, install command would still work)
+- NEEDS-CORRECTION: row content has drift; specify exact correction needed (e.g., "row L106 says INSTALLED-DORMANT but hook IS wired in settings.json — should be UPDATED to INSTALLED-ACTIVE-ADAPTED or similar")
+- INSUFFICIENT-PROBE: V2 cannot verify without additional state probe; specify what needs probing
+
+Aggregate verdict:
+- AUDIT-VERIFIED-CLEAN: all 18 rows VERIFY-CLEAN
+- AUDIT-NEEDS-CORRECTION: ≥1 row NEEDS-CORRECTION; list corrections per row
+- AUDIT-INSUFFICIENT: ≥1 row INSUFFICIENT-PROBE; list what's needed
+
+If AUDIT-VERIFIED-CLEAN: design a single trailing attestation line at L124 (immediately after L123 zilliz row) of the form:
+`> §Section 17 AUDIT-ATTESTATION: Wave 155 Fire 40 V2+V3 PARALLEL Path P AUDIT VERIFIED-CLEAN — 18 rows cross-model verified per CR-3 [VERIFIED 2026-05-12]; cite trail .claude/state/codex_consult_w155_f40_section17_audit_{v2,v3_adversarial}_OUT.txt; advances audit coverage 29/272 (10.7%) → 47/272 (17.3%).`
+
+If AUDIT-NEEDS-CORRECTION: list specific row-by-row corrections.
+
+V2 OUTPUT SCHEMA (JSON-strict at EOF):
+{
+  "audit_verdict": "AUDIT-VERIFIED-CLEAN|AUDIT-NEEDS-CORRECTION|AUDIT-INSUFFICIENT",
+  "confidence": 0.NN,
+  "per_row_verdicts": [
+    {"row": "L106 Default-FAIL contract", "verdict": "VERIFY-CLEAN|NEEDS-CORRECTION|INSUFFICIENT-PROBE", "correction_needed": "..."},
+    {"row": "L107 Fresh-context evaluator", "verdict": "...", "correction_needed": "..."},
+    ... (18 rows)
+  ],
+  "drift_signals_detected": ["..."],
+  "wire_status_discrepancies": ["..."],
+  "stale_claims": ["..."],
+  "fabrication_risks_caught": ["..."],
+  "plugin_status_probe_results": [
+    {"plugin": "agent-sdk-dev", "installed": "YES|NO|UNKNOWN", "evidence": "..."},
+    {"plugin": "ralph-loop", "installed": "...", "evidence": "..."},
+    ... (11 plugin rows L113-L123)
+  ],
+  "attestation_text_proposed": "...",
+  "ship_path": "docs/sota-installed-manifest.md L124 single trailing attestation line (single-file ship)",
+  "audit_coverage_advance": "10.7% (29/272) → 17.3% (47/272) projected post-F40 ship",
+  "scope_inclusion_list": ["..."],
+  "scope_exclusion_list": ["..."],
+  "anti_pattern_warnings": ["..."],
+  "risk_class": "LOW|MEDIUM|HIGH"
+}

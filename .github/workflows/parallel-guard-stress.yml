@@ -1,0 +1,100 @@
+## W344 Stream Z6 P3.4 #3 — parallel-guard race stress test
+##
+## Runs tools/test-parallel-guard-race.mjs 100x to surface any race-condition flake
+## in tools/preagent-parallel-guard.mjs (W330 P0-A landed binding-mode). Fails the
+## workflow if any single iteration deviates from expected exit-code distribution.
+##
+## Cite-anchors (3-org-distinct per CR-6):
+## - actions/runner (GitHub Inc) — runner image determinism docs
+## - Node.js Foundation (OpenJS) — node --test runner is stable in v22
+## - github/super-linter — workflow-hardening permissions defaults
+
+name: parallel-guard-stress
+
+on:
+  pull_request:
+    paths:
+      - 'tools/preagent-parallel-guard.mjs'
+      - 'tools/test-parallel-guard-race.mjs'
+      - 'tools/test-parallel-guard-r4-cross-prompt.mjs'
+      - 'tools/parallel-guard-userpromptsubmit.mjs'
+      - '.github/workflows/parallel-guard-stress.yml'
+  schedule:
+    - cron: '0 6 * * 1'   # weekly Monday 06:00 UTC stress
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: parallel-guard-stress-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stress-100x:
+    name: parallel-guard race × 100
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        iteration-batch: [1, 2, 3, 4]   # 4×25 = 100 runs across parallel jobs
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.2.2, 577 days stale)
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node.js v22 LTS
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22.22.0'
+
+      - name: Verify race-test harnesses present
+        run: |
+          for f in tools/test-parallel-guard-race.mjs tools/test-parallel-guard-r4-cross-prompt.mjs tools/preagent-parallel-guard.mjs; do
+            if [ ! -f "$f" ]; then
+              echo "::error::$f not found."
+              echo "Required per W330 P0-A binding-gate + W344 R4 cross-prompt regression coverage."
+              exit 1
+            fi
+          done
+
+      - name: Run R4 cross-prompt regression (codex W344 R5 F5 closure)
+        run: |
+          set -euo pipefail
+          node tools/test-parallel-guard-r4-cross-prompt.mjs 2>&1 | tee r4-cross-prompt.log
+          if ! grep -q 'PASS' r4-cross-prompt.log; then
+            echo "::error::R4 cross-prompt regression FAILED — intentSetTs cutoff broken."
+            exit 2
+          fi
+
+      - name: Run race × 25 iterations
+        id: stress-batch
+        env:
+          BATCH_ID: ${{ matrix.iteration-batch }}
+        run: |
+          set -euo pipefail
+          FAIL_COUNT=0
+          ITER_COUNT=25
+          for i in $(seq 1 "$ITER_COUNT"); do
+            if ! node tools/test-parallel-guard-race.mjs > "race-iter-${BATCH_ID}-${i}.log" 2>&1; then
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              echo "::warning::Race iter ${BATCH_ID}-${i} deviation; see artifact."
+            fi
+          done
+          echo "Batch ${BATCH_ID}: ${FAIL_COUNT}/${ITER_COUNT} deviations"
+          if [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "::error::Race stress test produced ${FAIL_COUNT} deviations."
+            exit 2
+          fi
+
+      - name: Upload race logs on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: race-stress-batch-${{ matrix.iteration-batch }}-logs
+          path: race-iter-*.log
+          retention-days: 14

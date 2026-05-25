@@ -1,0 +1,198 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 9a35c709bbe0c0fe9cd773d027134decc801834d
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../01-corrected-architecture.md                   | 82 ++++++++++++++++++++++
+ 1 file changed, 82 insertions(+)
+
+=== git show --format=fuller ===
+commit 9a35c709bbe0c0fe9cd773d027134decc801834d
+Author:     42 <42@local>
+AuthorDate: Mon May 11 10:27:20 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 10:27:20 2026 -0400
+
+    docs(architecture): Wave 146 Fire 5 — v23-v25 architecture-leverage insights codification (W146-F1 Agent B 3 unique v23-v25 insights NOT yet in 01-corrected-architecture.md → Pattern A apply post codex T1 NEEDS-REVISION conf=0.9 8-prescription FM-20 path-drift cascade catch n=15→n=16)
+    
+    Per Wave 146 Fire 5 Path P codex T1 REAL GPT-5.5 verdict (bg `bhri1wqx4` 165s
+    wall-clock 143K tokens; JSON EOF NEEDS-REVISION conf=0.9 8 prescribed_edits;
+    ship_readiness=NEEDS-PATTERN-A) [VERIFIED via .claude/state/codex_consult_w146_f5_v23_v25_insights_codification_OUT.txt
+    JSON EOF L6646-6692]: 3 v23-v25 architecture-leverage insights (sourced from
+    W146-F1 Agent B sota-researcher Probe DAG 1-4 deliverable; verbatim text from
+    docs/outer research/kits/v25/WHAT_WAS_NOT_COVERED_AND_CLOSED.md:5-24) codified
+    as new section appended at L228 of 01-corrected-architecture.md (+82 LOC; new
+    total 309 LOC) via Pattern A 8-edit single-atomic ship.
+    
+    ## FM-20 path-drift cascade catch n=15→n=16 (synthesis-vs-brief boundary save)
+    
+    Codex T1 caught path-drift in my Wave 146 Fire 1 Agent B-derived draft BEFORE
+    Edit landed:
+    - **OVER claim**: my draft cited source path `Z:/repos/deps/outer-research-kits/v25/...`
+      + attributed Insights #1+#2 to `CODEX_PLUGIN_CC_WORKFLOW.md` (Agent B's
+      slightly-imprecise attribution propagated into my draft)
+    - **Mia probe truth**: actual location is `docs/outer research/kits/v25/`
+      (with space; outer research dir at workspace root), and ALL 3 insights live
+      in SAME file `WHAT_WAS_NOT_COVERED_AND_CLOSED.md:5-24` per direct probe
+    - **Recovery (Pattern A 8-edit apply integrated this commit)**:
+      - E1: cite path corrected to local v25 mirror `docs/outer research/kits/v25/WHAT_WAS_NOT_COVERED_AND_CLOSED.md:5-24`
+      - E2: Insight #1 source `CODEX_PLUGIN_CC_WORKFLOW.md` → `WHAT_WAS_NOT_COVERED_AND_CLOSED.md:18-20`
+      - E3: Insight #2 source `CODEX_PLUGIN_CC_WORKFLOW.md > 3...` → `WHAT_WAS_NOT_COVERED_AND_CLOSED.md:22-24` + verbatim quote replaced with actual v25 text + "DISCOVERY-ONLY" labeled as Agent B/eee synthesis (NOT v25 verbatim)
+      - E4: provenance block distinguishes TIER-1-USER-ARTIFACT direct v25 mirror from Agent B synthesis
+      - E5: Insight #2 adds explicit "extends, rather than replaces, the existing Awesome-list bloat failure-mode mitigation at line 166"
+      - E6: Anthropic policy alignment language reframed — "aligned with Claude Code practices and eee architecture vocabulary" (NOT exact Anthropic-namespace match)
+      - E7: 3-gate sequence clarified — GATE A (8-axis ELIGIBILITY) → GATE B (SRA D1-D10 ≥7/10 PASS) → GATE C (W134-F40 weighted-rubric SCORING)
+      - E8: cost-control/latency/skill-orchestration kept out of block (preserved)
+    
+    This is synthesis-vs-brief boundary save per `Z:/claude-sota/.claude/rules/fm20-path-drift-cascade.md`
+    mechanism — codex caught the drift via independent file-system probe BEFORE
+    Edit landed (revert-cost avoided ~5-15 min × 8 edits = significant; per Mia
+    ROI ~100× per catch).
+    
+    ## 3 insights codified (verbatim from v25 at WHAT_WAS_NOT_COVERED_AND_CLOSED.md)
+    
+    ### Insight #1 (L3 extension) — Read-path token waste > shell-output waste
+    
+    Verbatim v25 L18-20: "RTK helps shell output. It does not solve built-in
+    Read/Grep/Glob or repeated file exploration. V25 therefore keeps Serena,
+    Claude Context, Repomix, ast-grep, tree-sitter, Wet, Distill, and
+    context-budget tooling as a separate layer."
+    
+    Codification: 2-class distinction codified — SHELL-OUTPUT-WASTE (mitigated by
+    RTK + context-mode ctx_batch_execute output filtering) vs READ-PATH-WASTE
+    (mitigated by Serena LSP + Repomix tree-sitter + ast-grep + Claude Context +
+    tree-sitter + Wet + Distill — query-once-then-extract pattern). Operational
+    rule: both SEPARATE layers; solving one does NOT solve the other.
+    
+    ### Insight #2 (L1 extension) — Pattern Libraries should NOT be runtime dependencies
+    
+    Verbatim v25 L22-24: "Everything Claude Code, Superpowers, GSD, gstack, Matt
+    Pocock Skills, and broad skill catalogs are valuable pattern sources. They
+    should not be bulk-installed into every repo."
+    
+    Codification: extends (NOT replaces) existing FM line 166 awesome-list-bloat
+    mitigation. Adds explicit install-time prohibition for pattern libraries beyond
+    awesome-lists (skill catalogs, plugin marketplaces with bulk-install semantics).
+    Maps to CR-12 CITE-PATTERN-ONLY class. Note: "DISCOVERY-ONLY class" label is
+    Agent B/eee synthesis terminology (NOT v25 verbatim) — explicitly disclosed.
+    Selectively-vendored catalogs (superpowers, etc.) are EXCEPTIONS — install when
+    ≥1 skill survives per-skill harness-fit verification per `Z:/claude-sota/.claude/rules/agent-harness-fit-verification.md`.
+    
+    ### Insight #3 (L1 extension) — High-star triage discipline: 8-axis architecture-leverage criterion
+    
+    Verbatim v25 L5-16: "Earlier passes included many high-star repos, but the
+    correct criterion is architecture leverage. V25 keeps high-star repos only
+    when they improve: context control / semantic retrieval / worktree isolation /
+    workflow state / review independence / quality/security gates / benchmark
+    feedback / source auditability."
+    
+    Codification: 8 axes mapped to existing eee primitives (Phoenix + cpa-usage +
+    RTK + Serena + Repomix + parallel-worktree + codex T1-T7 + gitleaks + osv-scanner +
+    garak + promptfoo + DeepEval + cosign verify-attestation + install-provenance).
+    Triage rule: high-star repo qualifies for adoption iff ≥1 axis improved.
+    **3-gate sequence**: GATE A (this 8-axis ELIGIBILITY) → GATE B (SRA D1-D10
+    ≥7/10 PASS) → GATE C (W134-F40 weighted-rubric SCORING). ORTHOGONAL —
+    passing one does NOT substitute for passing the others. Anthropic policy
+    alignment: axes operationally align with CC practices but vocabulary is
+    eee/v25 architecture-leverage terminology (NOT exact Anthropic-namespace match).
+    
+    ## Mia probes 7/7 GENUINE (n=279→n=286)
+    
+    Pre-Pattern A apply (verify codex prescription validity BEFORE applying):
+    - Probe #1 v25 dir EXISTS at `docs/outer research/kits/v25/`: VERIFIED GENUINE
+    - Probe #2 `WHAT_WAS_NOT_COVERED_AND_CLOSED.md` is the actual source file: VERIFIED GENUINE (13 files in dir; codex correctly identified the right one)
+    - Probe #3 Insight #1 verbatim at L18-20: VERIFIED GENUINE (RTK / Read/Grep/Glob / Serena/Repomix/ast-grep/tree-sitter/Wet/Distill text exactly matches)
+    - Probe #4 Insight #2 verbatim at L22-24: VERIFIED GENUINE ("valuable pattern sources" + "should not be bulk-installed" exact text)
+    - Probe #5 Insight #3 verbatim at L5-16: VERIFIED GENUINE (8 axes in exact verbatim order — context control / semantic retrieval / worktree isolation / workflow state / review independence / quality/security gates / benchmark feedback / source auditability)
+    - Probe #6 `CODEX_PLUGIN_CC_WORKFLOW.md` does NOT contain the 3 insights (codex investigated this file at L6479-6576 — confirms Agent B attribution was imprecise): VERIFIED GENUINE
+    - Probe #7 existing FM line 166 awesome-list-bloat: VERIFIED GENUINE (line content matches codex's quote)
+    
+    Zero NEW FM-20 catches during Pattern A apply (codex prescription verifications all GENUINE).
+    
+    ## Ladder advances
+    
+    - Mia pre-apply n=279 → n=286 (+7 verified GENUINE Pattern A pre-apply probes; codex T1 NEEDS-REVISION caught FM-20 path-drift cascade at synthesis-vs-brief boundary)
+    - Path P REAL GPT-5.5 n=29 → n=30 (+1 W146-F5 codification audit dispatch)
+    - Pattern D foreground+tee n=21 
+
+[prompt truncated]

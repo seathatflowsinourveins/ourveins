@@ -1,0 +1,49 @@
+# W324 P6 — jdx/mise toolchain manifest
+# Cite: https://github.com/jdx/mise/tree/a52390df8055addef4addcb15da3311c24a2b487
+# Spec: https://mise.jdx.dev/configuration.html
+#
+# Calver discipline: mise itself is pinned via the global `mise self-update`
+# channel (currently 2026.5.3; advisory 2026.5.12 available per pre-flight probe).
+# Per-tool pinning here ensures multi-tool reproducibility on fresh-clone /
+# state-redirect / sibling-runtime switches without per-machine config drift.
+#
+# Activation: `mise install` (one-shot install all) + `mise activate` shim
+# (per-shell path injection). Operator-only — this manifest is the source of
+# truth; no auto-activate hook.
+#
+# Falsifiable-inverse: IF jdx/mise abandoned THEN asdf-vm
+# https://github.com/asdf-vm/asdf parent project (independent) + Podman-Compose
+# https://github.com/containers/podman-compose for the compose half.
+
+[tools]
+node     = "22"              # Node 22 LTS — matches Z: runtime current 22.22.0
+python   = "3.13"            # matches Z:/venvs/claude
+go       = "1.26"            # for slsa-verifier + native MCP build paths
+uv       = "latest"          # uvx-pin discipline (W308 basic-memory + W317 perplexity)
+gh       = "latest"          # gh CLI 2.92.0+ (codex r11 SHA-anchor enforcement)
+lazygit  = "latest"          # W324 P6 — already installed via winget; mise tracks
+lazydocker = "latest"        # W326-H P-H4 — TUI trio (lazygit+lazydocker+btm); aqua:jesseduffield/lazydocker
+# jless — DEFERRED Windows-incompatible: aqua backend has no Windows binary
+#         (verified W326-H mise install probe 2026-05-19) AND cargo backend
+#         fails to compile on Windows due to `termion` crate Unix-only API
+#         (`mod sys` path="sys/unix/mod.rs" gated to non-Windows). Operator
+#         options: (1) install in WSL2 via cargo; (2) wait for upstream
+#         Windows port — issue tracker https://github.com/PaulJuliusMartinez/jless/issues
+#         (last release 2025-07-17). Skill 2026-May freshness PRESERVED.
+
+# NOTE: dog (ogham/dog DNS client) NOT in mise registry — operator-staged
+#       cargo install (see tools/install-cli-extras.ps1). doggo (mr-karan/doggo)
+#       is a different tool with its own mise entry; not interchangeable per W326-H freshness probe.
+# NOTE: rust / cargo are managed by rustup-init (W325-deferred per goal)
+# NOTE: docker is Docker Desktop (system-level; not mise-managed)
+
+[env]
+# Project-scoped env overrides (mise reads on `mise activate` per-shell).
+# Mirrors the W320 settings.json:env contract for non-bash subprocesses.
+MISE_EXPERIMENTAL = "1"
+
+[settings]
+# mise rolls back on tool-install failure (prevents partial-install drift)
+experimental = true
+# Honor the project-root .nvmrc / .python-version files for back-compat
+legacy_version_file = true

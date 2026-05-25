@@ -1,0 +1,75 @@
+You are GPT-5.5 reviewing the SYNTHESIS VERDICT of Wave 82 3-agent SOTA team dispatch (Agent A sota-researcher Sonnet stand-in; Agents B+C codex-rescue BRIDGE-MODE → real GPT-5.5). Pre-Pattern-A-apply gate per cardinal-rule-3 + standing directive "always using gpt5.5 fully e2e before commit".
+
+CONTEXT
+- 11:00 incident: operator hit ConnectionRefused at 127.0.0.1:8317 because eee.ps1:153 sets ANTHROPIC_BASE_URL unconditionally + L399 advisory text falsely claims claude.exe falls through.
+- Wave 82 3-agent team dispatched in parallel (CADP rule 2 max 3 concurrent; ≥2 BRIDGE-MODE GPT-5.5).
+- All 3 agents returned. Mia pre-apply probes verified all load-bearing claims at orchestrator side.
+
+3-AGENT NET VERDICTS
+
+Agent A (sota-researcher Sonnet stand-in, 11 tool uses, 239s):
+- artifact: tmp/wave82-ship1d-options-2026-05-08.md
+- Ship 1D verdict: RECOMMEND Option A+B hybrid (auto-start cli-proxy-api with OAuth fall-through)
+- Mia probes (5/5 PASS at orchestrator): T0.9 precedent at L431-461 ✓; L390-400 insertion point ✓; L153 unconditional BASE_URL ✓; .claude/.credentials.json 471 bytes claudeAiOauth ✓; no --check flag ✓
+- STAND-IN-NOTICE present (Sonnet stand-in; cross-model gate not structurally satisfied at agent layer; orchestrator-side proxy /v1/chat/completions T1 review IS this prompt — closes Phase 1 bootstrap exception)
+- Implementation skeleton: ~38 LOC at L390-400 (replaces existing 10-line healthz try/catch); +28 net LOC
+
+Agent B (codex-rescue BRIDGE-MODE real GPT-5.5, 4 tool uses, 271s):
+- artifact: tmp/wave82-cpa-manager-quota-deepdive-agentB-2026-05-08.md
+- Verdict: HONEST-NON-FINDING on capacity_score automation; CPA-Manager Docker = optional Ship 1E candidate
+- Key correction to Wave 80 framing: "mr.euphoriaincarnate cap=0 = depleted-but-active bug" was MISCLASSIFIED — capacity_score is operator-maintained legacy snapshot, NOT runtime metric. Proxy uses Quota/Status/Unavailable/ModelStates instead. 429s → cooldown machinery (retry-after), NOT permanent disable. disable-cooling: false (current config) is CORRECT.
+- Mia probes (3/3 PASS): disable-cooling: false at L47 ✓; CLIProxyAPI source locally at Z:/repos/deps/ ✓; CPA-Manager seakee/CPA-Manager 243★ MIT pushed 2026-05-08 ✓
+- Cite anchors: sdk/cliproxy/auth/conductor.go@785b00c:L471-L513 + L2388-L2415; config.example.yaml:L85-L88
+
+Agent C (codex-rescue BRIDGE-MODE real GPT-5.5, 11 tool uses, 326s):
+- artifact: tmp/wave82-cache-affinity-lease-design-agentC-2026-05-08.md
+- Verdict: REJECT cache-affinity-routing-lease — HONEST-NON-FINDING
+- Rationale: CLIProxyAPI has 1h session-affinity + message-hash fallback; 93.87% cache-read = already SOTA-bounded; adding prefix-hash routing would WORSEN 18/19 concentration
+- Mia probes (4/4 PASS): selector.go:448-453 NewSessionAffinitySelector TTL=time.Hour ✓; selector.go:498-535 cacheKey shape ✓; selector.go:653-657 hash fallback ✓; cited SHA 785b00c3 = v6.10.9 tag (local HEAD ed1458aa is newer; cited content unchanged in diff per Mia line-content probe)
+- Wave 80 P3 architectural-gap framing: REFUTED ("depleted account 429-hammered" was OVER; current arch is SOTA-bounded)
+
+PROPOSED SYNTHESIS
+
+Ship 1D (eee.ps1 hybrid auto-start + OAuth fall-through): APPROVE-FOR-PATTERN-A — all 5 Mia probes PASSED; mirrors existing T0.9 cpa-usage-keeper precedent; ~38 LOC at L390-400 replacing existing 10-line try/catch.
+
+Ship 1E (CPA-Manager Docker port 18317): DEFER to next fire — install-only ship, alongside Ship 1B+1C cpa-usage-keeper. Per F-A.1 ship-one-tool-at-a-time discipline.
+
+Cache-affinity-routing-lease (Wave 80 P3 hypothesized primitive): STRUCTURALLY REJECTED — no future-fire candidate. Revisit only if per-account telemetry surfaces repeated cold-prefix misses caused by current session_id routing.
+
+Wave 80 framing corrections (forward-only per port-note-discipline.md §6 — no historical commit body rewrites):
+1. "capacity_score=0 = depleted-but-active bug" was MISCLASSIFIED. capacity_score is operator-maintained snapshot; proxy uses Quota/Status/Unavailable/ModelStates for runtime decisions; cooldown handles 429-on-depleted-account.
+2. "Per-account cache-affinity routing lease is THE architectural gap" was OVER-claimed. CLIProxyAPI session-affinity + message-hash fallback is functionally equivalent for current workload patterns.
+
+REVIEW AXES
+
+AXIS 1 — Synthesis correctness
+- Are 3 agent verdicts internally consistent? (A: ship; B: deprecate-framing + optional-defer; C: reject) — orthogonal axes, no conflict
+- Mia probe coverage: 12/12 prescriptions verified at orchestrator? (5+3+4 = 12)
+- Wave 80 framing corrections honestly disclosed?
+
+AXIS 2 — Cardinal-rule alignment
+- Cardinal-rule-3 cross-model gate: satisfied via real GPT-5.5 BRIDGE-MODE for agents B+C; this prompt closes the gate for synthesis verdict
+- Cardinal-rule-9 install-risk: Ship 1D adds ~28 net LOC to bootstrap eee.ps1 (one of 11 hand-coded artifacts); rollback documented
+- Cardinal-rule-11 META-process SOTA: Pattern A apply + Mia pre-apply + provenance log + 3-invariants per launch-discipline.md
+
+AXIS 3 — Ship 1D specifics
+- Insertion point L390-400 correct?
+- Mirrors T0.9 cpa-usage-keeper pattern at L431-461 (Wave 81 Ship 1C precedent)?
+- Bounded readiness loop 200ms × 15 = 3000ms cap appropriate for proxy startup (heavier than usage-keeper)?
+- Option B fall-through Remove-Item Env: idempotent + safe?
+- launch-discipline.md 3-invariants satisfied? (REVERSIBLE: git revert + Stop-Process; OBSERVABLE: $EEE_ADVISORY_WARNS; INCREMENTAL: hybrid recovery NOT HARD-FAIL)
+
+AXIS 4 — Honest-non-finding discipline
+- Agents B+C both returned HONEST-NON-FINDING per synthesis-layer-verify.md §Reporting categories — acceptable
+- Wave 80 framing corrections forward-only per port-note-discipline.md §6 — no rewrites to commits 5fedaad / 53ff2a2 / earlier
+- "is now eee fully sota?" honest answer: Wave 79+81 + Ship 1D = covers per-account observability + healthz auto-recovery + 8-account routing. Architecture is SOTA-bounded at cache-locality layer (verified via Agent C source mining). Token-efficiency primitives covered. Remaining gap = manifest entries deferred from F-5 (Ship 1B+1C+1D) — operator action.
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-4,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-SHIP-1D-ONLY" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

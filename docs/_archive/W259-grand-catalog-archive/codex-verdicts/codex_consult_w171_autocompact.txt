@@ -1,0 +1,119 @@
+BRIDGE-MODE codex T1 Path P foreground+tee validation request.
+
+You are the 2nd-stage real GPT-5.5 Codex T1 validator for Wave 170 Agent C hook designs. Agent C was a Sonnet stand-in source, so this run is the STAND-IN gate required by cross-model-consensus.md. Provide an adversarial architectural validation, not implementation cheerleading.
+
+READ FIRST:
+- tmp/wave169-agentC-autocompact-hooks-design-2026-05-13.md
+- .claude/hooks/scripts/precompact_guard.py
+- .claude/hooks/scripts/context_window_guard.py
+- .claude/settings.json
+- .claude/state/context_window_sidecar.json
+- .claude/plugins/cache/claude-settings/intelligent-compact/1.0.0/hooks/scripts/precompact_priorities.sh
+- Anthropic Claude Code hooks docs: https://code.claude.com/docs/en/hooks, especially PreCompact, UserPromptSubmit, SessionStart, generic hook output / add-context sections.
+
+TASK:
+Validate Agent C's proposed 3-hook auto-compact architecture and return exactly one of:
+- VERDICT: APPROVE conf=N
+- VERDICT: NEEDS-REVISION conf=N with prescribed_edits
+- VERDICT: REJECT conf=N
+
+Context:
+Agent C proposed:
+1. precompact_hint_emitter.py
+2. userpromptsubmit_compact_threshold.py with 250K / 300K / 350K thresholds
+3. sessionstart_compact_hint_reader.py with matcher=compact
+Shared sidecar file: .claude/state/compact_hint.json
+Schema claim: compact_hint.v1.json = {version, ts, hint, context_pct, token_estimate, triggered_at}
+Staleness window: 300 seconds / 5 minutes.
+
+AXIS 1: PreCompact stdout routing matrix correctness
+Agent C claims W164-F38a STDOUT-ROUTES-CONFIRMED: PreCompact hook stdout routes to "Additional Instructions:" with a 10K cap.
+
+Verify against Anthropic Claude Code docs section PreCompact:
+- Does PreCompact stdout actually route to model context as "Additional Instructions:"?
+- Or is this only a behavior of the installed intelligent-compact script/comment, not the public Anthropic contract?
+- What is the actual 10K cap? Is it documented as 10,000 characters for "additionalContext" output generally, and does it apply to PreCompact stdout?
+- Cross-check local existing PreCompact implementations:
+  - .claude/hooks/scripts/precompact_guard.py lines 50-72: emits only {"decision":"block","reason":...}; no stdout additional instructions.
+  - .claude/settings.json lines 494-505: active PreCompact hook is precompact_guard.py.
+  - .claude/plugins/cache/claude-settings/intelligent-compact/1.0.0/hooks/scripts/precompact_priorities.sh lines 5-8 claim stdout becomes "Additional Instructions:" block, but settings only show plugin enabled at .claude/settings.json line 542 and this script is plugin-local.
+
+Relevant current evidence:
+- Anthropic docs UserPromptSubmit section says plain stdout or hookSpecificOutput.additionalContext can add context; block erases prompt from context.
+- Anthropic docs generic "Add context for Claude" section documents hookSpecificOutput.additionalContext and where reminders appear.
+- Anthropic docs event decision table includes PreCompact in top-level decision/block events, but public docs must be checked for whether PreCompact plain stdout/additionalContext is model-visible.
+
+Deliverable for Axis 1:
+- PASS if Anthropic docs explicitly support Agent C's PreCompact stdout -> compact prompt Additional Instructions route and cap.
+- NEEDS-REVISION if public docs only support decision:block for PreCompact, while "Additional Instructions" comes from the plugin's comment/local behavior and should not be treated as TIER-1 public contract.
+- Include exact evidence and practical consequence for implementing precompact_hint_emitter.py.
+
+AXIS 2: compact_hint.v1.json SHAPE-CLAIM cross-script payload contract correctness
+Agent C designs 3 scripts sharing .claude/state/compact_hint.json:
+- writer: userpromptsubmit_compact_threshold.py
+- reader: sessionstart_compact_hint_reader.py
+- possible PreCompact emitter: precompact_hint_emitter.py
+Claimed schema: {version, ts, hint, context_pct, token_estimate, triggered_at}
+
+Verify:
+- Does the writer produce fields the reader consumes?
+- Are field names consistent across the three scripts?
+- Are types defensible? version string/int? ts epoch seconds vs ISO string? context_pct float/int? token_estimate int?
+- Is staleness window 300s/5min enforced by comparing compatible time formats?
+- Does reader matcher=compact consume the same "hint" produced before compact?
+- Are there race/atomicity issues writing .claude/state/compact_hint.json while SessionStart reads it?
+- Does sidecar need session_id binding to avoid cross-session leakage?
+- Does schema need trigger/source fields beyond triggered_at, e.g. "triggered_by": "UserPromptSubmit|PreCompact", "session_id", "expires_at", "context_window_size"?
+
+Current local comparison points:
+- .claude/state/context_window_sidecar.json stores rows by session id and includes context_window_size, total_input_tokens, used_percentage, updated_at.
+- .claude/hooks/scripts/context_window_guard.py lines 59-78 emits additionalContext using sidecar fields.
+- .claude/hooks/scripts/precompact_guard.py lines 20-23 uses sidecar and an 80 default hard-limit percent unless overridden.
+
+Deliverable for Axis 2:
+- PASS / NEEDS-REVISION / REJECT disposition.
+- If NEEDS-REVISION, prescribe exact compact_hint.v1.json schema and exact writer/reader contract.
+- Include file:line-style prescribed_edits suitable for Pattern A apply, even if the files do not exist yet. Use intended target files and insertion/function locations.
+
+AXIS 3: 250K/300K/350K thresholds vs 47%/52%/54% guard actual trigger boundaries
+Agent C maps:
+- 250K tokens = 47% of 530K
+- 300K tokens = 52%
+- 350K tokens = 54%
+soft/normal/hard.
+
+Verify:
+- What is the actual context window size for this runtime? Is it 530K or different?
+- Current local evidence: .claude/state/context_window_sidecar.json contains context_window_size = 1000000 for recent sessions, with rows showing 458395 input tokens = 46%, 658019 = 66%, 672595 = 67%.
+- .claude/settings.json line 25 sets CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "70". The user prompt mentions 80% per CLAUDE.local.md, but local settings currently show 70; CLAUDE.local.md lines 65-84 discuss 1M enable/disable tradeoff and 200k fallback, not an active 80 override.
+- Existing .claude/hooks/scripts/context_window_guard.py lines 28-29 defaults WARN_PERCENT=25 and CRITICAL_PERCENT=30, which are even more conservative than 47-54% if not overridden.
+- Existing .claude/hooks/scripts/precompact_guard.py line 22 default hard limit is 80, but settings override may differ.
+
+Questions:
+- Are 250K/300K/350K absolute thresholds valid for a 1M runtime? They map to 25%/30%/35%, not 47%/52%/54%.
+- Are Agent C's percentages arithmetically wrong even for 530K? 250/530=47.2%, 300/530=56.6%, 350/530=66.0%, not 52/54 for the latter two.
+- Do 25-35% trigger points make sense as compact prompts, or are they too conservative relative to current autocompact override 70 and precompact_guard fallback 80?
+- Should threshold logic key on sidecar used_percentage/context_window_size instead of transcript byte size chars/4?
+
+Deliverable for Axis 3:
+- PASS / NEEDS-REVISION / REJECT disposition.
+- State actual context size from local evidence and whether to use percentage thresholds vs token thresholds.
+- If revising, prescribe the threshold policy with exact values and override env var names.
+
+FINAL OUTPUT FORMAT REQUIRED:
+VERDICT: APPROVE / NEEDS-REVISION conf=N + prescriptions / REJECT
+STAND-IN-NOTICE: BRIDGE-MODE-FULL - real GPT-5.5 codex T1 validation
+Cross-model gate status: FULL - 2nd-stage real GPT-5.5 validation of Sonnet stand-in Agent C
+
+Per-axis disposition:
+- Axis 1:
+- Axis 2:
+- Axis 3:
+
+If NEEDS-REVISION, include:
+prescribed_edits:
+- file:line or intended-file:function target
+- exact required change
+- rationale
+
+Be concise but specific. Prefer rejecting unsupported claims over assuming runtime behavior from plugin comments. If public docs are ambiguous, label that ambiguity and require local smoke test before architectural adoption.

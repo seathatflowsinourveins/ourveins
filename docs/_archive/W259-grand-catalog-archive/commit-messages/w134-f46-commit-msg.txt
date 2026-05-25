@@ -1,0 +1,114 @@
+feat(sigstore-verify): Wave 134 Fire 46 — first real cosign verify-blob dogfood SUCCESS (Fire 45 6-step probe end-to-end; Fire 41 Gate 1 PARTIAL → MOSTLY-WIRED upgrade triggered)
+
+2nd INSTALL/operational ship in Wave 134 series (post 13-ship codification +
+1-ship install). Per Fire 45 §How to apply workflow: execute Fire 45's
+6-step verify-attestation probe against canonical Sigstore-signed candidate
+(sigstore/cosign v3.0.6 cosign-windows-amd64.exe). 1st real-world Fire 45
+dogfood = n=2 cumulative on Fire 45 discipline.
+
+## 6-step probe execution
+
+| Step | Result |
+|---|---|
+| 0 Verify cosign binary | ✅ /c/Users/42/go/bin/cosign v3.0.6 (matches Fire 44 anchor) |
+| 1 Probe attestation availability | ✅ cosign-windows-amd64.exe.sigstore.json (modern bundle v0.3 format) |
+| 2 Fetch sig+cert locally | ✅ gh release download → 189MB binary + 6.4KB bundle |
+| 3 Invoke cosign verify-blob | ✅ `Verified OK` (with KMS-backed identity flags) |
+| 4 Classify verdict | ✅ **Tier-A signed-official** (Sigstore project = TIER-1-OFFICIAL Linux Foundation) |
+| 5 Persist extended fields | ✅ Rekor logIndex + cert fingerprint + artifact digest + identity match rationale |
+
+## Extended persistence fields (Fire 45 Pattern A edit #6)
+
+- Artifact digest (SHA-256): `9b85a88ebff2d9dd30ff4984a6f61f2cedc232dd87d81fa7f2ff3c0ed96c241c`
+- Certificate fingerprint (SHA-256): `09892b7e86c6e8ee273dfaaf2fd0490596e03e38a889fe03030f679205056dc8`
+- Certificate subject: `keyless@projectsigstore.iam.gserviceaccount.com`
+- Certificate issuer: `https://accounts.google.com`
+- Rekor log entry index: `1244819972`
+- Integrated time: `1775512733` (2026-04-05 Unix)
+- Bundle mediaType: `application/vnd.dev.sigstore.bundle.v0.3+json`
+
+## 🚨 Three LOAD-BEARING findings
+
+### #1 Fire 45 documentation gap discovered (KMS-backed identity pattern)
+
+1st verify-blob attempt FAILED with `expected SAN value to match regex
+"^https://github\.com/sigstore/cosign/", got
+"keyless@projectsigstore.iam.gserviceaccount.com"`. Fire 45 codification
+primarily showed GitHub-Actions-workflow-identity examples; KMS-backed
+identity (Google Service Account via Sigstore project) is a SEPARATE
+identity pattern not yet documented in Fire 45 discipline.
+
+**Fire 45 follow-up edit queued (Fire 47-candidate W134-F-IMP-Q-DISCIPLINE-V2)**:
+document 2-identity-pattern split:
+- (a) GitHub Actions workflow identity: `^https://github\.com/<owner>/<repo>/...` + OIDC issuer `https://token.actions.githubusercontent.com`
+- (b) KMS-backed service account identity: `<account>@<project>.iam.gserviceaccount.com` + OIDC issuer `https://accounts.google.com`
+
+### #2 Fire 41 Gate 1 PARTIAL → MOSTLY-WIRED upgrade triggered
+
+1st real-world verify-blob SUCCESS against Sigstore-signed candidate
+satisfies the upgrade trigger from Fire 44 install ship. Fire 41 framework
+§Status table Gate 1 row flipped ⚠️ PARTIAL → ✅ MOSTLY-WIRED. Cumulative
+gate-coverage advanced from ~33% (Fire 41 codification) → ~40% (Fire 46
+post-dogfood) — first concrete gate-status advancement via
+dogfood-from-installs.
+
+### #3 Modern Sigstore bundle format `.sigstore.json` is SOTA-pin
+
+Sigstore project shipped bundle format v0.3
+(`application/vnd.dev.sigstore.bundle.v0.3+json`) containing
+cert + sig + Rekor log entry + timestamp authority response in single JSON
+file. Fire 45's separate `--certificate <pem> --signature <sig>` pattern
+is LEGACY path; modern `--bundle <json>` is preferred. Documentation
+update queued for Fire 47 to reflect bundle-first SOTA-pin.
+
+## n=2 cycle-322 dogfood evidence on Fire 45
+
+| Dogfood # | Fire | Context |
+|---|---|---|
+| 1 | Fire 45 itself | Codification self-test (drafting + Pattern A) |
+| **2** | **Fire 46** | **1st real-world application against canonical Sigstore-signed binary** |
+
+n=3 evidence ladder advance pending future Fire 4N applying 6-step probe
+to a DIFFERENT candidate (e.g., gitleaks release, lefthook release, etc).
+Once n=3 satisfied, Fire 45 discipline qualifies for cycle-322 promotion
+to formal `.claude/rules/cosign-verify-attestation-discipline.md`
+rule-tier.
+
+## NEW cohort entries
+
+- INSTALL/operational ships in Wave 134 series: n=1 → **n=2**
+- First real-world Sigstore verify-blob in eee runtime: n=0 → **n=1 NEW**
+- Fire 41 Gate 1 gate-status upgrades (PARTIAL → MOSTLY-WIRED): n=0 → **n=1 NEW**
+- Cumulative gate-coverage advancements: ~33% → **~40%** (Fire 41 framework)
+- Fire 45 6-step probe end-to-end executions: n=0 → **n=1 NEW**
+- KMS-backed identity pattern dogfoods: n=0 → **n=1 NEW** (load-bearing for Fire 47 follow-up)
+- Sigstore bundle v0.3 format adoption: n=0 → **n=1 NEW**
+
+## REVISED Forward Top-5 (post-Fire-46)
+
+| Priority | Fire | Subject |
+|---|---|---|
+| 🥇 | W134-F33c | bnomei/frigg INSTALL pilot (DEFERRED to 2026-06-04) |
+| 🥈 | W134-F-IMP-Q-DISCIPLINE-V2 | Fire 45 follow-up edit: KMS-backed identity pattern + bundle-first SOTA-pin |
+| 🥉 | W134-F-SISTER-RULE-EDIT | sota-research-architecture.md §"Quantitative rubric" cite-reference |
+| #4 | W134-F-IMP-O | eee OTel schema standardization |
+| #5 | W134-F-IMP-Q-MECHANICAL | Fire 45 Steps 0-5 mechanical-hook codification |
+
+## Discipline conformance
+
+- CR-1 cite-trail: TIER-1-DIRECT to sigstore/cosign v3.0.6 release attestation
+- CR-3 cross-model: ✅ Phase 1 bootstrap exception (operator-direct verify-blob smoke probe)
+- CR-6 official-native-channel: ✅ gh release download from canonical github.com/sigstore/cosign
+- CR-9 install-risk: ✅ extended via cryptographic verification (Tier-A elevates trust)
+- CR-10 research-first-then-install: ✅ Research = Fire 41 + Fire 44 + Fire 45 stack
+- CR-11 META-process: ✅ 1st operational dogfood of META-process discipline (Fire 45)
+- CR-12 5-class lattice: ✅ GENUINELY-NEW (1st operational verify-blob in eee runtime)
+- FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+
+## Trailers
+
+Refs: docs/install-provenance.md (Fire 46 entry)
+Refs: docs/evidence-governed-harness-8-gate-discipline.md (Gate 1 status PARTIAL → MOSTLY-WIRED upgrade + cumulative coverage advancement)
+Refs: tmp/sigstore-verify-cosign-v3.0.6/ (189MB binary + 6.4KB bundle; can be cleaned post-commit per CR-9)
+Cite: TIER-1-DIRECT @ sigstore/cosign v3.0.6 release + Sigstore bundle v0.3 (Rekor logIndex 1244819972)
+Verify: `[VERIFIED via cosign verify-blob → "Verified OK" against sigstore/cosign v3.0.6 cosign-windows-amd64.exe + Tier-A signed-official verdict + Fire 41 Gate 1 PARTIAL → MOSTLY-WIRED upgrade + Fire 45 6-step probe end-to-end dogfood SUCCESS + 2 LOAD-BEARING findings queued (KMS-backed identity pattern + bundle-first SOTA-pin) for Fire 47]`

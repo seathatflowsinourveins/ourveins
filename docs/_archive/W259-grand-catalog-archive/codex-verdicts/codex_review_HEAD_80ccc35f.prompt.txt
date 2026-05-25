@@ -1,0 +1,221 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 80ccc35ff4dce04bdf4899e6a97a4fa90decd8f5
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md      | 30 ++++++++++++++++++++++++++++++
+ docs/sota-installed-manifest.md | 16 ++++++++++++++++
+ 2 files changed, 46 insertions(+)
+
+=== git show --format=fuller ===
+commit 80ccc35ff4dce04bdf4899e6a97a4fa90decd8f5
+Author:     42 <42@local>
+AuthorDate: Mon May 11 01:31:12 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 01:31:12 2026 -0400
+
+    feat(sigstore): Wave 134 Fire 44 — Sigstore.Cosign v3.0.6 INSTALLED (Fire 41 Gate 1 Registry Trust prerequisite; CR-9 2-round-fix-forward WinGet → go install ALT-CHANNEL)
+    
+    1st INSTALL ship in Wave 134 series (post 12-ship codification arc). Per
+    Forward Top-5 🥉 W134-F-IMP-Q from Fire 43 close. Closes Fire 41 Gate 1
+    prerequisite (binary-installed precondition for verify-attestation
+    mechanical enforcement).
+    
+    ## Install path (CR-6 multi-channel per CR-9 2-round-fix-forward)
+    
+    | # | Channel | Result |
+    |---|---|---|
+    | 1 | `winget install Sigstore.Cosign --version 3.0.6` (CR-6 PRIMARY WinGet) | Hash-verified + registered + alias-add message BUT symlink in WinGet/Links/ did NOT materialize — CR-9 2-round-fix-forward situation |
+    | 2 | `GOFLAGS="-modcacherw" go install github.com/sigstore/cosign/v3/cmd/cosign@v3.0.6` (CR-6 ALT-CHANNEL Go module) | ✅ SUCCESS — binary 139,175,936 bytes built at `/c/Users/42/go/bin/cosign.exe` |
+    
+    ## Smoke probe
+    
+    ```
+    $ cosign version
+    [ASCII banner]
+    cosign: A tool for Container Signing, Verification and Storage in an OCI registry.
+    
+    GitVersion:    v3.0.6
+    GitCommit:     unknown
+    GitTreeState:  unknown
+    BuildDate:     unknown
+    GoVersion:     go1.26.1
+    Compiler:      gc
+    Platform:      windows/amd64
+    ```
+    
+    [VERIFIED 2026-05-11 via direct binary invocation]
+    
+    ## Manifest update
+    
+    NEW §Section 13.G1 added at `docs/sota-installed-manifest.md` (~25 LOC):
+    - Sigstore Registry Trust prerequisite row
+    - cite anchor: github.com/sigstore/cosign/releases/tag/v3.0.6 Apache-2.0 sigstore-org TIER-1-OFFICIAL
+    - Fire 41 Gate 1 composition note
+    - Forward-ref to Fire 41-G1 detailed codification (cosign verify-attestation discipline ship)
+    
+    ## 🚨 LOAD-BEARING findings
+    
+    ### #1 CR-9 2-round-fix-forward case observed empirically on install fire
+    
+    WinGet install registered + hash-verified + alias-add reported BUT
+    symlink-creation incomplete (Links/cosign-windows-amd64.exe MISSING). Per
+    CR-9 "2-round fix-forward expected per hook install" — empirical extension
+    to OS-package-manager install fires. ALT-CHANNEL `go install` succeeded as
+    fallback. n=1 evidence for CR-9 install-risk discipline extending to
+    WinGet portable-app install class (sister to npm @latest D6 today-release
+    auto-upgrade class). Future Fire 41-G1 detailed codification should document
+    WinGet symlink-failure as known sub-class.
+    
+    ### #2 Fire 41 Gate 1 PARTIAL → MOSTLY-WIRED transition prerequisite met
+    
+    cosign binary is LOAD-BEARING for Gate 1 Tier-A (signed-official) / Tier-B
+    (signed-named-T2) verdict shape. With cosign v3.0.6 installed + smoke probe
+    SUCCESS, Gate 1 mechanical enforcement is technically achievable at
+    operator-side discipline tier. Fire 41 framework §Status table Gate 1 row
+    qualifies for upgrade from ⚠️ PARTIAL → ✅ MOSTLY-WIRED after operator runs
+    first `cosign verify-attestation` against a real install candidate (queued
+    as W134-F-IMP-Q-DETAIL Forward candidate).
+    
+    ### #3 CR-6 multi-channel discipline validated
+    
+    Official-native-channel mandate doesn't fix to single channel. CR-9
+    multi-channel discipline = orchestrator-side retry across upstream channels
+    until at least ONE succeeds + smoke-probe SUCCESS. Empirical validation:
+    WinGet partial + go install full = composite SUCCESS. Both channels qualify
+    as CR-6 official-native (Microsoft store sourcing GitHub releases + Go
+    module proxy sourcing upstream repo).
+    
+    ## NEW cohort entries
+    
+    - INSTALL ships in Wave 134 series: n=0 → **n=1 NEW** (Wave 134 was 100% codification arc before Fire 44)
+    - CR-9 2-round-fix-forward instances on install fires: n=0 → **n=1 NEW**
+    - Multi-channel install discipline validations: n=0 → **n=1 NEW**
+    - Fire 41 Gate prerequisites satisfied: n=0 → **n=1 NEW** (Gate 1)
+    - Sigstore primitives installed in eee runtime: n=0 → **n=1 NEW**
+    
+    ## REVISED Forward Top-5 (post-Fire-44)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F33c | bnomei/frigg INSTALL pilot (DEFERRED to 2026-06-04) |
+    | 🥈 | W134-F-SISTER-RULE-EDIT | sota-research-architecture.md §"Quantitative rubric" cite-reference (Fire 40 deferred) |
+    | 🥉 | W134-F-IMP-O | eee OTel schema standardization (= Fire 41-G8 prerequisite) |
+    | #4 | W134-F-IMP-Q-DETAIL | Fire 41-G1 detailed codification (cosign verify-attestation discipline) |
+    | #5 | W134-F-CG-UPSTREAM | sibling-rule-port Band 6 (deferred n=3 evidence) |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-1-DIRECT to github.com/sigstore/cosign/releases/tag/v3.0.6 Apache-2.0
+    - CR-3 cross-model: ✅ Phase 1 bootstrap exception satisfied via orchestrator-direct + CR-9 multi-channel verification
+    - CR-6 official-native-channel: ✅ BOTH attempts use official channels (WinGet + Go module from upstream)
+    - CR-9 install-risk: ✅ version-pin v3.0.6 + ✅ 2-round fix-forward executed (WinGet → go install)
+    - CR-10 research-first-then-install: ✅ Probe BEFORE install (winget search + go version check + multi-channel availability)
+    - CR-11 META-process: ✅ install-fire follows research-first-then-install workflow
+    - CR-12 5-class lattice: ✅ GENUINELY-NEW (no incumbent cryptographic signature verification primitive)
+    - FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+    
+    ## Trailers
+    
+    Refs: docs/sota-installed-manifest.md (NEW §Section 13.G1)
+    Refs: docs/install-provenance.md (Fire 44 entry)
+    Refs: /c/Users/42/go/bin/cosign.exe (139MB binary v3.0.6 installed)
+    Cite: TIER-1-DIRECT @ github.com/sigstore/cosign/releases/tag/v3.0.6 Apache-2.0
+    Verify: `[VERIFIED via /c/Users/42/go/bin/cosign.exe version → "v3.0.6" + smoke probe SUCCESS + manifest §Section 13.G1 SHIPPED + Fire 41 Gate 1 PARTIAL → MOSTLY-WIRED prerequisite met + CR-9 2-round-fix-forward empirically observed (WinGet → go install ALT-CHANNEL fallback) + 1st INSTALL ship in Wave 134 series + Forward Top-5 🥉 W134-F-IMP-Q ship complete]`
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index 6c1cd74..1eed409 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -15432,3 +15432,33 @@ The pin-justification rationale: project-scope `.mcp.json @0.0.75` PINS for CR-9
+   - codex-t1-pattern-b-forward-discipline.md (promoted Fire 37): ✅ APPLIED Path D direct-apply 2nd consecutive
+ - **Verdict cite**: `[VERIFIED via .claude/state/codex_consult_w134_f43_cg_pre_burn_in_band_OUT.txt — REAL GPT-5.5 NEEDS-REVISION conf=0.89 + Pattern A 5-edit applied + docs/convergence-gate-pre-burn-in-band-extension-discipline.md 161 LOC SHIPPED (Band 6 + 6a/6b/6c sub-classification + 6 early re-audit triggers + Gate 1 Tier-D interlock + new anti-pattern) + Forward Discipline #2 ladder n=8→n=9 + sibling-bleed defense LOCAL-ONLY + Band 6 formally defers bnomei/frigg INSTALL pilot to 2026-06-04]`
+ 
++## Wave 134 Fire 44 — 2026-05-11 W134-F-IMP-Q Sigstore.Cosign CLI install pilot SHIPPED
++
++- **Subject**: Install Sigstore.Cosign v3.0.6 — Fire 41 Gate 1 Registry Trust prerequisite. INSTALL fire (not codification); CR-12 PRIMARY install path per CR-6 official-native-channel.
++- **CR-12 disposition**: GENUINELY-NEW (no incumbent cryptographic signature verification primitive in eee runtime)
++- **Install attempt #1 (CR-6 PRIMARY)**: `winget install Sigstore.Cosign --version 3.0.6 --accept-source-agreements --accept-package-agreements --silent` from OFFICIAL Microsoft WinGet store → downloads from canonical `ht
+
+[prompt truncated]

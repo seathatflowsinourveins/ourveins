@@ -1,0 +1,51 @@
+You are GPT-5.5 reviewing Ship 1W — `tools/aperant_rate_limit_poller.py` (Aperant-derived rate-limit poller). Real GPT-5.5 BRIDGE-MODE via codex CLI direct foreground execution.
+
+Wave 89 Ship 1Y unleashed sandbox — you have full PowerShell + Python + curl + git access for verification.
+
+CONTEXT
+- Ship 1W goal: populate cpa-usage-keeper SQLite usage_identities rate-limit columns (currently 0/10 populated) by actively polling Anthropic /api/oauth/usage + ChatGPT /backend-api/wham/usage every 60s
+- Aperant CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027 documented the endpoints
+- Wave 90 LIVE polling discovered: Anthropic schema is `five_hour`+`seven_day`+`extra_usage` (NOT `primary_window`/`secondary_window` as Aperant doc claimed); Codex schema MATCHES Aperant doc
+- 3 Claude accounts WEEKLY-MAXED today (causes 4-failed-of-6); proactive poll-then-skip would have prevented
+
+REVIEW SUBJECT
+Read the file directly: `Z:/claude-sota-installed/tools/aperant_rate_limit_poller.py` (~270 LOC).
+
+Smoke probe ALREADY PASSED:
+- Command: `python3 tools/aperant_rate_limit_poller.py --once --dry-run`
+- Result: `{"polled": 8, "ok": 8, "errors": [], "update_stats": {"updated": 8, "skipped": 0, "dry_run": true}}`
+- 7 Claude accounts polled successfully via Anthropic /api/oauth/usage
+- 1 Codex Pro polled successfully via ChatGPT /backend-api/wham/usage
+- Zero errors
+
+REVIEW AXES (TIGHT — bounded 90s budget per advanced-agent-team-standing-directive)
+
+AXIS 1 — Code correctness
+- Does poll_anthropic correctly parse five_hour/seven_day/extra_usage from live Anthropic schema?
+- Does poll_codex correctly parse primary_window/secondary_window/credits from live Codex schema?
+- Is SQL UPDATE statement correct (uses `name` and `provider` as WHERE clause; matches usage_identities schema)?
+- Token redaction: are OAuth tokens excluded from JSONL logging?
+
+AXIS 2 — Production readiness
+- Error handling: 401/403/429/5xx correctly handled?
+- Cron loop: KeyboardInterrupt cleanup; PID file mechanics
+- Stop semantics: --stop reads PID and SIGTERMs; works on Windows? (note: signal.SIGTERM behavior differs)
+- --dry-run: no SQLite writes when set; smoke probe verified
+- File-system safety: parent dirs created via mkdir(parents=True, exist_ok=True)
+
+AXIS 3 — Cardinal-rule alignment
+- CR-1: TIER-1 cite chain in docstring (Aperant + live URLs)
+- CR-3: this consult IS the cross-model gate
+- CR-9: install-risk MEDIUM (read-only API + SQLite UPDATE only; reversible)
+- CR-10: research-first via Wave 87+90 + Aperant deep-dive
+- CR-11: META-process SOTA discipline followed
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-3,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-SHIP-1W" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

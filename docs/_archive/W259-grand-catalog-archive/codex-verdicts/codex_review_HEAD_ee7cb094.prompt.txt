@@ -1,0 +1,40 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit ee7cb094211e5bfea77d89a9cc20efce103e5c56</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/context_window_guard.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit ee7cb094211e5bfea77d89a9cc20efce103e5c56
+Author:     42 <42@local>
+AuthorDate: Thu May 14 01:07:00 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 14 01:07:00 2026 -0400
+
+    chore(hooks): W189 P1 — context_window_guard.py stale-defaults realign 25/30->60/70
+    
+    W189 P1 calibration fix per Agent A audit. Stale 200k-era percent defaults (25/30) realigned to match settings.json env CONTEXT_WINDOW_*_PERCENT (60/70); env override won at runtime but stale defaults were a latent footgun. Hook stays UNWIRED — superseded by posttooluse_context_monitor.js (shipped f4d92d65). Pre-existing Pyright diag at line 58 is NOT W189-introduced (my edit only touched L28-33) — noted for separate cleanup, not drive-by-fixed per surgical-changes discipline. CLAUDE.local.md ENV(j) CCBP claude-settings.md:826,967 re-source also done (gitignored, not in this commit). Cross-model: T2 pre-commit gate fires on this commit; explicit T1 deferred (context ~9%) per cmc-t1-t7-lifecycle queue+retry. [task #239] W189 P1
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/context_window_guard.py b/.claude/hooks/scripts/context_window_guard.py
+index a984795..abb3c22 100644
+--- a/.claude/hooks/scripts/context_window_guard.py
++++ b/.claude/hooks/scripts/context_window_guard.py
+@@ -25,8 +25,12 @@ ROOT = Path("Z:/claude-sota-installed")
+ SIDECAR = ROOT / ".claude/state/context_window_sidecar.json"
+ HOOK_EVENT = "PostToolUse"
+ TARGET_TOOLS = {"Edit", "Write", "MultiEdit", "Bash", "Read", "Glob", "Grep", "Agent"}
+-WARN_PERCENT = float(os.getenv("CONTEXT_WINDOW_WARN_PERCENT", "25"))
+-CRITICAL_PERCENT = float(os.getenv("CONTEXT_WINDOW_CRITICAL_PERCENT", "30"))
++# W189 P1: defaults realigned 25/30 -> 60/70 to match settings.json env CONTEXT_WINDOW_*_PERCENT
++# (1M-context-era; defense-in-depth — env override wins at runtime but stale 200k-era defaults
++# were a latent footgun if the env block is ever trimmed). Cite: auto-compact-discipline.md +
++# settings.json:28-29. Hook stays UNWIRED (superseded by posttooluse_context_monitor.js).
++WARN_PERCENT = float(os.getenv("CONTEXT_WINDOW_WARN_PERCENT", "60"))
++CRITICAL_PERCENT = float(os.getenv("CONTEXT_WINDOW_CRITICAL_PERCENT", "70"))
+ 
+ 
+ def _load_stdin() -> dict:</repository_context>

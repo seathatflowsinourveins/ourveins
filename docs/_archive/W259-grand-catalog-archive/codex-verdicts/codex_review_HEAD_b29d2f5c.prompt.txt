@@ -1,0 +1,229 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b29d2f5cf94fa55c86c96dfae3f8a4d473417e15
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/agents/evaluator.md                      | 26 ++++++++++++++++++++++++
+ .claude/agents/gsd-goal-verifier.md              | 26 ++++++++++++++++++++++++
+ .claude/agents/wshobson-devops-troubleshooter.md | 26 ++++++++++++++++++++++++
+ .claude/agents/wshobson-security-auditor.md      | 26 ++++++++++++++++++++++++
+ 4 files changed, 104 insertions(+)
+
+=== git show --format=fuller ===
+commit b29d2f5cf94fa55c86c96dfae3f8a4d473417e15
+Author:     42 <42@local>
+AuthorDate: Tue May 12 12:25:29 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 12:25:29 2026 -0400
+
+    feat(agents): wave loop89d7bbd4 fire 7 — track 4 CLEAN SOTA agents (0/11 → 4/11; closes 36.4% of agent-tracking gap)
+    
+    Closes part of F-NEXT.B agent-tracking gap from Fire 6 audit (agents:
+    0% tracked = largest single-class gap in runtime). 4 agents with ZERO
+    `Z:/claude-sota/` sibling-bleed per CR-9 + explicit TIER-1-DIRECT cite
+    anchors at upstream HEAD SHA are tracking-safe WITHOUT path-rewrite.
+    
+    ## Files tracked (4 of 11; ZERO path-rewrite needed)
+    
+    | Agent | LOC | TIER-1-DIRECT cite anchor |
+    |---|---|---|
+    | `evaluator.md` | 26 | `anthropics/cwc-long-running-agents/claude-code-config/.claude/agents/evaluator.md @ HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629` (verbatim cite-import Wave 75 2026-05-08; Apache-2.0; matches CLAUDE.md §Architecture L274-277 anchor) |
+    | `gsd-goal-verifier.md` | 26 | `get-shit-done/agents/gsd-verifier.md @ HEAD 3aaed8f5d7c3492678b867e6687d42c88fe227e5` (DEP-ONLY operationalization Wave 134 Fire 5 [VERIFIED 2026-05-12]) |
+    | `wshobson-devops-troubleshooter.md` | 26 | `wshobson-agents/plugins/distributed-debugging/agents/devops-troubleshooter.md @ HEAD ece811f23310a37ceb43496dbac0e244fe6845b6` (DEP-ONLY operationalization Wave 134 Fire 5 [VERIFIED 2026-05-12]; matches sota-research-architecture.md sister cite for wshobson clone) |
+    | `wshobson-security-auditor.md` | 26 | `wshobson-agents/plugins/security-scanning/agents/security-auditor.md @ HEAD ece811f23310a37ceb43496dbac0e244fe6845b6` (DEP-ONLY operationalization Wave 134 Fire 5 [VERIFIED 2026-05-12]) |
+    
+    Total: 4 files / 104 LOC / 4 distinct TIER-1-OFFICIAL or named-author
+    upstream cite anchors.
+    
+    ## Sibling-bleed scan (CR-9 sibling-bleed defense)
+    
+    `grep -l "Z:/claude-sota/" .claude/agents/<4 files>` returned ZERO
+    matches for all 4 (full results: 6 agents have sibling refs, 5 are
+    CLEAN — these 4 CLEAN + evaluator.md already CLEAN by Anthropic-direct-
+    cite shape). Path-rewrite NOT needed per CR-9 read-only research probe
+    exception clause (i): immutable cite-anchors at `Z:/repos/deps/<repo>/
+    file:line @ HEAD <SHA>` form are exempt from path-rewrite requirement.
+    
+    ## CR conformance
+    
+    - CR-1: ✅ TIER-1-DIRECT cite anchors at file:line + HEAD SHA per agent
+      (4 distinct upstream sources cited)
+    - CR-3: ✅ Phase 1 bootstrap exception — T3 postcommit hook will fire
+      on this commit (Tier 1a confirmed ACTIVE per 292 T3 verdict files
+      evidenced this arc)
+    - CR-5: ✅ install-priority — these are install-class artifacts from
+      canonical upstream repos (anthropics OFFICIAL cwc + wshobson named-
+      author + get-shit-done)
+    - CR-6: ✅ pulled from canonical `https://github.com/<org>/<repo>` at
+      recent HEAD SHAs (cwc=ffd563d6 / wshobson=ece811f2 / gsd=3aaed8f5)
+    - CR-7: ✅ Phase 1 graduated unleash discipline; defaultMode=auto/bypass
+      unaffected by this doc-class commit
+    - CR-8: ✅ ADAPTED-FROM-SOTA — verbatim cite-import shapes (evaluator
+      is verbatim per Apache-2.0 license + Anthropic explicit cite line;
+      gsd/wshobson are DEP-ONLY operationalization wrappers pointing to
+      upstream agent files as behavioral authority)
+    - CR-9: ✅ install-risk discipline — ZERO sibling-bleed (no path-
+      rewrite needed); ZERO REVERT precedent (`git ls-files .claude/agents/`
+      returned 0; no agents tracked yet); version-pinned at upstream HEAD
+      SHA cite anchors; 2-round fix-forward budget reserved (T3 will fire)
+    - CR-10: ✅ research-first — Fire 6 audit + Fire 7 verification probes
+      drove this targeted single-class atomic ship
+    - CR-11: ✅ META-process SOTA — orchestrator-direct gap-resolution per
+      FM-17.e §Recovery (subagent dispatch antipattern — Wave 1 Agent A
+      thrashed 2-3x same brief class); audit-action-loop Wire→Surface→Close
+      discipline applied
+    - CR-12: ✅ disposition lattice per agent: (a) evaluator = GENUINELY-NEW
+      (Anthropic OFFICIAL no eee parallel); (b) gsd-goal-verifier = CITE-
+      CLASS-CANONICAL pointing at upstream as behavioral authority; (c)+(d)
+      wshobson agents = GENUINELY-NEW (named-author Hobson + DevSecOps/
+      DevOps surface no eee parallel)
+    
+    ## FM-class risk this fire
+    
+    - FM-02 (b)+(c): LOW — narrow `git add -- <4 files> && git commit --only
+      -F <msg> -- <4 files>` atomic single-shell chain per `Z:\claude-sota-
+      installed\.claude\rules\git-cli-grammar-discipline.md`; ONLY these 4
+      files in stage; ALL other untracked rules/agents UNSTAGED so parallel
+      session cannot absorb my Edit
+    - FM-17.b/d/e/f: ZERO — orchestrator-direct (no subagent dispatch this
+      fire per Wave 1 Agent A FM-17.e recovery)
+    - FM-19: ZERO — file tracking is git-add class; safety_guard.py passes
+    - FM-20: ZERO — every cite anchor is at file:line + HEAD SHA pinned
+      upstream; no cite-propagation across fires
+    
+    ## Launch-discipline.md D1 pre-deploy checklist (per Wave 82w LOCAL
+    codification + Wave 82x codex T1 fix-forward)
+    
+    - Code quality: ✅ files exist + valid frontmatter + content stable per
+      HEAD SHA pin
+    - Security: ✅ no secrets (Anthropic OFFICIAL Apache-2.0 + named-author
+      MIT/Apache cite-imports); ZERO cite to credential paths
+    - Performance: N/A (doc-class)
+    - Accessibility: N/A
+    - Infrastructure: ✅ T3 codex postcommit hook ACTIVE will fire on this
+      commit per Tier 1a verification (292 verdict files this arc)
+    - Communication: ✅ commit body documents action + cite trail + CR
+      conformance + FM risk
+    - OS-State-Mutation: N/A (no admin-class operations)
+    
+    ## Launch-discipline.md 3 invariants
+    
+    - **Reversible**: ✅ `git revert <this-commit>` clean (no infrastructure
+      changes); no external side-effects; T3 verdict file written rollback-
+      safe
+    - **Observable**: ✅ T3 postcommit hook auto-fires; verdict written to
+      `.claude/state/codex_review_HEAD_<sha8>.txt`; monitoring is in-place
+      via the same hook that fired for Fire 2/3 (`94a3248` + `a4d53ac` +
+      `e3dcc44` + `0346ebf`)
+    - **Incremental**: ✅ 4/11 agents this fire (36.4% closure); 7/11
+      deferred for future fires (architect / code-reviewer / debugger /
+      gpt5-archaeologist / gpt5-reviewer / sota-researcher / verifier need
+      path-rewrite per CR-9 sibling-bleed defense — Z:/claude-sota/ refs
+      must be rewritten before tracking)
+    
+    ## Audit percentage delta
+    
+    | Metric | Pre-Fire 7 | Post-Fire 7 |
+    |---|---|---|
+    | Agents tracked | 0 / 11 = 0% | 4 / 11 = 36.4% |
+    | Aggregate file-tracking | 41/80 = 51.3% | 45/80 = 56.3% |
+    | CR-7 Phase 2 (d) Tier 1b status | ⚠️ PARTIAL | ⚠️ PARTIAL (still — sota-researcher.md needs path-rewrite for full closure) |
+    
+    ## Forward direction
+    
+    7 remaining agents need path-rewrite per CR-9 sibling-bleed defense
+    before tracking:
+    - `architect.md` (137 LOC, 9 sibling refs)
+    - `code-reviewer.md` (127 LOC, 7 sibling refs)
+    - `debugger.md` (99 LOC, 4 sibling refs)
+    - `gpt5-archaeologist.md` (205 LOC, 9 sibling refs)
+    - `gpt5-reviewer.md` (275 LOC, 9 sibling refs)
+    - `sota-researcher.md` (298 LOC, 8 sibling refs)
+    - `verifier.md` (189 LOC, 6 sibling refs)
+    
+    Total: 1330 LOC across 52 sibling refs to rewrite. Per cycle-300 ONE-
+    LOGICAL-UNIT-PER-FIRE: defer to next fire (Fire 8+) at 1-2 agents per
+    fire (each agent's path-rewrite needs Mia probe per `Z:\claude-sota-
+   
+
+[prompt truncated]

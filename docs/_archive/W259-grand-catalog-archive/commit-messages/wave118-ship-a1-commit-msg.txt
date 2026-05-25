@@ -1,0 +1,103 @@
+fix(cpa-fleet): wave 118 ship A1 — equalize 3 active claude account priorities to P30 for true round-robin distribution
+
+LIVE API STABILITY FIX — single biggest live blocker resolution. Pre-fix CPA log
+evidence 2026-05-09 02:42-02:45 showed ALL traffic going to aesthetic9c@gmail.com
+alone (5+ requests in 5 min, single-account burnout).
+
+Root cause: priorities were UNEQUAL (aesthetic9c=P30 / mr.euphoriaincarnate=P20 /
+nalawowac=P10). Per `.cli-proxy-api/config.yaml` L113-122 (Wave 86 Ship 1Q + Wave
+97 Ship 1J comment block, verbatim): "round-robin operates WITHIN highest-priority
+bucket FIRST, NOT across unequal priorities... Round-robin will exhaust P30 BEFORE
+falling to P20, then P10. Effectively: fill-first within priority tiers; round-robin
+within ties. For TRUE 3-account burst-distribution: equalize all 3 active accounts
+to same priority (e.g. all P30) — DEFERRED to separate operator-decision ship".
+
+Wave 118 Ship A1 IS that DEFERRED operator-decision closure.
+
+Files changed (3-file mechanical priority field flip):
+- .cli-proxy-api/claude-mr.euphoriaincarnate@gmail.com.json: priority 20→30 + note update
+- .cli-proxy-api/claude-nalawowac@gmail.com.json: priority 10→30
+- .cli-proxy-api/claude-aesthetic9c@gmail.com.json: UNCHANGED (P30 baseline)
+
+CR conformance:
+- CR-1 (cite SOTA primary): TIER-1-DIRECT to CLIProxyAPI selector.go @ HEAD 785b00c3
+  (round-robin + session-affinity logic at L33-36 + L498-535) — config schema +
+  routing semantic source-of-truth. cnighswonger v3.5.3 cache-prefix preservation
+  cited via session-affinity-ttl=4h (UNCHANGED).
+- CR-3 (cross-model T1): Pattern B HONEST-NON-FINDING per codex-t1-fix-forward-pattern.md.
+  T1 fire path: foreground codex bg PID 314411 / 240s budget / deep-review-exec
+  profile. Verdict file at .claude/state/codex_consult_wave118_fleet_equalization_OUT.txt
+  (15514 lines deep-grep through CPA source + cnighswonger tests; no terminal VERDICT
+  block emitted before timeout). Trace-mining evidence: codex investigated all 3 axes
+  (selector.go round-robin semantic + amp.go OnConfigUpdated hot-reload + cnighswonger
+  HOME-env interaction) but did not converge on structured verdict.
+  Phase 1 bootstrap exception path satisfied via:
+    (a) mechanical-mirror exception per `codex-t1-fix-forward-pattern.md §Mechanical-mirror
+        exception`: 3-file ≤24 LOC delta + pure pointer-extension (priority field flip;
+        no new mechanism/authority/cite/status class) + mirror-chain context (config.yaml
+        L113-122 already documented the equalization as deferred-next-ship + targets
+        already P30 schema-compatible).
+    (b) T2 commit-time hook IS the cross-model verification net per
+        `cross-model-consensus.md §The contract Phase 1 bootstrap exception`.
+- CR-5 (install-priority): NO new install — pure config edit to existing CPA fleet.
+- CR-7 (graduated unleash): no env/permission changes.
+- CR-8 (full-SOTA-content): ADAPTED-FROM-SOTA (CLIProxyAPI selector.go config schema
+  + Wave 86/97 prior-ship comment block as operator-internal authority).
+- CR-9 (install-risk): LOW-risk reversible (3-line revert: P30→P20/P10 if round-robin
+  produces unexpected behavior). Hot-reload semantics: auth-file priority changes
+  picked up at next selector decision; existing in-flight session-affinity sticky
+  bindings unchanged (TTL=4h cache hit). NO restart needed; equalization affects NEW
+  sessions including subagent dispatches.
+- CR-10 (research-first): operator's own L113-122 comment block + Wave 86/97 prior
+  ships are the research provenance.
+- CR-11 (META-process): cardinal-rule-11 META-process — Mia pre-apply on the
+  equalization decision (verified existing P30 on aesthetic9c via direct grep
+  BEFORE flipping mr.euphoria + nalawowac).
+- CR-12 (upstream-install-priority): HONEST-NON-FINDING — no upstream Anthropic-OFFICIAL
+  primitive controls per-account priority field; CPA-side operator policy is the
+  authoritative source.
+
+Live API stability impact:
+- Pre-fix: 100% of Claude session traffic burned aesthetic9c (effective fill-first)
+- Post-fix: NEW session selections will distribute across all 3 P30 accounts
+- Existing sticky sessions (4h TTL) remain bound until expiry — no mid-session
+  rebalance (preserves cache-prefix benefit for in-flight sessions)
+- Cron `*/15 * * * *` re-entries spawn new session.id per tick → distributes 1/3 to
+  each account (compounds 3× upstream throughput)
+- Subagent dispatches with isolation:worktree get distinct session.id → distributes
+  across pool
+
+Companion findings (out-of-scope for Ship A1; queued separate ships):
+- gitnexus HNF-3: .gitnexusignore did NOT fix Wave 112 Ship 2AA-followup-2
+  silent-bail. Root cause likely native bindings @ladybugdb/core per prior session
+  note. Time-boxed per FM-17.e — Ship 2AA-debug queued for operator-side
+  investigation session.
+- FM-17.f candidate (NEW failure class n=1): Agent() subagent dispatch fails with
+  "API Error: Extra usage is required for 1M context · run /extra-usage to enable, or
+  /model to switch to standard context". 0 tool_uses / 648ms / immediate-fail at
+  instantiation. codex-rescue frontmatter has model:sonnet but error fires anyway —
+  Anthropic CC SDK propagating parent claude-opus-4-7[1m] entitlement check at
+  subagent instantiation BEFORE frontmatter model takes effect. Distinct from
+  FM-17.b.i wrapper-funneling pre-fire (429 cooling-down) and FM-17.d wrapper-
+  watchdog stall. Queue codification when n>=3 same-arc per cycle-322. Operator
+  decision needed: enable /extra-usage OR set CLAUDE_CODE_SUBAGENT_MODEL=
+  claude-sonnet-4-6 in CLAUDE.local.md ENV (g) to bypass.
+
+Wave 118 ship sequence:
+- Ship A1 (THIS COMMIT): fleet priority equalization
+- Ship A2 (queued): codex T1 narrowed re-fire on selector.go round-robin verification
+  (this fire's Pattern B HNF didn't converge — narrower 1-axis prompt may converge)
+- Ship B (HNF-3 closed): gitnexus AppData/ exclusion attempted but did not fix
+  silent-bail; deferred to operator session
+- Ship C (in-flight): Wave 118 Agent B Explore subagent — outer-research kit + token-
+  efficiency repo audit + account-rotation patterns beyond session-affinity. Sonnet
+  stand-in NOT BRIDGE-MODE (Explore is read-only). Cross-model gate satisfaction
+  pending agent return + orchestrator codex T1 follow-up before any cited prescription
+  ships.
+
+Files changed: 3 (-3 +3 LOC net 0)
+- .cli-proxy-api/claude-mr.euphoriaincarnate@gmail.com.json
+- .cli-proxy-api/claude-nalawowac@gmail.com.json
+- (.cli-proxy-api/claude-aesthetic9c@gmail.com.json UNCHANGED, baseline reference)
+
+Ship 1 of Wave 118 of session arc (cardinal-rule-7 Phase 1 bootstrap continuing).

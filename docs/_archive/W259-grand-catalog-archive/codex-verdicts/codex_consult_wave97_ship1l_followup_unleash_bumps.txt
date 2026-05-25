@@ -1,0 +1,68 @@
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1L-followup (full-unleash env-var bumps per user mandate)
+
+CONTEXT:
+- Wave 97 Ship 1L landed at `a7adfb6` 4 belt-and-suspenders pins (MAX_MCP_OUTPUT_TOKENS=50000 / BASH_MAX_OUTPUT_LENGTH=50000 / BASH_MAX_TIMEOUT_MS=900000 / MCP_TOOL_TIMEOUT=120000)
+- User explicit Wave 97 mandate: "make sure we are fully unleash with sota harness, with our advacned workflow, what is the general limit should set? should we using higher limit?"
+- Trajectory: user has consistently directed "full advanced unleash of all performance, foundation level, and beyond" + cardinal-rule-7 graduated-unleash currently at Phase 3 (`defaultMode: bypassPermissions` per Wave 82d)
+- Ship 1L values were sized at 5-10× observed p95 per fan3-X1 analysis — operator question implies trajectory toward higher
+
+PROPOSED BUMPS (3 of 4 env vars; 1 KEEP per context-rot risk):
+
+| Env var | Ship 1L | Proposed bump | Rationale |
+|---|---|---|---|
+| BASH_MAX_TIMEOUT_MS | 900000 (15min) | **1800000 (30min)** | Covers full-repo gitleaks scans + large `git clone` of monorepos + edge cases beyond codex T6 900s |
+| BASH_MAX_OUTPUT_LENGTH | 50000 | **100000** | Moderate bump still under context-rot threshold (300-400K of 1M); covers larger codex verdict files |
+| MCP_TOOL_TIMEOUT | 120000 (2min) | **300000 (5min)** | Heavy ctx_batch_execute (8-10 concurrent commands) + repomix large-repo + gitnexus impact 10K+ symbol graph |
+| MAX_MCP_OUTPUT_TOKENS | 50000 | **KEEP 50000** | Going higher genuinely risks context-rot at 70% autocompact threshold; single MCP result >100K can flood context |
+
+PROPOSED EDIT (single file: `.claude/settings.json`):
+- L36 BASH_MAX_TIMEOUT_MS: "900000" → "1800000"
+- L34 BASH_MAX_OUTPUT_LENGTH: "50000" → "100000"
+- L38 MCP_TOOL_TIMEOUT: "120000" → "300000"
+- L32 MAX_MCP_OUTPUT_TOKENS: UNCHANGED at "50000"
+- Update _comment lines for the 3 bumped env vars to reflect new values + rationale
+
+WHY EACH BUMP IS SAFE:
+
+1. **BASH_MAX_TIMEOUT_MS 30min**: still under typical "user impatience" threshold (most users abandon after 30min); covers edge cases that Ship 1L 15min would kill (gitleaks full-history scan on large repos can run 10-30min; large monorepo `git clone` 5-15min). Anthropic auto-background trigger via BASH_DEFAULT_TIMEOUT_MS unchanged (kept at default).
+
+2. **BASH_MAX_OUTPUT_LENGTH 100000**: 100K chars ≈ 25K tokens. Single Bash output of 25K tokens fits within typical tool-result budget. Context-rot threshold per Karpathy 1M calibration is ~300-400K tokens; 25K per tool result × 4 = 100K is still well below rot threshold. CCBP doesn't document a hard maximum.
+
+3. **MCP_TOOL_TIMEOUT 5min**: still respects fan-out parallelism (5min cap means wedged tool eventually times out vs unbounded wait). Heavy ctx_batch_execute observed 30-60s p95; legitimate edge cases (8-10 concurrent + slow IO) could hit 2-3min — 5min cap = 1.5-2× safety margin on edge cases.
+
+4. **MAX_MCP_OUTPUT_TOKENS KEEP**: this is the one variable where higher GENUINELY risks context-rot. A single MCP tool returning 100K tokens (e.g., ctx_batch_execute with 12 commands × 10K each) would consume 10% of 1M context window per call. Multiple such calls in a session push autocompact firing earlier (70% threshold = 700K). KEEPING at 50000 = belt-and-suspenders against context-rot while still 2× CCBP default.
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT CCBP: `Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md:822,824,825,979 @ HEAD 64fffd53` (same as Ship 1L)
+- TIER-1-DIRECT Anthropic CHANGELOG: `Z:/repos/deps/claude-code/CHANGELOG.md:3259,3311,2686` (same as Ship 1L)
+- TIER-1-DIRECT karpathy-adapted §5 1M calibration (context-rot at 300-400K threshold)
+- TIER-2 sister: Ship 1L provenance entry at `docs/install-provenance.md`
+- TIER-3 evidence: Wave 97 fan-3 X1 analysis at `tmp/wave97-fan3-X1-mcp-env-deep-dive-2026-05-08.md`
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1 cite chain identical to Ship 1L + karpathy-adapted §5 context-rot anchor
+- CR-3: this consult IS the cross-model gate (real GPT-5.5 e2e BEFORE commit)
+- CR-5: env-var-only addition; no hand-coded primitive
+- CR-7: Phase 3 graduated-unleash (cardinal-rule-7 current state) ALIGNED with full-unleash bump request
+- CR-8: ADAPTED-FROM-SOTA — values cite-anchored to CCBP defaults + context-rot risk analysis
+- CR-9: install-risk MED — timeout-misconfig risk class (each bump independently reversible)
+- CR-10: research-first — Wave 97 fan-3 X1 deep-dive established baseline; this followup is evidence-based bump trajectory
+- CR-11: META-process SOTA — Pattern A discipline + GPT-5.5 e2e + provenance + atomic commit per cycle-300
+
+LAUNCH-DISCIPLINE D1:
+- REVERSIBLE: 3 line edits + 3 _comment updates
+- OBSERVABLE: subsequent session Bash/MCP calls can run longer / produce larger output before truncation/timeout
+- INCREMENTAL: 3-line bump on existing 4-pin Ship 1L; no NEW env vars
+
+QUESTION (JSON ONLY):
+Is Wave 97 Ship 1L-followup (3 bumps + 1 KEEP per user "full unleash" mandate) APPROVE-COMMIT?
+
+Concerns to consider:
+1. Is BASH_MAX_TIMEOUT_MS=1800000 safe? Could a wedged-bash command actually run 30min and harm user?
+2. Is BASH_MAX_OUTPUT_LENGTH=100000 conservative enough vs context-rot?
+3. Is MCP_TOOL_TIMEOUT=300000 the right cap vs allowing fan-out parallelism to recover?
+4. Is KEEPING MAX_MCP_OUTPUT_TOKENS=50000 (NOT bumping) the right call vs user's "full unleash" trajectory?
+5. Any conflict with cardinal-rule-7 Phase 3 + bypassPermissions current mode?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

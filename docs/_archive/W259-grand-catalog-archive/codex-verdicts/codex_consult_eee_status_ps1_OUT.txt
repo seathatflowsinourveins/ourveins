@@ -1,0 +1,62 @@
+{
+  "verdict": "NEEDS-REVISION",
+  "confidence": 0.86,
+  "axis_findings": {
+    "A": [
+      {
+        "finding_id": "F-A.1",
+        "severity": "P3",
+        "claim": "Proxy-down handling is graceful in that it catches the REST failure and does not leak the bearer secret, but it hard-exits before showing any locally available ccusage data.",
+        "evidence_cite": "line 21",
+        "prescribed_edit": "For dashboard resilience, replace the proxy-unreachable exit path with degraded-mode behavior that reports proxy unavailable, skips Mgmt API sections, and still runs the ccusage section when available."
+      },
+      {
+        "finding_id": "F-A.2",
+        "severity": "P3",
+        "claim": "The script prints the management secret file path at the end; it does not print the secret value, but the path is unnecessary disclosure in normal dashboard output.",
+        "evidence_cite": "line 117",
+        "prescribed_edit": "Remove the final 'Mgmt secret' line or gate it behind an explicit verbose/debug switch."
+      }
+    ],
+    "B": [
+      {
+        "finding_id": "F-B.1",
+        "severity": "P2",
+        "claim": "The recent_requests parser only recognizes string buckets where success appears before failed, so a semantically equivalent bucket with failed before success will be silently ignored.",
+        "evidence_cite": "line 55",
+        "prescribed_edit": "Parse success and failed independently, e.g. run separate regexes for 'success=(\\d+)' and 'failed=(\\d+)' on each string bucket rather than relying on ordering."
+      },
+      {
+        "finding_id": "F-B.2",
+        "severity": "P3",
+        "claim": "Object-format recent_requests buckets are handled for success/failed properties, but the additions do not explicitly cast numeric fields, which can be fragile if the JSON parser yields strings.",
+        "evidence_cite": "line 58",
+        "prescribed_edit": "Cast object bucket values explicitly with null defaults, e.g. '$accOk += [int]($b.success ?? 0); $accErr += [int]($b.failed ?? 0)' using PowerShell-compatible null handling."
+      },
+      {
+        "finding_id": "F-B.3",
+        "severity": "P3",
+        "claim": "Subscription expiry date parsing uses DateTimeOffset and compares against DateTimeOffset::Now, which is appropriate for timezone-aware expiry strings.",
+        "evidence_cite": "line 67",
+        "prescribed_edit": "No required edit for TZ parsing; keep DateTimeOffset parsing and consider using UtcNow consistently if the API emits UTC timestamps."
+      }
+    ],
+    "C": [
+      {
+        "finding_id": "F-C.1",
+        "severity": "P1",
+        "claim": "The dashboard does not call the required /api-key-usage management endpoint at all.",
+        "evidence_cite": "line 80",
+        "prescribed_edit": "Add a new Mgmt API section after the account roster or routing section that invokes '$base/v0/management/api-key-usage' with '$mgmtH', handles failures non-fatally, and renders key usage totals/status."
+      },
+      {
+        "finding_id": "F-C.2",
+        "severity": "P2",
+        "claim": "Expiry is displayed as days remaining, but there is no explicit warning when an account is less than 24 hours from expiry.",
+        "evidence_cite": "line 68",
+        "prescribed_edit": "Compute remaining hours from the parsed DateTimeOffset and emit a clear warning or highlighted row when the value is greater than 0 and less than 24 hours, and optionally a separate expired marker when <= 0."
+      }
+    ]
+  },
+  "next_actions": "Add /api-key-usage rendering, implement explicit <24h expiry warnings, and harden recent_requests string/object parsing before approval."
+}

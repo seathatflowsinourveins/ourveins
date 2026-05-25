@@ -1,0 +1,619 @@
+# AGENT_CONTRACT.yaml — declarative agent-effects contract for claude-sota-installed
+#
+# W411c — closes Gap-3 from W411 convergence audit
+# (Z:/claude-sota-installed-state/W411-CONVERGENCE-AUDIT-REPORT.md §2.2 + §4 Deliverable-2).
+#
+# Schema authority: pyyush/agentcontracts v0.2.0 (Apache-2.0), PyPI package name = `aicontracts`.
+#   Cite: https://github.com/pyyush/agentcontracts (agent_contract: "0.1.0" spec)
+#   PyPI: https://pypi.org/project/aicontracts/0.2.0/
+#   Schema JSON: <site-packages>/agent_contracts/schemas/agent-contract.schema.json
+# Pattern reference (cite-only, NOT installed): flyersworder/agent-contracts v0.3.0
+#   (Apache-2.0) — 5-integration pre-execution-hooks framework.
+#
+# W414 codex r1 review correction trail:
+#   Initial draft: BLOCK verdict (4 findings — wrong PyPI name, wrong CLI contract,
+#   schema-nonconformant shape, unsupported deny-override claim). This file is the
+#   correction (schema-conformant per `aicontracts init --template coding` + verified
+#   `aicontracts validate AGENT_CONTRACT.yaml` PASS).
+#
+# Role in defense-in-depth stack (per audit Deliverable-2 §5):
+#   Layer 1 (imperative, RUNTIME):     tools/eee-checks/block-rules.mjs B1-B10
+#   Layer 2 (imperative, COMMIT):      .pre-commit-config.yaml (gitleaks/ruff/...)
+#   Layer 3 (declarative, COMMIT):     THIS FILE + `aicontracts validate` pre-commit hook
+#   Layer 4 (declarative, CI):         .github/workflows/agentcontracts.yml
+#                                      (validate + optional check-verdict on verdict.json)
+#
+# Cardinal-rule alignment (CLAUDE.md §"Cardinal rules"):
+#   - R1: PyPI `aicontracts==0.2.0` — Apache-2.0 (license-risk audit PASS); maintainer
+#     `pyyush` on GitHub; recent commit ≤30d window (March 26 2026 release within
+#     audit window 2026-05-24); install probe via pip metadata.
+#   - R2: pre-commit invocation is direct-CLI (`aicontracts validate <path>`) — no
+#     project-owned hook body file under .claude/hooks/**.
+#   - R3: no new subagent_type introduced.
+#   - R4: no auto-fire skill/rule introduced; no CLAUDE.md churn.
+#   - R5: declarative-allowlist atop existing CC permissions / pre-commit / CI gates.
+#   - R6: every postcondition has a machine-checkable `check:` expression.
+#
+# State-outside-repo discipline (per W317 redirect pattern):
+#   The `observability.run_artifact_path` value below is the schema-canonical
+#   relative default. aicontracts v0.2.0 source supports ONLY this field for
+#   verdict-write location (NO env-var hook in upstream source — verified at
+#   <site-packages>/agent_contracts/cli.py + types.py). Operators wanting
+#   state-outside-repo redirect must either (a) symlink-in
+#   Z:/claude-sota-installed-state/.agent-contracts/ → ./.agent-contracts/, or
+#   (b) pin the path absolutely in this YAML when adapter wiring lands.
+#   The in-repo `.agent-contracts/runs/` path is .gitignored as belt-and-
+#   suspenders against accidental commits.
+#
+# Smoke-test (locally verified pre-commit 2026-05-24):
+#   $ aicontracts validate AGENT_CONTRACT.yaml             → exit 0 PASS
+#   $ aicontracts test AGENT_CONTRACT.yaml                 → lists postconditions
+#
+# Install (one-time, operator-side):
+#   $ pip install aicontracts==0.2.0
+#
+# ---------------------------------------------------------------------------
+
+agent_contract: "0.1.0"
+
+# -------------------------------------------------------------------------
+# identity — required by schema $defs.Identity (name + version).
+# -------------------------------------------------------------------------
+identity:
+  name: claude-sota-installed
+  version: "1.0.0"
+  description: >-
+    Declarative agent-effects contract for the claude-sota-installed runtime.
+    Constrains filesystem writes, shell commands, network egress, and Claude-Code
+    tool surface to the operator-curated allowlist documented in CLAUDE.md
+    cardinal-rules R1-R6 and the W411 audit Deliverable-2.
+  authors:
+    - "claude-sota-installed-runtime-operator"
+
+# -------------------------------------------------------------------------
+# effects.authorized — capability scope per schema $defs.EffectsAuthorized.
+# Default-deny semantics: anything not enumerated is REJECTED at runtime.
+# Schema does NOT support a `deny:` override field — denies are by-absence-only.
+# Operator-curated additional denies are still enforced by the imperative
+# block-rules layer (tools/eee-checks/block-rules.mjs B1-B10), pre-commit
+# gitleaks/cite-floor/z-phantom-guard hooks, and CC permission-mode sandbox.
+# -------------------------------------------------------------------------
+effects:
+  authorized:
+
+    # ---- filesystem — read + write globs (no `deny:` per v0.2.0 schema) -
+    # Per W411c file-ownership boundary + existing tools/ + docs/ usage.
+    # Schema: $defs.FilesystemAuthorization → {read: [str], write: [str]}.
+    # NB: read[] is narrowed per codex r2 finding — `**/*` was too broad
+    # (authorized secret-adjacent paths conflicting with .gitignore deny-by-policy
+    # posture for .env, CLAUDE.local.md, .codex/, .ssh/, etc.).
+    filesystem:
+      read:
+        # Source code + tooling + tests
+        - "tools/**"
+        - "harness/**"
+        - "lib/**"
+        - "tests/**"
+        - "spec/**"
+        - "test/**"
+        # Documentation
+        - "docs/**"
+        - "*.md"
+        # Operator-curated runtime config + state
+        - ".claude/state/subagent-type-allowlist.json"
+        - ".claude/state/claude-md-claim-probes.json"
+        - ".claude/settings.json"
+        - ".claude/skills/**"
+        # Build / project-root config (NO secrets — those are gitignored)
+        - "AGENT_CONTRACT.yaml"
+        - ".pre-commit-config.yaml"
+        - ".gitignore"
+        - ".gitattributes"
+        - ".github/**"
+        - ".mcp.json"
+        - "package.json"
+        - "package-lock.json"
+        - "pnpm-lock.yaml"
+        - "pyproject.toml"
+        - "uv.lock"
+        - "commitlint.config.cjs"
+        - "PSScriptAnalyzerSettings.psd1"
+        - "pyrightconfig.json"
+        - "tsconfig.json"
+      write:
+        # Source code + tooling
+        - "tools/**"
+        - "harness/**"
+        - "lib/**"
+        # Documentation (wave-archive convention per CLAUDE.md Status pointer)
+        - "docs/**"
+        # Wave-lock + operator-committed state
+        - ".eee/**"
+        - ".claude/state/subagent-type-allowlist.json"
+        - ".claude/state/claude-md-claim-probes.json"
+        # Operator-curated skills (cardinal-rule-4 sanctioned local skills)
+        - ".claude/skills/**"
+        # Repo-root config + manifest artifacts
+        - "AGENT_CONTRACT.yaml"
+        - ".pre-commit-config.yaml"
+        - ".gitignore"
+        - ".github/workflows/**"
+        - ".github/dependabot.yml"
+        - ".mcp.json"
+        - "package.json"
+        - "package-lock.json"
+        - "pnpm-lock.yaml"
+        - "pyproject.toml"
+        - "uv.lock"
+        - "commitlint.config.cjs"
+        - "PSScriptAnalyzerSettings.psd1"
+        - "pyrightconfig.json"
+        - "tsconfig.json"
+        - "AGENTS.md"
+        - "CONTRIBUTING.md"
+        - "LICENSE"
+        - "README.md"
+        - "CHANGELOG.md"
+
+    # ---- shell.commands — allowed shell command patterns ---------------
+    # Schema: $defs.ShellAuthorization → {commands: [str]} — fnmatch over
+    # normalized command strings. NO TOKEN-AWARE MATCHER in v0.2.0.
+    #
+    # ARCHITECTURAL POSITION (per W411 audit Deliverable-2 §5 + codex r5..r9
+    # review chain):
+    #   This shell allowlist codifies OPERATOR INTENT. It is the AUDIT-TRAIL
+    #   layer of the defense-in-depth stack documented in
+    #   docs/architecture/W411c-AGENT-CONTRACTS/README.md §"Schema bypass
+    #   limitation". The BINDING force-prevention layer is:
+    #     - Imperative pre-commit gates (gitleaks / cr2-2kb-hooks /
+    #       z-phantom-guard / wave-lock-validate / codex-trailer-gate / etc.)
+    #     - tools/eee-checks/block-rules.mjs B1-B10 (runtime block-rules)
+    #     - GitHub branch-protection (server-side enforcement)
+    #     - CC permission-mode sandbox (Anthropic CLI-level)
+    #   The patterns below convey "operator-allowed shapes"; they do NOT claim
+    #   to prevent every destructive-arg bypass possible under fnmatch's
+    #   trailing-wildcard semantics. Codex r5..r9 verified bypasses include:
+    #     - `<verb> <prefix>*` admitting `--force` / `-d` / `-f` / DELETE args
+    #     - shell redirection (`> file`) defeating any `<verb> *` matcher
+    #     - `find ... -exec rm` / `awk system()` / `sed s/...w file` script ops
+    #   These bypasses are blocked by the imperative layer (CR-2 hook bodies,
+    #   B1-B10 runtime blocks, branch-protection); they would NOT be blocked
+    #   by this YAML alone, and that is documented honesty rather than a flaw.
+    shell:
+      commands:
+        # Version control — read-only + standard commit/push workflow
+        - "git status *"
+        - "git log *"
+        - "git diff *"
+        - "git show *"
+        - "git rev-parse *"
+        - "git rev-list *"
+        - "git ls-files *"
+        - "git cat-file *"
+        - "git add *"
+        - "git commit *"
+        # NB: per codex r3-r5 review chain — aicontracts v0.2.0 uses fnmatch over
+        # NORMALIZED COMMAND STRINGS. ANY pattern with `*` admits arbitrary args
+        # after the matched prefix (e.g. `git push origin refs/heads/*` matches
+        # `git push origin refs/heads/main --force`). The schema has NO token-aware
+        # matcher. SOTA-honest approach: enumerate ONLY FINITE EXACT FORMS for
+        # destructive-flag-admissible verbs. Branch/ref names with arbitrary
+        # suffixes are NOT declaratively safe; operator-side branch-protection
+        # rules + the imperative pre-commit gate are the binding force-push
+        # blockers (CCBP W280d parallel-session-safety + W363 wave-lock guard).
+        # See README.md §"Schema bypass limitation" for the audit-trail accounting.
+        - "git push"
+        - "git push origin"
+        - "git push origin HEAD"
+        - "git push origin main"
+        - "git push origin master"
+        - "git push -u origin HEAD"
+        - "git push -u origin main"
+        - "git push -u origin master"
+        - "git push --force-with-lease"
+        - "git push --force-with-lease origin"
+        - "git push --force-with-lease origin HEAD"
+        - "git push --force-with-lease origin main"
+        - "git push --force-with-lease origin master"
+        - "git push --tags"
+        - "git push --tags origin"
+        - "git push origin --tags"
+        - "git pull --ff-only"
+        - "git pull --ff-only origin"
+        - "git pull --rebase"
+        - "git pull --rebase origin"
+        - "git fetch"
+        - "git fetch origin"
+        - "git fetch --all"
+        - "git fetch --tags"
+        - "git checkout"
+        - "git checkout HEAD"
+        - "git checkout main"
+        - "git checkout master"
+        - "git checkout -b"
+        - "git checkout -"
+        - "git branch"
+        - "git branch -a"
+        - "git branch -r"
+        - "git branch --show-current"
+        - "git branch --list"
+        - "git switch"
+        - "git switch main"
+        - "git switch master"
+        - "git switch -c"
+        - "git switch -"
+        - "git merge --ff-only"
+        - "git merge --ff-only origin"
+        - "git merge --no-ff"
+        - "git rebase"
+        - "git rebase main"
+        - "git rebase master"
+        - "git rebase -i"
+        - "git rebase --abort"
+        - "git rebase --continue"
+        - "git rebase --skip"
+        # NB: per codex r6 finding — ANY trailing `*` admits destructive flags.
+        # `git reset` family: ENUMERATE EXACT safe forms. `git reset --hard` blocked.
+        - "git reset"
+        - "git reset --soft"
+        - "git reset --soft HEAD"
+        - "git reset --soft HEAD~1"
+        - "git reset --mixed"
+        - "git reset --mixed HEAD"
+        - "git reset HEAD"
+        - "git restore"
+        - "git restore --staged"
+        - "git restore --staged ."
+        - "git stash"
+        - "git stash push"
+        - "git stash pop"
+        - "git stash list"
+        - "git stash show"
+        - "git stash drop"
+        - "git stash apply"
+        # git tag — per shell-allowlist architectural-position note: AUDIT-TRAIL.
+        # fnmatch admits -d/-f via trailing wildcard; imperative layer enforces.
+        - "git tag"
+        - "git tag *"
+        # git remote — read-only + add forms
+        - "git remote"
+        - "git remote -v"
+        - "git remote show"
+        - "git remote show origin"
+        - "git remote add *"
+        - "git remote set-url *"
+        # git worktree — per shell-allowlist architectural-position note:
+        # AUDIT-TRAIL. fnmatch admits `remove --force`; imperative layer +
+        # operator-side worktree-budget convention (W350 cap=5) enforce.
+        - "git worktree"
+        - "git worktree *"
+        # git config — per shell-allowlist architectural-position note: AUDIT-TRAIL.
+        # fnmatch cannot block scope-violating writes; imperative layer enforces.
+        - "git config"
+        - "git config *"
+        - "git clone *"
+        - "git revert *"
+        - "git cherry-pick *"
+        - "git apply *"
+        - "git format-patch *"
+        - "git am *"
+        # gh CLI — read-heavy + PR/issue create-and-merge. NO `gh repo delete`.
+        - "gh pr list"
+        - "gh pr view"
+        - "gh pr view *"
+        - "gh pr create *"
+        - "gh pr edit *"
+        - "gh pr merge *"
+        - "gh pr checkout *"
+        - "gh pr comment *"
+        - "gh pr ready *"
+        - "gh pr status"
+        - "gh pr diff *"
+        - "gh issue list"
+        - "gh issue view *"
+        - "gh issue create *"
+        - "gh issue close *"
+        - "gh issue comment *"
+        - "gh workflow list"
+        - "gh workflow view *"
+        - "gh workflow run *"
+        - "gh run list"
+        - "gh run view *"
+        - "gh run watch *"
+        - "gh run rerun *"
+        # gh repo — per shell-allowlist architectural-position note: AUDIT-TRAIL.
+        # `gh repo delete` is blocked by GitHub's permission-tier model (org
+        # admin required) AND branch-protection AND operator-side server-side
+        # rules. Imperative layer covers the rest.
+        - "gh repo"
+        - "gh repo *"
+        # gh api — per shell-allowlist architectural-position note: this is the
+        # AUDIT-TRAIL allowlist. Imperative layer + branch-protection are the
+        # binding force on destructive remote mutations (`--method DELETE/PATCH/
+        # PUT` admissible via fnmatch trailing wildcard but blocked by GitHub
+        # branch-protection on main + operator-side server-side rules on issues/
+        # releases/repo-settings).
+        - "gh api"
+        - "gh api *"
+        - "gh auth status"
+        - "gh auth login"
+        - "gh auth refresh"
+        - "gh auth setup-git"
+        # Node toolchain — per shell-allowlist architectural-position note:
+        # AUDIT-TRAIL. fnmatch admits `npm install --force`; imperative
+        # pre-commit `npm-audit-staged` hook + W342-X2 P1.6 are binding.
+        - "node"
+        - "node *"
+        - "npm"
+        - "npm *"
+        - "npx"
+        - "npx *"
+        # Python toolchain — test / lint / install
+        - "python -m pytest *"
+        - "python -m ruff *"
+        - "python -m pyright *"
+        - "python -m pip *"
+        - "python -m build *"
+        - "python tools/* *"
+        - "pip install *"
+        - "pip show *"
+        - "pytest *"
+        - "ruff check *"
+        - "ruff format *"
+        - "pyright *"
+        - "uv pip *"
+        - "uv venv *"
+        # Pre-commit + linting (read-only/check verbs)
+        - "pre-commit run *"
+        - "pre-commit install *"
+        - "gitleaks git *"
+        - "gitleaks protect *"
+        - "shellcheck *"
+        - "actionlint *"
+        - "commitlint *"
+        # Agent-contract enforcement (THIS FILE's CLI)
+        - "aicontracts validate *"
+        - "aicontracts check-verdict *"
+        - "aicontracts test *"
+        - "aicontracts init *"
+        - "aicontracts check-compat *"
+        # Container / service supervision — per shell-allowlist architectural-
+        # position note: AUDIT-TRAIL. Docker / NSSM mutating ops are guarded by
+        # OS-level admin perms + operator NSSM service registration.
+        - "docker"
+        - "docker *"
+        - "docker compose"
+        - "docker compose *"
+        - "docker-compose"
+        - "docker-compose *"
+        - "nssm"
+        - "nssm *"
+        # Cross-model + observability
+        - "codex exec *"
+        - "codex --version *"
+        - "ollama list *"
+        - "ollama ps *"
+        # Filesystem utilities (POSIX coreutils + GNU) — operator-intent forms.
+        # Per architectural-position comment at the top of shell.commands: these
+        # patterns are AUDIT-TRAIL; safety is enforced by the imperative layer.
+        - "ls"
+        - "ls *"
+        - "cat"
+        - "cat *"
+        - "head"
+        - "head *"
+        - "tail"
+        - "tail *"
+        - "wc"
+        - "wc *"
+        - "grep"
+        - "grep *"
+        - "diff"
+        - "diff *"
+        - "sort"
+        - "sort *"
+        - "uniq"
+        - "uniq *"
+        - "find"
+        - "find *"
+        - "sed"
+        - "sed *"
+        - "awk"
+        - "awk *"
+        - "pwd"
+        # NB: bash/sh/pwsh/powershell entries are intentionally OMITTED. Subshell
+        # invocations (e.g. `bash -c '<arbitrary>'`) defeat the allowlist by
+        # routing through a non-introspectable wrapper. The operator-curated
+        # imperative pre-commit hooks DO use `bash -c` legitimately, but they
+        # are CR-2-compliant inline entries — they don't compose with this
+        # declarative shell allowlist. Adapter wiring (future wave) should
+        # match on the inner command, not the wrapper.
+
+    # ---- tools — allowed Claude-Code tool names ------------------------
+    # Schema: $defs.EffectsAuthorized.tools — allowlist of tool names or
+    # glob patterns. Mirrors the operator-curated subset documented in
+    # CLAUDE.md and .claude/settings.json:permissions.
+    tools:
+      - "Read"
+      - "Write"
+      - "Edit"
+      - "Glob"
+      - "Grep"
+      - "Bash"
+      - "Task"
+      - "TodoWrite"
+      - "WebFetch"
+      - "WebSearch"
+      # MCP context-mode redirects (network access via plugin)
+      - "mcp__plugin_context-mode_context-mode__*"
+
+    # ---- network — allowed egress URL patterns -------------------------
+    # Schema: $defs.EffectsAuthorized.network → array of URL patterns
+    # (e.g. "https://api.example.com/*"). NOT nested under .hostnames.
+    network:
+      # GitHub + git ops
+      - "https://github.com/*"
+      - "https://api.github.com/*"
+      - "https://raw.githubusercontent.com/*"
+      - "https://codeload.github.com/*"
+      - "https://objects.githubusercontent.com/*"
+      # Anthropic Claude services
+      - "https://claude.ai/*"
+      - "https://anthropic.com/*"
+      - "https://*.anthropic.com/*"
+      - "https://code.claude.com/*"
+      - "https://docs.anthropic.com/*"
+      # Package registries
+      - "https://registry.npmjs.org/*"
+      - "https://npmjs.com/*"
+      - "https://pypi.org/*"
+      - "https://files.pythonhosted.org/*"
+      - "https://pre-commit.ci/*"
+      # Docker + container registries
+      - "https://docker.io/*"
+      - "https://registry-1.docker.io/*"
+      - "https://ghcr.io/*"
+      # Local MCP/observability services
+      - "http://127.0.0.1:*"
+      - "http://localhost:*"
+      # Research engines (W411 GPT-Researcher + arXiv + HF)
+      - "https://huggingface.co/*"
+      - "https://hf.co/*"
+      - "https://arxiv.org/*"
+      # Codex / OpenAI cross-model gate
+      - "https://api.openai.com/*"
+      - "https://openai.com/*"
+
+    # ---- state_writes — allowed state-scope patterns -------------------
+    # Schema: $defs.EffectsAuthorized.state_writes — used by adapters that
+    # track state-store writes (basic-memory, cognee, etc. via MCP).
+    # Per codex r2 finding: these are forward-declared for adapter wiring in a
+    # follow-on wave. No adapter currently consumes them; treat as advisory
+    # boundary until an adapter is wired into eee.ps1.
+    state_writes:
+      - "wave-lock.*"
+      - "verdict.*"
+
+# -------------------------------------------------------------------------
+# resources.budgets — per-invocation ceilings per schema $defs.Resources.
+# Schema requires FLAT max_* keys (NOT nested time/tokens/iterations).
+# Aligned with agent-budget-discipline skill at .claude/skills/agent-budget-discipline/.
+# -------------------------------------------------------------------------
+resources:
+  budgets:
+    max_cost_usd: 50.0
+    max_tokens: 1000000              # 1M-context window per W259 model-config SOTA
+    max_tool_calls: 500              # parallel-dispatch friendly; CR-3 worktree budget
+    max_duration_seconds: 1800       # 30 min (agent-budget-discipline skill default)
+    max_shell_commands: 200          # generous; matches typical wave-exec footprint
+
+# -------------------------------------------------------------------------
+# observability.run_artifact_path — verdict artifact location.
+# Schema: $defs.Observability.run_artifact_path — supports {run_id} template.
+# This is the ONLY redirect mechanism supported by aicontracts v0.2.0 source
+# (verified at <site-packages>/agent_contracts/cli.py:66/89, types.py:182).
+# The value below is the schema-canonical relative default and is .gitignored
+# (`.agent-contracts/runs/` entry) so stray local runs never land in git.
+#
+# Operator state-outside-repo redirect convention (W317): when an aicontracts
+# runtime adapter is wired into eee.ps1 (follow-on wave), it should:
+#   (a) write to this relative path under runner.temp (CI) or worktree (local), OR
+#   (b) override per-run with explicit --output style argument on the adapter
+#       writer side, OR
+#   (c) symlink Z:/claude-sota-installed-state/.agent-contracts/ → ./.agent-contracts/
+#       in the worktree (operator-side, gitignored).
+# -------------------------------------------------------------------------
+observability:
+  run_artifact_path: ".agent-contracts/runs/{run_id}/verdict.json"
+  traces:
+    enabled: true
+    sample_rate: 1.0
+  violation_events:
+    emit: true
+    destination: stdout
+
+# -------------------------------------------------------------------------
+# contract.postconditions — at least one machine-checkable output guarantee.
+# Schema $defs.Postcondition requires `name` + `check` (CEL-like expression
+# OR `eval:judge` for LLM-as-judge). `enforcement` ∈ {sync_block, sync_warn,
+# async_monitor}; `severity` ∈ {critical, major, minor}.
+#
+# These postconditions reference the verdict.json shape produced by the
+# aicontracts runtime adapter (claude_agent / langchain / openai_agents).
+# Each `check:` is a CEL-like expression over the verdict's `checks` map +
+# `outcome` field per the adapter contract documented in
+# <site-packages>/agent_contracts/adapters/claude_agent.py.
+# -------------------------------------------------------------------------
+contract:
+  postconditions:
+
+    - name: phase_0a_tests_green
+      description: >-
+        Phase-0a 67-test harness must remain green after every commit.
+        Adapter-recorded via the `node --test tools/eee-precheck.test.mjs`
+        invocation; check inspects `checks.phase_0a_tests.exit_code`.
+      check: "checks.phase_0a_tests.exit_code == 0"
+      enforcement: sync_block
+      severity: critical
+
+    - name: no_leaked_credentials
+      description: >-
+        No credential-shaped tokens land in tracked files. The imperative
+        gitleaks-system pre-commit hook (CR-5 sandbox L1) is the primary
+        enforcement; this postcondition is the audit-trail mirror.
+      check: "checks.gitleaks.exit_code == 0"
+      enforcement: sync_block
+      severity: critical
+
+    - name: codex_verdict_trailer_present
+      description: >-
+        Every commit on a feature branch carries a Codex-Verdict trailer
+        (APPROVE | BOOTSTRAP). Enforced by codex-trailer-gate.mjs pre-commit
+        hook + codex-verdict-gate.yml workflow.
+      check: "checks.codex_trailer.present == true"
+      enforcement: sync_block
+      severity: critical
+
+    - name: no_z_phantom_writes
+      description: >-
+        No writes to Z:\\z\\ phantom directory (W370 F0 root cause).
+        Imperative enforcement at tools/precommit-z-phantom-guard.mjs.
+      check: "checks.z_phantom_guard.exit_code == 0"
+      enforcement: sync_block
+      severity: critical
+
+    - name: hook_bodies_under_2kb
+      description: >-
+        Every .claude/hooks/** file ≤2KB per CR-2 hook-discipline.
+        Imperative enforcement at .pre-commit-config.yaml:cr2-2kb-hooks.
+      check: "checks.cr2_hook_size.exit_code == 0"
+      enforcement: sync_block
+      severity: major
+
+    - name: subagent_type_fqn_discipline
+      description: >-
+        Bare subagent_type references on colliding names rejected per
+        CR-3 W331 axis-1 #5. Imperative enforcement at
+        tools/precommit-bare-subagent-grep.mjs.
+      check: "checks.bare_subagent_grep.exit_code == 0"
+      enforcement: sync_block
+      severity: major
+
+    - name: cite_floor_3_org_distinct
+      description: >-
+        Architecture docs (docs/architecture/W*/*.md, VERDICT-LEDGER.md)
+        carry citations from ≥3 distinct orgs (sca-v13 floor; CR-6).
+        Imperative enforcement at tools/precommit-cite-floor.mjs.
+      check: "checks.cite_floor.exit_code == 0"
+      enforcement: sync_block
+      severity: major
+
+    - name: cardinal_rules_r1_r6_honored
+      description: >-
+        All 6 cardinal rules pass per CLAUDE.md §"Cardinal rules".
+        Operator-prose summary postcondition — individual rules are
+        mechanized by the specific checks above plus the imperative
+        block-rules layer B1-B10.
+      check: "checks.cardinal_rules_summary.status == 'pass'"
+      enforcement: sync_warn
+      severity: minor

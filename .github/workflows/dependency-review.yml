@@ -1,0 +1,93 @@
+# W432-G3: Standalone dependency-review workflow (PR-triggered).
+#
+# Supersedes the inline `dependency-review` job in ci.yml (W349 RC-19), which
+# was kept advisory (continue-on-error) inside a 12-job CI workflow. Splitting
+# into a standalone workflow:
+#   1. Surfaces dependency-review as a first-class quality gate (own status check).
+#   2. Lets `cancel-in-progress` operate at the PR-scope (vs CI's broader scope).
+#   3. Decouples the GHAS-gap blast radius from the rest of CI hygiene.
+#
+# Triggers ONLY on pull_request — actions/dependency-review-action compares the
+# base ref's dependency graph against the head ref, which has no meaning outside
+# a PR. (Cite: actions/dependency-review-action README "Usage > Trigger.")
+#
+# PRIVATE-repo gap: full PR-blocking behaviour requires GitHub Advanced Security
+# (Dependency graph + Dependency review API). Without GHAS the action returns a
+# 403 ("Dependency review is not supported on this repository"). We graceful-
+# degrade via `continue-on-error: true` per W349 RC-19 + W431 §2.10 step #9
+# (re-enable as PR-blocking after public-mirror publish or GHAS enable).
+#
+# Cite anchors:
+#   * https://github.com/actions/dependency-review-action @ v5.0.0 (W436-GH-PRACTICE-INSTALL bump 2026-05-24)
+#     (latest stable per gh api refs/tags/v5.0.0, peeled SHA a1d282b36b6f3519aa1f3fc636f609c47dddb294)
+#   * https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review
+#   * OWASP CICD-SEC-3 (Dependency-Chain Abuse): https://owasp.org/www-project-top-10-ci-cd-security-risks/CICD-SEC-03
+#   * OpenSSF Scorecard "Pinned-Dependencies" check: https://github.com/ossf/scorecard/blob/main/docs/checks.md#pinned-dependencies
+#   * step-security/harden-runner README (egress-policy: audit minimum): https://github.com/step-security/harden-runner
+
+name: Dependency Review (PR gate)
+
+on:
+  pull_request:
+    branches: [main]
+
+# OWASP CICD-SEC-2 (Inadequate Identity and Access Management) — least-privilege.
+# `contents: read` lets dependency-review-action diff package manifests.
+# `pull-requests: write` lets it post the summary comment (required by
+# comment-summary-in-pr: always per action README "Configuration").
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: actions/dependency-review (PRIVATE-repo advisory)
+    runs-on: ubuntu-latest
+    # W349 RC-19: graceful when GHAS absent. Re-enable as blocking after public
+    # mirror per W431 §2.10 step #9 OR when GHAS turns on for this private repo.
+    continue-on-error: true
+    steps:
+      - name: Harden runner (OWASP CICD-SEC-4 — egress audit)
+        # https://github.com/step-security/harden-runner/releases/tag/v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout (no token persistence)
+        # https://github.com/actions/checkout/releases/tag/v4.3.1
+        # persist-credentials: false per OpenSSF Scorecard "Token-Permissions" check.
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Dependency Review
+        # https://github.com/actions/dependency-review-action/releases/tag/v4.9.0
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; node24 runtime per actions/dependency-review-action v5.0.0 release notes — requires runner v2.327.1+)
+        with:
+          # action.yml input `fail-on-severity` ∈ {low, moderate, high, critical}.
+          # SOTA discipline: block PRs introducing HIGH+ vulns (W431 §2.9 proposed
+          # `moderate`; we tighten to `high` to align with the rest of the
+          # security gate surface — trivy-ci already enforces HIGH/CRITICAL).
+          fail-on-severity: high
+
+          # action.yml input `deny-licenses` — comma-separated SPDX IDs.
+          # CR-1(b) trust-tuple "license-risk audit": AGPL/SSPL/proprietary
+          # case-by-case. Both AGPL-3.0 and SSPL-1.0 violate the runtime's
+          # "vendor + relicense" requirements for the public-mirror trajectory.
+          # (Cite: CLAUDE.md cardinal-rule 1, axis-1 #3.)
+          deny-licenses: 'AGPL-3.0, AGPL-3.0-only, AGPL-3.0-or-later, SSPL-1.0'
+
+          # action.yml input `comment-summary-in-pr` ∈ {always, on-failure, never}.
+          # `always` requires pull-requests: write (granted above). Comment gives
+          # the reviewer a per-PR diff of all new/modified deps + their CVE +
+          # license posture without leaving the PR.
+          comment-summary-in-pr: always
+
+          # OpenSSF Scorecard surface inside dependency-review output. Cite:
+          # actions/dependency-review-action action.yml `show-openssf-scorecard`.
+          show-openssf-scorecard: true

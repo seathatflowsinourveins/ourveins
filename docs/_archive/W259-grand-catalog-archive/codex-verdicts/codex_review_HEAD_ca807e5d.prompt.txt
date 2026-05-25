@@ -1,0 +1,279 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit ca807e5df3cfe9d1efe64bd3a2a7cff3de216548
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/fm17_class_lint.py | 141 +++++++++++++++++++++++++++++++
+ .claude/settings.json                    |   6 ++
+ 2 files changed, 147 insertions(+)
+
+=== git show --format=fuller ===
+commit ca807e5df3cfe9d1efe64bd3a2a7cff3de216548
+Author:     42 <42@local>
+AuthorDate: Mon May 11 16:47:18 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 16:47:18 2026 -0400
+
+    feat(hooks): Wave 152 Fire 12 — FM-17 a-f subclass classifier SubagentStop hook (AXIS-O #N2)
+    
+    NEW .claude/hooks/scripts/fm17_class_lint.py (141 LOC); registered as 4th
+    SubagentStop hook (after telemetry + codex_review_trace + fm19). Classifies
+    subagent termination into FM-17 sub-classes a-f by ordered regex
+    (precedence: f→b→e→c.ii→c.i→d→a) + truncation heuristic. Advisory exit 0;
+    emits JSONL + stderr warn only when sub-class matches.
+    
+    Design: SYSTEM-meta-review fallback to W152-F13 codex T1 APPROVE conf=0.84
+    fm17_design block at .claude/state/codex_consult_wave152_f13_fm_lints_design_OUT.txt
+    (EOF). Sibling fm17d_stall_detector.py (DORMANT via env L9) NOT touched — new
+    hook is schema-correct per SDK b512f256 documented fields + broader sub-class
+    scope (a-f vs d-only).
+    
+    Provenance APPEND deferred — parallel session hot-editing install-provenance.md;
+    FM-02 sub-class (c) deferral per reframe ("provenance is footnote").
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/fm17_class_lint.py b/.claude/hooks/scripts/fm17_class_lint.py
+new file mode 100644
+index 0000000..c963953
+--- /dev/null
++++ b/.claude/hooks/scripts/fm17_class_lint.py
+@@ -0,0 +1,141 @@
++#!/usr/bin/env python3
++# FM-17 a-f sub-class classifier — SubagentStop hook (advisory; exit 0)
++#
++# Design source: W152-F13 codex T1 fm17_design block at
++#   .claude/state/codex_consult_wave152_f13_fm_lints_design_OUT.txt EOF
++#   (APPROVE conf=0.84; ~95 LOC; HIGH feasibility)
++# Sub-class catalog: .claude/rules/fm17-subagent-fleet-depletion.md
++# Schema: SubagentStop input per claude-agent-sdk-python types.py:309-316
++"""Classify subagent termination into FM-17 sub-classes (a-f).
++
++Precedence (most specific first):
++  f    1M-context billing                "Extra usage is required for 1M context"
++  b    429 pool depletion                "429" / "cooling down"
++  e    Autocompact thrashing             "Autocompact is thrashing"
++  c.ii Windows cert-store ACL            "certificate store" / "Access is denied"
++  c.i  Codex bg-job wedge                "task forwarded to Codex companion"
++  d    Wrapper stream-watchdog stall     "stream watchdog" / "Agent stalled" / INTERNAL_ERROR
++  a    Wrapper truncation                last_msg ends mid-sentence (heuristic fallback)
++
++Advisory-only: emits stderr + JSONL row when a sub-class matches; never blocks.
++Quiet exit if no signature found (no telemetry noise).
++"""
++from __future__ import annotations
++
++import os
++import re
++import sys
++from pathlib import Path
++
++sys.path.insert(0, os.path.dirname(__file__))
++from _observation_writer import (  # noqa: E402
++    append_observation,
++    now_iso,
++    read_stdin_payload,
++)
++
++_CTX = "fm17_class_lint"
++_DISABLE_ENV = "FM17_CLASS_LINT_DISABLE"
++_TAIL_BYTES = int(os.getenv("FM17_TAIL_BYTES", "262144"))
++
++# Sub-class signatures (precedence order — most specific first)
++_SIGNATURES = [
++    ("f",    r"Extra usage is required for 1M context"),
++    ("b",    r"\b429\b|cooling down"),
++    ("e",    r"Autocompact is thrashing"),
++    ("c.ii", r"certificate store|Access is denied|failed to open current user certificate store"),
++    ("c.i",  r"task forwarded to Codex companion"),
++    ("d",    r"stream watchdog did not recover|Agent stalled: no progress for|INTERNAL_ERROR"),
++]
++
++_RECOVERY = {
++    "a":    "SendMessage agent for ARTIFACT-INLINE re-emit",
++    "b":    "Fleet probe >=3 accounts <50% via status.py before re-dispatch",
++    "c.i":  "Foreground+tee from main session bypasses bg-job state wedge",
++    "c.ii": "Dispatch from main orchestrator process (cert-store ACL inheritance)",
++    "d":    "Foreground+tee from main OR re-brief with 90-180s per-codex-call budget",
++    "e":    "Tighten brief: substitute Read/WebFetch with ctx_execute_file/ctx_fetch_and_index",
++    "f":    "Path P codex exec foreground+tee OR Path D CLAUDE_CODE_DISABLE_1M_CONTEXT=1",
++}
++
++
++def _read_tail(path) -> str:
++    if not path:
++        return ""
++    try:
++        p = Path(path)
++        if not p.exists() or not p.is_file():
++            return ""
++        size = p.stat().st_size
++        with p.open("rb") as f:
++            if size > _TAIL_BYTES:
++                f.seek(size - _TAIL_BYTES)
++                f.readline()
++            return f.read().decode("utf-8", "replace")
++    except Exception:
++        return ""
++
++
++def _classify(text: str):
++    if not text:
++        return None, None
++    for sub, pat in _SIGNATURES:
++        m = re.search(pat, text, re.IGNORECASE)
++        if m:
++            return sub, m.group(0)[:80]
++    return None, None
++
++
++def _detect_truncation(last_msg: str) -> bool:
++    """Heuristic class 'a': last_msg ends mid-sentence without proper closure."""
++    if not last_msg or len(last_msg) < 200:
++        return False
++    tail = last_msg.rstrip()[-80:]
++    if re.search(r'[.!?\]\)`"\'>]$|---$|\*\*\*$|</\w+>$', tail):
++        return False
++    return True
++
++
++def main() -> int:
++    payload = read_stdin_payload(_DISABLE_ENV, _CTX)
++    if payload is None:
++        return 0
++
++    agent_id = str(payload.get("agent_id") or "")
++    agent_type = str(payload.get("agent_type") or "")
++    transcript_path = payload.get("agent_transcript_path")
++    last_msg = str(payload.get("last_assistant_message") or "")
++
++    transcript_tail = _read_tail(transcript_path)
++    sub, sig = _classify(last_msg)
++    if sub is None:
++        sub, sig = _classify(transcript_tail)
++    if sub is None and _detect_truncation(last_msg):
++        sub, sig = "a", "[heuristic: last_msg ends mid-sentence]"
++
++    if sub is None:
++        return 0  # Quiet exit — no FM-17 signature
++
++    obs = {
++        "ts": now_iso(),
++        "ctx": _CTX,
++        "agent_id": agent_id,
++        "agent_type": agent_type,
++        "fm17_subclass": sub,
++        "signature": sig,
++        "recovery_hint": _RECOVERY.get(sub, ""),
++    }
++    try:
++        append_observation(obs, _CTX)
++    except Exception:
++        pass
++
++    sys.stderr.write(
++        f"[fm17-lint] FM-17.{sub} detected for {agent_type or 'agent'} "
++        f"(sig: {(sig or '')[:60]}). Recovery: {_RECOVERY.get(sub, 'see fm17 rule')}\n"
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 69c6746..97b61bc 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -434,6 +434,12 @@
+             "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/fm19_artifact_inline_lint.py\"",
+             "timeout": 5,
+             "async": true
++          },
++          {
++            "type": "command",
++            "command": "\"Z:/venvs/claude/Scripts/python.exe\" \"Z:/claude-sota-installed/.claude/hooks/scripts/fm17_class_lint.py\"",
++            "timeout": 5,
++            "async": true
+           }
+         ]
+       }
+</repository_context>

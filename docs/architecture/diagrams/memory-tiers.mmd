@@ -1,0 +1,23 @@
+%% Memory tier stack — claude-sota-installed (6 tiers: 4 live / 2 retired)
+%% Source: CLAUDE.md Runtime-state §Memory + .mcp.json
+%% (cognee, langfuse, basic-memory verified present in .mcp.json 2026-05-21)
+flowchart TD
+    CC["Claude Code orchestrator"]
+
+    subgraph LIVE["LIVE — 4 tiers"]
+        T6["T6 · basic-memory<br/>uvx stdio · markdown · survives compaction<br/>◀ CANONICAL PRIMARY"]
+        T3["T3 · cognee<br/>http :8000 (NSSM CogneeMCP) · GraphRAG cold-tier"]
+        T5["T5 · langfuse<br/>stdio + :3000 stack · observability traces"]
+        T2["T2 · KG-memory (everything-claude-code)<br/>plugin-supplied · knowledge-graph fallback"]
+    end
+
+    subgraph RETIRED["RETIRED — 2 tiers"]
+        T1["T1 · hindsight ✗<br/>vector daemon :9077 — no service"]
+        T4["T4 · graphiti ✗<br/>temporal-KG / FalkorDB :16379 — excised from .mcp.json"]
+    end
+
+    CC -->|reads + writes| T6
+    CC --> T3
+    CC --> T5
+    CC --> T2
+    CC -.->|not wired| RETIRED

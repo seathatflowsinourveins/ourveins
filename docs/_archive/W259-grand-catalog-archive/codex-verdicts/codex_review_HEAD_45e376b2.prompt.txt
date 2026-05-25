@@ -1,0 +1,193 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 45e376b2c8be7b66317bcb591fc95535eec291ad
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/.claude.json            |   6 +-
+ docs/install-provenance.md      | 163 ++++++++++++++++++++++++++++++++++++++++
+ docs/sota-installed-manifest.md |   2 +-
+ 3 files changed, 167 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit 45e376b2c8be7b66317bcb591fc95535eec291ad
+Author:     42 <42@local>
+AuthorDate: Mon May 11 16:01:40 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 16:01:40 2026 -0400
+
+    session checkpoint: 2026-05-11 16:01
+
+=== diff ===
+diff --git a/.claude/.claude.json b/.claude/.claude.json
+index 9b9eb52..f2ca095 100644
+--- a/.claude/.claude.json
++++ b/.claude/.claude.json
+@@ -31,7 +31,7 @@
+     "custom-commands": 27,
+     "default-permission-mode-config": 12
+   },
+-  "promptQueueUseCount": 696,
++  "promptQueueUseCount": 706,
+   "btwUseCount": 4,
+   "cachedGrowthBookFeatures": {
+     "tengu_blue_coaster": false,
+@@ -473,8 +473,8 @@
+       "lastUsedAt": 1778213374981
+     },
+     "loop": {
+-      "usageCount": 77,
+-      "lastUsedAt": 1778528002888
++      "usageCount": 78,
++      "lastUsedAt": 1778529590240
+     }
+   },
+   "changelogLastFetched": 1778528188963,
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index cf1bb11..e65779f 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -17420,3 +17420,166 @@ Unchanged operator-gate priority:
+ - #4 W151+ upstream PR kardianos/service
+ - #5 Option B standalone 🅰 (~30s NSSM cycle) OR W152-F5 candidate: retroactive PROBE 18 wrapper for `tools/wave152-f1-netsh-pin.ps1` per Voice 2 HIGH OVER (if operator chooses Option B path; obviated if 🅳 chosen)
+ - **NEW**: queued W152-F5 candidate: operator CronDelete + CronCreate v11 prompt to activate v11 doctrine in cron loop (per FM-CANDIDATE-21 disposition Option A)
++
++---
++
++## 2026-05-11T20:XXZ — Wave 152 Fire 6 — claude-agent-sdk==0.1.81 PRIMARY-CANONICAL install (0.1.77→0.1.81 venv upgrade + manifest L76 PLANNED→INSTALLED catch-up)
++
++**Date**: 2026-05-11 (post Wave 152 Fire 4 v11 doctrine ship at `46d6844`)
++**CR-12 class**: PRIMARY-CANONICAL (Anthropic CC control-plane SDK per CLAUDE.md L165 Wave 134 Fire 27-A precedent)
++**Install command**: `Z:/venvs/claude/Scripts/python.exe -m pip install --upgrade claude-agent-sdk==0.1.81`
++**Channel**: PyPI official (`https://pypi.org/pypi/claude-agent-sdk/json`) — CR-6 official-native-channel ✓
++**Pin discipline (CR-9)**: `==0.1.81` exact + `@latest-acknowledged-D6-risk` marker — PyPI upload 2026-05-11T18:56:48Z is same-day-fresh; D6 today-release-auto-upgrade firm
++
++### FM-02 (c) parallel-session ACCEPT-ABSORPTION lineage acknowledgement
++
++Per `Z:/claude-sota/.claude/rules/named-failure-modes.md` FM-02 row sub-class (c) parallel-session-collision discipline (n=14 cumulative ladder advance this fire). Wave 152 fire-number allocation across concurrent sessions:
++
++| Fire | Commit | Scope | Ship by |
++|------|--------|-------|---------|
++| W152 F1 | `bac0152` | arc-opening + 🅰 netsh PS1 SHIP-READY | parallel session |
++| W152 F2 | `9118b08` | HNF — 🅰 netsh-pin BLOCKED by bound-port precondition | parallel session |
++| W152 F3 | `d8ec3a9` | openai-agents-python install DEFERRED per CR-12 PROVIDER-COMPLEMENT priority | mine (prior session) |
++| W152 F4 | `46d6844` | v10→v11 doctrine evolution 3-voice SOTA convergence | parallel session |
++| W152 F5 | `f043231` | L0-L8 SOTA research-architecture gap audit | parallel session |
++| W152 F6 | **THIS COMMIT** | claude-agent-sdk==0.1.81 PRIMARY-CANONICAL install | mine |
++| W152 F9 | `b4283fd` | K/L/M/N/O 5-dimension current-state audit (Path P single-claim) | parallel session |
++
++**Lineage rationale**: my install ship was originally labeled "Wave 152 Fire 4" per standing-form auto-proceed default (queued at provenance L17136 "Wave 152 Fire 4 candidate" annotation pre-parallel-claim). Parallel session subsequently claimed F4 for v10→v11 doctrine evolution (commit `46d6844`) AND F5 for L0-L8 SOTA arch audit (commit `f043231`) AND F9 for K/L/M/N/O 5-dim audit (commit `b4283fd`) during my agent team dispatches (~334s wall-clock). Per FM-02 (c) ACCEPT-ABSORPTION discipline + Wave 152 Fire 3 precedent (d8ec3a9 same lineage shape), I REFRAMED my install ship to **Fire 6** (next available slot post-F5) with explicit lineage acknowledgement here + in manifest L76 cell. Cooperative-multi-session etiquette satisfied. n=14 cumulative FM-02 (c) ladder advance (n=13 baseline at W152 F3 + n=1 this fire).
++
++### Disposition — closed-loop-recursive-narrowing.md §Outcome A ACCEPT-WITH-DOC
++
++V3 codex T1 Path P REAL GPT-5.5 ADVERSARIAL returned NEEDS-REVISION conf=0.86 ship_readiness=RE-PULL-FIRST with **7 SAVED-SHIP catches** on V1+V2 (FM-09 codex-rescue blind-spot specialization 11/11→**12/12 firm** — 4 consecutive arcs W142+W146S2+W146S3+W152F3 → W152F6 demonstrate 100% same-arc base rate for V3 ADVERSARIAL catch). Severity gate for ACCEPT-WITH-DOC satisfied via **concrete verification** (post-install version=0.1.81 + bundled_cli=2.1.139 + smoke import PASS + bundled claude.exe SHA256 recorded). All 7 V3 SAVED-SHIP catches documented below for advisory disclosure. Verdict: **APPROVE-INSTALL-WITH-DOC**.
++
++### 3-voice advanced agent team summary (Wave 24-D standing-directive)
++
++**V1 — sota-researcher Opus 4.7 fresh** (agentId `a9d68f4f4f440022e`, 334s wall-clock, 446K tokens, 36 tool_uses):
++- Verdict: **APPROVE-INSTALL-AS-DESIGNED conf=0.93 ship_readiness=READY**
++- 10/10 SRA + 7/7 Probe DAG + 4 Mia self-probes
++- Critical discovery: 0.1.77 already-installed in shared venv since prior wave (manifest L76 STALE PLANNED)
++- Mia OVER catch n=1: brief "zero consuming workflow" framing REFUTED via 3 cite-anchor consumers
++- ARTIFACT-INLINE persisted at `tmp/wave152-f4-v1-sota-researcher-claude-sdk-2026-05-11.md` (orchestrator-persisted per FM-19 readonly-guard-sidestep convention)
++
++**V2 — codex T1 Path P REAL GPT-5.5** (bg task `b4caqo7mn`, 300s timeout):
++- Verdict: **Pattern B HONEST-NON-FINDING** per `codex-t1-fix-forward-pattern.md §Pattern B`
++- 300s budget exhausted on upstream README dump (Building Wheels Locally / Release Workflow / License sections)
++- NO terminal JSON verdict at EOF
++- Trace-mineable evidence: V2 was investigating right axes but never structured verdict
++- Verdict file: `.claude/state/codex_consult_w152_f4_v2_claude_sdk_OUT.txt`
++
++**V3 — codex T1 Path P REAL GPT-5.5 ADVERSARIAL** (bg task `bg0huwwyt`, 300s):
++- Verdict: **NEEDS-REVISION conf=0.86 ship_readiness=RE-PULL-FIRST**
++- 7 SAVED-SHIP catches (enumerated below) — FM-09 codex-rescue blind-spot specialization 12/12 firm
++- Pattern D strict-conform 6-parameter recipe satisfied
++- Verdict file: `.claude/state/codex_consult_w152_f4_v3_claude_sdk_adversarial_OUT.txt`
++
++### V3 ADVERSARIAL — 7 SAVED-SHIP catches (advisory disclosure)
++
++1. **Wheel provenance gap**: PyPI 0.1.81 artifacts uploaded 2026-05-11T18:56:44Z-18:57:05Z; GitHub commits b79dd7b (CLI bump 18:44:40Z) → 43d7250 (release 18:57:10Z) → bdb8e393 (docs 18:57:37Z). **Wheel UPLOAD predates release commit by 5 seconds AND docs commit by 32 seconds**. Best inference: wheel built from release working tree `43d7250` (NOT `bdb8e393` as initially cited). V1 incorrectly attributed wheel to bdb8e393.
++2. **"16 deps" framing misleading**: PyPI metadata has 16 `Requires-Dist` entries but only 4 are default install deps (`anyio>=4.0.0`, `mcp>=1.19.0`, `sniffio>=1.0.0`, `typing-extensions>=4.0.0; python_version<"3.11"`). Rest are extras: 6 [dev] + 5 [examples] + 1 [otel].
++3. **Shared venv pre-existing pip-check BROKEN**: `pip check` reports existing conflicts NOT specific to this SDK — semgrep requires mcp==1.23.3 (venv has 1.27.0) / markitdown-mcp requires mcp~=1.8.0 / fastmcp requires newer uvicorn / OpenTelemetry mismatches / click conflicts / invalid `~itellm` distribution. Install lands on damaged dependency surface (not caused by this install but documented for transparency).
++4. **NOT a fresh install**: pre-install 0.1.77 already-installed with bundled CLI 2.1.133. This is **upgrade** 0.1.77→0.1.81 + bundled CLI 2.1.13
+
+[prompt truncated]

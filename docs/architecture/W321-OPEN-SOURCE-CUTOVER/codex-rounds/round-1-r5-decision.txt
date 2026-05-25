@@ -1,0 +1,26 @@
+[codex] Starting Codex task thread.
+[codex] Thread ready (019e41ab-4275-71a2-a221-922d4284a785).
+[codex] Turn started (019e41ab-5b00-76f0-8591-582708b53bbc).
+[codex] Assistant message captured: I’ll read the three requested files and ground the verdict in the repo’s current wording rath...
+[codex] Running command: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Raw -LiteralPath 'Z:/clau...
+[codex] Running command: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Raw -LiteralPath 'Z:/clau...
+[codex] Running command: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Raw -LiteralPath 'Z:/clau...
+[codex] Command completed: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Raw -LiteralPath 'Z:/clau... (exit 0)
+[codex] Command completed: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Raw -LiteralPath 'Z:/clau... (exit 0)
+[codex] Command completed: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -Raw -LiteralPath 'Z:/clau... (exit 0)
+[codex] Searching:
+[codex] Searching:
+[codex] Searching:
+[codex] Searching:
+[codex] Searching:
+[codex] Assistant message captured: VERDICT: APPROVE-PATH-C Path A is the correct end-state: NIST MAC, OWASP deny-by-default guid...
+[codex] Turn completion inferred after the main thread finished and subagent work drained.
+VERDICT: APPROVE-PATH-C
+
+Path A is the correct end-state: NIST MAC, OWASP deny-by-default guidance, and Microsoft Zero Trust all support least-privilege access plus containment. That matches `CLAUDE.md` cardinal-rule 5: safety boundaries via Claude Code permissions and sandboxing.
+
+I would not apply both knobs in one W321 commit. The permission change directly fixes the current `bypassPermissions` blocker. The sandbox change has separate operational risk: Windows containment is asserted but not proven, and current `sandbox` fields like `failIfUnavailable`, `autoAllowBashIfSandboxed`, and `excludedCommands: ["git","docker","npx","uvx"]` are not reconciled with `allowUnsandboxedCommands:false`. That can break git/install/test workflows beyond normal prompt friction.
+
+`git revert` is adequate as source rollback for a JSON config change, but if sandboxing blocks the in-tool path to revert, practical recovery becomes operator/out-of-band.
+
+Ship deny-default now; stage sandbox in W322 after smoke tests for Bash, git, npm/npx, uvx, docker, unavailable-sandbox behavior, and Windows containment. Path C is CR-5-compliant staged convergence, not acceptance of bypass debt.

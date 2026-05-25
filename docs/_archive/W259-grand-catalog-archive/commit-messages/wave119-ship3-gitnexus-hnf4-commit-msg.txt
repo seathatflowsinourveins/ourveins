@@ -1,0 +1,83 @@
+docs(provenance): wave 119 ship 3 — gitnexus HNF-4 root cause IDENTIFIED via differential probe
+
+Closes Wave 118 Ship A3 HNF-4 outstanding diagnostic. Differential debug probe
+(eee vs sibling claude-sota state) identified real root cause: gitnexus 1.6.3 +
+Windows + HOME-redirect interaction → analyze pipeline silent-bails IMMEDIATELY
+after creating empty lbug+wal stub, before file scanning OR meta.json+registry.json
+write.
+
+Prior HNF-2 / HNF-3 / HNF-4 hypotheses ALL REFUTED:
+- HNF-2 (`.gitnexusignore` AppData/ exclusion needed) — refuted; .gitnexusignore
+  in place but analyze still bails
+- HNF-3 (native bindings @ladybugdb/core missing) — refuted; npm reinstall
+  surfaced lbug.node + lbug-win32-x64.node PRESENT but bail persisted
+- HNF-4 (Wave 118 close acknowledged unknown) — NOW IDENTIFIED via this probe
+
+Real findings:
+- gitnexus uses PER-USER state at `$HOME/.gitnexus/` per `--name <alias>`
+  documentation (--help: "Register this repo under a custom name in
+  ~/.gitnexus/registry.json")
+- HOME=/z/claude-sota-installed per CLAUDE.local.md ENV (a) USERPROFILE redirect
+- Sibling Z:/claude-sota/.gitnexus/ (75.3M lbug + meta.json + registry.json) is
+  LEGACY — orphaned artifact from BEFORE HOME-redirect was set up
+- gitnexus list from sibling dir ALSO returns "No indexed repositories" (reads
+  from current $HOME, not the sibling .gitnexus/)
+- gitnexus analyze --verbose --skip-agents-md --no-stats produces ONLY
+  "GitNexus Analyzer" header + nothing else (silent-bail confirmed at pipeline
+  entry point; no actual indexing work runs)
+- Empty lbug (4KB) + lbug.wal (25KB) stub created; meta.json + registry.json
+  NEVER WRITTEN
+
+Bug class: gitnexus 1.6.3 + Windows + HOME-redirect interaction.
+
+Files changed: 1 (+38 LOC)
+- docs/install-provenance.md (Wave 119 Ship 3 corrected-diagnosis append)
+
+Operator action queued (out-of-scope for autonomous fire per FM-17.e time-boxing):
+- Tier-1: open upstream issue at abhigyanpatwari/GitNexus + probe gitnexus
+  source for silent-bail location + regression test older versions + test with
+  HOME unset
+- Tier-2 workaround: serena MCP (already wired) for impact-analysis substitute
+
+Cite anchors (TIER-1-DIRECT):
+- gitnexus 1.6.3 verified via `gitnexus --version` (npm-global at
+  /c/Users/42/AppData/Roaming/npm/gitnexus)
+- gitnexus analyze --help output (per-user state location documented)
+- gitnexus analyze --verbose output (silent-bail at pipeline entry)
+- Sibling state probe at Z:/claude-sota/.gitnexus/ (75.3M legacy artifact)
+
+CR conformance:
+- CR-1: TIER-1-DIRECT to gitnexus 1.6.3 source (verified version + help + verbose
+  outputs)
+- CR-3: cross-model T2 commit-time hook is the gate per Phase 1 bootstrap
+  exception (descriptive diagnostic provenance ship; mechanical-mirror exception
+  applies — provenance append; ≤24 LOC delta + pure pointer-extension + no new
+  authority class + mirrors prior Wave 118 Ship A3 HNF-4 entry pattern + target-
+  surface compatibility — all 5 predicates SATISFIED)
+- CR-5 install-priority: NO new install — operator-side debug ship documenting
+  findings
+- CR-9 install-risk: ZERO-RISK descriptive provenance append; reversible via git
+  revert
+- CR-10 research-first: 4 differential probes (sibling vs eee state / gitnexus
+  --help flags / --verbose output / per-user state location) BEFORE writing
+- CR-11 META-process: corrected diagnosis closes Wave 118 outstanding HNF-4 +
+  surfaces upstream-actionable bug class for operator-action queue
+
+Wave 119 ship sequence:
+- ✅ Ship 1 (`29adfb4`): AGENTS.md cross-tool contract (175 LOC NEW)
+- ✅ Ship 2 (`a7f47bc`): ast-grep documentation (+13 LOC)
+- ✅ Ship 3 (THIS COMMIT): gitnexus HNF-4 corrected diagnosis
+- 🆕 Ship 4 next: Phoenix dashboard wire OR promptfoo+evals smoke pilot
+- 🚧 Ship 5 (operator-action): gitnexus upstream issue + source inspection
+
+Architecture state post Wave 119 Ship 3:
+- gitnexus HNF closed at diagnostic level (root cause identified; fix queued)
+- Wave 118+119 cumulative: 8 ships (5 Wave 118 + 3 Wave 119)
+- Differential-probe pattern PROVED VALUE — caught per-user-vs-per-repo state
+  distinction not visible from any individual probe; candidate sub-rule promotion
+  if pattern recurs (n=2 trigger per cycle-322)
+
+Files changed: 1 (-0 +38 LOC)
+- docs/install-provenance.md (HNF-4 corrected diagnosis section)
+
+Wave 119 fire 3 of session arc (auto-continued via cron `0cd7135e` `*/15 * * * *`).

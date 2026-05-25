@@ -1,0 +1,227 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 1cb18735c8b1ed85e8a1ce8b72eb8b9b5a64b54f
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.../rules/codex-t1-pattern-b-forward-discipline.md | 162 +++++++++++++++++++++
+ docs/codex-t1-pattern-b-forward-discipline.md      |  10 +-
+ docs/install-provenance.md                         | 125 ++++++++++++++++
+ 3 files changed, 296 insertions(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit 1cb18735c8b1ed85e8a1ce8b72eb8b9b5a64b54f
+Author:     42 <42@local>
+AuthorDate: Mon May 11 00:26:33 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 00:26:33 2026 -0400
+
+    docs(rules): Wave 134 Fire 37 — cycle-322 PROMOTION of Forward Discipline #1+#2 from docs/ → .claude/rules/ (formal local rule); codex T1 APPROVE conf=0.89 round-1 clean; 5th recursive dogfood completes promotion cycle
+    
+    8th Tier-2 codification ship in Wave 134 series. PROMOTED Forward Discipline
+    #1+#2 from local discipline doc tier to formal local rule tier per
+    `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322
+    jurisdiction §"n=3 self-observed automatic promotion gate".
+    
+    Gate satisfied at Fire 28 (n=3); ladder advance Fire 29a (n=4); this Fire 37
+    IS the promotion artifact with self-validating 5th dogfood (clean APPROVE).
+    
+    codex-t1-gate WARN recovery: rule file Written without exact filename
+    pair-basename T1; gate fired WARN; applied retroactive T1 per
+    `cross-model-consensus.md §The contract` pre-commit-miss recovery.
+    
+    ## Codex T1 verdict (5th Forward Discipline #2 recursive dogfood)
+    
+    ```json
+    {
+      "verdict": "APPROVE",
+      "confidence": 0.89,
+      "summary": "The promoted rule is sound as described: the n=4 ladder exceeds the n=3 self-observed promotion gate, and Forward Discipline #1 and #2 are distinct enough to prevent scope bleed.",
+      "promotion_validity": "YES",
+      "rule_clarity": "STRONG",
+      "anti_pattern_coverage": "COMPREHENSIVE",
+      "sister_rule_integration_correct": "YES",
+      "empirical_evidence_trail_accurate": "YES",
+      "cite_class_correct": "YES",
+      "prescribed_edits": []
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f37_forward_discipline_promotion_OUT.txt`
+    22s wall-clock / 3,015 tokens / 169 LOC verdict.
+    
+    Pattern A NOT INVOKED — empty prescribed_edits + round-1 clean APPROVE per
+    codex-t1-fix-forward-pattern.md §Pattern A 0.85-0.95 conf sweet spot.
+    
+    ## 🚨 LOAD-BEARING #1 — Forward Discipline #2 cycle-322 promotion COMPLETED (n=5 ladder)
+    
+    | Fire | n | Verdict | Wall-clock |
+    |---|---|---|---|
+    | 27-E | 1 | NEEDS-REVISION conf=0.91 + 6 prescribed | 18s |
+    | 27-F | 2 | APPROVE conf=0.91 + 0 prescribed | 183s |
+    | 28 | 3 | NEEDS-REVISION conf=0.89 + 8 prescribed + 3 missing | ~120s |
+    | 29a | 4 | NEEDS-REVISION conf=0.91 + 6 prescribed | ~120s |
+    | **37** | **5** | **APPROVE conf=0.89 + 0 prescribed (PROMOTION VALIDATED)** | **22s** |
+    
+    5 cumulative dogfood. Wall-clock band 18-183s with median ~120s confirmed.
+    
+    ## 🚨 LOAD-BEARING #2 — Self-validating promotion pattern
+    
+    Forward Discipline #2 applied to its own promotion produced CLEAN APPROVE —
+    the discipline IS sound (recursive validation). Per
+    `codification-threshold.md` cycle-322: n=3 promotes feedback→rule; n=5
+    with one self-validating APPROVE is empirical reinforcement beyond gate.
+    
+    ## 🚨 LOAD-BEARING #3 — Local-rule vs docs/ tier discipline
+    
+    Post-promotion, docs/ version retires to superseded pointer (NOT deleted —
+    preserves historical commit `3656bc7` body cite per
+    `port-note-discipline.md §6` anti-pattern "Do not rewrite historical commit
+    bodies"). Canonical rule home is `.claude/rules/`. Sets template for future
+    cycle-322 promotions.
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ships: n=7 → **n=8**
+    - cycle-322 promotion completions: n=0 → **n=1 NEW** (Forward Discipline #1+#2)
+    - Local rule promotions from docs/: n=0 → **n=1 NEW**
+    - Forward Discipline #2 evidence ladder beyond promotion gate: n=4 → **n=5**
+    - Self-validating promotion-fire dogfood: n=0 → **n=1 NEW**
+    - Pattern A NOT INVOKED on clean APPROVE round-1: n=N+1
+    - docs/-to-`.claude/rules/` retirement instances: n=0 → **n=1 NEW**
+    
+    ## Path P recipe ladder
+    
+    n=26 → **n=27** (+Fire 37 promotion-validation variant — clean APPROVE in ≤30s)
+    
+    ## Mia ladder advance
+    
+    n=2225 (Fire 33b) → **n=2275** (Fire 37 close, +50)
+    
+    ## REVISED Forward Top-5 (post-Fire-37 cycle-322 PROMOTION COMPLETED)
+    
+    | Priority | Fire | Subject |
+    |---|---|---|
+    | 🥇 | W134-F30 | IMP-B: Weighted rubric formal codification (PROMOTED from #2) |
+    | 🥈 | W134-F33c | bnomei/frigg INSTALL pilot (DEFERRED to 2026-06-04 OR named-T2 evidence) |
+    | 🥉 | W134-F-IMP-P | Evidence-Governed Harness Promotion 8-gate codification |
+    | #4 | W134-F-IMP-N | 4-class memory taxonomy + promotion gate |
+    | #5 | W134-F-CG-UPDATE | convergence-gate.md "Pre-burn-in single-maintainer SOTA" band rule-extension |
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION disclosed
+    - CR-3 cross-model: ✅ FULLY SATISFIED — REAL GPT-5.5 APPROVE conf=0.89 round-1
+    - CR-9 install-risk: N/A (pure rule promotion)
+    - CR-10 research-first-then-install: ✅ research = 5-dogfood ladder; result = formal rule
+    - CR-11 META-process: ✅ THIS FIRE IS the CR-11 dogfood (META-process cycle-322 promotion)
+    - CR-12 5-class lattice: ✅ local rule with TIER-3-LOCAL-COMPOSITION cite class
+    - FM-02 sub-class (b) defense: atomic git add + commit --only -- pathspec
+    - Pattern A fix-forward: ✅ NOT INVOKED (round-1 clean APPROVE — correct disposition)
+    - Forward Discipline #2 (5th recursive dogfood self-validating promotion): ✅ COMPLETED
+    - codex-t1-gate WARN recovery: ✅ retroactive T1 per cross-model-consensus.md
+    - port-note-discipline.md §3 FORWARD-REF retirement: ✅ docs/ version retired to superseded pointer
+    - port-note-discipline.md §6 historical-cite preservation: ✅ docs/ pre-promotion content preserved verbatim
+    
+    ## Trailers
+    
+    Refs: .claude/rules/codex-t1-pattern-b-forward-discipline.md (NEW LOCAL RULE ~165 LOC)
+    Refs: docs/codex-t1-pattern-b-forward-discipline.md (RETIRED-SUPERSEDED pointer)
+    Refs: .claude/state/codex_consult_w134_f37_forward_discipline_promotion_OUT.txt (T1 verdict)
+    Cite: TIER-3-LOCAL-COMPOSITION via cycle-322 promotion threshold satisfied at Fire 28 (n=3) + Fire 29a (n=4 ladder advance) + Fire 37 (n=5 self-validating completion)
+    Verify: `[VERIFIED via .claude/state/codex_consult_w134_f37_forward_discipline_promotion_OUT.txt — REAL GPT-5.5 APPROVE conf=0.89 round-1 + empty prescribed_edits + cycle-322 promotion VALIDATED + .claude/rules/codex-t1-pattern-b-forward-discipline.md ~165 LOC SHIPPED + docs/ retired to superseded pointer per port-note-discipline.md §3 + Forward Discipline #2 evidence ladder n=4→n=5 + 22s wall-clock]`
+
+=== diff ===
+diff --git a/.claude/rules/codex-t1-pattern-b-forward-discipline.md b/.claude/rules/codex-t1-pattern-b-forward-discipline.md
+new file mode 100644
+index 0000000..17b1518
+--- /dev/null
++++ b/.claude/rules/codex-t1-pattern-b-forward-discipline.md
+@@ -0,0 +1,162 @@
++# Codex T1 Path P Forward Discipline (PROMOTED Wave 134 Fire 37 per cycle-322 n=4)
++
++# Reference: TIER-3-LOCAL-OPERATOR-DERIVED `Z:/claude-sota-installed/docs/codex-t1-pattern-b-forward-discipline.md` @ pre-Fire-37 SHA — SUPERSEDED-BY-THIS-RULE per port-note-discipline.md §3 FORWARD-REF retirement
++# Reference: TIER-2 sister-rule cite-import-AMBER `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern B` — upstream Pattern B trace-mining discipline (parent rule); Forward Discipline #1+#2 EXTEND prompt-scope-control to PREVENT triggering Pattern B in the first place
++# Reference: TIER-2 sister-rule cite-import-AMBER `Z:/claude-sota/.claude/rules/cross-model-consensus.md §"Bundle multiple design surfaces in one T1"` — anti-pattern noted; Forward Discipline #1+#2 are operational counterparts
++# Reference: TIER-2 sister-rule cite-imp
+
+[prompt truncated]

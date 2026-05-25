@@ -1,0 +1,450 @@
+[2m2026-05-23T14:11:02.804658Z[0m [31mERROR[0m [2mrmcp::transport::worker[0m[2m:[0m worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer error=\"invalid_request\", error_description=\"No access token was provided in this request\", resource_metadata=\"https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/readonly\"" })
+OpenAI Codex v0.130.0
+--------
+[1mworkdir:[0m Z:\claude-sota-installed-W380
+[1mmodel:[0m gpt-5.5
+[1mprovider:[0m openai
+[1mapproval:[0m never
+[1msandbox:[0m workspace-write [workdir, /tmp, Z:\claude-sota-installed, Z:\repos\deps, Z:\claude-sota-installed-state, Z:\claude-sota-installed-state\.codex\memories] (network access enabled)
+[1mreasoning effort:[0m high
+[1mreasoning summaries:[0m none
+[1msession id:[0m 019e552c-d5f8-73a1-b027-474b6a9ac5ba
+--------
+[36muser[0m
+You are codex GPT-5.5 reviewing the IMPLEMENTATION of the sca-v21-MVP executable SOTA-repo scorer. The DESIGN already passed your W380-r1 review (REVISE@0.86 -> MVP-endorsed: freeze weights, capture raw ledger, add evidence-quality/missingness, core-4 endpoints). Now review the CODE.
+
+CONTEXT: scorer composes 4 live fetchers (github-graphql, deps.dev, osv.dev, OSSF-Scorecard — each separately unit-tested 6/6,13/13,10/10,6/6 green + live-verified) -> normalizeDim -> per-class scoreClass (FROZEN v20 cluster weights per your P0) -> routeTier (5-tier soft-gate) -> verdict JSON -> append-only ledger.
+LIVE E2E (6 named repos, all endpoints live): gpt-researcher/composio->INSTALL; dify/OpenHands->PATTERN-STUDY (after the code fixed a noassertion-over-BLOCK found IN the e2e — OpenHands->PATTERN-STUDY matches the historical W295 prose verdict = calibration validation); wshobson/mattpocock->MONITOR (skill collections, install-path=none). 45/45 unit tests pass. Evidence model (your missed-high-value): unmeasured dims contribute neutral 0.5 AND discount confidence; measured_ratio 38-50% -> conf MEDIUM-LOW (honest partial measurement).
+
+REVIEW the 2 core files below. Assess: (1) per-class scoring correctness (cluster-mean weighting, neutral-0.5 for unmeasured), (2) 5-tier routeTier correctness (hard-BLOCK proprietary/CISA-KEV, INSTALL hard-filters, soft-route-down), (3) the FROZEN-weight handling (no n=12 fit), (4) normalizeDim threshold sanity, (5) any real P0/P1 bug or unsafe pattern, (6) is this a faithful + safe MVP impl. Be adversarial but concise.
+
+OUTPUT ONLY (<=350 words):
+VERDICT: <APPROVE|REVISE|BLOCK>
+CONFIDENCE: <0-1>
+PER_FILE:
+- contract.mjs: <SOUND|ISSUE> — <=1 line
+- sca-evaluate.mjs: <SOUND|ISSUE> — <=1 line
+FINDINGS:
+- [P0|P1|P2] <finding+cite> | FIX: <line>   (or: none)
+SHIP: <yes/no — to W380 branch>
+SUMMARY: <=3 sentences.
+
+=== FILE: tools/sota-discovery/lib/contract.mjs ===
+// tools/sota-discovery/lib/contract.mjs
+// sca-v21-MVP shared contract — the single source of truth for the executable SOTA-repo scorer.
+//
+// Codex GPT-5.5 W380-r1 convergence (REVISE@0.86 -> MVP) is encoded here:
+//   * P0 — weights are FROZEN at the v20 defaults. We do NOT fit cluster-multipliers on the
+//     n=12 historical set (it never used v20 -> overfit). Calibration is deferred to a 50-repo
+//     stratified backtest; until then this module captures RAW evidence only.
+//   * MISSED_HIGH_VALUE — every dimension carries an evidence-quality/missingness tag ALONGSIDE
+//     its value, so "clean", "not-measurable", and "conflicting" never collapse to one neutral
+//     number.
+//   * MVP scope (Q5) — core-4 endpoints (GitHub GraphQL, deps.dev, osv.dev, OSSF Scorecard) feed
+//     D20/D21/D22 + the D08 provenance reframe; D23/D24 + fitted calibration + discovery-protocol
+//     are deferred to v21.1.
+//
+// Lineage: strict superset of sca-v20-multi-dim (docs/architecture/W380-RESEARCH-ARCH-V21/
+// sca-v20-lineage-reference.schema.json). Per-decision-class scoring preserves the Pareto frontier
+// (NO single scalar). Stars stay informational-only.
+
+export const SCHEMA_VERSION = "sca-v21-mvp";
+export const WEIGHTS_PROFILE = "v20-frozen-2026-05-23"; // codex W380-r1 P0: do NOT fit on n=12
+
+// ---------------------------------------------------------------------------
+// Evidence quality / missingness (codex W380-r1 MISSED_HIGH_VALUE)
+// ---------------------------------------------------------------------------
+export const MISSINGNESS = Object.freeze({
+  MEASURED: "measured", // value obtained from a real source
+  NOT_MEASURABLE: "not-measurable", // source absent or N/A for this repo
+  CONFLICTING: "conflicting", // ≥2 sources disagree beyond tolerance
+});
+
+export const SOURCE_CLASS = Object.freeze({
+  A: "CLASS-A", // raw deterministic (github-graphql, deps.dev, osv, scorecard, repomix)
+  B: "CLASS-B", // LLM-judge (perplexity, exa, firecrawl)
+  C: "CLASS-C", // AI-on-repo + academic (deepwiki, hf-papers)
+});
+
+// ---------------------------------------------------------------------------
+// Dimension registry — v20 required subset + v21-MVP additions (D20/D21/D22)
+// hardFilter: a fail downgrades OUT of that class. hardBlock: a fail -> BLOCK tier.
+// ---------------------------------------------------------------------------
+export const DIMS = Object.freeze({
+  // Cluster II — Activity
+  D04_last_commit_days: { cluster: "II", kind: "int", informational: false },
+  D05_contributors_90d: { cluster: "II", kind: "int" },
+  // Cluster III — Trust
+  D07_license_class: { cluster: "III", kind: "enum", hardFilter: "INSTALL" },
+  D08_provenance: { cluster: "III", kind: "enum" }, // v21 REFRAME (see PROVENANCE)
+  D22_osv_cve: { cluster: "III", kind: "obj", hardBlock: "cisa_kev", source: "osv.dev" }, // NEW
+  // Cluster IV — Quality
+  D10_test_coverage_pct: { cluster: "IV", kind: "ratio" },
+  D11_ci_green_streak_days: { cluster: "IV", kind: "int" },
+  D12_doc_completeness: { cluster: "IV", kind: "ratio" },
+  // Cluster V — Claude Code runtime fit
+  D13_cc_install_path: { cluster: "V", kind: "enum", hardFilter: "INSTALL" },
+  D14_cc_pattern_density: { cluster: "V", kind: "ratio" },
+  D15_cc_cite_anchor_density: { cluster: "V", kind: "ratio" },
+  // Cluster VI — Production-readiness
+  D17_pinning_discipline: { cluster: "VI", kind: "enum", hardFilter: "INSTALL" },
+  D20_transitive_dep_health: { cluster: "VI", kind: "ratio", source: "deps.dev/v3" }, // NEW
+  // Cluster VII — Architectural relevance
+  D18_arch_relevance: { cluster: "VII", kind: "ratio" },
+  // Cluster VIII — Community
+  D19_community_mentions: { cluster: "VIII", kind: "int" },
+  D21_reverse_dependents: { cluster: "VIII", kind: "int", source: "deps.dev+ossf-criticality" }, // NEW
+});
+
+// D08 provenance reframe (Stream A — TanStack 2026-05-11: 84 malicious pkgs WITH valid SLSA-L3).
+// Provenance is NECESSARY EVIDENCE, not SUFFICIENT TRUST. Bare "present" -> neutral, not pass.
+export const PROVENANCE = Object.freeze({
+  VERIFIED_CLEAN: "verified-and-preflight-clean", // signed AND OSV/Scorecard pre-flight clean -> pass
+  PRESENT_UNVERIFIED: "present-unverified", // attestation exists but not pre-flight-clean -> NEUTRAL
+  ABSENT: "absent",
+  CLAIMED_NOT_VERIFIED: "claimed-not-verified", // worse than absent (Stream A) -> downgrade
+});
+
+// ---------------------------------------------------------------------------
+// FROZEN per-decision-class cluster weights (v20 defaults; sum≈1 per class).
+// Codex W380-r1 P0: these are NOT tuned on n=12. They mirror the v20 §2 profiles:
+//   INSTALL: trust+prod-readiness+activity heavy, stars=0.
+//   PATTERN-STUDY: cc-runtime-fit heavy (pattern density highest).
+//   CITE-ONLY: cite-anchor + doc + deepwiki heavy.
+//   MONITOR: drift signals; stars/community non-zero ONLY here.
+// ---------------------------------------------------------------------------
+export const CLUSTER_WEIGHTS = Object.freeze({
+  INSTALL: { I: 0.0, II: 0.18, III: 0.27, IV: 0.2, V: 0.15, VI: 0.15, VII: 0.05, VIII: 0.0 },
+  "PATTERN-STUDY": { I: 0.0, II: 0.1, III: 0.1, IV: 0.15, V: 0.45, VI: 0.0, VII: 0.15, VIII: 0.05 },
+  "CITE-ONLY": { I: 0.0, II: 0.05, III: 0.1, IV: 0.2, V: 0.45, VI: 0.0, VII: 0.1, VIII: 0.1 },
+  MONITOR: { I: 0.25, II: 0.25, III: 0.15, IV: 0.05, V: 0.0, VI: 0.1, VII: 0.0, VIII: 0.2 },
+});
+
+// ---------------------------------------------------------------------------
+// Fetcher interface contract (what every lib/fetchers/*.mjs MUST return).
+// A fetcher is: async (owner, name, ctx) => FetcherResult
+//   ctx: { cache, fetchJson }  (injected; fetchJson does the HTTP + cache)
+//   FetcherResult: {
+//     dims:    { [dimKey]: value | null },        // null when not measurable
+//     evidence:{ [dimKey]: EvidenceAnchor },        // REQUIRED for every dim it reports
+//   }
+//   EvidenceAnchor: { value, source_class, source_uri, measured_at, missingness }
+// Each fetcher owns a disjoint subset of DIMS (no two fetchers write the same dim).
+// ---------------------------------------------------------------------------
+export function makeEvidence(value, { source_class, source_uri, missingness }) {
+  return {
+    value,
+    source_class,
+    source_uri,
+    measured_at: new Date().toISOString(),
+    missingness: missingness || (value == null ? MISSINGNESS.NOT_MEASURABLE : MISSINGNESS.MEASURED),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Per-class scoring. Each dim normalized to [0,1] by normalizeDim(); a dim with
+// missingness != MEASURED contributes its cluster weight at a NEUTRAL 0.5 but is
+// recorded so confidence can be discounted (codex: never silently treat unknown as clean/zero).
+// ---------------------------------------------------------------------------
+export function scoreClass(decisionClass, normalizedDims, evidence) {
+  const w = CLUSTER_WEIGHTS[decisionClass];
+  if (!w) throw new Error(`unknown decision class: ${decisionClass}`);
+  const clusterAcc = {}; // cluster -> {sum, n}
+  for (const [dimKey, meta] of Object.entries(DIMS)) {
+    const ev = evidence[dimKey];
+    const norm = normalizedDims[dimKey];
+    let contribution;
+    if (!ev || ev.missingness !== MISSINGNESS.MEASURED || norm == null) {
+      contribution = 0.5; // neutral — recorded as unknown, not assumed clean
+    } else {
+      contribution = Math.max(0, Math.min(1, norm));
+    }
+    const c = meta.cluster;
+    (clusterAcc[c] ||= { sum: 0, n: 0 });
+    clusterAcc[c].sum += contribution;
+    clusterAcc[c].n += 1;
+  }
+  let score = 0;
+  for (const [cluster, weight] of Object.entries(w)) {
+    if (!weight) continue;
+    const acc = clusterAcc[cluster];
+    const clusterMean = acc && acc.n ? acc.sum / acc.n : 0.5;
+    score += weight * clusterMean;
+  }
+  return Math.max(0, Math.min(1, score));
+}
+
+// ---------------------------------------------------------------------------
+// 5-tier soft-gate routing (inherits v20: hard-BLOCK first, then route DOWN only).
+// dims: raw values; evidence: anchors; scores: per-class scores from scoreClass().
+// ---------------------------------------------------------------------------
+export function routeTier(dims, evidence, scores, { installThreshold = 0.6, patternThreshold = 0.55, citeThreshold = 0.5 } = {}) {
+  const violations = [];
+
+  // Hard-BLOCK: OSV CISA-KEV active vuln (D22) or a KNOWN-restrictive (proprietary) license.
+  const osv = dims.D22_osv_cve;
+  if (osv && osv.cisa_kev_active === true) {
+    return { tier: "BLOCK", hard_filter_violations: [{ dim: "D22_osv_cve", blocked_class: "INSTALL", reason: "active CISA-KEV vuln" }] };
+  }
+  if (dims.D07_license_class === "proprietary") {
+    return { tier: "BLOCK", hard_filter_violations: [{ dim: "D07_license_class", blocked_class: "INSTALL", reason: "proprietary license" }] };
+  }
+  // W380 live-e2e finding (2026-05-23): GitHub licenseInfo returns NOASSERTION for many
+  // legitimately-licensed repos (non-standard/dual/modified LICENSE files, monorepos — e.g.
+  // dify's modified-Apache, OpenHands MIT). noassertion is NOT a hard-BLOCK: it fails the INSTALL
+  // hard-filter below (cannot INSTALL-trust an unverified license) but the repo can still
+  // PATTERN-STUDY / CITE-ONLY. v21.1: add a LICENSE-file fallback read to disambiguate (CLASS-A).
+
+  // INSTALL hard-filters (downgrade to PATTERN-STUDY on fail).
+  const installable = ["plugin", "mcp-server", "sdk-python", "sdk-typescript"];
+  if (!installable.includes(dims.D13_cc_install_path)) {
+    violations.push({ dim: "D13_cc_install_path", blocked_class: "INSTALL", reason: `${dims.D13_cc_install_path} not a CC-installable primitive` });
+  }
+  if (dims.D07_license_class && dims.D07_license_class !== "permissive") {
+    violations.push({ dim: "D07_license_class", blocked_class: "INSTALL", reason: "non-permissive needs operator-attestation" });
+  }
+
+  const installOk = violations.length === 0 && scores.install >= installThreshold;
+  if (installOk) return { tier: "INSTALL", hard_filter_violations: violations };
+  if (scores.pattern_study >= patternThreshold) return { tier: "PATTERN-STUDY", hard_filter_violations: violations };
+  if (scores.cite_only >= citeThreshold) return { tier: "CITE-ONLY", hard_filter_violations: violations };
+  return { tier: "MONITOR", hard_filter_violations: violations };
+}
+
+// Confidence = discounted by measured-evidence ratio (codex: unknown != clean).
+export function computeConfidence(evidence) {
+  const keys = Object.keys(DIMS);
+  const measured = keys.filter((k) => evidence[k] && evidence[k].missingness === MISSINGNESS.MEASURED).length;
+  const ratio = measured / keys.length;
+  if (ratio >= 0.85) return "HIGH";
+  if (ratio >= 0.7) return "MEDIUM-HIGH";
+  if (ratio >= 0.5) return "MEDIUM";
+  if (ratio >= 0.3) return "MEDIUM-LOW";
+  return "LOW";
+}
+=== FILE: tools/sota-discovery/sca-evaluate.mjs ===
+#!/usr/bin/env node
+// tools/sota-discovery/sca-evaluate.mjs
+// W380 sca-v21-MVP executable scorer (R-IMPL — the gap all 4 research streams + codex converged
+// on: "the architecture is a rubric + ledger with nothing between"). Composes the 4 core-4
+// fetchers (deps.dev, osv.dev, OSSF Scorecard, GitHub GraphQL) → normalizes dims → per-class
+// scores via FROZEN v20 weights → 5-tier soft-gate routing → verdict JSON → append to ledger.
+//
+// Codex W380-r1 convergence encoded:
+//  - P0: weights FROZEN; capture RAW only; calibration deferred to 50-repo backtest.
+//  - MISSED_HIGH_VALUE: every dim carries missingness; unknown ≠ clean (neutral 0.5 + recorded).
+//  - P1: fetcher errors degrade explicitly (recorded in fetcher_versions), do NOT crash.
+//  - Q5 MVP scope: core-4 endpoints + D20/D21/D22 + D08-reframe; D23/D24 and fitted calibration
+//    deferred to v21.1.
+//
+// Usage: node sca-evaluate.mjs --repo owner/name [--no-ledger] [--no-cache]
+
+import { parseArgs } from "node:util";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import {
+  DIMS, MISSINGNESS, SCHEMA_VERSION, WEIGHTS_PROFILE,
+  makeEvidence, scoreClass, routeTier, computeConfidence,
+} from "./lib/contract.mjs";
+import { makeFetchJson } from "./lib/http.mjs";
+import { appendVerdict } from "./lib/ledger.mjs";
+
+const FETCHER_NAMES = ["github-graphql", "depsdev", "osv", "scorecard"];
+
+function camel(name) {
+  return name
+    .split("-")
+    .map((s) => s[0].toUpperCase() + s.slice(1))
+    .join("");
+}
+
+async function loadFetcher(name) {
+  try {
+    const mod = await import(`./lib/fetchers/${name}.mjs`);
+    const fnName = `fetch${camel(name)}`;
+    const fn = mod[fnName] || mod.default;
+    return typeof fn === "function" ? fn : null;
+  } catch {
+    return null; // honest absence — registered dims will be NOT_MEASURABLE
+  }
+}
+
+// Normalize raw dim values to [0,1] per cluster scoring. Thresholds mirror v20 §2.
+function normalizeDim(dimKey, raw) {
+  if (raw == null) return null;
+  switch (dimKey) {
+    case "D04_last_commit_days": return Math.max(0, 1 - raw / 365);
+    case "D05_contributors_90d": return Math.min(1, raw / 10);
+    case "D07_license_class":
+      return raw === "permissive" ? 1 : raw === "copyleft" ? 0.5 : 0;
+    case "D08_provenance":
+      return raw === "verified-and-preflight-clean" ? 1
+        : raw === "present-unverified" ? 0.5
+        : raw === "absent" ? 0.3
+        : 0; // claimed-not-verified WORSE than absent (Stream A)
+    case "D10_test_coverage_pct": return raw;
+    case "D11_ci_green_streak_days": return Math.min(1, raw / 30);
+    case "D12_doc_completeness": return raw;
+    case "D13_cc_install_path":
+      return ["plugin", "mcp-server", "sdk-python", "sdk-typescript"].includes(raw) ? 1
+        : ["cli-only", "library-only"].includes(raw) ? 0.5
+        : 0;
+    case "D14_cc_pattern_density": return raw;
+    case "D15_cc_cite_anchor_density": return raw;
+    case "D17_pinning_discipline":
+      return ["image-digest-sha256", "git-commit-sha", "npm-exact-version", "uvx-exact-version"].includes(raw) ? 1
+        : raw === "version-range" ? 0.5
+        : 0;
+    case "D18_arch_relevance": return raw;
+    case "D19_community_mentions": return Math.min(1, raw / 10);
+    case "D20_transitive_dep_health": return raw;
+    case "D21_reverse_dependents": return Math.min(1, Math.log10(Math.max(1, raw)) / 4); // ~10k=1.0
+    case "D22_osv_cve":
+      if (!raw || typeof raw !== "object") return null;
+      if (raw.cisa_kev_active) return 0;
+      return 1 - Math.min(1, raw.density || 0);
+    default: return 0.5;
+  }
+}
+
+export async function evaluateRepo(owner, name, opts = {}) {
+  const fetchJson = opts.fetchJson || (await makeFetchJson({ noCache: opts.noCache }));
+  const ctx = { fetchJson, cache: null };
+
+  const settled = await Promise.allSettled(
+    FETCHER_NAMES.map(async (n) => {
+      const fn = await loadFetcher(n);
+      if (!fn) return { _missing_fetcher: n, dims: {}, evidence: {} };
+      return await fn(owner, name, ctx);
+    }),
+  );
+
+  const dims = {};
+  const evidence = {};
+  const fetcher_versions = {};
+  for (let i = 0; i < FETCHER_NAMES.length; i++) {
+    const fname = FETCHER_NAMES[i];
+    const r = settled[i];
+    if (r.status === "fulfilled") {
+      const v = r.value || {};
+      Object.assign(dims, v.dims || {});
+      Object.assign(evidence, v.evidence || {});
+      fetcher_versions[fname] = v._missing_fetcher
+        ? "absent"
+        : v.version || "unstamped";
+    } else {
+      fetcher_versions[fname] = `error: ${String(r.reason).slice(0, 80)}`;
+    }
+  }
+
+  // Every registered dim MUST have an EvidenceAnchor (honest missingness — codex MISSED_HIGH_VALUE).
+  for (const dimKey of Object.keys(DIMS)) {
+    if (!evidence[dimKey]) {
+      evidence[dimKey] = makeEvidence(null, {
+        source_class: "CLASS-A",
+        source_uri: "n/a",
+        missingness: MISSINGNESS.NOT_MEASURABLE,
+      });
+    }
+  }
+
+  // Normalize then score per class (FROZEN v20 cluster weights per codex P0).
+  const normalized = {};
+  for (const dimKey of Object.keys(DIMS)) {
+    normalized[dimKey] = normalizeDim(dimKey, dims[dimKey]);
+  }
+  const per_class_scores = {
+    install:       scoreClass("INSTALL", normalized, evidence),
+    pattern_study: scoreClass("PATTERN-STUDY", normalized, evidence),
+    cite_only:     scoreClass("CITE-ONLY", normalized, evidence),
+    monitor:       scoreClass("MONITOR", normalized, evidence),
+  };
+
+  const routing = routeTier(dims, evidence, per_class_scores);
+
+  const measuredCount = Object.keys(DIMS).filter(
+    (k) => evidence[k]?.missingness === MISSINGNESS.MEASURED,
+  ).length;
+  const measured_ratio = measuredCount / Object.keys(DIMS).length;
+
+  return {
+    schema_version: SCHEMA_VERSION,
+    weights_profile: WEIGHTS_PROFILE,
+    repo: `${owner}/${name}`,
+    evaluated_at: new Date().toISOString(),
+    dims,
+    evidence,
+    per_class_scores,
+    tier: routing.tier,
+    hard_filter_violations: routing.hard_filter_violations || [],
+    confidence: computeConfidence(evidence),
+    measured_ratio,
+    fetcher_versions,
+    lineage: {
+      supersedes: "sca-v20-multi-dim",
+      design_doc: "docs/architecture/W380-RESEARCH-ARCH-V21/SYNTHESIS.md",
+      codex_round: "W380-r1-converged-MVP",
+    },
+  };
+}
+
+// CLI entry — only when invoked directly. Compare resolved fs paths (robust on Windows where
+// import.meta.url is file:///Z:/... triple-slash; naive string-concat mismatched and skipped main).
+const _invokedDirectly =
+  process.argv[1] && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
+if (_invokedDirectly) {
+  const { values } = parseArgs({
+    options: {
+      repo: { type: "string" },
+      "no-ledger": { type: "boolean", default: false },
+      "no-cache": { type: "boolean", default: false },
+    },
+  });
+  if (!values.repo || !values.repo.includes("/")) {
+    console.error("usage: sca-evaluate.mjs --repo owner/name [--no-ledger] [--no-cache]");
+    process.exit(2);
+  }
+  const [owner, name] = values.repo.split("/");
+  const verdict = await evaluateRepo(owner, name, { noCache: values["no-cache"] });
+  if (!values["no-ledger"]) await appendVerdict(verdict);
+  process.stdout.write(JSON.stringify(verdict, null, 2) + "\n");
+}
+
+[35m[3mcodex[0m[0m
+VERDICT: REVISE  
+CONFIDENCE: 0.88
+
+PER_FILE:
+- contract.mjs: ISSUE — scoring core is sound, but INSTALL hard-filter metadata includes D17 without enforcement.
+- sca-evaluate.mjs: ISSUE — routing can INSTALL with unmeasured license/pinning evidence.
+
+FINDINGS:
+- [P1] `routeTier` only fails INSTALL license when `dims.D07_license_class` is truthy and non-permissive, so a missing/unmeasured license can pass as INSTALL via neutral scoring. This violates “unknown != clean” and INSTALL hard-filter intent. | FIX: `contract.mjs` routeTier license check: require `dims.D07_license_class === "permissive"` for INSTALL, after proprietary BLOCK.
+- [P1] `D17_pinning_discipline` is declared `hardFilter: "INSTALL"` but `routeTier` never enforces it. A repo with range/absent pinning can still INSTALL if weighted score clears threshold. | FIX: add INSTALL violation unless D17 is one of exact digest/SHA/exact-version classes.
+- [P2] MONITOR has cluster `I: 0.25`, but `DIMS` contains no Cluster I dimensions, so `scoreClass("MONITOR")` always injects a fixed neutral `0.125` component. Not route-breaking, but the frozen profile is only partially executable. | FIX: add the intended informational Cluster-I dim or set MONITOR.I to `0` for MVP.
+
+SHIP: no — to W380 branch
+
+SUMMARY: Per-class cluster-mean scoring, neutral 0.5 missingness, frozen weights, and core normalization are broadly faithful MVP implementation. The unsafe gap is INSTALL gating: missing license and missing/weak pinning are not hard-filtered despite the contract saying they are. Fix those before shipping; no evidence of n=12 fitting or hard-BLOCK regression.
+SUCCESS: The process with PID 137672 (child process of PID 156984) has been terminated.
+SUCCESS: The process with PID 156984 (child process of PID 117348) has been terminated.
+SUCCESS: The process with PID 117348 (child process of PID 146788) has been terminated.
+SUCCESS: The process with PID 146788 (child process of PID 105688) has been terminated.
+[2mtokens used[0m
+25,052
+VERDICT: REVISE  
+CONFIDENCE: 0.88
+
+PER_FILE:
+- contract.mjs: ISSUE — scoring core is sound, but INSTALL hard-filter metadata includes D17 without enforcement.
+- sca-evaluate.mjs: ISSUE — routing can INSTALL with unmeasured license/pinning evidence.
+
+FINDINGS:
+- [P1] `routeTier` only fails INSTALL license when `dims.D07_license_class` is truthy and non-permissive, so a missing/unmeasured license can pass as INSTALL via neutral scoring. This violates “unknown != clean” and INSTALL hard-filter intent. | FIX: `contract.mjs` routeTier license check: require `dims.D07_license_class === "permissive"` for INSTALL, after proprietary BLOCK.
+- [P1] `D17_pinning_discipline` is declared `hardFilter: "INSTALL"` but `routeTier` never enforces it. A repo with range/absent pinning can still INSTALL if weighted score clears threshold. | FIX: add INSTALL violation unless D17 is one of exact digest/SHA/exact-version classes.
+- [P2] MONITOR has cluster `I: 0.25`, but `DIMS` contains no Cluster I dimensions, so `scoreClass("MONITOR")` always injects a fixed neutral `0.125` component. Not route-breaking, but the frozen profile is only partially executable. | FIX: add the intended informational Cluster-I dim or set MONITOR.I to `0` for MVP.
+
+SHIP: no — to W380 branch
+
+SUMMARY: Per-class cluster-mean scoring, neutral 0.5 missingness, frozen weights, and core normalization are broadly faithful MVP implementation. The unsafe gap is INSTALL gating: missing license and missing/weak pinning are not hard-filtered despite the contract saying they are. Fix those before shipping; no evidence of n=12 fitting or hard-BLOCK regression.
+ERROR: The process "164320" not found.

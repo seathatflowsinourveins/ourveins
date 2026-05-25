@@ -1,0 +1,41 @@
+T1 ROUND-3 NARROW — Wave 97 Ship 1F Pattern A R3 verification
+
+ROUND-2 VERDICT (verbatim):
+{"verdict":"NEEDS-REVISION","confidence":0.96,"rationale":"The staged diff is doc/header-only and all smoke probes pass, but Round-1 prescriptions 2 and 4 remain incomplete because the CR-1 anchors are symbol-only instead of exact file:line ranges and docs/install-provenance.md is not present in the staged diff.","prescribed_edits":["Add exact upstream file:line ranges at full HEAD SHA for all CR-1 anchors, including stop-review-gate-hook.mjs:142-157, session-lifecycle-hook.mjs:76-102, lib/broker-lifecycle.mjs:43-56, and plugin-hook-bootstrap.js:110-117.","Append and stage the Wave 97 Ship 1F CITE-IMPORT-AMBER entry in docs/install-provenance.md with HNF evidence, sibling SHAs, effective_tier, and retirement condition."]}
+
+PATTERN A R3 APPLY:
+
+E1 — Hybrid file:line + symbol-anchor cite format applied (BOTH formats per R2 #1):
+Verified upstream line ranges exist via `sed -n` probe on each:
+- stop-review-gate-hook.mjs:142-157 → contains `function main() { ... }` (verified)
+- session-lifecycle-hook.mjs:76-102 → contains `handleSessionStart` + `handleSessionEnd` (verified; symbol-anchor extended to BOTH functions)
+- lib/broker-lifecycle.mjs:43-56 → contains `sendBrokerShutdown` (verified)
+- plugin-hook-bootstrap.js:110-117 → contains `function main() { ... rootDir = ... CLAUDE_PLUGIN_ROOT ... }` (verified — this IS the line where the bug originates)
+
+Updated cite format: `Z:/repos/deps/<repo>/<path>:<line-range>#<symbol> @ HEAD <full-40-char-SHA>`
+- Script 1 cites updated with line ranges 142-157 / 76-102 / 43-56 + full SHA
+- Script 2 cite updated with line range 110-117#main + full SHA + clarification that this IS the rootDir-resolution bug origin
+
+E2 — Provenance entry appended AND staged (per R2 #2):
+- `cat tmp/wave97-ship1f-provenance-append.md >> docs/install-provenance.md` executed
+- `git add docs/install-provenance.md` executed
+- Verified staged scope: docs/install-provenance.md +151 LOC (Wave 97 Ship 1F entry)
+- Entry includes: Class B verdict + Pattern A 5-prescription apply + TIER-1 substrate cites with hybrid format + sibling SHAs (46358c2 / d298d47 / 062455b / 4b26416) + effective_tier=TIER-3-LOCAL-COMPOSITION + HNF evidence (mcp__github__search_code total_count=0) + RETIREMENT CONDITION + smoke probe results
+
+CURRENT STAGED SCOPE (verified live):
+- scripts/codex-plugin-hooks-rewrite.py: 43 LOC (header only; selective stage)
+- scripts/ecc-plugin-hooks-rewrite.py: 45 LOC (header)
+- docs/install-provenance.md: 151 LOC (provenance entry)
+- TOTAL: 239 LOC doc-only Ship 1F scope; ZERO behavior change
+- Unstaged: 220 LOC Wave 80 patches in scripts/codex-plugin-hooks-rewrite.py (preserved for separate ship per cycle-300)
+
+SMOKE PROBES POST-R3 (4/4 PASS):
+- py_compile scripts/codex-plugin-hooks-rewrite.py → SYNTAX-OK
+- py_compile scripts/ecc-plugin-hooks-rewrite.py → SYNTAX-OK
+- scripts/codex-plugin-hooks-rewrite.py --check --quiet → exit 0; "OK: 4 hooks.json clean"
+- scripts/ecc-plugin-hooks-rewrite.py --check --quiet → exit 0; "OK: 10 ECC hooks.json files clean; 5 plugin roots checked"
+
+QUESTION: Does R3 Pattern A correctly close BOTH R2 prescribed_edits?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

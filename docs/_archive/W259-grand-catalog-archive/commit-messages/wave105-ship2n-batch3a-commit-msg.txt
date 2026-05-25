@@ -1,0 +1,95 @@
+feat(hooks): Wave 105 Ship 2N-batch3-A — wire safety_guard.py PreToolUse:Bash hook (P0 SAFETY mechanical enforcement)
+
+Closes Wave 105 Agent C P0-5 finding (load-bearing CR-7 Phase 3 safety floor gap).
+
+Per Wave 105 Agent C feature-coverage audit + Mia probe verified:
+  safety_guard.py + agent_plan_readonly_bash_guard.py mentioned in settings.json L74
+  _comment_allow but ZERO PreToolUse hook entries register them as enforcing.
+  Current defaultMode "bypassPermissions" (per Wave 82d operator override) lacks
+  mechanical safety-floor enforcement.
+
+CHANGES (1 file / +9 / -2 LOC):
+  .claude/settings.json L74      — _comment_allow updated to honest description
+                                    of MECHANICALLY-ENFORCED state (was misleading)
+  .claude/settings.json Block[6] — prepend safety_guard.py at hooks[0]:
+                                    PreToolUse:Bash sync timeout=5 always-fire
+
+WIRE ORDER (post-ship):
+  Block[6] matcher=Bash hooks[0..5]:
+    [0] safety_guard.py         (sync 5s always)  ← NEW Ship 2N-batch3-A
+    [1] block_no_verify_guard.py (sync 5s always)
+    [2] gitleaks_pre_commit_gate.py (sync 10s if Bash(git commit *))
+    [3] gitleaks_pre_commit_gate.py (sync 10s if Bash(git -C * commit *))
+    [4] codex_t2_pre_commit_gate.py (sync 180s if Bash(git commit *))
+    [5] codex_t2_pre_commit_gate.py (sync 180s if Bash(git -C * commit *))
+
+WHAT safety_guard.py BLOCKS (12 destructive patterns):
+  rm-rf / sudo rm / git push --force / git reset --hard / git checkout . /
+  SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 /
+  fork bomb (:(){:|:&};:) / mkfs / dd-to-disk
+
+CR-3 SATISFIED (cross-model consensus):
+  Codex T1 e2e fired BEFORE this commit per Ship 2X SRA cross-model T1 mandate +
+  Wave 100 Ship 2P fully-unleashed discipline (no --sandbox=read-only flag;
+  profile danger-full-access).
+  Verdict: NEEDS-REVISION conf=0.96 with 5 prescribed_edits.
+  Pattern A apply (single atomic fix-forward integrating all 5 prescriptions):
+
+    P1 (DESIGN-FLAW CATCH): codex caught that initial proposal also wired
+       agent_plan_readonly_bash_guard.py globally — but that script is positive-
+       validator scoped to plan-mode subagents. Globally wiring would BLOCK
+       normal operator Bash including `git commit`. Mia probe verified 6 agents
+       (architect / code-reviewer / debugger / gpt5-archaeologist / gpt5-reviewer /
+       verifier) already reference it via per-subagent frontmatter PreToolUse
+       hooks with appropriate --policy flags (readonly / codex-readonly / verifier).
+       Action: agent_plan_readonly_bash_guard.py REMOVED from this ship's scope;
+       remains correctly enforced per-subagent.
+    P2: keep agent_plan_readonly_bash_guard.py at per-subagent frontmatter
+       wiring; do NOT add to global PreToolUse:Bash. APPLIED.
+    P3: skipped (global shim is conditional FUTURE work; not this fire).
+    P4: _comment_allow updated to honestly state safety_guard mechanically
+       enforced + agent_plan_readonly_bash_guard plan-agent-frontmatter scoped.
+       APPLIED.
+    P5: keep new safety hook sync, no async:true, no `if:` — full Bash visibility
+       for catastrophic deny coverage. APPLIED.
+
+SMOKE TESTS PASSED (verified pre-commit):
+  ✅ Safe `git commit -m "..."` → exit 0 (pass-through)
+  ✅ Unsafe `rm -rf /` → exit 2 BLOCKED with helpful alternative
+  ✅ Unsafe `git push --force` → exit 2 BLOCKED with --force-with-lease alternative
+  ✅ Non-Bash Edit → exit 0 (skips non-Bash tool calls correctly)
+
+CR COMPLIANCE:
+  CR-1 (cite SOTA primary): TIER-3-LOCAL-COMPOSITION cite-import-AMBER per CR-12;
+                            sibling SHA 32fbcb0d HONEST-NON-FINDING-gated;
+                            Probe DAG P1-P6 PASS at Wave 14b
+  CR-3 (cross-model T1):    codex T1 NEEDS-REVISION conf=0.96 Pattern A applied
+                            (5 prescriptions, 1 design-flaw caught + corrected)
+  CR-5 (install-priority):  cite-import per CR-12 TERTIARY (sibling-derived;
+                            no upstream parity per Wave 14b HNF probe)
+  CR-7 (graduated unleash): closes Phase 3 safety floor mechanical-enforcement gap
+  CR-9 (install-risk):      MEDIUM (touches PreToolUse hook chain; reversible);
+                            2-round fix-forward expectation MET at first round
+  CR-10 (research-first):   Wave 105 Agent C P0-5 finding drove this ship
+  CR-11 (META-process):     Mia pre-apply on codex T1 P1 design-flaw catch
+                            (verified agent frontmatter wires by Grep)
+
+CITE CHAIN:
+  TIER-3-LOCAL-COMPOSITION: .claude/hooks/scripts/safety_guard.py (cite-imported
+                            from sibling SHA 32fbcb0d; CR-12 TERTIARY HNF-gated)
+  TIER-2 sister:            tmp/wave105-close-synthesis-2026-05-08.md
+                            (Wave 105 P0 sequencing principle)
+  TIER-2 sister:            tmp/wave105-agentC-feature-coverage-audit-2026-05-08.md
+                            (Agent C P0-5 finding evidence)
+  TIER-2 audit-trail:       .claude/state/codex_consult_wave105_ship2n_batch3a_safety_hooks_OUT.txt
+                            (NEEDS-REVISION conf=0.96 5-prescription verdict)
+
+QUEUE (post Ship 2N-batch3-A):
+  Ship 2N-batch3-B: wire graphiti MCP in .mcp.json (P0 FEATURE)
+  Ship 2N-batch3-C: wire missing context-mode hooks (PreToolUse + PostToolUse + PreCompact)
+  Ship 2N-batch3-D: manifest §4 + §15 doc-drift fixes (DOC-ONLY CR-9 LOW)
+  Ship 2N-batch3-E: repomix MCP install in .mcp.json (P1 NEW PRIMITIVE)
+  Ship 2P-pilot: observability bench-pilot (operator decision)
+  Ship 2A-pilot: rtk vs snip Bash-output-filter pilot (operator decision)
+
+Wave 105 — Ship 2N-batch3-A (27th ship in this session arc).

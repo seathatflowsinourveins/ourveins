@@ -1,0 +1,110 @@
+T1 PRE-COMMIT CONSULT — Wave 105 Ship 2N-batch3-A — wire safety_guard.py + agent_plan_readonly_bash_guard.py PreToolUse:Bash hooks (P0 SAFETY)
+
+USER MANDATE: "make sure all sota optimization applied without harming the sota performance" + "we need full advanced unleash of all performance, foundation level, and beyond" + "don't ignore any hidden fallback or errors"
+
+THIS T1 INVOCATION FIRES UNDER FULLY-UNLEASHED DISCIPLINE (Wave 100 Ship 2P 2026-05-08 commit b6dc7e5) — NO --sandbox=read-only flag; profile default danger-full-access. Per Ship 2X SRA cross-model T1 mandate (any safety-floor change to PreToolUse hook chain).
+
+==========================================
+ORIGIN
+==========================================
+Wave 105 Agent C (`adea003df2f012855`) feature-coverage audit P0-5 finding + Mia probe verified:
+
+Both scripts EXIST as cite-imports (CR-12 TERTIARY HONEST-NON-FINDING-gated):
+- `.claude/hooks/scripts/safety_guard.py` — 16631B, executable; cite-imported from sibling SHA `32fbcb0d` (Wave 14b); 12-destructive-pattern auto-block (rm-rf / sudo rm / git push --force / git reset --hard / git checkout . / SQL DROP / TRUNCATE / docker prune / kubectl delete / chmod 777 / fork bomb / mkfs / dd)
+- `.claude/hooks/scripts/agent_plan_readonly_bash_guard.py` — 48984B; cite-imported from sibling SHA `f57c74dd` (Wave 14); plan-mode subagent positive-validation allowlist hook scoped to PreToolUse:Bash
+
+BOTH NOT WIRED: settings.json L74 `_comment_allow` mentions both as "safety floor preserved via..." but ZERO PreToolUse hook entries register them. CR-7 Phase 3 destination `bypassPermissions` (current defaultMode per Wave 82d operator override during Anthropic-side classifier outage) lacks mechanical safety-floor enforcement.
+
+==========================================
+CURRENT PreToolUse:Bash CHAIN (block [6])
+==========================================
+Block [6] matcher=`Bash` inner=5 hooks (verified via Python json.load):
+- [6.0] block_no_verify_guard.py (5s sync) — always fires
+- [6.1] gitleaks_pre_commit_gate.py (10s sync) `if: Bash(git commit *)`
+- [6.2] gitleaks_pre_commit_gate.py (10s sync) `if: Bash(git -C * commit *)`
+- [6.3] codex_t2_pre_commit_gate.py (180s sync) `if: Bash(git commit *)`
+- [6.4] codex_t2_pre_commit_gate.py (180s sync) `if: Bash(git -C * commit *)`
+
+==========================================
+PROPOSED WIRE (Ship 2N-batch3-A)
+==========================================
+Insert 2 NEW hooks at TOP of block [6] (BEFORE block_no_verify_guard.py for fail-fast on catastrophic patterns):
+
+NEW [6.0] safety_guard.py (5s sync) — always fires; 12-destructive-pattern auto-block; fail-CLOSED on corruption
+NEW [6.1] agent_plan_readonly_bash_guard.py (8s sync) — always fires; plan-mode subagent positive-validation allowlist (non-plan-mode = pass-through)
+THEN [6.2] block_no_verify_guard.py (5s sync) — existing; renamed slot
+THEN [6.3] gitleaks `if: Bash(git commit *)` (10s)
+THEN [6.4] gitleaks `if: Bash(git -C * commit *)` (10s)
+THEN [6.5] codex_t2 `if: Bash(git commit *)` (180s)
+THEN [6.6] codex_t2 `if: Bash(git -C * commit *)` (180s)
+
+Total chain length: 5 → 7 hooks. Fail-fast ordering on catastrophic patterns.
+
+==========================================
+WIRE RATIONALE
+==========================================
+1. **safety_guard FIRST**: 12-pattern catastrophic deny-list takes priority over all other gates. If `rm -rf /` or `:(){:|:&};:` fork bomb fires, NOTHING else should run.
+2. **agent_plan_readonly_bash_guard SECOND**: plan-mode subagent positive allowlist applies to subagent-spawned Bash. Most invocations are non-plan-mode (operator session) → fast pass-through (~8s timeout but typically <100ms when not in plan mode).
+3. **block_no_verify_guard THIRD**: narrower scope (just --no-verify); after safety+plan-readonly catch broader patterns.
+4. **gitleaks/codex_t2 LAST**: commit-time gates with `if:` conditions; expensive (180s for codex_t2) but only fire on git commit.
+
+==========================================
+SCHEMA EDIT (atomic JSON)
+==========================================
+Two new entries prepended to `.claude/settings.json:hooks.PreToolUse[6].hooks`:
+
+```json
+{
+  "type": "command",
+  "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/safety_guard.py",
+  "timeout": 5
+},
+{
+  "type": "command",
+  "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_plan_readonly_bash_guard.py",
+  "timeout": 8
+},
+```
+
+==========================================
+COMPANION DOCUMENTATION EDIT
+==========================================
+Update `.claude/settings.json:_comment_allow` (currently L74) to remove the misleading "safety floor preserved via safety_guard.py + agent_plan_readonly_bash_guard.py" claim — these are now MECHANICALLY ENFORCED, not just documentary.
+
+NEW comment text: "EMPTY — Phase 3 auto-mode classifier auto-approves read-only + file edits; safety floor MECHANICALLY enforced via PreToolUse:Bash hooks safety_guard.py + agent_plan_readonly_bash_guard.py at Block[6][0,1] (Ship 2N-batch3-A 2026-05-08); cardinal-rule deny-class still applies."
+
+==========================================
+SRA D1-D10 SCORING
+==========================================
+- D1 license: PASS (Apache-2.0 inheritance via cite-import per CR-12)
+- D2 freshness: PASS (sibling SHA pinned 2026-05-07; current per `port-note-discipline` immutable cite anchor)
+- D4 maintainer: TIER-3-LOCAL-COMPOSITION (sibling-derived; NOT TIER-1 SOTA per cite-class lattice; CR-12 TERTIARY HNF-confirmed at Wave 50 fire 11 row-7)
+- D6 use-class: PASS (PreToolUse:Bash sync hook chain; same use-class as block_no_verify_guard / codex_t2_pre_commit_gate)
+- D7 Anthropic CC policy: PASS (uses official PreToolUse contract — stdin JSON + permissionDecision deny/allow/ask)
+- D9 failure-mode: NEUTRAL → CR-7 Phase 3 SAFETY-FLOOR PROTECTIVE (closes load-bearing gap)
+- Convergence verdict: PASS at TIER-3-LOCAL-COMPOSITION; CR-9 install-risk MEDIUM (touches PreToolUse hook chain; reversible via revert)
+
+==========================================
+CR-9 INSTALL-RISK ANALYSIS
+==========================================
+- MEDIUM (touches PreToolUse hook chain — adds 2 hooks at fail-fast position)
+- 2-round fix-forward expectation: Pattern A apply if NEEDS-REVISION
+- Scripts already cite-import-AMBER per CR-12 TERTIARY (Wave 14 + 14b); this ship transitions to MECHANICALLY-ENFORCED
+- Reversible via `git revert` (single .claude/settings.json edit)
+- No sibling-bleed (zero `Z:/claude-sota/` paths in wire)
+- Pre-cite-import REVERT check passed (these scripts NOT in any prior REVERT-AND-REMOVE list)
+
+==========================================
+QUESTIONS (JSON ONLY)
+==========================================
+1. Wire ordering: safety_guard FIRST → agent_plan_readonly SECOND → block_no_verify_guard THIRD — correct fail-fast prioritization for 12-destructive-pattern auto-block?
+2. Timeouts: safety_guard 5s + agent_plan_readonly 8s — appropriate? (safety_guard is regex deny-list; agent_plan_readonly is positive validator with subagent context resolution)
+3. Both NEW hooks `sync` (no `async: true`) — correct? (must BLOCK; not asyncRewake; per `layered-gates-architecture.md §4 Layer 1` for PreToolUse permission-deny semantic — "Not a substitute for permission-deny semantics — `permissionDecision: deny` is a synchronous PreToolUse-only mechanism")
+4. _comment_allow update text — accurately reflects new MECHANICALLY-ENFORCED state?
+5. Should we ALSO add an `if:` condition narrowing to specific Bash patterns? Or keep matcher=`Bash` always-fires for catastrophic-pattern coverage breadth?
+6. Both scripts return `permissionDecision: "deny"` JSON OR exit 2 — Anthropic CC contract honored at hook-chain level?
+7. Edge case: subagent_plan_readonly fires on plan-mode subagents only — does its 8s timeout matter for non-plan-mode operator sessions (where it should fast-pass)?
+8. `_comment_safety_hooks_wire_ship_2n_batch3a` documentation comment additionally needed?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

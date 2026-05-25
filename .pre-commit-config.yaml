@@ -1,0 +1,327 @@
+# Wave 135 Fire 7 (2026-05-10) — Path P codex bg b3bdjahr8 REAL GPT-5.5 conf=0.94
+# + Agent B exclude block augmentation (Mia OVER catch n=143 — gitleaks would scan 2GB
+# .claude/plugins/cache/ without exclusion).
+# Cite anchors:
+#   gitleaks v8.30.1 @ HEAD 8863af47d64c3681422523e36837957c74d4af4b (.pre-commit-hooks.yaml:1-18)
+#   ruff-pre-commit v0.15.12 @ HEAD 6fec9b7edb08fd9989088709d864a7826dc74e80 (README.md:21-28)
+#   actionlint v1.7.12 @ HEAD 011a6d15e749bb3f2d771eed9c7aa0e7e3e10ee7 (.pre-commit-hooks.yaml:17-23)
+
+exclude: |
+  (?x)^(
+    \.claude/state/.*|
+    \.claude/plugins/.*|
+    \.claude/projects/.*|
+    \.claude/agent-memory/.*|
+    \.claude/_archive/.*|
+    docs/_archive/.*|
+    \.claude/teams/.*|
+    \.claude/worktrees/.*|
+    \.local/.*|
+    tmp/.*|
+    docs/outer\ research/.*|
+    .*\.zip|
+    .*\.tar\.gz|
+    .*\.lock
+  )$
+
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks-system
+        # upstream gitleaks-system omits pass_filenames:false (the gitleaks +
+        # gitleaks-docker variants set it); `gitleaks git` takes <=1 positional
+        # arg, so appended staged filenames break any multi-file commit
+        pass_filenames: false
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # v1.7.12 (W347 P4c SHA-pin)
+    hooks:
+      - id: actionlint-system
+
+  # W317-D — commitlint commit-msg stage (Conventional Commits + W-wave prose)
+  # Cite: @commitlint/cli@20.5.3 (npm) + @commitlint/config-conventional@20.5.3.
+  # Config at commitlint.config.cjs (extends config-conventional, adds `ship`/`wip` types).
+  # W352 S1 stale-doc fix 2026-05-21: was "commitlint.config.js" — real file is .cjs since W347 a881fb3 (codex r1 M1).
+  # always_run + pass_filenames=true is the commit-msg-stage idiom (pre-commit
+  # passes the .git/COMMIT_EDITMSG path as $1; otherwise stage runs against
+  # the empty staged-file set and reports `(no files to check) Skipped`).
+  - repo: local
+    hooks:
+      - id: commitlint
+        name: commitlint (W317-D)
+        # PRE_COMMIT_COMMIT_MSG_SOURCE / $1 is exported by pre-commit for
+        # commit-msg stage hooks; we use git rev-parse --git-path COMMIT_EDITMSG
+        # which resolves correctly in BOTH main worktree AND linked worktrees
+        # (where .git is a FILE pointing to ../.git/worktrees/<name>/). Hard-
+        # coded .git/COMMIT_EDITMSG breaks in worktree context (W333 bug-fix).
+        entry: bash -c 'exec commitlint --strict --edit "$(git rev-parse --git-path COMMIT_EDITMSG)"'
+        language: system
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: false
+
+      # W335 P0 — Codex-Verdict trailer enforcement (closes codex e2e adversarial-review Gate-3 BLOCK 2026-05-20).
+      # Cite: tools/codex-trailer-gate.mjs (full citation block at file header).
+      # Mandate: every commit must contain `Codex-Verdict: APPROVE` (post codex r1 review)
+      # OR `Codex-Verdict: BOOTSTRAP` (initial gate-bootstrap commits, one-time use).
+      # Escape hatch: $env:CODEX_TRAILER_GATE_DISABLE=1 (operator-only; CR-5 condition-(b) sanctioned).
+      - id: codex-trailer-gate
+        name: Codex-Verdict trailer gate (W335)
+        entry: bash -c 'exec node "$(git rev-parse --show-toplevel)/tools/codex-trailer-gate.mjs" "$(git rev-parse --git-path COMMIT_EDITMSG)"'
+        language: system
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: false
+
+      # W327-C / W328-C — provenance lint (multi-session race detector, commit-msg stage)
+      # Cite anchors (3-org-distinct, EXTERNAL-DOMINANT):
+      #   1. Conventional Commits 1.0.0 (community spec) — body-line claim surface
+      #   2. SLSA v1.0 build-provenance (Linux Foundation OpenSSF WG) — attestation-pre-merge pattern
+      #   3. GitHub commit-signature verification (GitHub Inc.) — structural + identity binding model
+      # Internal precedent (non-gate): W317-A Δ34 supersession-chain lint @ PreToolUse[Edit|Write]
+      #   (docs/architecture/W317-RUBRIC-AND-LINT/W317-A-SHIP-LOG.md:12-46).
+      # Motivation: W320 (settings.json:154 no-colon race) + W326 (SKILL.md §7 false-claim race;
+      #   settings.json:206 path-prefix near-miss) parallel-session occurrences where the
+      #   ship-message falsely claimed APPLIED for changes landed in parallel commits.
+      # W328-C upgrade (codex round-1-r2-r3 carry-over closure): regex extended to 5 claim forms
+      #   (F1 APPLIED:<path>, F2 APPLIED THIS COMMIT:<path>, F3 APPLIED <path> no-colon,
+      #   F4 APPLIED to <path>, F5 apply <verb> to <path>); path normalization strips trailing
+      #   `:<linenum>` suffixes + sentence-punctuation + leading paren; endsWith fallback (shell
+      #   case-glob `*/<p>`) closes `settings.json` vs `.claude/settings.json` mismatch surface;
+      #   prose-mode exclusion (only subject line + bullet/numbered lines are claim-lines)
+      #   closes the W327 self-trigger surface. Smoke-verified: 7/7 PASS = 5 spec test cases
+      #   (TC1 W320 5cac3ec BLOCK; TC2 W326 670423d BLOCK; TC3 W327 d6087ec PASS;
+      #   TC4 W327-codex-r1 6ee7ea4 PASS; TC5 prose-only PASS) + 2 defense-in-depth
+      #   (NEG-control BLOCK; subject-claim BLOCK). See W328-PROVENANCE-LINT-V2/ for design,
+      #   real-history test results, and v1->v2 diff.
+      # W331-P0.9 — CR-2 ≤2KB hook-body enforcement (pre-commit stage)
+      # Per CLAUDE.md L19 mandate: "No project-owned hook bodies ... ≤2 KB" exception.
+      # Triggered when staged files match .claude/hooks/** path. Blocks commit if
+      # any such file exceeds 2048 bytes. Cite-anchor: W330 codex round-2 axis-1#4
+      # HIGH finding (documentation-only enforcement gap closed W331).
+      - id: cr2-2kb-hooks
+        name: cr2-2kb-hooks (W331-P0.9 axis-1#4 closure)
+        entry: "bash -c 'staged=$(git diff --staged --name-only --diff-filter=AM 2>/dev/null | grep -E \"^\\.claude/hooks/\" || true); bad=0; viol=\"\"; while IFS= read -r f; do [ -z \"$f\" ] && continue; [ -f \"$f\" ] || continue; sz=$(wc -c < \"$f\" 2>/dev/null); [ -z \"$sz\" ] && continue; if [ \"$sz\" -gt 2048 ]; then viol=\"${viol}${f} (${sz}B > 2048B)|\"; bad=1; fi; done <<<\"$staged\"; if [ \"$bad\" -ne 0 ]; then printf \"W331-P0.9 CR-2 BLOCK: hook-body exceeds 2KB ceiling\\n\" >&2; printf \"%s\" \"$viol\" | tr \"|\" \"\\n\" >&2; exit 2; fi; exit 0'"
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W335 P1-6 — MSYS-hooks-form pre-commit gate (W335 Stream D recommendation).
+      # Static validator scans installed-plugin cache + .claude/hooks/** for shell-form
+      # pathology: `command` containing literal ${CLAUDE_PLUGIN_ROOT} WITHOUT one of the
+      # three escape clauses (exec-form args[] / cygpath / bash -c). Codifies the FM-class that
+      # disabled 5 plugins this wave (W335-MSYS-1..5: hookify + intelligent-compact +
+      # self-improving-agent + claude-mem + protect-mcp).
+      # DUAL-MODE per CLAUDE.md L29 W325-A precedent:
+      #   default               — advisory (stderr report, exit 0)
+      #   MSYS_HOOKS_FORM_GATE_ENFORCE=1 — binding (stderr + exit 2)
+      # Escape hatch: $env:MSYS_HOOKS_FORM_GATE_DISABLE=1 (operator-only; CR-5 b).
+      # Source: tools/precommit-msys-hooks-form.mjs (full citation block + 3-org-distinct anchors at file header).
+      - id: msys-hooks-form
+        name: MSYS hooks-form pathology gate (W335 P1-6)
+        entry: bash -c 'exec node "$(git rev-parse --show-toplevel)/tools/precommit-msys-hooks-form.mjs"'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W332-CF3 (Stream B revised; W332 v1 design used non-existent `impact --json --staged` flag).
+      # `gitnexus detect-changes` reads working-tree/staged diff directly; maps hunks to indexed
+      # symbols + affected execution flows. Advisory mode: stderr-only, `|| true` swallows non-zero,
+      # `exit 0` never blocks the commit. Operator sees blast-radius summary inline during commit.
+      # head -40 keeps pre-commit terminal output bounded. Multi-worktree safe (cwd .git discovery).
+      # Rollback: remove this block + `pre-commit clean`. Dependencies: CF1 + CF2 patches active.
+      # Cite: Stream B GITNEXUS-CARRYFORWARD-RESEARCH.md §CF3 (W332).
+      - id: gitnexus-detect-changes
+        name: gitnexus blast-radius advisory (W332-CF3)
+        entry: bash -c 'gitnexus detect-changes 2>&1 | head -40 >&2 || true; exit 0'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W352-S9 — cite-floor pre-commit hook (sca-v13 3-org-distinct floor mechanization).
+      # On staged docs/architecture/W*/*.md or VERDICT-LEDGER.md, extract citation tokens
+      # (github.com/<org>, arXiv:N, https://<eTLD+1>); BLOCK if distinct_orgs < 3.
+      # Closes Stream C research-arch P0 finding ("3-org-distinct discipline is prompt-only,
+      # no CI mechanization"). Body <2KB; lives at tools/precommit-cite-floor.mjs.
+      # Cite-anchors (3-org-distinct): citations-agent/SKILL.md:42-66 (Anthropic-adapted
+      # from claude-cookbooks @39a350b6) + Microsoft autogen citation discipline + OpenAI
+      # cookbook citation patterns + OWASP A06:2021 + NIST SP 800-218 PW.7 + sca-v13 W332.
+      - id: cite-floor-check
+        name: cite-floor-check (W352-S9 sca-v13 3-org-distinct floor)
+        entry: bash -c 'exec node "$(git rev-parse --show-toplevel)/tools/precommit-cite-floor.mjs"'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      - id: provenance-lint
+        name: provenance-lint (W328-C)
+        # entry is a single-line bash -c invocation. YAML double-quoted scalar
+        # so embedded "$()" + single-quotes inside the inline bash are safe.
+        # Pre-commit appends nothing because pass_filenames=false.
+        # First positional arg = COMMIT_EDITMSG path (pre-commit passes it for commit-msg hooks).
+        entry: "bash -c 'msg=$(cat \"${1:-$(git rev-parse --git-path COMMIT_EDITMSG)}\"); staged=$(git diff --staged --name-only 2>/dev/null); bad=0; viol=\"\"; sm() { local raw=\"$1\"; local p; p=$(printf %s \"$raw\" | sed -E \"s/(:[0-9]+)+\\$//; s/[.,;:)]+\\$//; s/^\\(//\"); case \"$p\" in \"\"|\"§\"*) return 1;; esac; printf %s \"$p\" | grep -qE \"[./]\" || return 1; printf %s \"$staged\" | grep -Fxq -- \"$p\" && return 0; while IFS= read -r s; do case \"$s\" in \"$p\"|*/\"$p\") return 0;; esac; done <<<\"$staged\"; return 1; }; n=0; while IFS= read -r line; do n=$((n+1)); if [ \"$n\" -ne 1 ]; then printf %s \"$line\" | grep -qE \"^[[:space:]]*([-*]|[0-9]+\\.)[[:space:]]\" || continue; fi; m=$(printf %s \"$line\" | grep -oE \"APPLIED( THIS COMMIT)?:[[:space:]]+[^[:space:]]+\" | head -1); if [ -n \"$m\" ]; then p=$(printf %s \"$m\" | sed -E \"s/^APPLIED( THIS COMMIT)?:[[:space:]]+//\"); sm \"$p\" || { viol=\"${viol}APPLIED claim ${p} not in staged set [line: ${line}]|\"; bad=1; }; continue; fi; m=$(printf %s \"$line\" | grep -oE \"APPLIED[[:space:]]+to[[:space:]]+[^[:space:]]+\" | head -1); if [ -n \"$m\" ]; then p=$(printf %s \"$m\" | sed -E \"s/^APPLIED[[:space:]]+to[[:space:]]+//\"); printf %s \"$p\" | grep -qE \"[./]\" && { sm \"$p\" || { viol=\"${viol}APPLIED-to claim ${p} not in staged set [line: ${line}]|\"; bad=1; }; }; continue; fi; m=$(printf %s \"$line\" | grep -oE \"APPLIED[[:space:]]+[^[:space:](:][^[:space:]()]*\" | head -1); if [ -n \"$m\" ]; then p=$(printf %s \"$m\" | sed -E \"s/^APPLIED[[:space:]]+//\"); printf %s \"$p\" | grep -qE \"[./]\" && { sm \"$p\" || { viol=\"${viol}APPLIED no-colon claim ${p} not in staged set [line: ${line}]|\"; bad=1; }; }; continue; fi; m=$(printf %s \"$line\" | grep -oE \"apply[[:space:]]+[A-Za-z_-]+[[:space:]]+to[[:space:]]+[^[:space:]]+\" | head -1); if [ -n \"$m\" ]; then p=$(printf %s \"$m\" | sed -E \"s/.*[[:space:]]to[[:space:]]+//\"); printf %s \"$p\" | grep -qE \"[./]\" && { sm \"$p\" || { viol=\"${viol}apply-to claim ${p} not in staged set [line: ${line}]|\"; bad=1; }; }; fi; done <<<\"$msg\"; sha_lines=$(printf %s \"$msg\" | grep -oE \"VERIFIED-ALREADY-APPLIED \\(([0-9a-f]{7,40})\\):[[:space:]]*[^[:space:]]+\" || true); while IFS= read -r vl; do [ -z \"$vl\" ] && continue; sha=$(printf %s \"$vl\" | grep -oE \"[0-9a-f]{7,40}\" | head -1); vfile=$(printf %s \"$vl\" | sed -E \"s/.*\\):[[:space:]]*//\"); if [ \"$(git cat-file -t \"$sha\" 2>/dev/null)\" != \"commit\" ]; then viol=\"${viol}VERIFIED SHA ${sha} invalid|\"; bad=1; continue; fi; git show --name-only --pretty=format: \"$sha\" 2>/dev/null | grep -Fxq -- \"$vfile\" || { viol=\"${viol}VERIFIED SHA ${sha} did not touch ${vfile}|\"; bad=1; }; done <<<\"$sha_lines\"; if [ \"$bad\" -ne 0 ]; then printf \"W328-C provenance-lint v2: BLOCK\\n\" >&2; printf \"%s\" \"$viol\" | tr \"|\" \"\\n\" >&2; exit 2; fi; exit 0'"
+        language: system
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: false
+
+      # W342-X2 P1.5 — bare-subagent_type FQN-discipline pre-commit gate.
+      # Per W340 F4 + W333-D5 + sca-v15 cardinal-rule-3 W331 axis-1 #5: greps
+      # staged files for any of the 13 colliding bare subagent_type names
+      # (read from .claude/state/subagent-type-allowlist.json:colliding_bare_names[]).
+      # Exit 2 with file:line on hit + suggested FQN form.
+      # Escape hatch: $env:CLAUDE_BARE_SUBAGENT_GREP_DISABLE=1 (CR-5 b).
+      # Source: tools/precommit-bare-subagent-grep.mjs.
+      - id: bare-subagent-grep
+        name: bare-subagent-grep (W342-X2 P1.5)
+        entry: bash -c 'exec node "$(git rev-parse --show-toplevel)/tools/precommit-bare-subagent-grep.mjs"'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W424 Layer 2 — Bash-wrapped-PowerShell $_ expansion guard (PS-wrap class).
+      # Blocks commits adding `powershell -Command "...$_..."` or `pwsh -c "...$args..."`
+      # patterns where Bash expands the PS pipeline variable BEFORE PowerShell sees it.
+      # Operator-fired W424: "why is MSYS path still affecting your workflow... when can we resolve all?"
+      # Honest diagnosis: this is NOT MSYS path-rewrite — it is Bash parameter expansion
+      # of $_ / $PSItem / $args / $Input inside double-quoted PS strings. Architectural,
+      # cannot be fixed by MSYS_NO_PATHCONV envs. Layer-2 of 3 (skill + guard + CLAUDE.md
+      # pointer). Cite: docs/architecture/W424-PS-WRAP-GUARD/DESIGN.md §2.
+      # Source: tools/preagent-ps-wrap-guard.mjs.
+      - id: ps-wrap-guard
+        name: ps-wrap-guard (W424 PS $_ expansion gate)
+        entry: bash -c 'exec node "$(git rev-parse --show-toplevel)/tools/preagent-ps-wrap-guard.mjs"'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W342-X2 P1.6 — npm-audit advisory pre-commit gate (nodebestpractices rule-7).
+      # Triggers only when staged set includes package.json OR package-lock.json.
+      # Runs `npm audit --audit-level=high --omit=dev`; warns to stderr but
+      # never blocks (advisory; OR-true ensures exit 0 regardless of audit findings).
+      # Direct-CLI invocation per CR-2 (no wrapper script needed).
+      - id: npm-audit-staged
+        name: npm-audit advisory (W342-X2 P1.6)
+        entry: bash -c 'if git diff --staged --name-only 2>/dev/null | grep -qE "package(-lock)?\.json$"; then npm audit --audit-level=high --omit=dev 2>&1 | head -40 >&2 || true; fi; exit 0'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W344 Z6 P6.2 — concurrent-worktree collision guard (CR-7 proposed rule).
+      # Blocks commit if ANOTHER git worktree is checked out on the same branch
+      # AND this worktree has staged/uncommitted changes (operator-edit collision).
+      # Recovery via /session-handoff skill (W343 cherry-pick pattern).
+      # Cite: SPI/git-worktree + Anthropic CCBP a28cd96b + claudekit.
+      # Source: tools/precommit-worktree-collision-guard.mjs (≤2KB per CR-2; verified 1506B).
+      # Escape hatch: $env:CR7_WORKTREE_COLLISION_DISABLE=1 (CR-5 condition-(b) operator-only).
+      - id: cr7-worktree-collision
+        name: cr7-worktree-collision (W344 Z6 P6.2)
+        entry: bash -c 'if [ -n "${CR7_WORKTREE_COLLISION_DISABLE:-}" ]; then exit 0; fi; exec node "$(git rev-parse --show-toplevel)/tools/precommit-worktree-collision-guard.mjs"'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W363 Task 4 — wave-lock pre-commit gate.
+      # Validates that the current git branch's wave (parsed from ^goal/(W<n>)-* pattern)
+      # has a live lock owned by the current session. No-ops on non-wave branches
+      # (main, hotfix/*, w348-*, etc.). Blocks commit if branch matches wave pattern
+      # AND: (a) no lock file exists, OR (b) lock owned by different session_id.
+      # Operator can clean up stale locks via:
+      #   node tools/preagent-wave-lock-guard.mjs --cleanup-stale
+      # Source: tools/preagent-wave-lock-guard.mjs (W363 Task 1, commit 78c4bc7).
+      - id: wave-lock-validate
+        name: wave-lock validate (W363)
+        entry: node tools/preagent-wave-lock-guard.mjs --validate --from-branch
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # W370 F0 — Z:\z\ phantom-dir guard (MUST run LAST per codex r2 finding-3).
+      # Root cause: CC plugin-spawn boundary converts CLAUDE_PLUGIN_DATA from
+      # Z:\<project>\.claude\plugins\data to /z/<project>/.claude/plugins/data
+      # (POSIX form); Node-on-Windows resolves /z/... as drive-relative → Z:\z\...
+      # Same class as W317 MSYS-fix-wave fixed at hook-command layer; persists at
+      # plugin-data-dir env-variable layer. This guard catches new writes to Z:\z\.
+      # POSITION: LAST in pre-commit stage so any earlier hook (gitnexus, npm-audit,
+      # wave-lock, etc.) that spawns codex or other plugins writing to Z:\z\ is
+      # caught before commit lands. Exit 2 if any file/symlink present OR depth cap
+      # exceeded; exit 0 if Z:\z\ absent or empty.
+      # Escape: $env:Z_PHANTOM_GUARD_DISABLE=1 (CR-5 b operator-only).
+      # Cite: tmp/W370-AUDIT/W370-FINAL-SYNTHESIS.md F0 + lib/state.mjs:42 +
+      # codex r1 verdict (lstatSync fix) + codex r2 verdict (last-position + blocking depth).
+      - id: z-phantom-guard
+        name: Z-drive phantom-dir guard (W370 F0)
+        entry: bash -c 'exec node "$(git rev-parse --show-toplevel)/tools/precommit-z-phantom-guard.mjs"'
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+      # W375 P5.4 — SWE-Bench-Verified-50 eval-regression gate (commit-msg stage).
+      # Runs tools/eval_gate.py --commit-msg-file <COMMIT_EDITMSG path>.
+      # Honors OVERRIDE-W375-EVAL: <rationale> trailer (bypass).
+      # Bootstrap path (no ship-history.jsonl): exits 0 (no prior baseline to compare).
+      # Regression threshold: ≥5 pp drop from last-ship score blocks commit (exit 2).
+      # Cite: spec §15 v6 + codex r5 P1-7 + codex r6 P2-3 (commit-msg stage, not pre-commit).
+      - id: cr6-w375-eval-regression
+        name: W375 SWE-Bench-Verified-50 regression gate (cr6)
+        language: system
+        stages: [commit-msg]
+        entry: bash -c 'exec python "$(git rev-parse --show-toplevel)/tools/eval_gate.py" --commit-msg-file "$(git rev-parse --git-path COMMIT_EDITMSG)"'
+        always_run: true
+        pass_filenames: false
+
+      # W411c — declarative AGENT_CONTRACT.yaml validation gate (cardinal-rule-2
+      # compliant via direct-CLI invocation of `aicontracts validate`).
+      # Closes W411 audit Gap-3 / Deliverable-2 §(b) — declarative overlay atop
+      # imperative block-rules B1-B10 (tools/eee-checks/block-rules.mjs).
+      #
+      # pyyush/agentcontracts v0.2.0 CLI contract (verified locally 2026-05-24):
+      #   `aicontracts validate <path>`       → schema-conformance gate; exit 1 on violation.
+      #   `aicontracts check-verdict <path>`  → reads PRE-EXISTING verdict.json; exit 1 on
+      #                                          outcome ∈ {blocked, fail}. (CI-layer; here
+      #                                          we ONLY run validate to keep pre-commit fast.)
+      #
+      # Behavior:
+      #   1. If AGENT_CONTRACT.yaml present at repo root, run `aicontracts validate <path>`.
+      #   2. Schema violation → exit 1 (BLOCK commit).
+      #   3. CLI absent (pip install aicontracts not run yet) → advisory stderr, exit 0
+      #      (operator-bootstrap-friendly; CI workflow .github/workflows/agentcontracts.yml
+      #      installs the CLI and is the binding gate).
+      #
+      # Verdict-gating is delegated to the CI workflow which scans for runtime-adapter-
+      # produced verdict.json artifacts. Pre-commit doesn't run an agent — only validation
+      # of the contract itself is meaningful at commit boundary.
+      #
+      # Escape hatch (CR-5 condition-(b) operator-only): $env:AGENTCONTRACTS_GATE_DISABLE=1
+      #
+      # Cite: pyyush/agentcontracts v0.2.0 (Apache-2.0) — https://github.com/pyyush/agentcontracts
+      # Cite: https://pypi.org/project/aicontracts/0.2.0/
+      # Cite: W411-CONVERGENCE-AUDIT-REPORT.md §2.2 + §4 Deliverable-2
+      - id: aicontracts-validate
+        name: aicontracts validate AGENT_CONTRACT.yaml (W411c)
+        entry: "bash -c 'if [ -n \"${AGENTCONTRACTS_GATE_DISABLE:-}\" ]; then exit 0; fi; root=\"$(git rev-parse --show-toplevel)\"; if [ ! -f \"$root/AGENT_CONTRACT.yaml\" ]; then exit 0; fi; if ! command -v aicontracts >/dev/null 2>&1; then printf \"W411c advisory: aicontracts CLI not installed; declarative gate skipped. Install: pip install aicontracts==0.2.0\\n\" >&2; exit 0; fi; aicontracts validate \"$root/AGENT_CONTRACT.yaml\" || { printf \"W411c BLOCK: aicontracts validate AGENT_CONTRACT.yaml failed (schema violation)\\n\" >&2; exit 1; }; exit 0'"
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false

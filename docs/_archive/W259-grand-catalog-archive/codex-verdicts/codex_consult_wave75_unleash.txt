@@ -1,0 +1,64 @@
+# Codex T1 deep-review — Wave 75 unleash edits (claude-sota-installed runtime)
+
+Date: 2026-05-08
+Cardinal-rule discipline: CR-1 (TIER-1-DIRECT cites), CR-3 (cross-model T1 review), CR-9 (install-risk), CR-12 (upstream-install-priority)
+
+## Context
+
+User directive 2026-05-07/08: "fully unleashed with sota harness, advanced tips, advanced memory, gpt5.5 subagents, full unleashed potential" + "all setting must be fully unleashed with sota harness". Two fleet probes have completed:
+
+1. fleet-anthropics-sota-2026-05-08.md (TIER-1-DIRECT to anthropics/* repos at HEAD SHAs)
+2. fleet-ccbp-plugins-latest-2026-05-08.md (TIER-1-DIRECT to CCBP HEAD 64fffd53 + plugin upstreams)
+
+Verdicts converged on 7 high-leverage CCBP-cited fixes; 5 of them have been applied this turn. The other 2 (running `/fewer-permission-prompts` and bumping codex CLI binary) are user-action / install-action and not Edit-class.
+
+## Edits applied (subjects of this T1 review)
+
+### A. settings.json — codex Stop hook timeout cap
+
+Old: Stop hook for codex/scripts/stop-review-gate-hook.mjs had "timeout": 900 (= 15-minute end-of-turn ceiling).
+New: capped to "timeout": 300.
+Cite: 3x ECC empirical ceiling (stop:format-typecheck is 300s in ECC hooks.json cache HEAD 2.0.0-rc.1). 900s allowed end-of-turn spinner to hold 15min on codex review stalls per documented incident codex_consult_fire42_eee_silent_hang_OUT.txt (418KB on disk).
+
+### B. settings.json — 5 new top-level settings
+
+  "alwaysThinkingEnabled": true,        // Boris tip 5; CCBP claude-settings.md:77
+  "effortLevel": "xhigh",                // Boris tip 5; CCBP claude-settings.md:519,539-549; default on Opus 4.7 v2.1.111+
+  "cleanupPeriodDays": 60,               // CCBP claude-settings.md:74; default 30
+  "defaultShell": "powershell",          // CCBP claude-settings.md:81; v2.1.126+
+  "tui": "fullscreen",                   // CCBP claude-settings.md:92; v2.1.110+
+
+All cites TIER-1-DIRECT to Z:/repos/deps/claude-code-best-practice-shan/best-practice/claude-settings.md @ HEAD 64fffd53a7c6f8e2e0b1575fdd200b65cda04737. CCBP HEAD probed via git -C Z:/repos/deps/claude-code-best-practice-shan log --oneline 64fffd53..origin/main returned 32 non-code-relevant commits — content-stable cite.
+
+defaultShell powershell and tui fullscreen activate fully on next eee launch (native claude.exe 2.1.132 -> auto-update to floor 2.1.133); 2.1.119 parent-fallback ignores unknown keys per CC schema discipline.
+
+### C. eee.ps1 — env dedup (×2)
+
+Removed $env:CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS = '1' and $env:CLAUDE_CODE_FORK_SUBAGENT = '1' from tools/eee.ps1 because both are already set in settings.json:env. Cite: CCBP claude-settings.md:6 @ HEAD 64fffd53 ("use env field in settings.json to avoid wrapper scripts").
+
+### D. eee.ps1 — new (b2) advanced-unleashed env block
+
+Added 7 CCBP-cited env vars:
+  ENABLE_PROMPT_CACHING_1H=1                       (CCBP claude-settings.md:831 — 12x cache reuse)
+  MAX_THINKING_TOKENS=10000                        (CCBP claude-settings.md:566)
+  CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=85               (CCBP claude-settings.md:826 — better compaction)
+  CLAUDE_ENABLE_STREAM_WATCHDOG=1                  (CCBP claude-settings.md:867 — abort stalls)
+  CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING=1 (CCBP claude-settings.md:868)
+  BASH_MAX_TIMEOUT_MS=600000                       (CCBP claude-settings.md:824 — 10min long-mig allow)
+  CLAUDE_CODE_TASK_LIST_ID=claude-sota-installed   (CCBP claude-global-vs-project-settings.md:178)
+
+### E. eee.ps1 — codex CLI floor message bump
+
+Changed T0.5 HARD-FAIL message from "requires codex 0.125.0+" to "requires codex 0.129.0+ per Wave 75 2026-05-08 fleet-ccbp-plugins-latest verdict — TUI Vim, resume/fork picker, workspace-aware /diff per openai/codex rust-v0.129.0 release 2026-05-07".
+
+This is a MESSAGE-only update; T0.5 still checks Get-Command codex presence, not version. Future strict version-gate is a separate edit.
+
+## Specific T1-review questions
+
+Q1. Does any of the 5 new settings.json keys risk parse failure on claude.exe 2.1.119 (the currently-launched parent fallback)?
+Q2. Are the 7 new env vars in eee.ps1 cardinal-rule-1 conformant (TIER-1-DIRECT cites complete; no agent-transcript derivatives)?
+Q3. Does defaultShell powershell pose risk against existing Bash-tool-based hooks (which still rely on CLAUDE_CODE_GIT_BASH_PATH = 'C:\Program Files\Git\bin\bash.exe')?
+Q4. Should T0.5 codex CLI message-bump be paired with an actual version assertion this turn, or deferred to a subsequent edit?
+Q5. The 900->300 timeout cap on the Stop hook — does this align with openai/codex-plugin-cc upstream's intent, or should I confirm via gh api repos/openai/codex-plugin-cc/contents/plugins/codex/hooks/hooks.json for the marketplace-pinned default?
+
+Verdict shape: APPROVE / NEEDS-REVISION (with prescribed edits). If APPROVE, list any LATER follow-ups not blocking this commit.

@@ -1,0 +1,251 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 1d8e6d1df07430c1e2f0787465fc8c9c16c7ecb8
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+tools/codex_verdict_normalizer.py | 248 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 248 insertions(+)
+
+=== git show --format=fuller ===
+commit 1d8e6d1df07430c1e2f0787465fc8c9c16c7ecb8
+Author:     42 <42@local>
+AuthorDate: Sun May 10 19:09:12 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 19:09:12 2026 -0400
+
+    ship(w134-f22-c): codex_verdict_normalizer.py install — P1 unified verdict JSONL stream (codex T1 NEEDS-REVISION → Pattern A fix-forward integrated)
+    
+    ⭐ Fire 22 Tier 1 Ship C: P1 codex verdict normalizer shipped (~60min nominal +
+    retroactive T1 + Pattern A apply). Closes Fire 19 P1-1 gap: codex verdict architecture
+    is BIFURCATED (.jsonl streams = hook telemetry events; .txt files = actual verdicts).
+    
+    ## What ships
+    
+    ### `tools/codex_verdict_normalizer.py` (~205 LOC)
+    
+    Unifies the bifurcated codex verdict architecture into a single normalized JSONL summary
+    stream. Scans `.claude/state/codex_review_HEAD_*.txt` JSON verdicts → writes normalized
+    records to `.claude/state/codex_verdict_summary.jsonl` (gitignored — operator-state-outside-repo).
+    
+    **Normalized record shape** (one per verdict file):
+    ```json
+    {
+      "ts": "<ISO 8601 mtime>",
+      "sha": "<sha8 from filename>",
+      "verdict": "approve|needs-attention",
+      "summary": "<1-line up to 200 chars>",
+      "findings_count": <int>,
+      "severity_dist": {"critical": 0, "high": 0, "medium": 0, "low": 0},
+      "max_severity": "critical|high|medium|low|null",
+      "max_confidence": <float|null>,
+      "source_file": "codex_review_HEAD_<sha8>.txt"
+    }
+    ```
+    
+    **Modes**:
+    - Full scan (default): re-walks all verdicts, dedupes by (source_file, ts) composite key
+    - `--incremental`: only files newer than latest summary ts (faster on re-runs)
+    - `--dry-run`: prints would-append records to stdout (no JSONL write)
+    
+    ### `.claude/state/codex_verdict_summary.jsonl` (gitignored)
+    
+    54 records written on first run (out of 106 codex_review_HEAD_*.txt files; remaining
+    52 are `.prompt.txt` raw prompts correctly filtered).
+    
+    ## Codex T1 retroactive verdict (per pre-commit-miss recovery)
+    
+    T1 gate WARN fired post-Write (no consult pair). Per `codex-t1-fix-forward-pattern.md`
+    Pre-commit T1 miss recovery: fired retroactive T1 consult BEFORE commit.
+    
+    REAL GPT-5.5 via codex CLI v0.130.0: **NEEDS-REVISION conf=0.92** (tokens=17,935).
+    
+    | Claim | Status | Evidence |
+    |---|---|---|
+    | Claim 1 (schema parsing) | ✅ VERIFIED-CORRECT | severity counting + max rank + confidence reduction sound |
+    | Claim 2 (incremental cutoff) | ✅ VERIFIED-CORRECT | `<= latest_mtime` correct; malformed JSONL ignored; first-run with `0.0` cutoff processes all |
+    | Claim 3 (dedup/idempotency) | ⚠️ NEEDS-REVISION (medium severity) | dedup-by-sha-alone collapses re-reviews of same HEAD |
+    
+    ## Pattern A fix-forward (integrated single atomic commit)
+    
+    Per codex T1 Q3 prescription verbatim:
+    > "Key existing records by stable source identity plus version, e.g. source_file + ts or
+    > source_file + content digest, while still retaining sha as a query field"
+    > "Skip only when the current source version is already present"
+    
+    **Applied changes** (this commit, same file):
+    
+    1. `load_existing_summary()` return type changed from `dict[str, dict]` keyed by `sha`
+       → `dict[tuple[str, str], dict]` keyed by `(source_file, ts)` composite. Distinct
+       re-reviews of same HEAD now preserve as separate records.
+    
+    2. Skip logic at line 182:
+       ```python
+       # Before (sha-only):
+       sha = rec["sha"]
+       if sha in existing and not incremental: skipped_existing += 1; continue
+    
+       # After (composite (source_file, ts) per codex T1 prescription):
+       composite = (rec["source_file"], rec["ts"])
+       if composite in existing and not incremental: skipped_existing += 1; continue
+       ```
+    
+    Same SHA + same mtime → skipped (truly idempotent re-scan).
+    Same SHA + new mtime (re-review of same HEAD) → NEW record appended (verdict update preserved).
+    
+    ## 5-branch smoke probe verification (post fix-forward)
+    
+    ```
+    RUN 1 (fresh): scanned=54 new=54 → 54 records written ✅
+    RUN 2 (idempotent re-scan): scanned=54 skip_existing=54 new=0 ✅ composite dedup works
+    RUN 3 (incremental): scanned=54 skip_incremental=54 new=0 ✅ mtime cutoff works
+    RUN 4 (--dry-run): scanned=54 → 5 sample records printed to stdout, JSONL untouched ✅
+    RUN 5 (fresh re-run): scanned=54 new=54 → 54 records re-written cleanly ✅
+    ```
+    
+    All 5 branches verified. Verdict distribution sample (5 records dumped):
+    - 2 approve / 3 needs-attention
+    - 3 findings_count=1 / 2 findings_count=0
+    - Severity distribution: 1 high + 2 medium + 0 low + 0 critical (out of 5 sample)
+    - max_confidence: 0.78-0.86 range
+    
+    ## Closes Fire 19 P1-1 gap
+    
+    Per Fire 19 GPT-5.5 cross-model audit verbatim verdict:
+    > "Normalized codex verdict JSONL is missing. The audit JSONL exists, but it is hook
+    > telemetry, not a verdict stream with timestamp, sha, verdict, confidence."
+    
+    W134-F22-C provides the missing normalized stream WITHOUT replacing the existing telemetry
+    JSONL (`codex_postcommit_reviews.jsonl` + `codex_prepush_reviews.jsonl`). The 2 sources
+    now serve distinct concerns:
+    - Hook telemetry events: existing `.jsonl` streams (1541 + 1279 entries)
+    - Verdict summary: new `codex_verdict_summary.jsonl` (54 entries at install)
+    
+    Operators querying "what did codex actually say about commit X" can now grep ONE file.
+    
+    ## Wave 134 Fire 22 Tier 1 ALL SHIPPED
+    
+    | # | Ship | Commit | Effort |
+    |---|---|---|---|
+    | A | DeepEval LIVE-default fix | `bca2d67` | 30min |
+    | B | evolve_pass_rate_gate.py install | `e4cefa6` | 120min |
+    | **C** | **codex_verdict_normalizer.py install** | **THIS** | ~60min + retroactive T1 |
+    
+    **Wave 134 Fire 22 Tier 1 COMPLETE** — 3 of 3 ships landed.
+    
+    ## Wave 134 gap inventory progression
+    
+    | Severity | Pre-F22 | Post-F22-A+B+C | Δ |
+    |---|---|---|---|
+    | P0 critical | 1 | **0** | -1 ✅ |
+    | P1 important | 8 | **5** | -3 (P1-1 + P1-2 closed; P1-5 forward-ref) |
+    | P2 low | 7 | 7 | (unchanged) |
+    
+    🎉 **3 of 16 originally-mapped gaps SHIPPED** in 3 atomic commits (Fire 22-A/B/C).
+    
+    ## Files changed (1 NEW)
+    
+    - `tools/codex_verdict_normalizer.py` NEW (~205 LOC including Pattern A fix-forward applied)
+    
+    Gitignored runtime state (auto-created on first run):
+    - `.claude/state/codex_verdict_summary.jsonl` (gitignored per existing rules)
+    
+    ## Cite trail
+    
+    - Fire 19 P1-1 verdict: `docs/sota-architecture-audit/fire-19-dim6-eval-gpt55/01-dim6-eval-gpt55-verdict.md`
+    - Fire 21 Tier 1 roadmap: `docs/sota-architecture-audit/fire-21-ultimate-architecture-ecosystem/02-current-vs-ultimate-gap-matrix.md`
+    - Codex verdict schema: `.claude/schemas/review-output.schema.json` (vendored from codex-plugin-cc @ HEAD 807e03ac)
+    - Retroactive T1 verdict (this fire): `.claude/state/codex_consult_w134_f22c_normalizer_OUT.txt` NEEDS-REVISION conf=0.92
+    - Sister tool: `evals/evolve_pass_rate_gate.py` (W134-F22-B; reads same source files)
+    - Pre-commit-miss recovery: `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A
+    
+    ## Conformance
+    
+    - CR-1: cite trail to Fire 19 + Fire 21 + retroactive T1 verdict + schema + sister tool
+    - CR-3: cross-model gate ✅ SATISFIED retroactively — T1 NEEDS-REVISION + Pattern A fix-forward
+      integrated in same commit per `codex-t1-fix-forward-pattern.md §Pre-commit T1 miss recovery`
+    - CR-5: AUDIT-only (script reads existing JSON; no new install)
+    - CR-8: ADAPTED-FROM-SOTA — argparse + pathlib + json patterns from Python stdlib; composite
+      key pattern from codex T1 prescription
+    - CR-9: LOW risk — single new Python file; summary JSONL gitignored; reversibl
+
+[prompt truncated]

@@ -1,0 +1,1008 @@
+Reading prompt from stdin...
+OpenAI Codex v0.129.0 (research preview)
+--------
+[1mworkdir:[0m Z:\claude-sota-installed
+[1mmodel:[0m gpt-5.5
+[1mprovider:[0m openai
+[1mapproval:[0m never
+[1msandbox:[0m workspace-write [workdir, /tmp, Z:\repos\deps, Z:\claude-sota-installed-state\.codex\memories]
+[1mreasoning effort:[0m none
+[1mreasoning summaries:[0m none
+[1msession id:[0m 019e0693-8d74-7360-b70c-0e950176faca
+--------
+[36muser[0m
+CODEX T1 RETROACTIVE — narrow single-edit review
+
+Edit: .mcp.json memory entry command swap
+- BEFORE: "command": "Z:/venvs/claude/Scripts/mcp-memory-server.exe", "args": []
+- AFTER:  "command": "Z:/venvs/claude/Scripts/memory.exe", "args": ["server"]
+
+Reason: mcp-memory-server.exe is HTTP transport (StreamableHTTP); .mcp.json memory entry uses "type": "stdio" which requires stdio MCP transport. Per upstream warning emitted at runtime, stdio clients must use either:
+  - memory server (subcommand of memory CLI)
+  - python -m mcp_memory_service.server
+
+Verified via runtime smoke-probe: mcp-memory-server.exe spawned a FastAPI HTTP server on 127.0.0.1:8000 — wrong transport for CC's stdio MCP path.
+
+Q1: Is "memory.exe server" the correct stdio entry point per upstream doobidoo/mcp-memory-service v10.51.3?
+Q2: Risk ranking 0-10 for this single-field config swap?
+Q3: Any prescribed_edits?
+
+OUTPUT_BUDGET: 100 LOC. Cite verbatim if any prescription.
+VERDICT: APPROVE / NEEDS-REVISION + prescribed_edits / BLOCK
+
+[1m[33mdeprecated:[0m[0m `[features].codex_hooks` is deprecated. Use `[features].hooks` instead.
+[2mEnable it with `--enable hooks` or `[features].hooks` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.[0m
+[35m[3mcodex[0m[0m
+I’ll verify the local config and upstream/runtime affordances first, then keep the answer scoped to the single config swap and any concrete prescription.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "& 'Z:/venvs/claude/Scripts/memory.exe' server --help"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Raw .mcp.json'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "& 'Z:/venvs/claude/Scripts/memory.exe' --help"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "& 'Z:/venvs/claude/Scripts/mcp-memory-server.exe' --help"[0m in Z:\claude-sota-installed
+[32m succeeded in 338ms:[0m
+{
+  "_comment": "Wave 75 2026-05-08 — Tier-2A HTTP MCPs (github + context7 + deepwiki) + kits-convergence stdio MCPs (playwright + serena) per fleet-kits-convergence-2026-05-08.md §5. Wave 79 2026-05-08 — added context-mode MCP per Ship 1A token-opt: V64:72 + 3-agent unanimous TIER-A + GPT-5.5 e2e APPROVE-SHIP-1 conf=0.78 verdict at .claude/state/codex_consult_token_opt_synthesis_review_OUT.txt. ELv2 license noted (CR-9 risk MED — source-available, not pure FOSS).",
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/readonly",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "deepwiki": {
+      "type": "http",
+      "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "claude-code"]
+    },
+    "context-mode": {
+      "type": "stdio",
+      "command": "context-mode",
+      "args": []
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "Z:/venvs/claude/Scripts/memory.exe",
+      "args": ["server"],
+      "env": {
+        "MCP_MEMORY_STORAGE_BACKEND": "sqlite_vec",
+        "MCP_MEMORY_SQLITE_PATH": "Z:/claude-sota-installed-state/.mcp-memory/memory.db"
+      }
+    }
+  }
+}
+
+
+[32m succeeded in 441ms:[0m
+Usage: memory server [OPTIONS]
+
+  Start the MCP Memory Service server.
+
+  Use --http flag to start the HTTP REST API server with dashboard instead.
+  Use --http-host and --http-port to configure the HTTP server address.
+
+Options:
+  --debug                         Enable debug logging
+  --http                          Start HTTP REST API server instead of MCP
+                                  server (dashboard at http://localhost:8000)
+  --http-host TEXT                HTTP server host (default: 127.0.0.1 or
+                                  MCP_HTTP_HOST)
+  --http-port INTEGER             HTTP server port (default: 8000 or
+                                  MCP_HTTP_PORT)
+  --sse                           Start MCP server with SSE transport (HTTP-
+                                  based, for systemd services)
+  --streamable-http               Start MCP server with Streamable HTTP
+                                  transport (for Claude.ai remote MCP)
+  --sse-host TEXT                 SSE/Streamable HTTP transport host (default:
+                                  127.0.0.1)
+  --sse-port INTEGER              SSE/Streamable HTTP transport port (default:
+                                  8765)
+  -s, --storage-backend [sqlite_vec|sqlite-vec|cloudflare|hybrid]
+                                  Storage backend to use (defaults to
+                                  environment or sqlite_vec)
+  --help                          Show this message and exit.
+
+[32m succeeded in 730ms:[0m
+Usage: memory [OPTIONS] COMMAND [ARGS]...
+
+  MCP Memory Service - A semantic memory service using the Model Context
+  Protocol.
+
+  Provides document ingestion, memory management, and MCP server
+  functionality.
+
+Options:
+  --version  Show the version and exit.
+  --help     Show this message and exit.
+
+Commands:
+  health            Detailed health check via HTTP API.
+  info              Show server status (running/stopped, PID, backend info).
+  ingest-directory  Batch ingest all supported documents from a directory.
+  ingest-document   Ingest a single document file into the memory database.
+  launch            Start the HTTP memory server in background (with PID...
+  list-formats      List all supported document formats for ingestion.
+  logs              Show recent server log entries.
+  restart           Restart the memory server (stop + launch).
+  server            Start the MCP Memory Service server.
+  status            Show memory database status and statistics.
+  stop              Stop a background memory server.
+
+[2m2026-05-08T07:53:24.508629Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 2.2 seconds
+Output:
+Error during write test (attempt 1/3): [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+Error during write test (attempt 2/3): [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+Error during write test (attempt 3/3): [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+All write test attempts failed for C:\Users\42\AppData\Local\mcp-memory
+Error validating path C:\Users\42\AppData\Local\mcp-memory: Directory C:\Users\42\AppData\Local\mcp-memory is not writable: [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+Fatal error initializing paths: Directory C:\Users\42\AppData\Local\mcp-memory is not writable: [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+
+[31m exited 1 in 2220ms:[0m
+Error during write test (attempt 1/3): [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+Error during write test (attempt 2/3): [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+Error during write test (attempt 3/3): [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+All write test attempts failed for C:\Users\42\AppData\Local\mcp-memory
+Error validating path C:\Users\42\AppData\Local\mcp-memory: Directory C:\Users\42\AppData\Local\mcp-memory is not writable: [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+Fatal error initializing paths: Directory C:\Users\42\AppData\Local\mcp-memory is not writable: [Errno 13] Permission denied: 'C:\\Users\\42\\AppData\\Local\\mcp-memory\\.write_test'
+
+[35m[3mcodex[0m[0m
+The local CLI help confirms `memory server` exists and defaults to MCP server mode, with HTTP/SSE/StreamableHTTP only selected by flags. I’m checking the installed package version/metadata next so the answer can pin this to v10.51.3 rather than infer from the executable alone.
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "& 'Z:/venvs/claude/Scripts/python.exe' -m pip show mcp-memory-service"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "& 'Z:/venvs/claude/Scripts/memory.exe' --version"[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "& 'Z:/venvs/claude/Scripts/python.exe' -c \"import importlib.metadata as m; print(m.version('mcp-memory-service')); eps=m.entry_points(); print([str(e) for e in eps.select(group='console_scripts') if 'memory' in e.name])\""[0m in Z:\claude-sota-installed
+[32m succeeded in 419ms:[0m
+MCP Memory Service, version 10.51.3
+
+[32m succeeded in 459ms:[0m
+10.51.3
+["EntryPoint(name='mcp-memory-server', value='mcp_memory_service.mcp_server:main', group='console_scripts')", "EntryPoint(name='memory', value='mcp_memory_service.cli.main:main', group='console_scripts')", "EntryPoint(name='memory-server', value='mcp_memory_service.cli.main:memory_server_main', group='console_scripts')"]
+
+[32m succeeded in 1434ms:[0m
+Name: mcp-memory-service
+Version: 10.51.3
+Summary: Semantic memory layer for AI applications. REST API + MCP transport + knowledge graph + autonomous consolidation. Works with 14+ AI clients. Self-host, zero cloud cost.
+Home-page: 
+Author: 
+Author-email: Heinrich Krupp <heinrich.krupp@gmail.com>
+License: Apache-2.0
+Location: Z:\venvs\claude\Lib\site-packages
+Requires: aiofiles, aiohttp, aiosqlite, apscheduler, authlib, build, chardet, click, cryptography, fastapi, httpx, mcp, psutil, pyjwt, pypdf, python-dotenv, python-multipart, requests, sentence-transformers, sqlite-vec, sse-starlette, tokenizers, torch, transformers, uvicorn, zeroconf
+Required-by: 
+WARNING: Ignoring invalid distribution ~itellm (Z:\venvs\claude\Lib\site-packages)
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "def memory_server_main|def server|streamable|stdio|mcp-memory-server|Use --http" Z:/venvs/claude/Lib/site-packages/mcp_memory_service -S'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/cli/main.py -TotalCount 260'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/mcp_server.py -TotalCount 140'[0m in Z:\claude-sota-installed
+[32m succeeded in 297ms:[0m
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\main.py:112:@click.option('--streamable-http', 'streamable_http', is_flag=True, help='Start MCP server with Streamable HTTP transport (for Claude.ai remote MCP)')
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\main.py:117:def server(debug, http, http_host, http_port, sse, streamable_http, sse_host, sse_port, storage_backend):
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\main.py:121:    Use --http flag to start the HTTP REST API server with dashboard instead.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\main.py:122:    Use --http-host and --http-port to configure the HTTP server address.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\main.py:143:    if streamable_http:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\cli\main.py:333:def memory_server_main():
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\dependency_check.py:225:    For strict stdio clients (default: Claude Desktop/Codex-like), keep eager
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\dependency_check.py:259:    # Strict stdio clients often have small handshake budgets.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:881:    WARNING: This entry point (`mcp-memory-server`) uses StreamableHTTP transport,
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:882:    NOT stdio transport. It is NOT suitable for use with `"type": "stdio"` in Claude
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:885:    If you are configuring Claude Code or Claude Desktop with stdio transport, use:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:890:    This `mcp-memory-server` entry point starts an HTTP server on a port and is
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:893:    # Emit a prominent warning so users who accidentally invoke this via stdio
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:897:        "WARNING: mcp-memory-server uses StreamableHTTP transport, NOT stdio.\n"
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:898:        "  If you are configuring a stdio MCP client (Claude Code, Claude Desktop),\n"
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:907:    # Run server with streamable HTTP transport
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\mcp_server.py:908:    mcp.run("streamable-http")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\graph_service.py:19:shortest path, subgraph extraction) that can be used by both the stdio
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\graph_service.py:20:MCP server (server_impl.py) and the streamable-http FastMCP server
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\services\graph_service.py:39:    by the stdio mode graph handlers.
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:3221:        if ServerRunManager.is_streamable_http_mode():
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:3222:            await run_manager.run_streamable_http()
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\server_impl.py:3228:            await run_manager.run_stdio()
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:40:import mcp.server.stdio
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:143:    def is_streamable_http_mode() -> bool:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:178:    async def run_stdio(self) -> None:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:179:        """Run server with stdio communication."""
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:180:        async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:184:                self.logger.info("Detected Docker environment - ensuring proper stdio handling")
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:288:    async def run_streamable_http(self) -> None:
+Z:/venvs/claude/Lib/site-packages/mcp_memory_service\utils\startup_orchestrator.py:300:        from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+
+[32m succeeded in 336ms:[0m
+# Copyright 2024 Heinrich Krupp
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Main CLI entry point for MCP Memory Service.
+
+OPTIMIZATION: This module uses lazy imports to avoid triggering the heavy
+ML dependencies (torch, transformers) at CLI startup time. Lifecycle commands
+(launch, stop, restart, info, health, logs) import only stdlib + click,
+making them start in under 3 seconds instead of 24+ seconds.
+"""
+
+import click
+import sys
+import os
+
+
+def _get_version():
+    """Lazy version getter using _version.py (single source of truth).
+    
+    Uses importlib.metadata only as fallback for non-editable installs.
+    This avoids stale metadata on editable installs between commits
+    (see .claude/directives/version-management.md).
+    """
+    try:
+        from mcp_memory_service._version import __version__
+        return __version__
+    except ImportError:
+        pass
+    try:
+        from importlib.metadata import version
+        return version("mcp-memory-service")
+    except Exception:
+        return "0.0.0.dev0"
+
+
+# Lazy command map for ingestion-related commands.
+# These commands pull in heavier dependencies and are imported only when needed.
+LAZY_COMMANDS = {
+    "ingest-document": ("mcp_memory_service.cli.ingestion", "ingest_document"),
+    "ingest-directory": ("mcp_memory_service.cli.ingestion", "ingest_directory"),
+    "list-formats": ("mcp_memory_service.cli.ingestion", "list_formats"),
+}
+
+
+class LazyCLIGroup(click.Group):
+    """Click group with lazily imported subcommands."""
+
+    def list_commands(self, ctx):
+        commands = set(super().list_commands(ctx))
+        commands.update(LAZY_COMMANDS.keys())
+        return sorted(commands)
+
+    def get_command(self, ctx, cmd_name):
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+
+        lazy_target = LAZY_COMMANDS.get(cmd_name)
+        if lazy_target is None:
+            return None
+
+        module_name, attr_name = lazy_target
+        import importlib
+        module = importlib.import_module(module_name)
+        return getattr(module, attr_name)
+
+
+@click.group(invoke_without_command=True, cls=LazyCLIGroup)
+@click.version_option(version=_get_version(), prog_name="MCP Memory Service")
+@click.pass_context
+def cli(ctx):
+    """
+    MCP Memory Service - A semantic memory service using the Model Context Protocol.
+
+    Provides document ingestion, memory management, and MCP server functionality.
+    """
+    ctx.ensure_object(dict)
+
+    # Backward compatibility: if no subcommand provided, default to server
+    if ctx.invoked_subcommand is None:
+        import warnings
+        warnings.warn(
+            "Running 'memory' without a subcommand is deprecated. "
+            "Please use 'memory server' explicitly. "
+            "This backward compatibility will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        ctx.invoke(server, debug=False, storage_backend=None)
+
+
+# ─── Server command ───────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option('--debug', is_flag=True, help='Enable debug logging')
+@click.option('--http', is_flag=True, help='Start HTTP REST API server instead of MCP server (dashboard at http://localhost:8000)')
+@click.option('--http-host', default=None, help='HTTP server host (default: 127.0.0.1 or MCP_HTTP_HOST)')
+@click.option('--http-port', default=None, type=int, help='HTTP server port (default: 8000 or MCP_HTTP_PORT)')
+@click.option('--sse', is_flag=True, help='Start MCP server with SSE transport (HTTP-based, for systemd services)')
+@click.option('--streamable-http', 'streamable_http', is_flag=True, help='Start MCP server with Streamable HTTP transport (for Claude.ai remote MCP)')
+@click.option('--sse-host', default=None, help='SSE/Streamable HTTP transport host (default: 127.0.0.1)')
+@click.option('--sse-port', default=None, type=int, help='SSE/Streamable HTTP transport port (default: 8765)')
+@click.option('--storage-backend', '-s', default=None,
+              type=click.Choice(['sqlite_vec', 'sqlite-vec', 'cloudflare', 'hybrid']), help='Storage backend to use (defaults to environment or sqlite_vec)')
+def server(debug, http, http_host, http_port, sse, streamable_http, sse_host, sse_port, storage_backend):
+    """
+    Start the MCP Memory Service server.
+
+    Use --http flag to start the HTTP REST API server with dashboard instead.
+    Use --http-host and --http-port to configure the HTTP server address.
+    """
+    if storage_backend is not None:
+        os.environ['MCP_MEMORY_STORAGE_BACKEND'] = storage_backend
+
+    if debug:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+
+    if http_host is not None:
+        os.environ['MCP_HTTP_HOST'] = http_host
+    if http_port is not None:
+        os.environ['MCP_HTTP_PORT'] = str(http_port)
+
+    if sse:
+        os.environ['MCP_SSE_MODE'] = '1'
+        if sse_host is not None:
+            os.environ['MCP_SSE_HOST'] = sse_host
+        if sse_port is not None:
+            os.environ['MCP_SSE_PORT'] = str(sse_port)
+
+    if streamable_http:
+        os.environ['MCP_STREAMABLE_HTTP_MODE'] = '1'
+        if sse_host is not None:
+            os.environ['MCP_SSE_HOST'] = sse_host
+        if sse_port is not None:
+            os.environ['MCP_SSE_PORT'] = str(sse_port)
+
+    if http:
+        port = int(os.environ.get('MCP_HTTP_PORT', '8000'))
+        host = os.environ.get('MCP_HTTP_HOST', '127.0.0.1')
+        base_url = f"http://{host}:{port}"
+
+        click.echo("Starting HTTP REST API server with dashboard...")
+        click.echo(f"Dashboard will be available at: {base_url}")
+        click.echo(f"API docs at: {base_url}/docs")
+        click.echo("")
+
+        try:
+            from ..web.app import app
+            import uvicorn
+            uvicorn.run(app, host=host, port=port, log_level="info" if not debug else "debug")
+        except ImportError as e:
+            click.echo(f"Error: Missing dependencies for HTTP server: {e}", err=True)
+            click.echo("Install with: pip install 'mcp-memory-service[full]'", err=True)
+            sys.exit(1)
+        except Exception as e:
+            click.echo(f"Error starting HTTP server: {e}", err=True)
+            sys.exit(1)
+    else:
+        from ..server import main as server_main
+        server_main()
+
+
+# ─── Database status command ──────────────────────────────────────────────────
+
+@cli.command()
+@click.option('--storage-backend', '-s', default='sqlite_vec',
+              type=click.Choice(['sqlite_vec', 'sqlite-vec', 'cloudflare', 'hybrid']), help='Storage backend to use')
+def status(storage_backend):
+    """Show memory database status and statistics."""
+    import asyncio
+
+    async def show_status():
+        try:
+            from .utils import get_storage
+            storage = await get_storage(storage_backend)
+            stats = await storage.get_stats() if hasattr(storage, 'get_stats') else {}
+
+            click.echo("📊 MCP Memory Service Status\n")
+            click.echo(f"   Version: {_get_version()}")
+            click.echo(f"   Backend: {storage.__class__.__name__}")
+
+            if stats:
+                click.echo(f"   Memories: {stats.get('total_memories', 'Unknown')}")
+                click.echo(f"   Database size: {stats.get('database_size_mb', 'Unknown')} MB")
+                click.echo(f"   Unique tags: {stats.get('unique_tags', 'Unknown')}")
+
+            click.echo("\n✅ Service is healthy")
+            await storage.close()
+        except Exception as e:
+            click.echo(f"❌ Error connecting to storage: {str(e)}", err=True)
+            sys.exit(1)
+
+    asyncio.run(show_status())
+
+
+# ─── Lifecycle management commands (fast — no ML imports) ─────────────────────
+
+@cli.command()
+@click.option("--host", "http_host", default=None,
+              help="HTTP server host (default: 127.0.0.1)")
+@click.option("--port", "http_port", default=None, type=int,
+              help="HTTP server port (default: 8000 or MCP_HTTP_PORT)")
+@click.option("--detach/--foreground", "detach", default=True,
+              help="Run server in background (default) or foreground")
+@click.option("--storage-backend", "-s", default=None,
+              type=click.Choice(["sqlite_vec", "sqlite-vec", "cloudflare", "hybrid"]),
+              help="Storage backend to use")
+@click.option("--debug", is_flag=True, help="Enable debug logging")
+def launch(http_host, http_port, detach, storage_backend, debug):
+    """Start the HTTP memory server in background (with PID tracking).
+
+    SECURITY WARNING: Binding to non-loopback hosts (e.g., 0.0.0.0) exposes
+    the API to your network. Use authentication and/or firewall rules in
+    production. Intended for development or trusted networks only.
+
+    Manages the server lifecycle: PID file, log redirection, health-check
+    polling, and automatic port conflict resolution.
+
+    Use --foreground to run attached (same as 'memory server --http').
+    """
+    from .lifecycle import launch as _launch
+    args = []
+    if http_host is not None:
+        args.extend(["--host", str(http_host)])
+    if http_port is not None:
+        args.extend(["--port", str(http_port)])
+    args.append("--detach" if detach else "--foreground")
+    if storage_backend is not None:
+        args.extend(["--storage-backend", str(storage_backend)])
+    if debug:
+        args.append("--debug")
+    _launch.main(args=args, prog_name="memory launch", standalone_mode=False)
+
+
+@cli.command()
+@click.option("--host", "http_host", default=None, help="Host to check")
+@click.option("--port", "http_port", default=None, type=int, help="Port to check")
+def stop(http_host, http_port):
+    """Stop a background memory server."""
+    from .lifecycle import stop as _stop
+    args = []
+    if http_host is not None:
+        args.extend(["--host", str(http_host)])
+    if http_port is not None:
+        args.extend(["--port", str(http_port)])
+    _stop.main(args=args, prog_name="memory stop", standalone_mode=False)
+
+
+[32m succeeded in 401ms:[0m
+#!/usr/bin/env python3
+"""
+FastAPI MCP Server for Memory Service
+
+This module implements a native MCP server using the FastAPI MCP framework,
+replacing the Node.js HTTP-to-MCP bridge to resolve SSL connectivity issues
+and provide direct MCP protocol support.
+
+Features:
+- Native MCP protocol implementation using FastMCP
+- Direct integration with existing memory storage backends
+- Streamable HTTP transport for remote access
+- All 22 core memory operations (excluding dashboard tools)
+- SSL/HTTPS support with proper certificate handling
+"""
+
+import asyncio
+import logging
+import sys
+import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Any, Union
+
+# Pydantic v2.12 requires typing_extensions.TypedDict on Python < 3.12
+# See: https://errors.pydantic.dev/2.12/u/typed-dict-version
+if sys.version_info < (3, 12):
+    from typing_extensions import TypedDict, NotRequired
+else:
+    from typing import TypedDict
+    try:
+        from typing import NotRequired  # Python 3.11+
+    except ImportError:
+        from typing_extensions import NotRequired
+
+# Add src to path for imports
+current_dir = Path(__file__).parent
+src_dir = current_dir.parent.parent
+sys.path.insert(0, str(src_dir))
+
+# FastMCP is not available in current MCP library version
+# This module is kept for future compatibility
+try:
+    from mcp.server.fastmcp import FastMCP, Context
+except ImportError:
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.warning("FastMCP not available in mcp library - mcp_server module cannot be used")
+    
+    # Create dummy objects for graceful degradation
+    class _DummyFastMCP:
+        def tool(self, *args, **kwargs):
+            """Dummy decorator that does nothing."""
+            def decorator(func):
+                return func
+            return decorator
+    
+    FastMCP = _DummyFastMCP  # type: ignore
+    Context = None  # type: ignore
+
+from mcp.types import ToolAnnotations
+
+# Import existing memory service components
+from .config import (
+    STORAGE_BACKEND,
+    EMBEDDING_MODEL_NAME,
+    SQLITE_VEC_PATH,
+    HTTP_HOST,
+    HTTP_PORT,
+)
+from .storage.base import MemoryStorage
+from .services.memory_service import MemoryService
+from .services.graph_service import GraphService
+from .storage.graph import GraphStorage
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)  # Default to INFO level
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# GLOBAL CACHING FOR MCP SERVER PERFORMANCE OPTIMIZATION
+# =============================================================================
+# Module-level caches to persist storage/service instances across stateless HTTP calls.
+# This reduces initialization overhead from ~1,810ms to <400ms on cache hits.
+#
+# Cache Keys:
+# - Storage: "{backend_type}:{db_path}" (e.g., "sqlite_vec:/path/to/db")
+# - MemoryService: storage instance ID (id(storage))
+#
+# Thread Safety:
+# - Uses asyncio.Lock to prevent race conditions during concurrent access
+#
+# Lifecycle:
+# - Cached instances persist for the lifetime of the Python process
+# - NOT cleared between stateless HTTP calls (intentional for performance)
+# - Cleaned up on process shutdown via lifespan context manager
+
+_STORAGE_CACHE: Dict[str, MemoryStorage] = {}
+_MEMORY_SERVICE_CACHE: Dict[int, MemoryService] = {}
+_GRAPH_STORAGE_CACHE: Dict[str, GraphStorage] = {}
+_GRAPH_SERVICE_CACHE: Dict[int, GraphService] = {}
+_CACHE_LOCK: Optional[asyncio.Lock] = None  # Initialized on first use
+_CACHE_STATS = {
+    "storage_hits": 0,
+    "storage_misses": 0,
+    "service_hits": 0,
+    "service_misses": 0,
+    "total_calls": 0,
+    "initialization_times": []  # Track initialization durations for cache misses
+}
+
+def _get_cache_lock() -> asyncio.Lock:
+    """Get or create the global cache lock (lazy initialization to avoid event loop issues)."""
+    global _CACHE_LOCK
+    if _CACHE_LOCK is None:
+        _CACHE_LOCK = asyncio.Lock()
+    return _CACHE_LOCK
+
+def _get_or_create_memory_service(storage: MemoryStorage) -> MemoryService:
+    """
+    Get cached MemoryService or create new one.
+
+    Args:
+        storage: Storage instance to use as cache key
+
+    Returns:
+        MemoryService instance (cached or newly created)
+    """
+    storage_id = id(storage)
+    if storage_id in _MEMORY_SERVICE_CACHE:
+        memory_service = _MEMORY_SERVICE_CACHE[storage_id]
+        _CACHE_STATS["service_hits"] += 1
+        logger.info(f"✅ MemoryService Cache HIT - Reusing service instance (storage_id: {storage_id})")
+    else:
+        _CACHE_STATS["service_misses"] += 1
+        logger.info(f"❌ MemoryService Cache MISS - Creating new service instance...")
+
+        # Initialize memory service with shared business logic
+        memory_service = MemoryService(storage)
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/mcp_server.py | Select-Object -Skip 870 -First 45'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server.py -TotalCount 80'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/utils/startup_orchestrator.py | Select-Object -Skip 170 -First 20'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server_impl.py | Select-Object -Skip 3210 -First 25'[0m in Z:\claude-sota-installed
+[32m succeeded in 369ms:[0m
+
+
+
+# =============================================================================
+# MAIN ENTRY POINT
+# =============================================================================
+
+def main():
+    """Main entry point for the FastAPI MCP server (StreamableHTTP transport).
+
+    WARNING: This entry point (`mcp-memory-server`) uses StreamableHTTP transport,
+    NOT stdio transport. It is NOT suitable for use with `"type": "stdio"` in Claude
+    Code or Claude Desktop MCP configuration.
+
+    If you are configuring Claude Code or Claude Desktop with stdio transport, use:
+        memory server
+    or:
+        python -m mcp_memory_service.server
+
+    This `mcp-memory-server` entry point starts an HTTP server on a port and is
+    intended for remote/HTTP-based MCP clients only.
+    """
+    # Emit a prominent warning so users who accidentally invoke this via stdio
+    # see a clear message rather than a silent misconfiguration.
+    print(
+        "\n"
+        "WARNING: mcp-memory-server uses StreamableHTTP transport, NOT stdio.\n"
+        "  If you are configuring a stdio MCP client (Claude Code, Claude Desktop),\n"
+        "  use 'memory server' or 'python -m mcp_memory_service.server' instead.\n"
+        "  Starting HTTP server now...\n",
+        file=sys.stderr
+    )
+
+    logger.info(f"Starting MCP Memory Service FastAPI server on {HTTP_HOST}:{HTTP_PORT}")
+    logger.info(f"Storage backend: {STORAGE_BACKEND}")
+
+    # Run server with streamable HTTP transport
+    mcp.run("streamable-http")
+
+if __name__ == "__main__":
+    main()
+
+[2m2026-05-08T07:53:45.145212Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mExit code: 1
+Wall time: 0.4 seconds
+Output:
+[31;1mGet-Content: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_servic[0m …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot find path 'Z:\venvs\claude\Lib\site-packages\mcp_memory_service\server.py' because it does not exist.[0m
+
+[31m exited 1 in 444ms:[0m
+[31;1mGet-Content: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   2 | [0m [36;1mGet-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_servic[0m …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mCannot find path 'Z:\venvs\claude\Lib\site-packages\mcp_memory_service\server.py' because it does not exist.[0m
+
+[32m succeeded in 353ms:[0m
+        # Create server instance
+        memory_server = MemoryServer()
+
+        # Initialize with retry logic
+        retry_manager = InitializationRetryManager(max_retries=2, timeout=30.0, retry_delay=2.0)
+        await retry_manager.initialize_with_retry(memory_server)
+
+        # Run server based on mode
+        run_manager = ServerRunManager(memory_server, system_info)
+
+        if ServerRunManager.is_streamable_http_mode():
+            await run_manager.run_streamable_http()
+        elif ServerRunManager.is_sse_mode():
+            await run_manager.run_sse()
+        elif ServerRunManager.is_standalone_mode():
+            await run_manager.run_standalone()
+        else:
+            await run_manager.run_stdio()
+
+    except Exception as e:
+        logger.error(f"Server error: {str(e)}")
+        logger.error(traceback.format_exc())
+        print(f"Fatal server error: {str(e)}", file=sys.stderr, flush=True)
+        raise
+
+
+[32m succeeded in 368ms:[0m
+            while True:
+                await asyncio.sleep(60)  # Sleep for 60 seconds at a time
+                self.logger.debug("Standalone server heartbeat")
+        except asyncio.CancelledError:
+            self.logger.info("Standalone server cancelled")
+            raise
+
+    async def run_stdio(self) -> None:
+        """Run server with stdio communication."""
+        async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+            self.logger.info("Server started and ready to handle requests")
+
+            if self.is_docker_environment():
+                self.logger.info("Detected Docker environment - ensuring proper stdio handling")
+                if MCP_CLIENT == 'lm_studio':
+                    print("MCP Memory Service running in Docker container", file=sys.stdout, flush=True)
+
+            try:
+                await self.server.server.run(
+                    read_stream,
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem Z:/venvs/claude/Lib/site-packages/mcp_memory_service | Select-Object -ExpandProperty Name'[0m in Z:\claude-sota-installed
+[32m succeeded in 339ms:[0m
+__pycache__
+api
+backup
+cli
+consolidation
+discovery
+embeddings
+harvest
+health
+ingestion
+models
+plugins
+quality
+reasoning
+server
+services
+storage
+sync
+utils
+web
+__init__.py
+_version.py
+compat.py
+config.py
+dependency_check.py
+lm_studio_compat.py
+mcp_server.py
+offline_mode.py
+server_impl.py
+
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-ChildItem Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server | Select-Object -ExpandProperty Name'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server/__main__.py -TotalCount 80'[0m in Z:\claude-sota-installed
+[35m[3mexec[0m[0m
+[1m"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'Get-Content -Path Z:/venvs/claude/Lib/site-packages/mcp_memory_service/server/__init__.py -TotalCount 80'[0m in Z:\claude-sota-installed
+[32m succeeded in 330ms:[0m
+__pycache__
+handlers
+utils
+__init__.py
+__main__.py
+cache_manager.py
+client_detection.py
+environment.py
+logging_config.py
+
+[32m succeeded in 333ms:[0m
+# Copyright 2024 Heinrich Krupp
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Entry point for running the server package as a module.
+
+Allows running the server with:
+    python -m mcp_memory_service.server [args]
+
+This is required for backward compatibility with CI/CD workflows
+and Docker containers that use `python -m` invocation.
+"""
+
+import argparse
+from . import main
+
+try:
+    from .. import __version__
+except (ImportError, AttributeError):
+    __version__ = "0.0.0.dev0"
+
+
+def run_with_args():
+    """Handle command-line arguments before starting server."""
+    # Simple argument parsing for --version and --help
+    parser = argparse.ArgumentParser(
+        prog='python -m mcp_memory_service.server',
+        description='MCP Memory Service - Model Context Protocol Server',
+        add_help=True
+    )
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {__version__}'
+    )
+
+    # Parse known args to allow --version/--help while passing through other args
+    parser.parse_known_args()
+
+    # If we get here, no --version or --help was provided
+    # Start the server normally
+    main()
+
+
+if __name__ == '__main__':
+    run_with_args()
+
+[32m succeeded in 399ms:[0m
+# Copyright 2024 Heinrich Krupp
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Server package for MCP Memory Service.
+
+Modular server components for better maintainability:
+- client_detection: MCP client detection (Claude Desktop, LM Studio, etc.)
+- logging_config: Client-aware logging configuration
+- environment: Python path setup, version checks, performance config
+- cache_manager: Global caching for storage and service instances
+"""
+
+# Client Detection
+from .client_detection import MCP_CLIENT, detect_mcp_client
+
+# Logging Configuration
+from .logging_config import DualStreamHandler, configure_logging, logger
+
+# Environment Configuration
+from .environment import (
+    setup_python_paths,
+    check_uv_environment,
+    check_version_consistency,
+    configure_environment,
+    configure_performance_environment
+)
+
+# Cache Management
+from .cache_manager import (
+    _STORAGE_CACHE,
+    _MEMORY_SERVICE_CACHE,
+    _CACHE_LOCK,
+    _CACHE_STATS,
+    _get_cache_lock,
+    _get_or_create_memory_service,
+    _log_cache_performance
+)
+
+# Backward compatibility: Import main functions from server_impl.py
+# server_impl.py (formerly server.py) contains main() and async_main()
+# We re-export them for backward compatibility: from mcp_memory_service.server import main
+from ..server_impl import main, async_main, MemoryServer
+
+__all__ = [
+    # Client Detection
+    'MCP_CLIENT',
+    'detect_mcp_client',
+
+    # Logging
+    'DualStreamHandler',
+    'configure_logging',
+    'logger',
+
+    # Environment
+    'setup_python_paths',
+    'check_uv_environment',
+    'check_version_consistency',
+    'configure_environment',
+    'configure_performance_environment',
+
+    # Cache
+    '_STORAGE_CACHE',
+    '_MEMORY_SERVICE_CACHE',
+    '_CACHE_LOCK',
+    '_CACHE_STATS',
+    '_get_cache_lock',
+    '_get_or_create_memory_service',
+    '_log_cache_performance',
+
+[35m[3mcodex[0m[0m
+VERDICT: APPROVE
+
+Q1: Yes. For installed `mcp-memory-service` v10.51.3, `Z:/venvs/claude/Scripts/memory.exe server` is the correct stdio entry point.
+
+Evidence:
+- `memory --version` reports `MCP Memory Service, version 10.51.3`.
+- `memory server --help` says: `Start the MCP Memory Service server.`
+- Its HTTP modes are opt-in flags: `--http`, `--sse`, `--streamable-http`.
+- Source fallback path confirms default server mode reaches `run_stdio()` unless streamable HTTP/SSE/standalone env modes are set.
+
+Upstream installed source warning for the old executable:
+
+> `WARNING: This entry point (`mcp-memory-server`) uses StreamableHTTP transport, NOT stdio transport.`
+
+and prescribes:
+
+> `use 'memory server' or 'python -m mcp_memory_service.server' instead.`
+
+Q2: Risk ranking: 1/10.
+
+This is a narrow config correction from a known-wrong HTTP transport entry point to the package’s stdio server entry point. Main residual risk is only environmental: startup/database/model initialization behavior, not transport selection.
+
+Q3: prescribed_edits: none.
+
+The current `.mcp.json` memory entry already matches the prescribed form:
+
+```json
+"command": "Z:/venvs/claude/Scripts/memory.exe",
+"args": ["server"]
+```
+[2mtokens used[0m
+26,313
+VERDICT: APPROVE
+
+Q1: Yes. For installed `mcp-memory-service` v10.51.3, `Z:/venvs/claude/Scripts/memory.exe server` is the correct stdio entry point.
+
+Evidence:
+- `memory --version` reports `MCP Memory Service, version 10.51.3`.
+- `memory server --help` says: `Start the MCP Memory Service server.`
+- Its HTTP modes are opt-in flags: `--http`, `--sse`, `--streamable-http`.
+- Source fallback path confirms default server mode reaches `run_stdio()` unless streamable HTTP/SSE/standalone env modes are set.
+
+Upstream installed source warning for the old executable:
+
+> `WARNING: This entry point (`mcp-memory-server`) uses StreamableHTTP transport, NOT stdio transport.`
+
+and prescribes:
+
+> `use 'memory server' or 'python -m mcp_memory_service.server' instead.`
+
+Q2: Risk ranking: 1/10.
+
+This is a narrow config correction from a known-wrong HTTP transport entry point to the package’s stdio server entry point. Main residual risk is only environmental: startup/database/model initialization behavior, not transport selection.
+
+Q3: prescribed_edits: none.
+
+The current `.mcp.json` memory entry already matches the prescribed form:
+
+```json
+"command": "Z:/venvs/claude/Scripts/memory.exe",
+"args": ["server"]
+```

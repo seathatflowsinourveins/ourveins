@@ -1,0 +1,228 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 6d0d45fa63aa3c7b57abca699e04d906e57d827a
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/cosign-verify-attestation-discipline.md | 278 +++++++++++++++++++++++++++
+ docs/install-provenance.md                   |  49 +++++
+ 2 files changed, 327 insertions(+)
+
+=== git show --format=fuller ===
+commit 6d0d45fa63aa3c7b57abca699e04d906e57d827a
+Author:     42 <42@local>
+AuthorDate: Mon May 11 01:41:47 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 01:41:47 2026 -0400
+
+    docs(cosign-verify-attestation): Wave 134 Fire 45 — W134-F-IMP-Q-DETAIL cosign verify-attestation discipline SHIPPED (Pattern A 9-edit applied; 10th Forward Discipline #2 recursive dogfood; Path D direct-apply 3rd consecutive)
+    
+    13th Tier-2 codification ship in Wave 134 series. Codified W134-F-IMP-Q-DETAIL
+    (Fire 41-G1 detailed-level codification; builds on Fire 44 cosign install).
+    NEW docs/cosign-verify-attestation-discipline.md (278 LOC post Pattern A
+    9-edit).
+    
+    Bridges Fire 44 installed cosign binary (v3.0.6) with Fire 41 Gate 1
+    Registry Trust verdict shape (Tier-A/B/C/D/E). 6-step probe (post Pattern A
+    Step 0 addition):
+    
+    | Step | Subject |
+    |---|---|
+    | 0 (NEW) | Verify cosign binary provenance + version |
+    | 1 | Probe attestation availability |
+    | 2 | Fetch sig + cert files locally (PRIMARY gh + FALLBACK curl) |
+    | 3 | Invoke cosign verify-attestation OR verify-blob (explicit subcommand) |
+    | 4 | Classify verdict per Tier-A/B/C/D/E (BOTH semantics post Pattern A) |
+    | 5 | Persist verdict in install-provenance.md (extended fields) |
+    
+    ## Codex T1 verdict (10th Forward Discipline #2 dogfood — Path D direct-apply 3rd consecutive)
+    
+    ```json
+    {
+      "verdict": "NEEDS-REVISION",
+      "confidence": 0.91,
+      "summary": "The discipline is directionally correct and scoped well, but it needs a few fix-forward clarifications before codification: local fetch alternatives, tighter identity-regexp guidance, stronger Tier-B AND semantics, and richer persistence evidence fields.",
+      "five_step_probe_complete": "NEEDS-ADDITION",
+      "verdict_classification_correct": "NEEDS-FIX",
+      "regexp_caveat_sufficient": "NEEDS-EXPANSION",
+      "persistence_format_correct": "NEEDS-FIX",
+      "anti_pattern_coverage": "NEEDS-ADDITION",
+      "prescribed_edits": 9
+    }
+    ```
+    
+    Cite: `.claude/state/codex_consult_w134_f45_cosign_verify_discipline_OUT.txt`
+    ~150s wall-clock / 12,393 tokens / 224 LOC verdict.
+    
+    ## Pattern A 9-edit applied (single atomic fix-forward)
+    
+    1. ✅ Added Step 0 (verify cosign binary provenance + version before use)
+    2. ✅ Step 2 FALLBACK path (curl -L -H 'Accept: application/octet-stream' when gh unavailable)
+    3. ✅ Step 3 explicit subcommand distinction (verify-attestation vs verify-blob vs verify) + --output json mandate
+    4. ✅ Step 4 Tier-A/B AND semantics (signed AND named-T2 — not OR; unsigned named-T2 demotes to Tier-D)
+    5. ✅ Regexp caveat expansion (mandate workflow-path tightening when known; forbid broad org-only/unanchored)
+    6. ✅ Step 5 extended fields (cert fingerprint SHA-256 + Rekor log index/UUID + artifact digest + identity match rationale)
+    7. ✅ NEW anti-pattern: accept valid Sigstore signature without artifact-digest + cert-identity cross-check
+    8. ✅ NEW anti-pattern: broad --certificate-identity-regexp matching forks / unrelated workflows / user-controlled refs
+    9. ✅ Pre-release/RC handling note: not categorically excluded; verdict-classify normally + install-risk policy decides adoption
+    
+    ## 🚨 Three LOAD-BEARING findings
+    
+    ### #1 Forward Discipline #2 ladder advance n=9→n=10 with Path D direct-apply (3rd consecutive)
+    
+    | Fire | n | Dispatch | Outcome |
+    |---|---|---|---|
+    | 42 | 8 | Path D direct (1st) | NEEDS-REVISION conf=0.9 + 5 prescribed |
+    | 43 | 9 | Path D direct (2nd) | NEEDS-REVISION conf=0.89 + 5 prescribed |
+    | **45** | **10** | **Path D direct (3rd consecutive)** | **NEEDS-REVISION conf=0.91 + 9 prescribed** |
+    
+    Pattern D recipe is now ESTABLISHED PRODUCTION-DEFAULT for codification fires
+    (3 consecutive successful applications post-Fire-41 Path B HNF lesson).
+    n=10 cumulative cross-arc evidence (5 Path P + 5 Path D); n=3 Path-D-direct
+    consecutive evidence demonstrates the recipe's reliability under
+    codification fire conditions.
+    
+    ### #2 Architectural extension: 5-step → 6-step probe via codex T1 missing_step addition
+    
+    3rd architectural-extension instance in Wave 134 series:
+    - Fire 41: 8 gates → 10 gates (cross-model peer review added Gate 9 + Gate 10)
+    - Fire 43: Band 6 sub-bands 2 → 3 (cross-model peer review added Band 6c)
+    - Fire 45: 5-step → 6-step (cross-model peer review added Step 0 verify-the-verifier)
+    
+    The discipline self-extends through cross-model peer review at the SCAFFOLDING
+    LEVEL (not just edits). Pattern recurring across codification ships.
+    
+    ### #3 Tier-A/B AND semantics critical correction (trust-elevation anti-pattern catch)
+    
+    Codex T1 caught the OR-semantics ambiguity in Tier-A/B verdict mapping. Tier-B
+    promotion requires BOTH:
+    - Valid Sigstore signature AND
+    - Named-T2 identity match
+    
+    UNSIGNED named-T2 artifacts (e.g., Karpathy repo without Sigstore signatures)
+    FALL to Tier-D (unsigned-individual), NOT Tier-B. This corrects a potential
+    trust-elevation anti-pattern where unsigned named-author artifacts could
+    incorrectly receive Tier-B verdict + Gate 1 install pathway.
+    
+    ## Sister to Fire 44 install + Fire 41 Gate 1
+    
+    Fire 44 installed cosign binary. Fire 41 defined Gate 1 verdict shape. Fire 45
+    connects them via operational discipline. Triangle complete for Gate 1
+    PARTIAL → MOSTLY-WIRED upgrade. First real INSTALL fire applying Steps 0-5
+    will trigger that upgrade.
+    
+    ## Path P recipe ladder
+    
+    n=29 → **n=29** (Fire 45 dispatched Path D directly; 3rd consecutive Path D)
+    
+    ## NEW cohort entries
+    
+    - Tier-2 codification ships: n=12 → **n=13**
+    - Forward Discipline #2 evidence ladder beyond promotion gate: n=9 → **n=10**
+    - Pattern A multi-edit single-atomic-apply instances: n=6 → **n=7**
+    - Path D direct-apply (3rd consecutive) instances: n=2 → **n=3**
+    - Architectural-extension via Pattern A instances: n=2 → **n=3**
+    - Pattern A multi-edit beyond 5 prescriptions (9 edits): n=0 → **n=1 NEW**
+    
+    ## Discipline conformance
+    
+    - CR-1 cite-trail: TIER-3-LOCAL-COMPOSITION disclosed (10 sister-rule cites)
+    - CR-3 cross-model: ✅ FULLY SATISFIED — REAL GPT-5.5 NEEDS-REVISION conf=0.91 + Pattern A 9-edit applied
+    - CR-9 install-risk: ✅ extended via cryptographic provenance verification discipline
+    - CR-10 research-first-then-install: ✅ Research = Fire 41 Gate 1 + Fire 44 install + Sigstore docs
+    - CR-11 META-process: ✅ THIS FIRE IS the CR-11 dogfood
+    - CR-12 5-class lattice: ✅ GENUINELY-NEW
+    - FM-02 sub-class (b) defense: ✅ atomic git add + commit --only -- pathspec
+    - Pattern A fix-forward: ✅ 9-edit single atomic apply
+    - Forward Discipline #2 (10th recursive dogfood): ✅ ladder advance n=9→n=10 Path D direct-apply 3rd consecutive
+    
+    ## Trailers
+    
+    Refs: docs/cosign-verify-attestation-discipline.md (NEW 278 LOC post Pattern A)
+    Refs: .claude/state/codex_consult_w134_f45_cosign_verify_discipline_OUT.txt
+    Cite: TIER-3-LOCAL-COMPOSITION via Sigstore docs + Fire 41 Gate 1 + Fire 44 install + 10 sister-rule cite-imports
+    Verify: `[VERIFIED via .claude/state/codex_consult_w134_f45_cosign_verify_discipline_OUT.txt — REAL GPT-5.5 NEEDS-REVISION conf=0.91 + Pattern A 9-edit applied + docs/cosign-verify-attestation-discipline.md 211→278 LOC SHIPPED (5-step → 6-step + AND semantics + extended persistence + 2 new anti-patterns + pre-release note) + Forward Discipline #2 ladder n=9→n=10 + Path D direct-apply 3rd consecutive + Fire 41 Gate 1 + Fire 44 install bridge codification complete]`
+
+=== diff ===
+diff --git a/docs/cosign-verify-attestation-discipline.md b/docs/cosign-verify-attestation-discipl
+
+[prompt truncated]

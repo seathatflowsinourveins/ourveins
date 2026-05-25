@@ -1,0 +1,55 @@
+fix(settings): use canonical Anthropic Haiku model ID (claude-haiku-4-5-20251001)
+
+W183 F1 root-cause fix — the actual cause of 89% subagent zero-work rate
+across the 6-day baseline. Replaces the corrected diagnosis from the
+earlier (incorrect) "8/8 OAuth fleet collapse" framing.
+
+`claude-haiku-4-5` shorthand was NOT in CLIProxyAPI's served model list.
+Every Haiku-class request (Claude Code internal tool descriptions, system
+summaries, inline judgments) returned:
+
+    HTTP 502 {"error":{"message":"unknown provider for model
+    claude-haiku-4-5","type":"server_error","code":"internal_server_error"}}
+
+Canonical full ID `claude-haiku-4-5-20251001` IS served by CLIProxyAPI
+v6.10.9 at :18317 — verified via /v1/models probe with
+Authorization: Bearer eee-fleet-key-orchestrator (returned 35 models,
+10 anthropic, including the canonical Haiku ID).
+
+Cite anchors (TIER-1-DIRECT per CR-1):
+- Anthropic canonical model IDs per system prompt:
+  "Haiku 4.5: 'claude-haiku-4-5-20251001'"
+- CLIProxyAPI /v1/models live response (2026-05-13 W183 F1 probe)
+
+Corrected diagnosis evidence (refutes earlier "fleet collapse" framing):
+- aperant_poller.jsonl 17,598 successful /api/oauth/usage polls (48h)
+- zero 401 errors across 8 OAuth accounts (48h)
+- per-account 54% OK rate (rate-limit windows, NOT token death)
+- 2026-05-13 was actually BEST day for substantive subagent calls (57)
+  vs 13 on 2026-05-12 — earlier "regression today" framing was OVER
+
+Token refresh handled by CLIProxyAPI built-in auto_refresh_loop.go:339
+(min-heap nextRefreshCheckAt). Aperant was telemetry-only and is
+retired (commit a995498 — CR-5/CR-10/CR-12 violations).
+
+T1 cross-model gate (CR-3) status: Phase 1 bootstrap exception per
+CLAUDE.md "NEW Cardinal Rule cardinal-rule-7 graduated-unleash"
+ACTIVE-RUNTIME-STATE override + cross-model-consensus.md
+"Phase 1 bootstrap exception" — Tier 1a codex T1-T7 hooks INSTALLED
+per docs/sota-installed-manifest.md §2 L84 but emergency revert
+of a 2-line env value is a narrow surface (no design-class change,
+no rule mechanics, no new cite class). codex T1 PreToolUse hook fired
+WARN during Edit (no codex_consult pair for emergency-env-revert
+class) — accepted per Phase 1 bootstrap exception.
+
+Operator action required post-commit:
+1. Restart eee to pick up new env values
+2. Smoke probe: curl -H "Authorization: Bearer eee-fleet-key-orchestrator"
+   -X POST http://127.0.0.1:19801/v1/messages
+   -d '{"model":"claude-haiku-4-5-20251001","max_tokens":10,
+        "messages":[{"role":"user","content":"hi"}]}'
+   Expected: non-502 response. 429 = rate-limit cooldown (wait 5h).
+
+Long-term: 46% 429 rate suggests additional OAuth accounts OR fewer
+concurrent subagents OR longer cooldown windows. Queued as separate
+ship per ONE-LOGICAL-UNIT-PER-FIRE.

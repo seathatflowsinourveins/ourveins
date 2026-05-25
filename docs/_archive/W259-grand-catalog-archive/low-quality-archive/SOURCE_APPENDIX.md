@@ -1,0 +1,33 @@
+# Source Appendix
+
+- Claude Code commands: https://code.claude.com/docs/en/commands
+- Claude Code cost optimization: https://code.claude.com/docs/en/costs
+- Claude Code skills: https://code.claude.com/docs/en/skills
+- Claude Code worktrees: https://code.claude.com/docs/en/worktrees
+- Claude Code subagents: https://code.claude.com/docs/en/sub-agents
+- Claude Agent SDK: https://code.claude.com/docs/en/agent-sdk/overview
+- Codex models: https://developers.openai.com/codex/models
+- Codex best practices: https://developers.openai.com/codex/learn/best-practices
+- Codex plugin cc: https://github.com/openai/codex-plugin-cc
+- GitHub Agentic Workflows: https://github.github.com/gh-aw/
+- GitHub Agent HQ: https://github.blog/news-insights/company-news/pick-your-agent-use-claude-and-codex-on-agent-hq/
+- Karpathy 2026: https://karpathy.bearblog.dev/sequoia-ascent-2026/
+- Boris Claude Code tips: https://howborisusesclaudecode.com/
+- RTK: https://github.com/rtk-ai/rtk
+- Serena: https://github.com/oraios/serena
+- Repomix: https://github.com/yamadashy/repomix
+- Context Mode: https://github.com/mksglu/context-mode
+- Headroom: https://github.com/chopratejas/headroom
+- Snyk agent scan: https://github.com/snyk/agent-scan
+- Cisco MCP Scanner: https://github.com/cisco-ai-defense/mcp-scanner
+- Cisco Skill Scanner: https://github.com/cisco-ai-defense/skill-scanner
+- MCP Defender: https://github.com/MCP-Defender/MCP-Defender
+- OpenAI Evals: https://github.com/openai/evals
+- promptfoo: https://github.com/promptfoo/promptfoo
+- DeepEval: https://github.com/confident-ai/deepeval
+- LangGraph: https://github.com/langchain-ai/langgraph
+- OpenAI Agents SDK: https://github.com/openai/openai-agents-python
+- Docling: https://github.com/docling-project/docling
+- MarkItDown: https://github.com/microsoft/markitdown
+- Crawl4AI: https://github.com/unclecode/crawl4ai
+- Firecrawl: https://github.com/firecrawl/firecrawl

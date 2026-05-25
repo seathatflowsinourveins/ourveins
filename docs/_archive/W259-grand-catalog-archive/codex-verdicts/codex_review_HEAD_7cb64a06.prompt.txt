@@ -1,0 +1,186 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 7cb64a06bbd6e5ee51f6509af98a64b2eaf948ff
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/sota-feature-activation.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 7cb64a06bbd6e5ee51f6509af98a64b2eaf948ff
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:16:44 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:16:44 2026 -0400
+
+    docs(sota): Pattern A fix-forward T3 2f971597 — SHA-pin CHANGELOG.md (mutable-main → fdfbc06c)
+    
+    T3 PostToolUse verdict on commit 2f971597: NEEDS-ATTENTION conf=0.86 medium
+    [VERIFIED via .claude/state/codex_review_HEAD_2f971597.txt]
+    
+    Finding F-001 (conf=0.86, medium): "Authoritative runbook cites mutable
+    upstream changelog instead of an immutable version" — `docs/sota-feature-activation.md`
+    L6 + L148 cited `https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md`
+    which is mutable, creating version-skew hazard between codification time
+    (CC 2.1.139 2026-05-12) and downstream-reader time.
+    
+    ## Pattern A apply (single atomic fix-forward per codex-t1-fix-forward-pattern.md)
+    
+    Per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Pattern A`:
+    NEEDS-ATTENTION conf 0.85-0.93 + ≤10 prescribed_edits → apply ALL in single
+    atomic commit. Conf 0.86 is in sweet spot; 1 finding ≤ 10.
+    
+    Prescribed edits (3 applied):
+    1. Replace `blob/main` → `blob/fdfbc06c7a6d9ace49c55b3761b1be05d276da6d` at L6 (cite-class block) [DONE]
+    2. Replace `blob/main` → `blob/fdfbc06c7a6d9ace49c55b3761b1be05d276da6d` at L148 (Cross-references block) [DONE]
+    3. Add section anchor `§"## 2.1.139"` to both cites [DONE]
+    
+    Verified-CC-version "CC binary 2.1.139 [VERIFIED 2026-05-12 via `claude --version`]"
+    already present in cite-class block per pre-Pattern-A content — preserved.
+    
+    ## Immutable anchor source-of-truth
+    
+    HEAD of `anthropics/claude-code:main` at 2026-05-12: `fdfbc06c7a6d9ace49c55b3761b1be05d276da6d`
+    [VERIFIED 2026-05-12 via `mcp__github__list_commits owner=anthropics repo=claude-code`]
+    - Commit message: "chore: Update CHANGELOG.md"
+    - Author: actions-user (GitHub Actions)
+    - Date: 2026-05-11T18:43:36Z
+    - Parent: 831608a360511febd4b10c77d4d03b47afda2f5b
+    - Tree: 6ebc9155ecb1412d91ecf31e10d9e023042a880e
+    
+    CHANGELOG.md at this SHA confirmed to contain `## 2.1.139` section as the
+    first version entry (verified via context-mode ctx_fetch_and_index of
+    https://raw.githubusercontent.com/anthropics/claude-code/fdfbc06c7a6d9ace49c55b3761b1be05d276da6d/CHANGELOG.md).
+    
+    ## Symbol-anchor over line-range (per port-note-discipline.md §2 Discipline 1)
+    
+    Used section header `§"## 2.1.139"` instead of line range per SOTA stability
+    rationale: "Symbol-anchor preferred per SOTA stability rationale (line numbers
+    volatile, symbols stable)". Section header IS stable across CHANGELOG.md edits
+    where new entries get prepended above 2.1.139.
+    
+    ## Cross-model gate disposition (CR-3 Phase 1 bootstrap exception)
+    
+    This Pattern A fix-forward commit re-fires T3 PostToolUse hook automatically.
+    If T3 returns APPROVE: codex T1 + T3 closure cycle complete; codification
+    fire converged per Outcome A monotone-decline (NEEDS-REVISION → APPROVE).
+    If T3 returns NEEDS-REVISION again: re-fire Pattern A iter-2 per
+    `codex-t1-fix-forward-pattern.md` decision tree.
+    
+    ## Cardinal-rule conformance
+    
+    - CR-1: TIER-1-DIRECT SHA-pinned immutable anchor (no mutable refs remain) — PASS
+    - CR-3: Phase 1 bootstrap exception; Pattern A apply with T3 auto-re-fire — PASS
+    - CR-8: Cite-class lattice preserved via constituents= form — PASS
+    - CR-9: install-risk discipline — SHA pin + section anchor + re-verify trigger documented — PASS
+    
+    ## Verification
+    
+    - `grep -n "blob/main\|/main/CHANGELOG\|tree/main" docs/sota-feature-activation.md` returns 0 matches [VERIFIED 2026-05-12]
+    - `grep -c "fdfbc06c7a6d9ace49c55b3761b1be05d276da6d" docs/sota-feature-activation.md` returns 2 [VERIFIED 2026-05-12]
+    - `git diff --stat HEAD -- docs/sota-feature-activation.md` shows 2 insertions + 2 deletions clean diff [VERIFIED]
+
+=== diff ===
+diff --git a/docs/sota-feature-activation.md b/docs/sota-feature-activation.md
+index 88772ec..fdf5204 100644
+--- a/docs/sota-feature-activation.md
++++ b/docs/sota-feature-activation.md
+@@ -3,7 +3,7 @@
+ > **Status**: AUTHORITATIVE — codification of Anthropic CC CHANGELOG 2.1.x features mapped to this runtime (claude-sota-installed) installed primitives.
+ >
+ > **Cite class** (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
+-> `constituents=[TIER-1-DIRECT @ Anthropic CHANGELOG https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md (CC binary 2.1.139 [VERIFIED 2026-05-12 via `claude --version`]), TIER-1-DIRECT @ Anthropic CC docs https://code.claude.com/docs/en/{settings,sub-agents,hooks,env-vars,agent-view,permission-modes,scheduled-tasks}, TIER-3-LOCAL-OPERATOR-DERIVED @ this runtime's installed-state probe 2026-05-12]; effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE — local glue mapping upstream features to runtime state).
++> `constituents=[TIER-1-DIRECT @ Anthropic CHANGELOG https://github.com/anthropics/claude-code/blob/fdfbc06c7a6d9ace49c55b3761b1be05d276da6d/CHANGELOG.md §"## 2.1.139" (CC binary 2.1.139 [VERIFIED 2026-05-12 via `claude --version`]; SHA pinned to HEAD of `anthropics/claude-code:main` at 2026-05-12 per Pattern A fix-forward on T3 `2f971597` NEEDS-ATTENTION conf=0.86 medium F-001 "mutable upstream changelog" finding), TIER-1-DIRECT @ Anthropic CC docs https://code.claude.com/docs/en/{settings,sub-agents,hooks,env-vars,agent-view,permission-modes,scheduled-tasks} (live docs — re-verify per CR-1 Marker Decay on next session probe), TIER-3-LOCAL-OPERATOR-DERIVED @ this runtime's installed-state probe 2026-05-12]; effective_tier=TIER-3-LOCAL-COMPOSITION` (MIN_PRECEDENCE — local glue mapping upstream features to runtime state).
+ >
+ > **Discipline conformance**: cardinal-rules 1+5+7+8+9+10+11 (per `CLAUDE.md`). Bootstrap-class operator scaffolding — same class as `docs/operator-path-setup.md` (extracted per /doctor 40k-char ceiling).
+ >
+@@ -145,7 +145,7 @@ Re-evaluate this runbook when:
+ - `docs/operator-path-setup.md` — bootstrap-extracted operator reference STRUCTURAL PRECEDENT
+ - `docs/sota-installed-manifest.md` §18.1 — Tier 0/1a/1b/1c/2/3/4/5 enumeration (§1 ACTIVE-now matrix refers here)
+ - `docs/fm17f-deep-dive-2026-05-09.md` — FM-17.f 1M-context-entitlement billing-class blocker deep-dive (§4 + §7 refer here)
+-- `https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` — TIER-1-DIRECT authority for every recipe cited in §2-§7
++- `https://github.com/anthropics/claude-code/blob/fdfbc06c7a6d9ace49c55b3761b1be05d276da6d/CHANGELOG.md` §"## 2.1.139" — TIER-1-DIRECT authority for every recipe cited in §2-§7 (SHA-pinned immutable anchor per T3 `2f971597` F-001 fix-forward 2026-05-12; HEAD of `anthropics/claude-code:main` at codification time; re-verify SHA on next CHANGELOG bump per CR-9 install-risk discipline)
+ - `https://code.claude.com/docs/en/{settings,sub-agents,hooks,env-vars,agent-view,permission-modes,scheduled-tasks}` — TIER-1-DIRECT supporting docs
+ 
+ ## Provenance
+</repository_context>

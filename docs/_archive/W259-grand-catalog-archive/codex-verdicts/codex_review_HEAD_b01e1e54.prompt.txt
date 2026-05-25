@@ -1,0 +1,202 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit b01e1e54622507299c44eb691bdb8e4c7dba8571
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/install-provenance.md | 81 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)
+
+=== git show --format=fuller ===
+commit b01e1e54622507299c44eb691bdb8e4c7dba8571
+Author:     42 <42@local>
+AuthorDate: Sun May 10 10:16:45 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 10:16:45 2026 -0400
+
+    fix(wave-134-fire-3-correction): recreate 0e7bbeafaebc/ from upstream marketplace — orphan deletion broke CC pinned path (HONEST-CORRECTION per CR-7)
+    
+    Live operator probe surfaced NEW error class post-0f58c61:
+      Failed to run: Plugin directory does not exist:
+      Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\hookify\0e7bbeafaebc
+    
+    Firing on PreToolUse:Bash + PostToolUse:Bash + Stop hooks (13). User pushback verbatim: "are you sure?" — referencing the deleted 0e7bbeafaebc/ cache.
+    
+    ## Honest correction (per CR-7 REPORT errors before routing around them)
+    
+    Wave 134 Fire 3 (commit 0f58c61) close text asserted: "NO restart needed. Current session is SOTA-clean and operational." This was WRONG.
+    
+    Architecture-level discovery (NEW): CC's plugin-loader pins cache paths from session-start. The enabledPlugins registry stores the resolved path (e.g., 0e7bbeafaebc/) in-memory at session-start; subsequent hook fires invoke the pinned path. Mid-session deletion of a pinned cache directory does NOT trigger CC to dynamically rediscover an alternative cache — it produces the "Plugin directory does not exist" error class.
+    
+    This invalidates Wave 134 Fire 3's assumption that orphan deletion was safe housekeeping during active session. The .orphaned_at marker is CC's signal for next-session-cleanup, NOT mid-session-removal-safe.
+    
+    ## Recovery applied
+    
+    1. mkdir -p .claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc
+    2. cp -r .claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/. → 0e7bbeafaebc/ (full plugin tree)
+    3. Verified all 3 caches now have IDENTICAL pretooluse.py blob SHA 3227796dbb29e4462a91dc9ecfc229a284341573 (matching marketplace canonical):
+       - 0e7bbeafaebc/hooks/pretooluse.py: 3227796d... (RECREATED with W134-F2 fix)
+       - 4ed5395b74d0/hooks/pretooluse.py: 3227796d... (Wave 134 Fire 3 in-place patch)
+       - 80e3275da25f/hooks/pretooluse.py: 3227796d... (canonical, next-launch target)
+    
+    CC's pinned path 0e7bbeafaebc/ now resolves correctly to upstream-canonical content with W134-F2 silent-ImportError-exit fix. Plugin-directory-not-exist error class STOPS.
+    
+    ## Architecture-level lesson (cardinal-rule-13 candidate updated to n=2 with sub-class taxonomy)
+    
+    Sub-class (a) — Wave 134 Fire 3: in-place cp from upstream marketplace silences mid-session spam without restart [VERIFIED WORKING on 4ed5395b74d0/].
+    
+    Sub-class (b) — THIS correction: DO NOT delete plugin-cache directories mid-session even when marked .orphaned_at. CC pins resolved paths in-memory at session-start; deletion produces "Plugin directory does not exist" error class. Recovery: recreate path with upstream-canonical content from marketplace [N=1 — this fire].
+    
+    Both sub-classes converge on meta-rule: mid-session plugin-cache mutations should be ADDITIVE (in-place patch from upstream) or REPLACEMENT-IN-PLACE (cp over existing files), NEVER DELETION (rm -rf the directory). Deletion is for between-sessions cleanup OR via CC's own auto-cleanup mechanism.
+    
+    ## Files changed: 1 (+95 LOC)
+    
+    - docs/install-provenance.md — Wave 134 Fire 3-CORRECTION entry appended
+    
+    (Cache changes are gitignored per .gitignore .claude/plugins/cache/ rule — operational only)
+    
+    ## CR conformance (CORRECTION-class)
+    
+    - CR-1 cite-trail TIER-1-DIRECT: marketplace blob 3227796d + Anthropic upstream
+    - CR-3 Phase 1 bootstrap exception: cmp -s byte-equality across all 3 caches
+    - CR-7 REPORT errors before routing around them: HONEST-CORRECTION per synthesis-layer-verify.md §Reporting categories — prior Fire 3 close text contained OVER claim; live operator probe refuted; correction in next-fire commit body NOT historical-rewrite per port-note-discipline.md §6
+    - CR-9 install-risk: CR-13 sub-class (b) codified — pre-action gate updated for future plugin-cache deletions
+    - CR-10 research-first: NEW research surfaced CC plugin-loader pin-path-at-session-start architecture
+    - CR-11 META-process: recursive HONEST-CORRECTION on prior fire
+    
+    ## Mia OVER ladder Wave 97-134
+    
+    INCREMENT n=134 → n=135 (apply-boundary OVER caught: prior assertion "NO restart needed; SOTA-clean and operational" without verifying CC's plugin-loader path-pinning behavior). Pattern: architecture-level claims about CC runtime behavior require live-probe verification BEFORE assertion. Sister to Wave 132 Fire 2 Round-3 pattern (REMOVE without deep-dive caught at Round-2; REVERSED at Round-3).
+    
+    ## Operator-action summary (CORRECTED)
+    
+    - ✅ Hookify spam SILENCED (Wave 134 Fire 3 patch)
+    - ✅ "Plugin directory does not exist" spam SILENCED (this correction)
+    - ✅ All 3 caches byte-identical with upstream Anthropic marketplace canonical
+    - ✅ Settings stays disabled
+    - 📋 Restart NOW recommended for fully clean steady state
+    - ⚠️ HONESTY: prior "NO restart needed" assertion was WRONG; plugin-cache deletion mid-session caused the second error class
+
+=== diff ===
+diff --git a/docs/install-provenance.md b/docs/install-provenance.md
+index b3d1c23..9a7696a 100644
+--- a/docs/install-provenance.md
++++ b/docs/install-provenance.md
+@@ -11645,3 +11645,84 @@ UNCHANGED at n=134 (no apply-boundary OVER this fire — upstream-canonical mirr
+ - Wave 134 Fire 3 (THIS): hookify in-place upstream-canonical patch + orphan cache cleanup
+ - Total: 19+ ship-class deliverables since Wave 119
+ 
++---
++
++## 2026-05-10 — Wave 134 Fire 3-CORRECTION — orphan deletion broke CC pinned path; recovery via marketplace re-mirror (HONEST-CORRECTION per CR-7)
++
++### Trigger
++
++Live operator probe surfaced NEW error class post-Wave-134-Fire-3 commit `0f58c61`:
++
++```
++Failed to run: Plugin directory does not exist: Z:\claude-sota-installed\.claude\plugins\cache\claude-plugins-official\hookify\0e7bbeafaebc (hookify@claude-plugins-official — run /plugin to reinstall)
++```
++
++Firing on PreToolUse:Bash + PostToolUse:Bash + Stop hooks (13 stop hooks). User pushback verbatim: "are you sure?" — referencing the deleted `0e7bbeafaebc/` cache.
++
++### Honest correction (per CR-7 REPORT errors before routing around them)
++
++Wave 134 Fire 3's prior assertion `"NO restart needed. Current session is SOTA-clean and operational."` was **WRONG**. The orphan cache deletion (`rm -rf 0e7bbeafaebc/`) replaced the original "Hookify import error" spam class with a NEW "Plugin directory does not exist" spam class because:
++
++**Architecture-level discovery (NEW)**: CC's plugin-loader pins cache paths from session-start. The `enabledPlugins` registry stores the resolved path (e.g., `0e7bbeafaebc/`) in-memory at session-start; subsequent hook fires invoke the pinned path. Mid-session deletion of a pinned cache directory does NOT trigger CC to dynamically rediscover an alternative cache — it produces the "Plugin directory does not exist" error class and falls back to "run /plugin to reinstall" advisory.
++
++This invalidates the Wave 134 Fire 3 assumption that orphan deletion was safe housekeeping during active session. The `.orphaned_at` marker is CC's signal for next-session-cleanup, NOT mid-session-removal-safe.
++
++### Recovery
++
++Recreate `0e7bbeafaebc/` from upstream marketplace canonical (full plugin tree, not just hooks):
++
++```bash
++mkdir -p .claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc
++cp -r .claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/. \
++      .claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc/
++```
++
++Verified all 3 caches now have IDENTICAL `pretooluse.py` blob SHA `3227796dbb29e4462a91dc9ecfc229a284341573` (matching marketplace c
+
+[prompt truncated]

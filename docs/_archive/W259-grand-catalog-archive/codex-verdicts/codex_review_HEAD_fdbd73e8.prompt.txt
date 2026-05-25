@@ -1,0 +1,113 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit fdbd73e86bcfeaeb5cc7d8fd4a7f9dd2231529d8</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+scripts/_atomic_jsonl_append.py | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+=== git show --format=fuller ===
+commit fdbd73e86bcfeaeb5cc7d8fd4a7f9dd2231529d8
+Author:     42 <42@local>
+AuthorDate: Tue May 12 23:19:42 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 23:19:42 2026 -0400
+
+    fix(wave161): SB10 round-2 — port-note evidence accuracy per T3 needs-attention
+    
+    Wave 161 SB10 round-2 Pattern A fix-forward closing T3 codex review
+    verdict on commit ed38d2a per `codex-t1-fix-forward-pattern.md §Pattern A`
+    (NEEDS-REVISION at conf 0.88-0.93 sweet spot → single atomic fix-forward).
+    
+    T3 VERDICT (round-1):
+    - File: .claude/state/codex_review_HEAD_ed38d2a6.txt
+    - verdict: needs-attention (2 LOW-severity findings)
+    - Finding 1 conf=0.91: "Port-note evidence contradicts commit/provenance
+      REVERT count" — port-note said 9 FIX/FEAT, commit + provenance say 10
+    - Finding 2 conf=0.88: "Sibling-bleed grep claim appears false for the
+      committed file text" — grep was scoped to source body, not whole file
+      (port-note itself necessarily contains Z:/claude-sota cite anchor for
+      provenance audit-trail)
+    
+    PATTERN A APPLY (single atomic fix-forward per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+    - scripts/_atomic_jsonl_append.py:
+      - Line 8: "9 FIX/FEAT" → "10 FIX/FEAT" (matches commit body + provenance
+        entry which were already correct per `git -C Z:/claude-sota log --all
+        --oneline -- scripts/_atomic_jsonl_append.py | wc -l` = 10)
+      - Lines 12-17: clarified that path-portability grep was scoped to
+        SOURCE BODY (below port-note header at line 86+), not whole file.
+        Verification: `tail -n +86 scripts/_atomic_jsonl_append.py |
+        grep -nE 'Z:/claude-sota[^-]'` returns empty (PASS)
+    
+    OUTCOME (per closed-loop-recursive-narrowing.md §Disposition signal
+    severity gate):
+    - Severity LOW (both findings) — ACCEPT-WITH-DOC was admissible alternative
+    - Pattern A chosen for monotone-decline confirmation (T3 round-2 expected
+      APPROVE OR severity-stable-low conf decline)
+    - 2 port-note evidence accuracy findings closed at file-local layer
+    
+    PRE-EXISTING DIAGNOSTICS (NOT introduced by this round-2 fix-forward):
+    - pyright lines 108/324/401: "Code is not analyzed because condition is
+      statically evaluated as false" — sys.platform conditional branches
+      in source body that resolve at static-analysis time on Windows.
+      Identical in sibling `Z:/claude-sota/scripts/_atomic_jsonl_append.py`.
+      Out of SB10 scope per Karpathy P3 surgical-changes — sibling-inherited.
+    
+    CARDINAL-RULE CONFORMANCE:
+    - CR-1 ✅ TIER-1-DIRECT sibling cite preserved
+    - CR-3 ✅ Path P codex T3 verdict integrated via Pattern A
+    - CR-9 ✅ Sibling-bleed defense reinforced (grep scope clarified)
+    - CR-11 ✅ META-process SOTA discipline (T3 verdict → Pattern A apply
+      → atomic commit; recursive closed-loop arc closure)
+    - CR-12 ✅ CITE-CLASS-CANONICAL preserved
+    - cycle-300 ONE-LOGICAL-UNIT-PER-FIRE ✅ (single logical unit: port-note
+      evidence accuracy)
+    
+    CLOSED-LOOP ARC STATUS (per closed-loop-recursive-narrowing.md):
+    - Round 1: T3 needs-attention conf=0.91+0.88 LOW severity
+    - Round 2 (this commit): Pattern A apply — port-note evidence accuracy
+    - Round 3 (post-commit T3): expected APPROVE OR conf decline to confirm
+      Outcome A monotone-decline ACCEPT-WITH-DOC path
+    
+    FM-02 (b)+(c) defense: atomic single-shell `git add -- <1 path> &&
+    git commit -o -F tmp/w161-sb10-r2-msg.txt -- <1 path>`.
+    
+    Cite class:
+    constituents=[TIER-1-DIRECT @ Z:/claude-sota/scripts/_atomic_jsonl_append.py
+    @ HEAD f30597d via 10-round cumulative fix-forward (corrected count),
+    TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 161 SB10 round-2 T3 needs-attention
+    + Pattern A fix-forward];
+    effective_tier=TIER-3-LOCAL-COMPOSITION per
+    Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+
+=== diff ===
+diff --git a/scripts/_atomic_jsonl_append.py b/scripts/_atomic_jsonl_append.py
+index cd2ce80..83b1ee9 100644
+--- a/scripts/_atomic_jsonl_append.py
++++ b/scripts/_atomic_jsonl_append.py
+@@ -5,16 +5,21 @@
+ # append with cumulative Round-3-7b invariants per
+ # parallel-session-worktree-isolation.md §Mandatory mechanical collision-guard.
+ #
+-# CR-9 pre-cite-import REVERT check: PASS (9 FIX/FEAT commits sibling history,
++# CR-9 pre-cite-import REVERT check: PASS (10 FIX/FEAT commits sibling history,
+ # zero REVERT-AND-REMOVE precedents per `git -C Z:/claude-sota log --all --oneline
+ # -- scripts/_atomic_jsonl_append.py`).
+ #
+ # Path-portability: runtime-neutral; module uses caller-supplied JSONL paths and
+ # stdlib Path/os operations only; no hard-coded Z:/claude-sota paths or sibling
+-# module imports (Mia probe verified via grep -nE 'Z:/claude-sota[^-]' returns
++# module imports IN THE SOURCE BODY (the port-note header itself necessarily
++# contains the Z:/claude-sota cite anchor for provenance audit-trail; Mia probe
++# scoped to the source body below the header via `tail -n +86
++# scripts/_atomic_jsonl_append.py | grep -nE 'Z:/claude-sota[^-]'` returns
+ # empty; symbol probe shows only PIPE_BUF_BYTES + LOCK_PROTOCOL_VERSION + 3
+ # exception classes + 3 functions, no _PROJECT_ROOT — codex T1 W161 SB10
+-# NEEDS-REVISION conf=0.89 prescription #1 verbatim integration).
++# NEEDS-REVISION conf=0.89 prescription #1 verbatim integration; T3 round-1
++# round-2 fix-forward closes 2 low-severity port-note evidence accuracy
++# findings at conf=0.91+0.88 per `codex-t1-fix-forward-pattern.md` Pattern A).
+ #
+ # Codex T1 smoke probe (sibling-context) PASSED 414ms: "3 records appended
+ # (incl Ship 1.5 2200-byte sentinel), mode 0o600, RecordTooLarge raised,</repository_context>

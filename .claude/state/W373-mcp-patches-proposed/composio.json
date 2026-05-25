@@ -1,0 +1,165 @@
+{
+  "wave": "W373",
+  "finding_ref": "W373-B-F002 (Stream B gap-resolve — ComposioHQ org-level reference resolves to ComposioHQ/composio canonical install-shape)",
+  "status": "PROPOSED-NOT-APPLIED",
+  "drafted_by": "W373 X3 SOTA MCP wire-proposal drafter",
+  "drafted_at": "2026-05-22",
+  "rationale": "Stream B verdict (sca-draft 4.5/5.0): ComposioHQ org-level reference resolves to ComposioHQ/composio (28,391 stars, MIT, active 2026). Canonical Claude Code install-shape determined via 3-org-distinct convergence (mcp__deepwiki + mcp__exa__web_search_exa + mcp__firecrawl__firecrawl_search) is the unified Composio Connect MCP HTTP endpoint. The legacy mcp.composio.dev/composio/server/{id}/mcp form (with Authorization: Bearer or x-api-key) is a DIFFERENT use case — custom single-toolkit MCP server configurations. PENDING-OPERATOR-SIGN before .mcp.json edit per W373 spec, OP-SIGN.md row OP-13 (to be assigned).",
+  "convergence_sources": [
+    {
+      "source": "mcp__deepwiki__ask_question",
+      "repo": "ComposioHQ/composio",
+      "verdict_summary": "HIGH-confidence — canonical MCP HTTP endpoint is https://connect.composio.dev/mcp with x-consumer-api-key header. The unified Composio Connect gateway exposes 7 meta-tools (1000+ apps via OAuth). The alternative URL pattern serves a different purpose (single-toolkit MCP) and should not be confused.",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "mcp__exa__web_search_exa",
+      "query": "ComposioHQ composio MCP HTTP endpoint stable URL 2026 connect.composio.dev authentication header",
+      "verdict_summary": "8 results; 5 direct hits on docs.composio.dev/docs/composio-connect + github.com/ComposioHQ/composio/blob/next/docs/content/docs/composio-connect.mdx + composio.dev/toolkits/composio/framework/claude-code all quote `claude mcp add --scope user --transport http composio https://connect.composio.dev/mcp --header \"x-consumer-api-key: YOUR_API_KEY\"`",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "mcp__firecrawl__firecrawl_search",
+      "query": "composio MCP HTTP endpoint 2026 connect.composio.dev x-consumer-api-key claude code",
+      "verdict_summary": "8 results; multiple composio.dev/toolkits/*/framework/codex pages reference 'Streamable HTTP' with header { x-consumer-api-key = ck_... } — converges on the same canonical form",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "gh_api_repos_ComposioHQ_composio",
+      "verdict_summary": "stars=28391, license=MIT, archived=false, disabled=false, pushed_at=2026-05-21T10:55:25Z (yesterday — actively maintained)",
+      "probed_at": "2026-05-22"
+    },
+    {
+      "source": "mcp__perplexity__perplexity_search",
+      "verdict_summary": "UNAVAILABLE — API returned 401 insufficient_quota; non-blocking since 3 other distinct convergence sources met sca-v17 3-org-distinct floor",
+      "probed_at": "2026-05-22",
+      "non_blocking": true
+    }
+  ],
+  "proposed_patch": {
+    "operation": "add-key",
+    "target_file": ".mcp.json",
+    "target_path": "mcpServers.composio",
+    "value": {
+      "type": "http",
+      "url": "https://connect.composio.dev/mcp",
+      "headers": {
+        "x-consumer-api-key": "${COMPOSIO_API_KEY}"
+      }
+    }
+  },
+  "patch_design_notes": {
+    "header_name": "Per Composio docs the EXACT header name is `x-consumer-api-key` (lowercase, hyphenated). NOT `x-api-key`, NOT `Authorization`, NOT `X-Consumer-API-Key`. The `x-api-key` header is for the LEGACY per-server URL form (mcp.composio.dev/composio/server/{id}/mcp); the unified connect.composio.dev/mcp endpoint uses `x-consumer-api-key`.",
+    "transport_type": "type=http with type:http (Streamable HTTP per CC's MCP-spec — same form as deepwiki, context-mode, cognee, hf-mcp-server). NOT type=sse (legacy).",
+    "env_interp_pattern": "Follows the W317-S7 perplexity precedent + W265 langfuse precedent + W286 P0C cardinal-rule-9 contract: env-interp ${COMPOSIO_API_KEY} in tracked .mcp.json (cardinal-rule-1 trusted-source + cardinal-rule-2 hooks contract), with the REAL API key value held in CLAUDE.local.md (gitignored, per-machine).",
+    "cardinal_rule_compliance": {
+      "CR-1_trust_tuple": {
+        "trusted_source": "ComposioHQ (TIER-3-NAMED-ORG, official Composio engineering org), 28,391 stars, MIT license, dependency-blast-radius LOW (Composio is SaaS-backend; this is a thin HTTP MCP shim with NO npm/uvx dependencies introduced into the local runtime).",
+        "license_risk": "MIT (permissive) — no copyleft, no source-available, no SSPL/AGPL flag",
+        "malicious_update_review": "N/A for a remote HTTP MCP URL — there is no auto-update surface; the URL is the contract. Server-side Composio Connect updates do not auto-mutate the local runtime.",
+        "dependency_blast_radius": "ADDITIVE — adds 1 HTTP MCP key; introduces NO new npm/uvx packages; does NOT mutate the existing 16 MCPs."
+      },
+      "CR-2_hooks_contract": "N/A — this is a server entry, not a hook",
+      "CR-9_version_pin": "N/A for HTTP MCP — there is no client-side version pin for a remote HTTP URL; the server-side is versioned by Composio. The endpoint URL itself is the pin.",
+      "CR-6_verify_before_claim": "Each claim in this proposal cites a probe — see convergence_sources above."
+    }
+  },
+  "operator_action_required": {
+    "claude_local_md_addition_block_section_f2": [
+      "# (f4) W373 — Composio Connect MCP env var (added by W373 X3 wire-proposal).",
+      "# Per W317-S7 perplexity precedent + W286 P0C CR-2 contract: env-interp ${COMPOSIO_API_KEY} in tracked .mcp.json,",
+      "# real value lives ONLY here (gitignored). Get key from dashboard.composio.dev > AI Clients > select Claude Code > copy API key.",
+      "$env:COMPOSIO_API_KEY = '<paste-composio-api-key-from-dashboard>'"
+    ],
+    "pre_apply_verification": [
+      "1. Operator-sign OP-SIGN.md row (e.g., OP-13).",
+      "2. Confirm COMPOSIO_API_KEY value obtained from dashboard.composio.dev/ai-clients.",
+      "3. Confirm operator has an active Composio account + at least one OAuth app authorized (Gmail, Notion, Slack, etc.)."
+    ],
+    "verification_after_apply": [
+      "Restart claude (new session, since .mcp.json + env-vars are spawn-time).",
+      "Run: claude mcp list",
+      "Expect: a `composio` row with type=http and status=connected (or similar OK indicator).",
+      "Run: /mcp",
+      "Expect: composio listed and enabled.",
+      "Probe one of the 7 meta-tools (e.g., COMPOSIO_CHECK_ACTIVE_CONNECTIONS): if returned 401 the API key is wrong; if returned 200 the wire is live."
+    ],
+    "smoke_test_curl": [
+      "# Smoke-test the endpoint directly (outside CC) to confirm connectivity + auth before wire:",
+      "curl -X POST https://connect.composio.dev/mcp \\",
+      "  -H 'Content-Type: application/json' \\",
+      "  -H \"x-consumer-api-key: $COMPOSIO_API_KEY\" \\",
+      "  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}'",
+      "# Expect: 200 OK with MCP serverInfo response. 401 = bad key. 404/connection-refused = endpoint regression (escalate)."
+    ]
+  },
+  "rollback": {
+    "steps": [
+      "1. Delete the `composio` key from `.mcp.json:mcpServers`.",
+      "2. Delete the `$env:COMPOSIO_API_KEY` line from CLAUDE.local.md.",
+      "3. Restart claude — new session will lack the composio MCP entry."
+    ],
+    "reversibility_class": "HIGH (additive-only; no shared-state mutations)",
+    "expected_time": "<60 seconds"
+  },
+  "license": {
+    "spdx_id": "MIT",
+    "source": "gh_api_repos_ComposioHQ_composio.license.spdx_id (probed 2026-05-22)",
+    "compatible_with_cardinal_rule_1": true,
+    "note": "Composio core is MIT. SaaS backend at Composio is hosted (no license issue for the local runtime — the local runtime is a thin HTTP client). Operator should review Composio's ToS for SaaS-side data-handling concerns (MEDIUM risk per LANDSCAPE.md INSTALL-tier caveat)."
+  },
+  "cve_signal": {
+    "status": "no-known-cve-flagged",
+    "sources_probed": [
+      "github.com/ComposioHQ/composio gh_api meta (no archived/disabled flags as of 2026-05-22T10:55Z)",
+      "docs.composio.dev/changelog (recent entries non-security: 2026-04-23 Claude Managed Agent support, 2026-04-26 troubleshooting docs, 2026-01-08 MCP API key enforcement)"
+    ],
+    "operator_recommended_probe": "socket.dev (not auto-probed; remote HTTP MCP has narrow attack surface — primary risk is server-side data-handling not local npm-supply-chain). Optional but recommended: review changelog at https://docs.composio.dev/changelog/ before apply."
+  },
+  "blast_radius_estimate": {
+    "category": "additive",
+    "details": "Adds 1 new HTTP MCP entry (composio) — zero impact on the existing 16 MCPs (deepwiki, github, chrome-devtools, repomix, serena, ccusage, cognee, langfuse, basic-memory, hf-mcp-server, perplexity, playwright, exa, firecrawl, codegraph, docling). No npm/uvx packages spawned. No NSSM services modified. No local filesystem state introduced (Composio holds session state server-side).",
+    "estimated_token_cost_per_session": "MEDIUM — Composio Connect exposes 7 meta-tools + each tool may invoke 1000+ downstream apps. Each meta-tool description ~200-500 tokens. Total preload contribution: ~2-5k tokens (similar to firecrawl + exa combined). If unused, the meta-tools sit cold in the tool surface (no auto-call)."
+  },
+  "operator_signoff_block": {
+    "op_sign_row_target": "OP-13 (or next available — W373 X3 to coordinate with OP-SIGN.md current state)",
+    "approve_action": "Apply the proposed_patch.value to .mcp.json mcpServers.composio + add the env-block to CLAUDE.local.md per operator_action_required. Mark OP-SIGN row APPROVED with commit SHA + smoke-test 200-OK evidence.",
+    "decline_action": "Add `status: DECLINED-BY-OPERATOR-<YYYY-MM-DD>` to this JSON + leave file in `.claude/state/W373-mcp-patches-proposed/` as the audit-trail record.",
+    "defer_action": "Add `status: DEFERRED-TO-W<N+1>-OPERATOR-<YYYY-MM-DD>` with re-evaluation criteria (e.g., 'defer until Composio published a SLSA-L3 attestation' or 'defer until operator has a Composio account')."
+  },
+  "verify_before_claim_attestation": {
+    "claim_1_canonical_url_is_connect_composio_dev_mcp": {
+      "evidence": "deepwiki HIGH-conf + exa-search 5 direct URL hits + firecrawl 1 hit + LANDSCAPE-W373.md §B note (also docs.composio.dev/docs/composio-connect quoted verbatim)",
+      "status": "VERIFIED"
+    },
+    "claim_2_header_name_is_x_consumer_api_key": {
+      "evidence": "deepwiki direct quote + 5 exa-search results all use `x-consumer-api-key` lowercase hyphenated form",
+      "status": "VERIFIED"
+    },
+    "claim_3_repo_license_is_MIT": {
+      "evidence": "gh_api_repos_ComposioHQ_composio.license.spdx_id == 'MIT' probed 2026-05-22",
+      "status": "VERIFIED"
+    },
+    "claim_4_repo_stars_28391": {
+      "evidence": "gh_api_repos_ComposioHQ_composio.stargazers_count == 28391 probed 2026-05-22",
+      "status": "VERIFIED"
+    },
+    "claim_5_repo_active_2026": {
+      "evidence": "gh_api .pushed_at == 2026-05-21T10:55:25Z (last commit yesterday); .archived == false; .disabled == false",
+      "status": "VERIFIED"
+    },
+    "claim_6_alternative_legacy_url_uses_different_header": {
+      "evidence": "exa-search result #4 (Single Toolkit MCP docs.composio.dev/mcp/claude) quotes `mcp.composio.dev/composio/server/<id>/mcp` with `x-api-key` (NOT x-consumer-api-key); deepwiki explicitly notes 'serves a different purpose'",
+      "status": "VERIFIED"
+    },
+    "claim_7_no_known_cve_flagged": {
+      "evidence": "gh_api archived/disabled both false; recent docs changelog entries (#3258, #3280, 01-08-26-mcp-api-key-enforcement) are feature/policy not CVE",
+      "status": "VERIFIED-AT-COVERAGE-LIMIT (no exhaustive CVE database probe performed; socket.dev/snyk auto-probe NOT executed per scope constraint)"
+    }
+  },
+  "notes_for_operator": [
+    "Composio is a SaaS backend — by wiring this MCP, the runtime sends every meta-tool call to connect.composio.dev. Operator should be comfortable with: (1) Composio's ToS for data-handling; (2) the COMPOSIO_API_KEY granting access to all OAuth apps the operator has authorized; (3) ToS-lock risk if Composio changes pricing or API.",
+    "Alternative install-shape (NOT proposed here): /plugin marketplace add ComposioHQ/composio-plugin-cc + /plugin install composio-mcp@composio. This bundles auto-OAuth + skills. Trade-off: pulls in skills/agents into the local runtime (slower spawn + larger preload); the direct .mcp.json HTTP wire is leaner. Operator may prefer the plugin form for full OAuth UX.",
+    "LANDSCAPE.md §8.6 quotes a LEGACY URL (mcp.composio.dev/composio/server/{id}/mcp with Authorization Bearer or x-api-key). This is for SINGLE-TOOLKIT MCP servers (custom-configured at dashboard.composio.dev, scoped to specific apps). The proposed connect.composio.dev/mcp form is the UNIFIED Connect gateway covering 1000+ apps in one URL. Operator should pick based on use case; the unified form is recommended for general Claude Code use."
+  ]
+}

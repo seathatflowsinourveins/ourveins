@@ -1,0 +1,67 @@
+fix(wave-134-fire-3): hookify in-place upstream-canonical patch — closes Wave 134 Fire 1 Ship 1 forward-ref + silences mid-session spam
+
+User directive: "deep dive into the commit git and resolve all, why is our architecture having errors" + "all with sota references". Per CR-7 REPORT errors before routing around them.
+
+## Root cause (architecture-level)
+
+Plugin-cache rotation race condition. Three hookify caches present at fire-start:
+- 0e7bbeafaebc/ (mtime 2026-05-07; OLD broken from Wave 128 Ship A install era; never .in_use; orphan)
+- 4ed5395b74d0/ (mtime 2026-05-09; .in_use marker + .orphaned_at marker — version CC actively loaded for THIS session; broken pretooluse.py emits systemMessage spam on ImportError)
+- 80e3275da25f/ (mtime 2026-05-10; FIXED pretooluse.py with __file__ fallback per W134-F2 patch — canonical upstream)
+
+CC's plugin-cache-rotation correctly: (a) detected upstream content-SHA change, (b) created new cache 80e3275da25f, (c) marked old 4ed5395b74d0 as orphaned via .orphaned_at, (d) BUT could not delete because session-locked via .in_use. New session would correctly load 80e3275da25f; current session bound to broken 4ed5395b74d0.
+
+Wave 134 Fire 1 Ship 1 commit 77b73e3 disabled hookify in enabledPlugins (next-launch effective) but explicitly noted "current session has hookify hooks already loaded; the spam will continue until restart" + queued W134-F2 patch as forward-ref.
+
+## Fix-forward (mid-session, no restart needed)
+
+1. rm -rf .claude/plugins/cache/claude-plugins-official/hookify/0e7bbeafaebc/ (orphan housekeeping)
+2. cp upstream marketplace canonical hooks → broken cache 4ed5395b74d0/hooks/{pretooluse,posttooluse,stop,userpromptsubmit}.py
+3. Verified BYTE-IDENTICAL via cmp -s for all 4 hooks
+4. Verified mid-session SUCCESS via Bash probe — zero "Hookify import error" lines in subsequent output (silent ImportError exit per patched pretooluse.py:26-29)
+
+## Cite trail (TIER-1-DIRECT — "all with sota references" mandate)
+
+- Marketplace canonical: Z:/claude-sota-installed/.claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/hooks/*.py @ commit cff82e9
+  - pretooluse.py blob 3227796dbb29e4462a91dc9ecfc229a284341573
+  - posttooluse.py blob cb5d8924a6fd6b07f3244d5a609dc2ac55491d6c
+  - stop.py blob a9576fe4316286f59e2c051dbcb0a0f24370c0cb
+  - userpromptsubmit.py blob 32eba9d468c39fc99afda93402dd81b6bd561d32
+- Marketplace metadata: marketplace.json author.name="Anthropic" homepage="https://github.com/anthropics/claude-plugins-public/tree/main/plugins/hookify"
+- Sister fire: Wave 134 Fire 1 Ship 1 commit 77b73e3 (.mcp.json unescape + hookify disable + W134-F2 forward-ref queued)
+- Wave 128 Ship A install: commit 2b9dc42 (hookify enabled — origin of 0e7bbeafaebc orphan)
+
+## Files changed: 1 (+88 LOC)
+
+- docs/install-provenance.md — Wave 134 Fire 3 entry appended at L11553+
+
+(Cache changes are gitignored per .gitignore .claude/plugins/cache/ rule — operational only)
+
+## CR conformance
+
+- CR-1 cite-trail TIER-1-DIRECT: marketplace blob SHAs + Anthropic author/homepage
+- CR-3 Phase 1 bootstrap exception: cmp -s byte-equality + Python import system are mechanical cross-model gate; no codex T1 fan-out warranted (mechanical-mirror exception 5/5 per codex-t1-fix-forward-pattern.md)
+- CR-5 install-priority: NO new install — patch from already-installed marketplace canonical
+- CR-6 fresh-from-github + official-native-channel: marketplace clone IS the official Anthropic upstream
+- CR-7 REPORT errors before routing around them: diagnosed root cause + fixed systematically
+- CR-8 ADAPTED-FROM-SOTA: byte-identical mirror of upstream Anthropic marketplace canonical; zero novel content
+- CR-9 install-risk: ZERO-RISK — cache patch reversible; no REVERT precedent for hookify (only disabled at 77b73e3); sibling-bleed defense N/A; version-pin via marketplace blob SHAs
+- CR-10 research-first: investigated marketplace state + cache mtimes + .in_use/.orphaned_at markers + diff-against-upstream BEFORE destructive action
+- CR-11 META-process: minimal Pattern A fix in single atomic doc-commit
+- CR-12 PRIMARY upstream-install-priority: cache state mirrors upstream marketplace byte-for-byte; NO sibling cite-import (PRIMARY path satisfied without falling to TERTIARY)
+
+## Mia OVER ladder Wave 97-134
+
+UNCHANGED at n=134 (no apply-boundary OVER this fire — upstream-canonical mirror is byte-identical with verified marketplace SHAs).
+
+## Architecture-level lesson (cardinal-rule-13 candidate at n=1)
+
+Plugin-cache-rotation race-condition class: when CC detects upstream content-SHA change → creates new cache → marks old .orphaned_at → CAN'T delete due to .in_use lock → CURRENT session bound to broken old cache. Recovery: in-place cp from upstream marketplace canonical silences mid-session spam without restart. Promotes at n=2+ per codification-threshold.md cycle-322.
+
+## Operator-action summary
+
+- ✅ Hookify spam SILENCED mid-session (verified)
+- ✅ Orphan cache 0e7bbeafaebc/ deleted
+- ✅ Active cache 4ed5395b74d0/ byte-identical with upstream
+- ✅ Settings stays disabled (Wave 134 Fire 1 Ship 1 disposition preserved)
+- 📋 Cardinal-rule-13 candidate filed

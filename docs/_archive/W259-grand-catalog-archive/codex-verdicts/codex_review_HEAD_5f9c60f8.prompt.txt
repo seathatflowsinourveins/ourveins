@@ -1,0 +1,155 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 5f9c60f84114572f061b61c56df3bfef681e850d
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/rules/fm17-subagent-fleet-depletion.md | 38 ++++++++++++++++++++------
+ 1 file changed, 30 insertions(+), 8 deletions(-)
+
+=== git show --format=fuller ===
+commit 5f9c60f84114572f061b61c56df3bfef681e850d
+Author:     42 <42@local>
+AuthorDate: Sat May 9 18:22:25 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sat May 9 18:22:25 2026 -0400
+
+    feat(fm17): promote FM-17.f extended-context subagent pre-fire to OWNED sub-class (n=3 same-arc 2026-05-09 satisfied) + T3 silent-failure root-cause findings
+    
+    Wave 130 Fire 2 Ship G — FM-17.f promotion + T3 silent-failure investigation closure (P0 per Wave 130 Fire 1 compact directive).
+    
+    ==== ROOT CAUSE: T3 silent-failure investigation (Phase 1-4 systematic-debugging) ====
+    
+    **Symptom**: T3 codex_postcommit_review.py hook silent for 3 consecutive commits (6eb1a52 W128 Ship A-FIX + c230edd Ship F + 2db9122 session checkpoint) across an 80-min window 2026-05-09T20:47:50Z → 22:05:06Z.
+    
+    **Hypothesis discrimination** (probed via 4 batch evidence-gathering rounds):
+    - ❌ H1 (PostToolUse[0] removed codex_postcommit_review.py): REFUTED — settings.json verified at 5 hooks under PostToolUse[0] block, 2 of which (hook[0] + hook[1]) are codex_postcommit_review.py with `Bash(git commit *)` + `Bash(git -C * commit *)` matchers
+    - ❌ H2 (matcher rejects current cmd shape): REFUTED — `_is_commit_cmd` test returned True for ALL candidate shapes including `git -C /z/... commit --only ...`, chained forms, and pipes. CC-framework `if` matcher uses lenient substring semantics (verified by 22:05/22:06 entries that matched my Python heredocs containing "commit" string)
+    - ❌ H3 (codex preflight gate failing): REFUTED — _codex_preflight.py imports cleanly + exports probe_codex
+    - ❌ H4 (hook crashes before main_entered write): REFUTED — codex_postcommit_review.py module imports cleanly; main(), _resolve_target_root, _is_commit_cmd all exist
+    - ❌ H5 (write target path drifted): REFUTED — only 2 codex_postcommit_reviews.jsonl exist (Z:/claude-sota-installed at 282K + Z:/claude-sota at 679K); installed-state location empty
+    - ❌ H6 (settings.json edited mid-window): REFUTED — settings.json mtime May 9 16:36 LOCAL = 20:36 UTC (BEFORE the gap; rules out post-gap config change)
+    - ❌ H7 (hook process stuck): REFUTED — no codex.exe stuck processes in `ps -W`; no lockfiles found
+    
+    **ROOT CAUSE IDENTIFIED via correlation**: hook DID resume firing at 22:05:06Z (in this fire) — JSONL entries for my Python probes confirm dispatch mechanism is functional. The 80-min gap correlates EXACTLY with /compact at 21:47 UTC + session-state-recovery window per prior session summary "Compaction occurred at 17:47" (= 21:47 UTC). CC framework appears to suspend PostToolUse Bash hook dispatch during /compact + session restoration. After fresh session restart (this fire start), hook dispatch resumed.
+    
+    **Disposition**: HONEST-NON-FINDING for the deeper CC-framework root cause (without CC framework internals access, can't pinpoint why dispatch suspends across /compact). PRACTICAL REMEDY codified: rely on cross-model gate via codex foreground+tee per CR-3 Phase 1 bootstrap exception when post-/compact T3 dispatch is suspect; smoke-probe T3 firing at session start by observing first git-commit JSONL entry. CR-3 Phase 1 bootstrap exception covers ALL 3 silent commits (6eb1a52 + c230edd + 2db9122) — Wave 129 Path P codex foreground+tee + Mia pre-apply discipline provided cross-model verification. T3 hook resurrection in this fire validates the framework-side recovery is automatic at session restart.
+    
+    ==== FM-17.f PROMOTION (n=3 cumulative same-arc 2026-05-09 SATISFIED) ====
+    
+    Per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 jurisdiction n≥3 self-observed promotion bar SATISFIED. Evidence ladder:
+    
+    1. **Wave 119 prior arc** — origin event documented at `Z:/claude-sota-installed/docs/fm17f-deep-dive-2026-05-09.md §0` — pre-fire 648ms / 0 tool_uses / 0 tokens with literal "API Error: Extra usage is required for 1M context"
+    2. **Wave 129 Agent C** — codex-rescue BRIDGE-MODE fan-out attempt — pre-fire 277ms / 0 tokens — identical billing-class entitlement failure
+    3. **Wave 130 Agent A** — codex-rescue BRIDGE-MODE fan-out attempt — pre-fire 839ms / 0 tokens — identical billing-class entitlement failure
+    
+    All 3 instances same-arc 2026-05-09, all 3 BRIDGE-MODE codex-rescue dispatches from `[1m]`-flagged eee parent session. Converging mechanism evidence per Wave 119 deep-dive: parent session's `[1m]` context flag carries into subagent session-creation request INDEPENDENTLY of subagent frontmatter `model:` resolution per TIER-1-DIRECT `https://code.claude.com/docs/en/sub-agents §"Choose a model"` 4-step model-resolution order. With subagent frontmatter `model: sonnet`, the resolved subagent request becomes effective `sonnet[1m]` because parent's `[1m]` flag propagates to child session-creation. On plans where Sonnet 1M requires `/extra-usage` per TIER-1-DIRECT `https://code.claude.com/docs/en/model-config §"Extended context"`, the request fails at billing-class entitlement check BEFORE any tool call or token consumption.
+    
+    ==== Pattern A pre-apply fix-forward (Mia OVER #88 catch) ====
+    
+    Pre-commit Mia probe caught LOC OVER claim: drafting estimate "~195 LOC at edge of ceiling" was wrong by ~35 LOC. Actual file is **230 LOC EXCEEDING the 200 ceiling** per `Z:/claude-sota/.claude/rules/kiss-dry-yagni.md`. Surgical Pattern A pre-apply fix updated §Promotion threshold to honest "230 LOC EXCEEDS the 200 ceiling" + "split into multi-file taxonomy QUEUED for next ship per cycle-300 ONE-LU-PER-FIRE".
+    
+    Mia ladder advance: n=85 → n=88 (3 catches in Wave 130):
+    - #85 (Fire 1 pre-apply, REAL): cite-path off-by-prefix in 2 NOVEL rule headers — fixed pre-commit
+    - #86 (Fire 1 pre-apply, RESOLVED-self): false-OVER on verbatim-quote fabrication suspicion — grep verification confirmed quotes EXIST
+    - #87 (Fire 1 post-Wave-130-Agent-C): GitNexus-MCP recursive OVER-of-OVER — Wave 129 Mia OVER #82 itself was OVER (GitNexus IS MCP-native + INSTALLED Wave 112 Ship 2AA per MarkTechPost cite)
+    - #88 (Fire 2 pre-apply, REAL): LOC ceiling estimate wrong by ~35 LOC — fixed pre-commit
+    
+    ==== Atomic commit scope (5+1 surgical Edits) ====
+    
+    | File | Edit | Surgical change |
+    |---|---|---|
+    | .claude/rules/fm17-subagent-fleet-depletion.md | E1 | Insert §FM-17.f sub-class section between §FM-17.e and §"When this rule applies" (~30 LOC) |
+    | .claude/rules/fm17-subagent-fleet-depletion.md | E2 | Add trigger #8 to §"When this rule applies" list (FM-17.f signature) |
+    | .claude/rules/fm17-subagent-fleet-depletion.md | E3 | Update §Promotion threshold (n=15+ → n=18+ + cite-chain extension + recursive-promotion-fire dogfood n=3 → n=4 prior precedents) |
+    | .claude/rules/fm17-subagent-fleet-depletion.md | E4 | Update §Update triggers (mark FM-17.f SATISFIED + add FM-17.g pending + bump n=16 → n=19 + 1M-disable-default trigger) |
+    | .claude/rules/fm17-subagent-fleet-depletion.md | E5 | Update §Recursive dogfood note (Wave 130 Fire 2 + FM-17.f same-fire dispatch produced own n=3 instance — recursive-codification dogfood) |
+    | .claude/rules/fm17-subagent-fleet-depletion.md | E6 (Mia fix) | LOC OVER claim correction (195 → 230 EXCEEDS 200 ceiling; split queued for next fire) |
+    
+    Total: +30 -8 = +22 net LOC delta (final 230 LOC).
+    
+    ==== DEFERRED scope (queued for separate fires per cycle-300 ONE-LU-PER-FIRE) ====
+    
+    1. **Sibling fm17 update**: `Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md` (sibling has 4 sub-classes a/b/c/d; this runtime now at 6 a/b/c/d/e/f). Sibling-edit per CR-9 sibling-bleed defense is separate fire (edit sibling repo from sibling git context, not eee runtime).
+    2. **Multi-file taxonomy split**: 230 LOC EXCEEDS the 200 ceiling. Next sub-class addition (FM-17.g task #87 candidate) MANDATES split into per-sub-class files (`
+
+[prompt truncated]

@@ -1,0 +1,55 @@
+Wave 156 Ship 1.1 — Pattern A fix-forward apply of Ship 1 T3 a4bb3f14 verdict (NEEDS-ATTENTION 2 findings).
+
+CONTEXT: Wave 156 Ship 1 (commit a4bb3f1) promoted evaluator.md from 3-field to 14-field CCBP frontmatter. Post-commit T3 codex review fired automatically (codex_postcommit_review.py PostToolUse hook). T3 verdict at .claude/state/codex_review_HEAD_a4bb3f14.txt returned NEEDS-ATTENTION with 2 findings:
+
+(1) HIGH conf=0.9: "Reviewer still has mutating shell access under auto permissions". Body: agent grants Bash while setting permissionMode: auto; the read-only Bash guard (.claude/hooks/scripts/agent_plan_readonly_bash_guard.py) applies ONLY when permissionMode: plan; configuration does not enforce stated `git diff only` shell intent. disallowedTools [Write, Edit, MultiEdit, NotebookEdit] does NOT constrain arbitrary shell commands. Recommendation: "Remove `Bash`, or switch to the guarded read-only permission mode / explicit shell allowlist before claiming strict read-only review behavior."
+
+(2) MEDIUM conf=0.75: "Full GitHub MCP grant is not shown to be read-only". Body: `mcpServers: github` grants the whole named MCP server while body comment states "github is read-only"; frontmatter has no per-tool allowlist or read-only wrapper evidence; standard GitHub MCP exposes external write operations (issue/PR/repo/comment mutations). Recommendation: "Use a read-only GitHub MCP alias or restrict to specific read/list/fetch tools; otherwise remove `github` from this reviewer and update the comment."
+
+Per closed-loop-recursive-narrowing.md §Severity gate (mandatory before ACCEPT-WITH-DOC): "ACCEPT-WITH-DOC is a hard deny for any unresolved high or critical codex severity." HIGH conf=0.9 forces Pattern A fix-forward (not ACCEPT-WITH-DOC).
+
+PROPOSED EDITS (Pattern A single atomic apply):
+
+Edit 1: .claude/agents/evaluator.md L7
+  - Before: `permissionMode: auto`
+  - After:  `permissionMode: plan`
+  - Rationale: Closes T3 HIGH conf=0.9. Plan mode activates CC platform native read-only enforcement across Bash + MCP write tools. Aligns with agent body intent (line 48: "Use Bash only for git diff, git log, and ls/cat. You cannot edit, write, or run the application.") which is now enforced not just instructed.
+
+Edit 2: .claude/agents/evaluator.md L18-20 (mcpServers list)
+  - Before:
+      ```
+      mcpServers:
+        - github
+        - repomix
+      ```
+  - After:
+      ```
+      mcpServers:
+        - repomix
+      ```
+  - Rationale: Closes T3 MED conf=0.75. github MCP exposes 12 write-class tools (mcp__plugin_everything-claude-code_github__{create_issue, create_pull_request, add_issue_comment, merge_pull_request, update_issue, create_or_update_file, push_files, create_branch, fork_repository, create_repository, create_pull_request_review, update_pull_request_branch}). Evaluator role is "skeptical second-opinion review of local diffs + screenshots" — local Read/Glob/Grep/Bash(git diff) cover all evaluator scope; no GitHub API needed. Removing github eliminates the entire mutation surface at the MCP boundary. Only repomix MCP remains (analysis-oriented pack+grep).
+
+Edit 3: .claude/agents/evaluator.md HTML comment block (insert after line 26 closure comments)
+  - Add Ship 1.1 closure notes documenting (d) permissionMode flip + (e) github MCP removal per cardinal-rule-7 REPORT mandate.
+
+REVIEW AXES (3, scoped per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE):
+
+AXIS 1 — Pattern A T3-prescription-conformance:
+Does Ship 1.1 atomically apply BOTH T3 prescriptions (permissionMode + MCP scope) in single commit per Pattern A "apply ALL prescribed_edits in SINGLE atomic commit"? Are the proposed edits the minimal correct closure of T3 findings? Should any of the 2 findings be deferred to PATH E Ship 14 batch instead?
+
+AXIS 2 — Plan-mode operational correctness:
+Does permissionMode: plan correctly enforce read-only across Bash AND MCP tools for an evaluator subagent? Per Anthropic CC sub-agents docs (https://code.claude.com/docs/en/sub-agents) — is plan-mode behavior compatible with the evaluator's documented workflow (git diff, git log, ls, cat, Read screenshots/logs, output PASS/NEEDS_WORK)? Does the agent_plan_readonly_bash_guard.py guard properly allow these read-only Bash invocations? Are there latent failure modes when plan-mode + isolation: worktree interact?
+
+AXIS 3 — MCP-scope adequacy:
+Is `mcpServers: [repomix]` post-removal sufficient for the evaluator's analysis needs? Are there edge cases where the evaluator would need cross-repo lookup (github MCP) that the removal forecloses? Should github be replaced with a per-tool allowlist (e.g., `mcpServers: github { tools: [search_code, get_file_contents] }`) per CCBP claude-subagents.md spec? Or is the removal correct given evaluator's local-repo scope?
+
+VERDICT SCHEMA (JSON-strict at EOF):
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": <float 0.0-1.0>,
+  "axis_1_pattern_a_conformance": "<short assessment>",
+  "axis_2_plan_mode_correctness": "<short assessment>",
+  "axis_3_mcp_scope_adequacy": "<short assessment>",
+  "prescribed_edits": [<list of specific edits if NEEDS-REVISION>],
+  "ship_disposition": "PROCEED_TO_COMMIT" | "PATTERN_A_APPLY" | "REVERT_AND_REMOVE"
+}

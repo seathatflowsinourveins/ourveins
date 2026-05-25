@@ -1,0 +1,86 @@
+You are GPT-5.5 reviewing the SYNTHESIS VERDICT of Wave 84 3-agent design wave. Pre-Pattern-A-apply gate per cardinal-rule-3 + standing directive.
+
+CONTEXT
+- Wave 83 deferred 3 ship candidates (1F Batch API / 1G SubagentStop hook / 1H circuit-breaker)
+- Wave 84 dispatched 3-agent design wave (CADP rule 2 max 3 concurrent; ≥2 BRIDGE-MODE GPT-5.5)
+- All 3 agents returned. Mia pre-apply probes verified all load-bearing claims.
+
+3-AGENT NET VERDICTS
+
+Agent A (sota-researcher Opus 4.7, 5 tools 192s):
+- artifact: tmp/wave84-ship1f-batch-api-design-agentA-2026-05-08.md
+- VERDICT: REJECT Ship 1F (NOT-VIABLE-AS-PROPOSED)
+- Triple Probe failure: P3 architectural-API (Batch API ANTHROPIC_API_KEY vs eee OAuth) + P5 mode-harness-shape (Batch async 1-24h vs eee sync) + P7.a demand-absence (ALL 7 dispatch classes need sync return)
+- Cost-benefit ceiling ~$8/mo on <2% usage; ROI marginal-to-negative
+- TIER-1 cites verified: code.claude.com/docs/en/authentication §Authentication precedence axis 6 verbatim "scoped to inference only" + platform.claude.com batch-processing requires x-api-key
+- No STAND-IN-NOTICE issue; cross-model gate STILL needs codex T1 per cardinal-rule-3
+
+Agent B (codex-rescue BRIDGE-MODE real GPT-5.5, 3 tools 202s):
+- artifact: tmp/wave84-ship1g-subagent-stop-hook-design-agentB-2026-05-08.md
+- VERDICT: PRESCRIPTION: SHIP-NOW
+- 80-LOC Python hook .claude/hooks/scripts/subagent_stop_telemetry.py (telemetry-only, async, append-only, redacts secrets)
+- settings.json:218 SubagentStop entry: matcher=*, async=true, timeout=5
+- Output: .claude/state/subagent_metrics.jsonl (rotate at 10 MiB, keep 5 generations)
+- Separate lane from cpa-usage-keeper (zero corruption risk; deferred unifier)
+- Mia 4/4 PASS: SubagentStop=[] empty in settings.json; types.py:309-316 SDK schema verified; both observer scripts absent (clean slate); Anthropic hooks docs accessible
+
+Agent C (codex-rescue BRIDGE-MODE real GPT-5.5, 2 tools 206s; codex CLI 0.129.0 confirmed available):
+- artifact: tmp/wave84-ship1h-circuit-breaker-design-agentC-2026-05-08.md
+- VERDICT: DESIGN-FREEZE-NOT-IMPLEMENT
+- State machine cite chain at LiteLLM RedisCircuitBreaker:97-155 (CLOSED/OPEN/HALF-OPEN transitions verified)
+- Trigger source matrix: cpa-usage-keeper SQLite (8/8) primary; CLIProxyAPI Mgmt API (9/7) liveness; ccusage daily (3/9) backstop
+- Implementation surface PowerShell wrapper in tools/eee.ps1 (best activation surface IF needed)
+- Activation gate: Tier-A rolling-cap >2×/day OR cache-read <70% sustained — NEITHER currently true (94.4% cache-read, 0 unavailable)
+- Conclusion: keep design ready, do NOT wire while healthy
+
+PROPOSED SYNTHESIS
+
+Ship 1F (Anthropic Batch API): REJECT-FOR-FIT
+- Forward-ref re-evaluation conditions: (a) eee gains >100M tokens/mo offline-audit primitive OR (b) Anthropic ships OAuth-subscription-compatible batch OR (c) operator adopts paid API axis
+- Document rejection in docs/install-provenance.md Wave 84 entry
+- Retire from active queue (forward-only)
+
+Ship 1G (SubagentStop transcript-mining hook): SHIP-NOW
+- Pattern A apply atomic commit:
+  - .claude/hooks/scripts/subagent_stop_telemetry.py (NEW 80-LOC Python file)
+  - .claude/settings.json:218 SubagentStop[0] entry
+  - docs/install-provenance.md Wave 84 Ship 1G entry
+- Telemetry-only async append-only JSONL with redaction + rotation
+- Separate lane from cpa-usage-keeper
+
+Ship 1H (fleet circuit-breaker): DESIGN-FREEZE
+- Persist design at tmp/wave84-ship1h-circuit-breaker-design-agentC-2026-05-08.md
+- DO NOT wire to eee.ps1 currently (94.4% cache-read + 0 unavailable = healthy state)
+- Activation triggers documented for future: tier-A rolling-cap >2×/day OR cache-read <70% sustained
+- Re-evaluate when cpa-usage-keeper telemetry surfaces pathological signal
+
+Net commit scope: Ship 1G atomic apply (3 files: new hook .py + settings.json edit + provenance entry).
+
+REVIEW AXES
+
+AXIS 1 — Synthesis correctness
+- Are 3 verdicts internally consistent? (REJECT/SHIP-NOW/DESIGN-FREEZE — orthogonal axes, no conflict)
+- Mia probe coverage 12/12 (5 from A + 4 from B + 3 from C)?
+- Forward-ref re-evaluation conditions honestly stated?
+
+AXIS 2 — Ship 1G specifics (commit-bound)
+- 80-LOC Python skeleton appropriate scope? (telemetry-only, async, append-only)
+- async: true correct per Anthropic hooks docs? (telemetry NOT enforcement — async is right)
+- Redaction patterns sufficient? (API keys/tokens, emails, Windows user paths, SSH key markers, credential-like ≥32 chars)
+- Privacy/retention thresholds reasonable? (1 MiB full-mine, 256 KiB tail, 10 MiB rotate, 5 generations)
+- Output path .claude/state/subagent_metrics.jsonl appropriate (gitignored via tmp/.claude/state pattern? OR needs explicit gitignore add?)
+
+AXIS 3 — Cardinal-rule alignment
+- Cardinal-rule-3 cross-model gate: 2/3 BRIDGE-MODE GPT-5.5 + this synthesis = closed at synthesis layer
+- Cardinal-rule-9 install-risk: Ship 1G adds 80 LOC Python + ~10 LOC settings.json edit; rollback documented (revert + remove file)
+- Cardinal-rule-11 META-process SOTA: Pattern A apply + Mia pre-apply + provenance log
+
+OUTPUT
+Return JSON only:
+{
+  "verdict": "APPROVE" | "NEEDS-REVISION" | "REJECT",
+  "confidence": 0.0-1.0,
+  "findings": [{"id":"F-N","severity":"P0|P1|P2|P3","axis":1-3,"concern":"...","prescribed_edit":"..."}],
+  "ship_disposition": "PROCEED-WITH-SHIP-1G-ONLY" | "FIX-FORWARD-AND-PROCEED" | "BLOCK",
+  "rationale": "..."
+}

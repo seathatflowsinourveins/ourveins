@@ -1,0 +1,215 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 18fdbf0f2d3261a52dd304510884c3f642a8b4cc
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 37 +++++++++++++++++++++++++++++++++----
+ 1 file changed, 33 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit 18fdbf0f2d3261a52dd304510884c3f642a8b4cc
+Author:     42 <42@local>
+AuthorDate: Thu May 7 01:33:14 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 7 01:33:14 2026 -0400
+
+    fix(hooks): wave 50 fire 45 — relocate openai-codex hook registrations to settings.json (Z:\z\ path-mangling actual root cause; eee runtime)
+    
+    Same 3-source convergence as sss companion commit:
+    
+    1. Agent B (gpt5-reviewer Sonnet stand-in BRIDGE-MODE-funneled) REQUEST_CHANGES
+       conf=0.91 — CC plugin loader bypasses hooks.json 'command' field on Windows.
+    2. Commit 0569249 (sss runtime, Apr 27 2026, codex T1 conf=0.88 high) — identical
+       bug class fixed for first-party hooks via literal-path replacement at
+       settings.json layer.
+    3. reference_hook_posix_path_drift.md memory documents the same fix pattern.
+    
+    Apply (atomic per FM-02 sub-class b + git-cli-grammar-discipline.md):
+    
+    Step 2 only for this commit (Step 1 plugin-hook neutralization is runtime-only
+    gitignored state, applied via tmp/fire45-settings-patch.py across both runtimes
+    out-of-band). This commit registers Stop + SessionStart + SessionEnd in eee
+    .claude/settings.json with literal Win32 paths:
+    
+      Stop: "Z:\tools\nodejs\node.exe" "Z:\claude-sota-installed\.claude\plugins\marketplaces\openai-codex\plugins\codex\scripts\stop-review-gate-hook.mjs" (timeout 900)
+      SessionStart: "Z:\tools\nodejs\node.exe" "Z:\claude-sota-installed\.claude\plugins\marketplaces\openai-codex\plugins\codex\scripts\session-lifecycle-hook.mjs" SessionStart (timeout 5)
+      SessionEnd: same script, SessionEnd arg (timeout 5)
+    
+    eee had 0 SessionStart + 0 SessionEnd matcher blocks pre-fire45 (claude-sota
+    had 1 each). Created blocks via setdefault.
+    
+    Verification (Mia post-apply per mia-pre-apply.md):
+    - Read eee settings.json: 3 new entries with literal Win32 paths verified
+    - Hook script files exist on disk (test -f)
+    - node.exe at Z:\tools\nodejs\node.exe verified
+    - JSON parses cleanly
+    
+    bog92qxq7 codex T1 BRIDGE-MODE foreground+tee in-flight at apply-time;
+    cross-model gate verification queued. STAND-IN-NOTICE per cross-model-
+    consensus.md §Env-funneled mandate: Agent B was Sonnet stand-in (cross-
+    model gate NOT structurally satisfied for this dispatch); commit 0569249
+    + memory cite are independent corroboration.
+    
+    Risk class: medium → low after fix. Reversible via git revert + .pre-fire45-fix backup.
+    
+    LOC: +33/-4 settings.json delta.
+    
+    [VERIFIED via tmp/fire45-settings-patch.py output + post-write Read probe]
+    [VERIFIED 2026-05-07 by orchestrator against operator empirical retest evidence]
+
+=== diff ===
+diff --git a/.claude/settings.json b/.claude/settings.json
+index a1d8082..6455a6b 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -1,7 +1,7 @@
+ {
+   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+   "env": {
+-    "_comment": "CLAUDE_SOTA_INSTALLED_RUNTIME DROPPED Wave 50 Agent B P2 — was setter-no-reader hidden self-invention. Re-introduce only when a hook/script consumer lands.",
++    "_comment": "CLAUDE_SOTA_INSTALLED_RUNTIME DROPPED Wave 50 Agent B P2 \u2014 was setter-no-reader hidden self-invention. Re-introduce only when a hook/script consumer lands.",
+     "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+     "CLAUDE_CODE_FORK_SUBAGENT": "1"
+   },
+@@ -9,8 +9,8 @@
+     "allow": [],
+     "deny": [],
+     "defaultMode": "default",
+-    "_comment_allow": "EMPTY at bootstrap — populated per-install (each manifest row that needs settings.json allow rule lists them in its 'settings additions' column post-install). Every entry MUST cite an installed-primitive row in docs/sota-installed-manifest.md.",
+-    "_comment_deny": "Empty — Phase 1 'default' mode already gates non-allow ops; explicit deny[] only added when a SOTA primitive is partially installed and a sub-operation must be blocked."
++    "_comment_allow": "EMPTY at bootstrap \u2014 populated per-install (each manifest row that needs settings.json allow rule lists them in its 'settings additions' column post-install). Every entry MUST cite an installed-primitive row in docs/sota-installed-manifest.md.",
++    "_comment_deny": "Empty \u2014 Phase 1 'default' mode already gates non-allow ops; explicit deny[] only added when a SOTA primitive is partially installed and a sub-operation must be blocked."
+   },
+   "disabledMcpjsonServers": [],
+   "hooks": {
+@@ -118,6 +118,11 @@
+             "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/auto_proceed_gate.py",
+             "timeout": 5,
+             "async": false
++          },
++          {
++            "type": "command",
++            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\stop-review-gate-hook.mjs\"",
++            "timeout": 900
+           }
+         ]
+       }
+@@ -134,6 +139,30 @@
+           }
+         ]
+       }
++    ],
++    "SessionStart": [
++      {
++        "matcher": "*",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionStart",
++            "timeout": 5
++          }
++        ]
++      }
++    ],
++    "SessionEnd": [
++      {
++        "matcher": "*",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "\"Z:\\tools\\nodejs\\node.exe\" \"Z:\\claude-sota-installed\\.claude\\plugins\\marketplaces\\openai-codex\\plugins\\codex\\scripts\\session-lifecycle-hook.mjs\" SessionEnd",
++            "timeout": 5
++          }
++        ]
++      }
+     ]
+   },
+   "enabledPlugins": {
+@@ -162,7 +191,7 @@
+     }
+   },
+   "_comment": "claude-sota-installed minimum-baseline settings. Cardinal-rule-5: every non-bootstrap setting MUST cite its install entry in docs/sota-installed-manifest.md. This file is bootstrap scaffolding only.",
+-  "_comment_graduated_unleash": "GATED INITIAL MODE per user refinement 2026-05-06 'unleashed with sota harness, it can be gated at first for only the sota referencing, after it mature it can be more'. Phase 1 (NOW): defaultMode='default' — every non-SOTA-cited operation requires explicit confirm. Phase 2 (post-Tier-0+1+2 install + smoke-probe PASS per CLAUDE.md cardinal-rule-7 testable predicate): expand allow[] list to cover SOTA primitives. Phase 3 (mature, post-arc-convergence): pivot to defaultMode='bypassPermissions'. TIER-1-DIRECT authority for the bypassPermissions destination is Anthropic CC official permission modes documentation https://code.claude.com/docs/en/settings (canonical authority for the default/acceptEdits/plan/bypassPermissions enum per Wave 50 fire 8 Pattern A on Agent I F-6). Empirical-validation supporting evidence (TIER-3-LOCAL — supporting only, NOT TIER-1 SOTA authority): Z:/claude-sota/.claude/projects/Z--claude-sota/memory/feedback_bypasspermissions_real_gpt5_bridge_mode_validated_2026_05_05.md (Wave 47 Agent A REAL GPT-5.5 BRIDGE-MODE empirical validation). Cardinal-rule-7 graduated-unleash codifies the 3-phase progression with testable predicates per CLAUDE.md cardinal-rule-7. Each phase transition requires manifest-row 'maturity gate' verdicts before promotion.",
++  "_comment_graduated_unleash": "GATED INITIAL MODE per user refinement 2026-05-06 'unleashed with sota harness, it can be gated at first for only the sota referencing, after it mature it can be more'. Phase 1 (NOW): defaultMode='default' \u2014 every non-SOTA-cited operation requires explicit confirm. Phase 2 (post-Tier-0+1+2 install + smoke-probe PASS per CLAUDE.md cardinal-rule-7 testable predicate): expand allow[] list to cover SOTA primitives. Phase 3 (mature
+
+[prompt truncated]

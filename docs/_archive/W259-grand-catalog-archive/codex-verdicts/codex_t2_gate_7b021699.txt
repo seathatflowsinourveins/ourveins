@@ -1,0 +1,15 @@
+The working tree includes local secrets/runtime state and a repo-root Git config that would alter user auth behavior if committed. The new execution prompt also contains command-sequence errors that would block its Fire 0 workflow.
+
+Full review comments:
+
+- [P1] Remove the daemon key from the patch — Z:\claude-sota-installed\.claude\daemon\pipe.key:1-1
+  If the current untracked files are committed, this adds a live `.claude/daemon/pipe.key` alongside other generated `.claude` session/cache artifacts, which violates the repo's stated no-secret/no-runtime-state discipline and can leak local operator state. Delete these generated files or add the relevant runtime directories to `.gitignore` before committing.
+
+- [P2] Keep the repo-root Git config local-only — Z:\claude-sota-installed\.gitconfig:1-2
+  Because `eee` sets `HOME`/`USERPROFILE` to the repo root, committing this `.gitconfig` makes the `insteadOf` rule global for every launched session and rewrites all `git@github.com:` remotes to HTTPS. That breaks SSH/private-repo installs for users who rely on SSH auth, so this should stay machine-local or be scoped to the specific install command that needs it.
+
+- [P2] Create archive directories before copying into them — Z:\claude-sota-installed\docs\sota-comprehensive-audit-execution-prompt-2026-05-12.md:72-77
+  In a fresh worktree these `_archive`/`_archives` directories are not created by the prompt before the `cp`/`mv` commands use them, so Fire 0 aborts before any remediation begins. Add explicit `mkdir -p`/PowerShell equivalent steps for the memory, docs, and rules archive directories before these copy/move commands.
+
+- [P2] Point the MEMORY regression test at the edited file — Z:\claude-sota-installed\docs\sota-comprehensive-audit-execution-prompt-2026-05-12.md:75-75
+  When this prompt is run from the repo root, the regression test reads bare `MEMORY.md` even though the preceding steps edit `.claude/projects/Z--claude-sota-installed/memory/MEMORY.md`; it will either fail with a missing file or validate the wrong file. Use the full memory path in both commands so the test verifies the trimmed file.

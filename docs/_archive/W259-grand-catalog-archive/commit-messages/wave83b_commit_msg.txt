@@ -1,0 +1,63 @@
+fix(errors): Wave 83b — codex T2 deprecation + fm17d transcript-mining SDK alignment
+
+Resolves 2 errors per user directive "please resolve all error with sota
+references, official repos's source code".
+
+ERROR 1 — codex T2 parse_failure_empty_output (FM-17.b.i pattern, n=2 same-fire 2026-05-08T07:24:28Z):
+  Root cause: codex-cli v0.129.0 elevated `[features].codex_hooks` from
+  stderr deprecation warning to `item.completed:type=error` JSON stream
+  events. Codex T2 saw 2x error items + exited fast → outfile NEVER written
+  via --output-last-message (2.16s/2.19s latency, empty stderr_tail).
+  TIER-1-DIRECT cite: codex-rs/features/src/tests.rs::codex_hooks_is_legacy_alias_for_hooks
+  at GitHub HEAD cce059467af64f05d0a1521344847d2b558b6a80 confirms `hooks`
+  is canonical key, `codex_hooks` is legacy alias.
+  Fix: Z:/claude-sota-installed-state/.codex/config.toml [features] block
+  renamed `codex_hooks = true` → `hooks = true` (outside-repo file,
+  documented in install-provenance.md not committed).
+  Verification: pre-fix codex T2 ran 2.16s + emitted 2x deprecation errors;
+  post-fix runs 51s+ doing substantive review (no deprecation errors).
+
+ERROR 2 — fm17d_stall_detector schema_missing on stop_reason+tool_uses:
+  Root cause: per TIER-1-DIRECT
+  Z:/repos/deps/claude-agent-sdk-python/src/claude_agent_sdk/types.py:309-316
+  @ HEAD b512f256, SubagentStopHookInput TypedDict provides ONLY
+  {hook_event_name, stop_hook_active, agent_id, agent_transcript_path,
+   agent_type}. stop_reason / tool_uses / last_assistant_message are NEVER
+  top-level fields. fm17d_stall_detector was checking for fields the SDK
+  never emits → schema_missing fired unconditionally.
+  Fix: rewrote main() to call new _mine_transcript(transcript_path) function
+  that reads agent_transcript_path JSONL and extracts assistant-only
+  tool_uses count + stop_reason + last_text per
+  .claude/rules/synthesis-layer-verify.md §SubagentStop transcript-mining
+  SOTA pattern.
+
+Cross-model verification (CR-3 Phase 1 bootstrap exception):
+  T1 retroactive: codex exec --ephemeral -p deep-review-exec foreground+tee
+  T1 verdict: NEEDS-REVISION conf=0.86 [VERIFIED via
+  .claude/state/codex_consult_wave83b_fm17d_transcript_mining_OUT.txt]
+    PASS-001 CITE_TRAIL: TIER-1 SDK schema confirmed
+    PASS-002 HARNESS_FIT: FM-17 classification precedence preserved
+    F-001 EDGE_CASES (medium): track nonblank/parsed/assistant_records;
+                                parse_empty vs parse_failed discrimination
+    F-002 CORRECTNESS (low-medium): only extract from assistant messages
+    F-003 SECURITY (low-medium): path guards (.jsonl + transcript-like)
+                                  + 50MB size cap + OSError+ValueError catch
+  All 5 prescribed_edits applied per codex-t1-fix-forward-pattern.md
+  Pattern A single atomic fix-forward.
+  Cross-model-gate-satisfaction-status: PARTIAL (T1 retroactive post-Edit
+  + T2 commit-time gate as net per cross-model-consensus.md §The contract
+  pre-commit miss recovery path).
+
+Smoke tests: synthetic transcript → parse_status=ok, tool_uses=1,
+stop_reason='end_turn', last_text='final answer'. Path guards reject
+non-jsonl + non-transcript-like paths.
+
+Active mitigation (since 2026-05-08T01:53Z): FM17_STALL_DETECTOR_DISABLE=1
+already in env block; fm17d returns early. This fix is permanent
+SOTA-grounded resolution for if/when env disable is lifted.
+
+Files: .claude/hooks/scripts/fm17d_stall_detector.py (+130/-10),
+       docs/install-provenance.md (+137 LOC Wave 83b provenance block).
+
+Confidence: high. Scope-risk: contained (fm17d currently env-disabled +
+T2 fix verified working).

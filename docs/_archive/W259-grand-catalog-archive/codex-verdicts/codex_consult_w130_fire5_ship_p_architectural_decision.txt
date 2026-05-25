@@ -1,0 +1,145 @@
+CODEX T1 CONSULT — Wave 130 Fire 6 Ship P architectural decision
+Topic: CC `.claude/settings.json` hook `if:` matcher boundary-preservation vs shell-prefix coverage tension
+
+==== USER DIRECTIVE (verbatim from CLAUDE.md cardinal rules + standing /loop arc) ====
+
+User runs autonomous /loop with persistent standing directives:
+- ALWAYS LAUNCH ADVANCED AGENT TEAM (≥3 subagents including REAL GPT-5.5 BRIDGE-MODE)
+- "if you see errors, anything need to be resolved, don't ignore, research with offical docs and repos resolve them systematically, we need all clean, sota with offical docs from sota repos architecture"
+- "make sure gpt5.5 related fully sota set for our architecture, unleash its potential with sota harness"
+- Auto-proceed within authorized SOTA-research-then-install workflow per CR-10
+- Cardinal-rule-3 mandates cross-model-consensus T1-T7 lifecycle (Phase 1 bootstrap exception per CLAUDE.md L100-104)
+
+==== ROUND 1 CONTEXT (Ship H sha 2b3ff4f) ====
+
+Ship H widened 8 hook `if:` matchers from boundary-preserved `Bash(git commit *)` to leading-wildcard `Bash(*git commit *)` to handle the rtk-rewrite case (RTK 0.39.0 prepends `rtk ` via CC `hookSpecificOutput.updatedInput.command` per Wave 130 Fire 3 Phase 1-2 systematic-debugging triple-converged finding).
+
+Codex T3 Round 1 verdict at `.claude/state/codex_review_HEAD_2b3ff4fb.txt:1` [VERIFIED 2026-05-09 via direct Read]:
+- verdict: NEEDS-ATTENTION conf=0.82 medium severity
+- title: "Leading wildcard matchers can fire commit/push gates for non-git commands"
+- finding: text-only Bash inputs containing literal `git commit` substring (e.g., `echo "git commit msg"`, `cat | grep "git commit"`, `awk`, `sed`, `jq`, heredocs, test fixtures) trigger commit/push gates against unrelated state
+- recommendation: "Use a boundary-preserving matcher instead of an arbitrary leading wildcard, such as explicit patterns for the known rewritten forms (`Bash(rtk git commit *)`, `Bash(rtk git -C * commit *)`, `Bash(rtk git push *)`, `Bash(rtk git -C * push *)`) while retaining the original direct-git patterns, or move the normalization into the Python hook so it validates parsed command segments before dispatching."
+- next_steps: "Replace substring matchers with explicit direct-git and RTK-prefixed patterns, then add a smoke case proving text-only Bash input containing `git commit` does not dispatch the hooks."
+
+==== ROUND 2 CONTEXT (Ship O sha 57fbad8 — current HEAD) ====
+
+Ship O Pattern A apply per Round 1 codex prescription: 8 leading-wildcard patterns → 16 explicit boundary-preserved patterns (4 scripts × 4 patterns: `Bash(git commit *)` + `Bash(git -C * commit *)` + `Bash(rtk git commit *)` + `Bash(rtk git -C * commit *)` for commit-class scripts; same shape for push-class). Smoke-test `tests/test_w130_fire5_matcher_boundaries.py` 5/5 PASS (covers 15 positive cases + 8 negative cases proving text-only Bash containing `git commit` does NOT match any prescribed pattern).
+
+Codex T3 Round 2 verdict at `.claude/state/codex_review_HEAD_57fbad8e.txt:1` [VERIFIED 2026-05-09 via direct Read]:
+- verdict: NEEDS-ATTENTION conf=0.74 high severity
+- title: "Hook matchers miss shell-leading environment assignments and option-prefixed wrappers"
+- finding (verbatim): "The new boundary-preserved forms only match inputs that start exactly with `git ...` or `rtk git ...`. From the provided settings diff description, the commit/push gates are now dispatched solely by those explicit `if:` strings. That means real operations such as `GIT_AUTHOR_NAME=x git commit -m msg`, `env GIT_TRACE=1 git push`, or `rtk --some-option git commit ...` would not match even though a commit/push actually occurs. The likely impact is bypass of gitleaks, codex T2/postcommit, or prepush review gates for valid shell invocations that operators commonly use when setting one-off git environment or wrapper options. Preserve the command-boundary invariant in a parser/normalizer hook, or add tested matcher coverage for accepted shell prefixes instead of only exact command-start patterns."
+- recommendation (verbatim): "Move matching into the Python hook using shell-aware parsing of command segments, or explicitly define and test all allowed safe prefixes such as environment assignments and wrapper options before dispatching commit/push gates."
+- next_steps (verbatim): "Add negative tests for text-only mentions and positive tests for real shell-prefixed commit/push commands, then update the matcher strategy so both classes behave correctly."
+
+==== TIER-1 PRIMARY SOURCE CITES ====
+
+# Reference: TIER-1-DIRECT Anthropic CC `if:` matcher syntax `https://code.claude.com/docs/en/hooks` — canonical examples include `Bash(* --version)`, `Bash(* --help *)`, `Bash(* install)`. CC matcher is permission-rule-style string-prefix-and-wildcard, NOT shell-aware tokenizer.
+# Reference: TIER-2 sister `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` Pattern A "When NOT to apply": "if codex T1 returns conf <0.85 OR REJECT, do NOT apply prescriptions blindly. Escalate to user per cross-model-consensus.md HARD GATE." Round 2 conf=0.74 falls below this threshold.
+# Reference: TIER-2 sister `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md` §"Severity gate (mandatory before ACCEPT-WITH-DOC)": "ACCEPT-WITH-DOC is a hard deny for any unresolved `high` or `critical` codex severity. No combination of confidence trend, iteration count, or owner signoff can convert an unresolved high/critical finding into ACCEPT-WITH-DOC."
+# Reference: TIER-1-DIRECT current sss runtime Tier-B `_guard_base.py:369-372 [VERIFIED 2026-05-09 via Read]`:
+```python
+cmd = re.sub(r"\\\r?\n", "", cmd)  # Bash-equivalent line-continuation deletion
+for seg in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()):
+    seg = seg.strip()
+    if seg.startswith("rtk "):
+        seg = seg[4:].lstrip()  # rtk wrapper strip
+    if not seg.startswith("git "):
+        continue
+```
+Tier-B segment parser handles: line-continuation deletion + `&&`/`||`/`;` segment splitting + `rtk ` wrapper strip + `git ` prefix check. It does NOT handle: env-var-assignment prefixes (`GIT_AUTHOR_NAME=x git ...`) OR `env` wrapper prefix (`env GIT_TRACE=1 git ...`).
+# Reference: TIER-2 sister `Z:/claude-sota/.claude/rules/layered-gates-architecture.md §The 5 layers` — Tier-A `if:` matcher is Layer 1 (CC dispatch decision); Tier-B Python hook script is Layer 2 (script-internal segment parsing). Original architecture intent: Tier-A as cheap pre-filter, Tier-B as authoritative semantic gate.
+# Reference: TIER-2 sister `Z:/claude-sota/.claude/rules/kiss-dry-yagni.md` Must-Never #4 — no duplicate functionality. Tier-A `if:` patterns + Tier-B `git_verb_matches` currently both check `git ` prefix; if Tier-B becomes authoritative, Tier-A can be removed.
+
+==== THE ARCHITECTURAL TENSION ====
+
+CC's `if:` matcher is string-prefix-and-wildcard, NOT shell-aware. Both Round 1 and Round 2 are symptoms of this fundamental mismatch:
+- Round 1 (Ship H): permissive Tier-A `Bash(*git commit *)` admits text-only substring matches (false positives)
+- Round 2 (Ship O): restrictive Tier-A `Bash(git commit *)` rejects shell-prefixed commands like env-var assignments + `env` wrapper (false negatives)
+
+Pattern shape #2 examples are common shell idioms in CI/scripts/operator workflows:
+- `GIT_AUTHOR_NAME='Build Bot' git commit -m 'auto'`
+- `GIT_COMMITTER_DATE='...' git commit -am msg`
+- `env GIT_TRACE=1 git push`
+- `GIT_SSH_COMMAND='ssh -i key' git push`
+- `HOME=/tmp git push`
+
+==== THREE ARCHITECTURAL OPTIONS ====
+
+**Option A (Tier-B-only — codex's preferred prescription)**:
+- Drop Tier-A `if:` filter on the 16 affected hook entries (replace with permissive `Bash` matcher OR no `if:`)
+- Strengthen Tier-B `git_verb_matches` in `_guard_base.py` with:
+  - env-var-assignment prefix stripping: `re.sub(r'^([A-Z_][A-Z0-9_]*=\S*\s+)+', '', seg)` BEFORE `git ` check
+  - `env [args] ` wrapper stripping: `re.sub(r'^env(\s+(--[\w-]+(=\S+)?|[A-Z_][A-Z0-9_]*=\S*))*\s+', '', seg)`
+- Add smoke test for both bypass classes (text-only + env-prefix)
+- Cost: ~30-50 LOC in `_guard_base.py` + ~10 LOC test additions
+- Trade: 4 scripts now spawn Python on EVERY Bash command (not just git-shaped ones). Cost ~10-50ms Python startup per non-git Bash. Mitigation: Tier-B early-bails on non-git segments (line 372 `continue`).
+
+**Option B (Combinatorial Tier-A patterns)**:
+- Retain Ship O's 16 patterns
+- Add 16 MORE patterns covering env-prefix shapes: `Bash(*=* git commit *)`, `Bash(env * git commit *)`, `Bash(*=* rtk git commit *)`, etc.
+- BUT this still misses unanticipated wrapper forms (e.g., `nice git push`, `time git commit`, `taskset 0x1 git commit`)
+- Combinatorial explosion — pattern count doubles; still incomplete coverage
+- Cost: ~16 more `if:` entries (32 total) + smoke-test expansion
+
+**Option C (REVERT Ship O + ACCEPT-WITH-DOC at Ship H state)**:
+- `git revert 57fbad8` restores Ship H leading-wildcard `Bash(*git commit *)` form
+- Net trade: medium-severity known-residual (substring false-positive) > high-severity known-residual (env-prefix false-negative)
+- BUT Round 1 was already medium severity AND is the SAME class codex caught
+- Per `closed-loop-recursive-narrowing.md` Outcome A: "concrete verification: a passing probe/test demonstrates the residual risk is actually bounded" — Ship H has no concrete verification of the substring false-positive being bounded
+- Per `closed-loop-recursive-narrowing.md` Outcome A: "severity downgrade in evidence: codex's last-round severity field landed at `low` or `info` after the fix iterations" — Ship H severity stayed at medium (didn't downgrade)
+- Outcome A severity gate FAILS for Option C revert path
+
+**Option D (MANUAL-OVERRIDE keep Ship O state)**:
+- Keep Ship O's 16 patterns as-is
+- Document env-prefix bypass as known-residual operator-accepted high-severity risk
+- Add `MANUAL-OVERRIDE` marker per `closed-loop-recursive-narrowing.md` Outcome C
+- Mitigations: (a) eee runtime doesn't currently use env-prefix git invocations in any sss/eee scripts; (b) Tier-B Python startup cost on non-git Bash would still be paid by Option A
+- Trade: known high-severity gap accepted explicitly; future incident class
+
+==== QUESTIONS FOR CODEX ====
+
+Q1. Which option (A/B/C/D) best satisfies the cross-model-consensus.md cardinal-rule-3 + closed-loop-recursive-narrowing.md severity gate + kiss-dry-yagni Must-Never #4 simultaneously?
+
+Q2. For Option A (Tier-B-only), is the proposed `_guard_base.py` strengthening (env-var-assignment + `env` wrapper stripping) sufficient to close the env-prefix bypass class? Are there other shell wrapper forms that should be handled (`nice`, `time`, `taskset`, `nohup`, `unbuffer`, `script`, `valgrind`)?
+
+Q3. For Option A, what's the correct way to drop Tier-A `if:` filter? Two candidates:
+   (a) Replace `"if": "Bash(git commit *)"` with no `if:` field (matches all Bash) — Tier-B gates everything
+   (b) Replace with a permissive sentinel like `"if": "Bash(*)"` — explicit "match any Bash"
+   Which is canonical per Anthropic CC docs?
+
+Q4. For Option A, the original Tier-A boundary discipline served as a CHEAP PRE-FILTER (avoid Python spawn for `ls`, `cat`, `mkdir`, etc. — non-git Bash commands). Removing it means EVERY Bash invocation spawns Python. Is the early-bail at Tier-B `if not seg.startswith("git "): continue` (line 372) sufficient mitigation for the ~10-50ms Python startup cost?
+
+Q5. Are there any TIER-1 SOTA repos (Anthropic CC docs / sibling claude-sota / OpenAI codex-plugin-cc / superpowers / ECC) that already solve this exact "shell-aware command-boundary matcher" problem? If yes, cite at file:line + HEAD SHA. If no, this is a genuine novel-codification opportunity for a new sss rule.
+
+Q6. Is there a 4th option I'm missing? E.g., a CC matcher syntax I haven't discovered (`Bash(@regex:...)` or similar)?
+
+Q7. The Mia pre-apply ladder is at n=94 (no catches this fire — codex caught it at T3). Is there a Mia probe shape that would have caught the env-prefix bypass BEFORE Ship O landed? The shape would need to test "boundary-preservation = SUBSET of valid shell command-prefixes", which requires shell-grammar knowledge.
+
+==== OUTPUT SCHEMA (JSON-strict per cross-model-consensus.md) ====
+
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "summary": "<1-2 sentence summary>",
+  "recommended_option": "A | B | C | D | NEW (specify)",
+  "findings": [
+    {
+      "axis": "Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7",
+      "severity": "P0 | P1 | P2 | P3",
+      "title": "<short title>",
+      "body": "<detailed analysis>",
+      "confidence": 0.0-1.0,
+      "recommendation": "<concrete next action>"
+    }
+  ],
+  "prescribed_edits": [
+    {
+      "file": "<path>",
+      "line_start": <int>,
+      "line_end": <int>,
+      "change": "<surgical edit description>"
+    }
+  ],
+  "next_steps": ["<step 1>", "<step 2>", ...],
+  "confidence": 0.0-1.0
+}

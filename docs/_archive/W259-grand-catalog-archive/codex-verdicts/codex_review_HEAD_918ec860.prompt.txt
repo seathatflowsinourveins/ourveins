@@ -1,0 +1,158 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 918ec860a8418c28e0b50eb6d26156890d3c05b9
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/wave-160-mega-fire-close-synthesis-2026-05-12.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 918ec860a8418c28e0b50eb6d26156890d3c05b9
+Author:     42 <42@local>
+AuthorDate: Tue May 12 14:11:25 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 14:11:25 2026 -0400
+
+    docs(audit): Pattern A fix-forward T3 3f777a69 — close-synthesis STAND-IN-DRAFT-PENDING-T3 (was AUDIT-TRAIL)
+    
+    T3 PostToolUse verdict on commit 3f777a69: NEEDS-ATTENTION conf=0.86 medium
+    [VERIFIED via .claude/state/codex_review_HEAD_3f777a69.txt]
+    
+    Finding F-001 (conf=0.86, medium): "Asynchronous post-commit review is recorded
+    as gate satisfaction before evidence exists" — close-synthesis L4-5 claimed
+    T3 IS the cross-model verification gate, but T3 verdict lands AFTER commit
+    (PostToolUse semantic). Risk: downstream operators could treat Wave 160 as
+    closed even if later T3 review blocks it.
+    
+    This is the THIRD T3 NEEDS-ATTENTION-conf-0.86 catch this session on the same
+    PATTERN: claims-gate-satisfied-before-evidence-exists:
+    
+    1. Codification fire 2f971597 (mutable main URL) → Pattern A → 7cb64a06 APPROVE
+    2. Fire 1 c0c0d8b7 (AUTHORITATIVE without gate complete) → Pattern A → 6936a14 APPROVE
+    3. Close-synthesis 3f777a69 (gate satisfied before T3 evidence) → THIS Pattern A fix-forward
+    
+    T3 reliably catches premature-gate-satisfaction at conf=0.86 medium each time.
+    Outcome A monotone-decline trajectory in all 3 cases (NEEDS-ATTENTION → APPROVE
+    after Pattern A single-atomic apply).
+    
+    ## Pattern A apply (codex-t1-fix-forward-pattern.md §Pattern A)
+    
+    Conf 0.86 sweet spot; 1 finding ≤ 10. Single atomic commit.
+    
+    Prescribed edits (3 applied):
+    1. `> **Status**: **AUDIT-TRAIL**` → `> **Status**: **STAND-IN-DRAFT-PENDING-T3** ... NOT AUTHORITATIVE until T3 verdict lands at .claude/state/codex_review_HEAD_3f777a69.txt AND any Pattern A fix-forward iterations close` [DONE]
+    2. Cross-model gate paragraph: add explicit "verdict lands ~30-120s AFTER commit (PostToolUse semantic)" + cite Round-1 T3 outcome NEEDS-ATTENTION 0.86 medium F-001 + note Pattern A iter-1 trajectory [DONE]
+    3. Add cite to .claude/state/codex_review_HEAD_3f777a69.txt as verifier-file [DONE]
+    
+    ## Cross-model gate disposition (CR-3 Phase 1 bootstrap exception)
+    
+    This Pattern A fix-forward re-fires T3 PostToolUse hook automatically. If T3
+    on this commit returns APPROVE: Wave 160 close-out converges per Outcome A
+    monotone-decline; if NEEDS-ATTENTION recurs: Pattern A iter-2 per closed-loop-
+    recursive-narrowing.md decision tree.
+    
+    ## Cardinal-rule conformance
+    
+    - CR-1 PASS (T3 verdict file path cited verbatim)
+    - CR-3 PASS (Phase 1 bootstrap exception + Pattern A apply with T3 auto-re-fire)
+    - CR-7 PASS (REPORT — T3 finding surfaced verbatim + Pattern A trajectory documented)
+    - CR-8 PASS (ADAPTED-FROM-SOTA — Pattern A discipline per codex-t1-fix-forward-pattern.md)
+    - CR-11 PASS (META-process — Outcome A trajectory tracked across 3 same-session catches at conf=0.86)
+
+=== diff ===
+diff --git a/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md b/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md
+index 5a2896a..9506a63 100644
+--- a/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md
++++ b/docs/wave-160-mega-fire-close-synthesis-2026-05-12.md
+@@ -1,8 +1,8 @@
+ # Wave 160 mega-fire close-synthesis (Fires 11+12 consolidated) — 2026-05-12
+ 
+-> **Status**: **AUDIT-TRAIL** — close-synthesis of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md`. Final Wave 160 fire; consolidates Fires 11 (convergence ship) + 12 (audit % delta + close-synthesis) per ONE-LOGICAL-UNIT-PER-FIRE conformance.
++> **Status**: **STAND-IN-DRAFT-PENDING-T3** — close-synthesis of 12-fire mega-wave per `.claude/plans/fluttering-wandering-pond.md`. Wave 160 close-out fire; consolidates Fires 11 (convergence ship) + 12 (audit % delta + close-synthesis). **NOT AUTHORITATIVE** until T3 PostToolUse verdict lands at `.claude/state/codex_review_HEAD_3f777a69.txt` AND any Pattern A fix-forward iterations close per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md` + `Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md §Outcome A monotone-decline`. AUTHORITATIVE label deferred to Pattern A close-loop completion per T3 `3f777a69` NEEDS-ATTENTION conf=0.86 medium F-001 finding (verbatim recommendation: "Change the status to pending until the T3 artifact exists, then amend or follow up with the exact review file path, verdict, and any applied remediation").
+ >
+-> **Cross-model gate satisfaction**: per CR-3 Phase 1 bootstrap exception, this commit's T3 PostToolUse hook (`codex_postcommit_review.py:599`) IS the cross-model verification gate. T1 pre-edit consult intentionally NOT fired (synthesis fire over already-reviewed deliverables; T3 covers the synthesis-claim accuracy).
++> **Cross-model gate satisfaction**: per CR-3 Phase 1 bootstrap exception, this commit's T3 PostToolUse hook (`codex_postcommit_review.py:599`) IS the cross-model verification gate but **the verdict lands ~30-120s AFTER commit** (PostToolUse semantic). T1 pre-edit consult intentionally NOT fired (synthesis fire over already-reviewed deliverables; T3 covers the synthesis-claim accuracy). Round-1 T3 verdict on commit `3f777a69` returned NEEDS-ATTENTION conf=0.86 medium F-001 (gate-satisfaction-claim-before-evidence). This Pattern A iter-1 fix-forward downgrades status accordingly per Outcome A monotone-decline trajectory.
+ >
+ > **Cite class** (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8):
+ > `constituents=[TIER-1-DIRECT @ docs/sota-installed-manifest.md L33-46 (W146-F3 weight table), TIER-3-LOCAL-COMPOSITION @ Fires 1/9/10 deliverables (synthesis input), TIER-3-LOCAL-OPERATOR-DERIVED @ orchestrator-direct re-compute 2026-05-12 post-Fires-1+9+10]; effective_tier=TIER-3-LOCAL-COMPOSITION` per MIN_PRECEDENCE.
+</repository_context>

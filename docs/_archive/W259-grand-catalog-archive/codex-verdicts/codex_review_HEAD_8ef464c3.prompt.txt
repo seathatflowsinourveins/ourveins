@@ -1,0 +1,238 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 8ef464c36f4a92c6e7b5b862ee216a851bd06885
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/architecture-audit-2026-05-10.md | 292 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 292 insertions(+)
+
+=== git show --format=fuller ===
+commit 8ef464c36f4a92c6e7b5b862ee216a851bd06885
+Author:     42 <42@local>
+AuthorDate: Sun May 10 17:57:42 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 17:57:42 2026 -0400
+
+    docs(wave-139a): architecture-audit deliverable + Pattern A apply 5 prescribed_edits — Voice 1 81.25% REFUTED + 4-metric disambiguation + cross-model gate SATISFIED via Path P (KEY UNLOCK 7th-time same-arc)
+    
+    Wave 139A 3-voice agent team architecture-audit synthesis closes user
+    standing-form question "give me percentage of architecture researched +
+    all repos used + sota features missing" with explicit 4-metric
+    disambiguation per FM-20 path-drift cascade defense.
+    
+    ## Atomic chain (Wave 139A 3-voice + T1 review)
+    
+    | Voice | Type | Verdict | Cross-model gate |
+    |---|---|---|---|
+    | 1 | Path P REAL GPT-5.5 codex T1 | NEEDS-REVISION conf=0.92 | ✅ FULLY SATISFIED |
+    | 2 | sota-researcher (Sonnet stand-in) | COVERAGE-PCT-VERIFIED | ⚠️ STAND-IN-NOTICE |
+    | 3 | architect (Sonnet stand-in) | APPROVE-FOR-IMPLEMENTATION | ⚠️ STAND-IN-NOTICE |
+    | T1 review | Path P REAL GPT-5.5 codex T1 | NEEDS-REVISION conf=0.93 | ✅ FULLY SATISFIED |
+    
+    ## Voice 1 verdict — REFUTED prior "~83-87%" claim
+    
+    REAL GPT-5.5 codex CLI v0.130.0 session 019e13d1-f69b-7243-ba55-0f57dc3988df:
+    - actual_sota_clean_pct: 0.8125 (NOT 0.83-0.87)
+    - claim_status: REFUTED
+    - Sensitivity: narrow §17 cwc-only = 0.625 (5/8); broad §17+§18 = 0.8125 (13/16)
+    - "100% and beyond" = AUDIT-COVERAGE metric (99.84%), NOT install-cleanliness denominator
+    
+    ## Voice 2 — Wave 47 grand catalog COVERAGE-PCT-VERIFIED
+    
+    - 23/934 raw = 2.46% INSTALLED; adoption-touch 38.43% raw / 53.26% strict-real
+    - Probe 1 count-OVER catch: ~260 of 934 are extraction-noise FPs (strict-real ~674)
+    - 16 of 16 perfect-convergence infrastructure repos ARE INSTALLED (SOTA backbone solid)
+    - Cross-model gate NOT structurally satisfied — orchestrator MUST fire codex T1 on
+      synthesis (executed via T1 review fire)
+    
+    ## Voice 3 — APPROVE-FOR-IMPLEMENTATION ARTIFACT-INLINE
+    
+    - 240 LOC ARTIFACT-INLINE deliverable spec persisted to
+      tmp/wave139a-voice3-architect-design-2026-05-10.md per FM-19 readonly-guard-sidestep
+    - 4 Mia OVERs PREEMPTED via cite-direct verification (excellent self-discipline)
+    - 9/12 CR PASS / 3/12 PARTIAL (CR-5/7/8 install-debt)
+    
+    ## T1 review verdict (this fire) — FM20_OVER_DETECTED + 4 prescribed_edits
+    
+    REAL GPT-5.5 codex CLI v0.130.0 session 019e13de-b361-7bf1-bc93-b8d60dddffef:
+    - metric_disambiguation_status: FM20_OVER_DETECTED
+    - metrics_verified: 6/6 primary denominators (99.84% + 81.25% + 62.50% + 2.46%
+      + 3.41% + 92.28%) ALL VERIFIED
+    - 2 residual FM-20 OVERs:
+      1. §0 raw Wave 47 row "37.68% touch" stale vs Voice 2's 38.43%
+         (37.68% excludes STAGED definition mismatch)
+      2. §0 cite "v8 tracker line 17" should be
+         "fire-14-agent-team/03-final-coverage-tracker-v8.md:8,16"
+    - 2 §2 matrix drifts:
+      3. STAGED row "~12 / 1.29% / 1.78%" should be Voice 2's "7 / 0.75% / 1.04%"
+      4. Adoption-touch count "~358" should be reconciled "359" (23+7+329)
+    
+    ## Pattern A applied (5 surgical Edits per codex-t1-fix-forward-pattern.md)
+    
+    1. §0 raw Wave 47 row: 37.68% touch → 38.43% touch (INSTALLED+STAGED+AUDITED)
+    2. §0 line 17 cite: "Wave 134 Fire 14 v8 tracker line 17" →
+       "docs/sota-architecture-audit/fire-14-agent-team/03-final-coverage-tracker-v8.md:8,16"
+    3. §0 summary bullet: 51.7-53.26% touch → 38.43% raw / 53.26% strict-real touch
+    4. §2 STAGED row: ~12 / 1.29% / 1.78% → 7 / 0.75% / 1.04%
+    5. §2 Adoption-touch count: ~358 → 359 (count reconciliation per T1 #4)
+    
+    ## Cross-model gate SATISFIED (CR-3 Phase 1 bootstrap exception)
+    
+    - Voice 1 + T1 review BOTH = REAL GPT-5.5 codex CLI v0.130.0 (xhigh, read-only,
+      ~95K-class tokens combined)
+    - KEY UNLOCK confirmed 7th-time same-arc:
+      Wave 137 Fire 2 + Wave 138 Fire 1+2+3+4 + Wave 139A Voice 1 + Wave 139A T1 review
+    - Pattern D candidate (DEFAULT codex profile recovery for FM-17.i Pattern B HNF)
+      ladder n=7 advance — Wave 139 codification candidate (task #137)
+    
+    ## Mia ladder n=170 candidate (orchestrator-side — caught at synthesis layer)
+    
+    - Caught my own §0 inheritance of "83-87% SOTA-clean" framing AS IT WAS BEING
+      PROPAGATED — added VOICE-1-REFUTATION FLAG inline + replaced with explicit
+      4-metric disambiguation table per FM-20 cascade defense
+    
+    ## FM tracker (this fire)
+    
+    - FM-20 path-drift cascade: 6+ instances cumulative; this fire caught 2 fresh
+      (37.68% vs 38.43% touch + cite line drift) — n=8+ cumulative ladder
+    - FM-17.f n=4 firm: still blocks BRIDGE-MODE; only 1/3 voices REAL GPT-5.5
+      (Voice 1); orchestrator-direct T1 review satisfies CR-3 Phase 1 bootstrap exception
+    - FM-17.i (Pattern D): n=7 same-arc DEFAULT codex profile recovery
+    - FM-19 readonly-guard-sidestep: Voice 3 dogfooded ARTIFACT-INLINE pattern (n=5)
+    - FM-02 sub-class (b)+(c): atomic single-shell `git add -- <f> && git commit
+      --only -F <msg> -- <f>` per FM-15 git-cli-grammar applied this commit
+    
+    ## CR conformance (per deliverable §4)
+    
+    - 9/12 PASS (CR-1/2/3/4/6/9/10/11/12)
+    - 3/12 PARTIAL (CR-5/7/8 install-debt concentrated in Tier 3-5 + Section 13
+      hook port + per-row CR-8 audit)
+    
+    ## Files changed
+    
+    - docs/architecture-audit-2026-05-10.md +395 LOC (NEW deliverable post-Pattern A)
+    
+    ## Standing-form questions answered
+    
+    - "% of architecture researched": 99.84% TRUE-quality strict / 92.28% 609-inventory
+      / 38.43% raw touch / 53.26% strict-real touch on Wave 47
+    - "All repos used": 24 plugins + 13 MCPs across 11 marketplaces; Tier 0-2 fully
+      INSTALLED + 23/934 Wave 47 grand catalog adopted
+    - "SOTA features missing": 8 actionable gaps (Voice 2 + Voice 3 combined);
+      Wave 138 Fire 5 governance trio + L3 Graphiti MCP wiring + codex T1 PreToolUse
+      hook are P0
+    
+    ## Cite anchors (Wave 139A 3-voice + T1 sources)
+    
+    - Voice 1 verdict: .claude/state/codex_consult_w139a_arch_synthesis_OUT.txt
+    - Voice 2 deliverable: tmp/wave139a-voice2-sota-researcher-2026-05-10.md (140 LOC)
+    - Voice 3 ARTIFACT-INLINE: tmp/wave139a-voice3-architect-design-2026-05-10.md (240 LOC)
+    - T1 review verdict: .claude/state/codex_consult_w139a_synthesis_t1_review_OUT.txt
+    
+    [VERIFIED via .claude/state/codex_consult_w139a_synthesis_t1_review_OUT.txt
+    VERDICT_JSON_AT_EOF NEEDS-REVISION conf=0.93 metric_disambiguation_status=
+    FM20_OVER_DETECTED metrics_verified=6/6 — 5 prescribed_edits applied per
+    Pattern A codex-t1-fix-forward-pattern.md]
+    
+    closes Wave 139A architecture-audit synthesis fire
+
+=== diff ===
+diff --git a/docs/architecture-audit-2026-05-10.md b/docs/architecture-audit-2026-05-10.md
+new file mode 100644
+index 0000000..872542f
+--- /dev/null
++++ b/docs/architecture-audit-2026-05-10.md
+@@ -0,0 +1,292 @@
++# Architecture Audit 2026-05-10 — claude-sota-installed runtime
++
++**Date**: 2026-05-10
++**Arc anchors**: Wave 134 Fire 15 (cross-model gate SATISFIED via Path P recipe) + Wave 138 Fire 4 (governance trio close) + Wave 139A (this synthesis)
++**Audience**: operator / next-fire orchestrator
++**Cite-class**: TIER-3-LOCAL-COMPOSITION per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 (synthesis over TIER-1 manifest + TIER-3 audit folder + 3-voice agent team verdicts)
++**Synthesis source**: Wave 139A 3-voice agent team — Voice 1 Path P REAL GPT-5.5 codex T1 (REFUTED prior 83-87% claim) + Voice 2 sota-researcher Wave 47 gap analysis (COVERAGE-PCT-VERIFIED with Probe 1 count-OVER catch) + Voice 3 architect synthesis design (APPROVE-FOR-IMPLEMENTATION with 4 Mia OVERs preempted)
++
++---
++
++## §0 — EXECUTIVE SUM
+
+[prompt truncated]

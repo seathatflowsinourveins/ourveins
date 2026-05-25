@@ -1,0 +1,129 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 49a1f9b6a555e38a0ce673037ea6e7a5678f0a85</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+docs/accounts/README.md           | 216 ++++++++++++++++++
+ scripts/cpa_oauth_quota_poller.py | 466 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 682 insertions(+)
+
+=== git show --format=fuller ===
+commit 49a1f9b6a555e38a0ce673037ea6e7a5678f0a85
+Author:     42 <42@local>
+AuthorDate: Wed May 13 23:48:36 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Wed May 13 23:48:36 2026 -0400
+
+    chore(W189): F3 orphan top-1 cleanup + W189 close — Agent A 3-repo verdict (cognee REJECT + MemPalace REJECT + agentmemory STUDY-PILOT-NARROW) + Agent C Layer-3 graphiti-bridge Option 2 RECOMMENDED + R8 n=2 EMERGE; STOP 8/10 MET
+
+=== diff ===
+diff --git a/docs/accounts/README.md b/docs/accounts/README.md
+new file mode 100644
+index 0000000..3984745
+--- /dev/null
++++ b/docs/accounts/README.md
+@@ -0,0 +1,216 @@
++# Accounts management — runtime catalog + SOTA cite-anchors + operator runbook
++
++> **Status**: AUTHORITATIVE-AGGREGATE persistent catalog.
++> **Scope**: CCC fleet OAuth pool (Anthropic Max subscriptions) + Codex Pro + Gemini credentials managed by the eee runtime's 3-tier proxy chain.
++> **Cite-class** (per `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 MIN_PRECEDENCE):
++> `constituents=[TIER-1-DIRECT @ CCBP cross-model-workflow.md:1-48 @ HEAD 48f2ceb, TIER-1-DIRECT @ CLIProxyAPI conductor.go:2107,2539 @ HEAD 785b00c3, TIER-1-DIRECT @ Anthropic CC settings docs https://code.claude.com/docs/en/settings, TIER-3-LOCAL-COMPOSITION @ live empirical W167+W180 audit-trail]; effective_tier=TIER-3-LOCAL-COMPOSITION`
++> **Codified**: 2026-05-13 W180 F2 per user-trigger ("create a folder for acounts related docs and script,repos clones") + n=1 user-trigger gate per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322 jurisdiction §user-trigger n=1 automatic.
++
++## Quick nav
++
++| Section | Purpose |
++|---|---|
++| [§1 Account inventory + state](#1-account-inventory--state) | Comprehensive account list shape — live data at `tmp/wave<N>-fire<F>-accounts-catalog-*.md` |
++| [§2 Service chain topology](#2-service-chain-topology) | 3-tier proxy chain diagram: claude.exe → cnighswonger → CLIProxyAPI → Anthropic CDN |
++| [§3 SOTA repos cite-anchors](#3-sota-repos-cite-anchors) | Z:/repos/deps/ + Z:/claude/ pinned TIER-1 sources |
++| [§4 Operator runbook](#4-operator-runbook) | Reauth + aperant restart + 1h-cache + Haiku-route + TTL drop |
++| [§5 Audit trail](#5-audit-trail) | Cross-fire ledger of accounts-state catalogs |
++| [§6 Tools index](#6-tools-index) | Operator scripts (CCC parent + repo-local) |
++
++## §1 Account inventory + state
++
++**Account pool** (8 Anthropic Max OAuth Claude + 1 Codex Pro + 1 Gemini):
++
++```
++P10 aesthetic9c@gmail.com
++P10 dreamweaverhoudini@gmail.com
++P10 mr.euphoriaincarnate@gmail.com
++P10 nalawowac@gmail.com
++P10 zfan7@sva.edu                          (also: zfan7@sva.edu (Codex Pro))
++P10 readingcodingandbeyond@gmail.com       (disabled cohort — refresh_token revoked)
++P0  739955940fc@gmail.com
++P0  avantmanifest@gmail.com
++
++Gemini credential (active; not exercised in /loop unless explicit)
++```
++
++**Priority semantic** (per `Z:/claude/ccc/tools/reset_soonest_priority.py:53-55`):
++- Ladder: `[90, 80, 70, 60, 50, 40, 30, 20]` — ranked by `seven_day.resets_at` ascending
++- Errored accounts get priority=10
++- Weekly utilization ≥95% hard-demoted to bottom
++- Writer fires every 30min via `ccc-reset-soonest` schtasks
++
++**Per-account state fields**:
++- `5h-Used %` (session/primary utilization)
++- `7d-Used %` (weekly/secondary utilization)
++- `5h-Reset` (resets_at primary)
++- `7d-Reset` (resets_at secondary)
++- `priority` (rotation rank)
++- `disabled` (bool — set on refresh_token revocation)
++- `last_updated` (aperant_poller JSONL timestamp)
++
++**Live data**: see most-recent `tmp/wave<N>-fire<F>-accounts-catalog-*.md` (see §5 Audit trail).
++
++## §2 Service chain topology
++
++```
++┌──────────────────────────────────────────────────────────────────────────┐
++│                    CCC FLEET — 3-TIER PROXY CHAIN                        │
++├──────────────────────────────────────────────────────────────────────────┤
++│                                                                          │
++│  claude.exe                                                              │
++│     │  ANTHROPIC_BASE_URL=http://127.0.0.1:19801                         │
++│     │  ANTHROPIC_AUTH_TOKEN=<dev-token>                                  │
++│     ▼                                                                    │
++│  cnighswonger-claude-code-cache-fix v3.5.3  :19801                       │
++│     │  cache_control rewrite + cache-telemetry per-session               │
++│     │  Cite: Z:/repos/deps/cnighswonger-claude-code-cache-fix/           │
++│     │        README.md:42,283-339 + proxy/extensions/cache-telemetry.mjs │
++│     ▼                                                                    │
++│  CLIProxyAPI v6.10.9  :18317                                             │
++│     │  Bearer OAuth routing + fill-first + session-affinity TTL=1h       │
++│     │  Cite: Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/                │
++│     │        conductor.go:2107,2539 + selector.go:47-105 @ 785b00c3      │
++│     ▼                                                                    │
++│  Anthropic CDN api.anthropic.com /v1/messages                            │
++│     │  anthropic-beta: claude-code-20250219,oauth-2025-04-20             │
++│     │                                                                    │
++│  ─── Sidecar + Aux ──────────────────────────────────────────────────    │
++│  cpa-usage-keeper v1.5.2  :8079    (SQLite app.db — 10 identities)       │
++│  Ollama local              :11700  (mcp-memory L1 + graphiti L3 backend) │
++│  FalkorDB Docker          :16379   (graphiti backend)                    │
++│  ccc-mgmt API              :9327   (cron + reset_soonest writer endpoint)│
++│  EEE-Aperant-Poller daemon (At-system-startup schtasks; CRASHED 5/12)    │
++│                                                                          │
++└──────────────────────────────────────────────────────────────────────────┘
++```
++
++## §3 SOTA repos cite-anchors
++
++Per cardinal-rule-1 + cardinal-rule-9 read-only research probe exception §item iii: these repos at `Z:/repos/deps/` are **cite-reference-only** (NOT install sources for this runtime). Use file:line @ HEAD SHA for evidence.
++
++| Repo | Path | Cite anchor | Purpose |
++|---|---|---|---|
++| **CCC OAuth machinery** | `Z:/claude/ccc/` | `tools/status.py:13-18,25,121-124,140-143` + `tools/fleet_report.py:9-16,65,206-210` + `tools/reset_soonest_priority.py:53-55,86-99` + `tools/safe_reauth.py:5-7,25,35-57` | Live operator tools for fleet status + cumulative report + priority writer + OAuth re-grant |
++| **CLIProxyAPI** | `Z:/repos/deps/CLIProxyAPI` | `sdk/cliproxy/auth/conductor.go:2107,2134-2143,2539,2560-2571 @ 785b00c3` + `sdk/cliproxy/auth/selector.go:47-105,116-129,200-250,434-493 @ 785b00c3` + `internal/runtime/executor/claude_executor.go:287-292,459-492 @ 785b00c3` + `sdk/cliproxy/usage/manager.go:12-33 @ 785b00c3` + `internal/redisqueue/plugin.go:52-62,106-119 @ 785b00c3` | 401/429 handling + priority+cooldown routing + Anthropic SSE parsing + usage record fields + cached_tokens serialization |
++| **cnighswonger-cache-fix** | `Z:/repos/deps/cnighswonger-claude-code-cache-fix` | `README.md:42,283-339 @ 2f17aeb9` + `proxy/extensions/cache-telemetry.mjs:151-182,214-215 @ 2f17aeb9` + `proxy/stream.mjs:21-22 @ 2f17aeb9` | cache-telemetry per-session + extension impact guide |
++| **openai/codex auth** | `Z:/repos/deps/codex` | `codex-rs/login/src/auth/manager.rs:83-91,156-171,470-524 @ 993e3f40` | OpenAI multi-account credential handling (Codex Pro reference) |
++| **BerriAI/litellm** | `Z:/repos/deps/litellm` | `litellm/proxy/auth/auth_exception_handler.py:22-80 @ 934ecdca` + `auth_checks.py:327,636,660 @ 934ecdca` + `user_api_key_auth.py:1446-1467,1554-1577 @ 934ecdca` | Fallback + quota patterns (SOTA reference for drain-most-headroom alt; sss uses drain-soonest LOCAL-NOVEL not from here) |
++| **claude-agent-sdk-python** | `Z:/repos/deps/claude-agent-sdk-python` | `src/claude_agent_sdk/_internal/session_resume.py:305-359 @ b512f256` + `types.py:655,952 @ b512f256` | Anthropic auth-file preservation reference |
++| **CCBP cross-model-workflow** | `Z:/repos/deps/claude-code-best-practice-shan` | `development-workflows/cross-model-workflow/cross-model-workflow.md:1-48 @ 48f2ceb` | T1-T3 lifecycle authority (cardinal-rule-3) |
++
++**Repos clones — DO NOT re-clone**: cardinal-rule-6 mandates official-native-channel + pull-fr
+...[diff truncated at 8000 chars]</repository_context>

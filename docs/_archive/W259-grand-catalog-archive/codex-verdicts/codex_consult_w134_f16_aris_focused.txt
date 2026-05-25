@@ -1,0 +1,58 @@
+You are GPT-5.5 with codex CLI. Audit 3 specific claims in a local file using line-cited evidence from a local repo clone. Read file at file:line depth.
+
+## Subject file
+Path: `Z:/claude-sota-installed/docs/sota-architecture-audit/fire-13-tier-anatomy/04-aris-anatomy.md`
+
+## Repo to verify against
+Path: `Z:/repos/deps/aris-auto-claude @ HEAD 5725459ef5847263e9982f3390a6aa12f2320eaa`
+License claim: MIT (verified at root LICENSE per Fire 13)
+
+## Claim 1 — Skill count "20+" with named primitives
+The anatomy claims at L33, L36-57, L146: "20+ research skills" + lists 20 named skills (ablation-planner, alphaxiv, analyze-results, arxiv, auto-paper-improvement-loop, auto-review-loop, auto-review-loop-llm, auto-review-loop-minimax, citation-audit, claims-drafting, comm-lit-review, deepxiv, dse-loop, embodiment-description, exa-search, experiment-audit, experiment-bridge, experiment-plan, experiment-queue, feishu-notify)
+- Probe `Z:/repos/deps/aris-auto-claude/skills/` directory directly
+- Count actual skill subdirectories or SKILL.md files
+- Verify the 20 named skills exist
+- Output: VERIFIED-20+ if ≥20 skills exist + names match, PARTIAL if some missing, REFUTED if count <20
+- Cite total count
+
+## Claim 2 — Workflow line cites verbatim
+The anatomy claims at L60-70: Workflow 1 (L489), Workflow 1.5 (L568), Workflow 2 (L613), Workflow 3 (L678), Workflow 4 (L791), Research Wiki (L846), Workflow M (L913) — EXACT line numbers in README.md
+- Probe `Z:/repos/deps/aris-auto-claude/README.md` at those line ranges
+- Verify each line contains the claimed workflow heading
+- Output: VERIFIED-EXACT if all 7 line cites resolve, DRIFTED if some off-by-few, REFUTED if substantially wrong
+- Cite actual line numbers if drifted
+
+## Claim 3 — Cross-tool native (CC + Codex + Cursor + Trae)
+The anatomy claims at L13, L75-79, L102, L150: ARIS supports 4 tools — Claude Code + Codex CLI + Cursor + Trae
+- Probe `Z:/repos/deps/aris-auto-claude/AGENT_GUIDE.md` for tool-invocation grammar
+- Probe `Z:/repos/deps/aris-auto-claude/README.md` for cross-tool mentions
+- Output: VERIFIED if all 4 tools documented, PARTIAL if 2-3 tools, REFUTED if only 1 or different tools
+- Cite specific file:line evidence
+
+## Output schema (JSON at EOF)
+Emit verbatim at EOF:
+VERDICT_JSON_AT_EOF:
+{
+  "claim_1_skill_count": {
+    "status": "VERIFIED-20+|PARTIAL|REFUTED",
+    "actual_skill_count": <int>,
+    "skill_names_verified": <int_out_of_20>,
+    "evidence_file_line": "<path>",
+    "agree_with_fire13": <true|false>
+  },
+  "claim_2_workflow_line_cites": {
+    "status": "VERIFIED-EXACT|DRIFTED|REFUTED",
+    "workflows_verified": <int_out_of_7>,
+    "workflow_drift_summary": "<1-line>",
+    "agree_with_fire13": <true|false>
+  },
+  "claim_3_cross_tool_native": {
+    "status": "VERIFIED|PARTIAL|REFUTED",
+    "tools_documented": <int>,
+    "tool_names": ["..."],
+    "evidence_file_line": "<file>:<line>",
+    "agree_with_fire13": <true|false>
+  },
+  "overall_verdict": "APPROVE|NEEDS-REVISION|REJECT",
+  "confidence": 0.0-1.0
+}

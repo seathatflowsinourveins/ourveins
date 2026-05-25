@@ -1,0 +1,104 @@
+docs(provenance): Wave 87 — Aperant SOTA deep-dive + final fleet status + cpa-usage-keeper rate-limit-polling gap
+
+Wave 87 documentation-only ship: comprehensive fleet status snapshot +
+Aperant v2.7.6 SOTA reference + CPA rate-limit-polling gap finding.
+Ships 1W (Aperant-derived poller) + 1X (CLIProxyAPI cycle-aware-fill-first)
+DESIGNED but NOT IMPLEMENTED — queued for next-iter design waves.
+
+CROSS-MODEL T1 GATE (Pattern B HNF disposition; CR-3 Phase 1 bootstrap):
+  2 BRIDGE-MODE codex-rescue subagents PRE-FIRE'd FM-17.b.i variant:
+    "Extra usage required for 1M context · run /extra-usage to enable"
+    (220-372ms / 0 tokens / 0 tools — NEW FAILURE MODE catalogued)
+  Pivot: orchestrator-direct via Bash + direct SQLite + direct Read
+  Codex T1 foreground+tee deep-review-exec 180s budget:
+    Pattern B HONEST-NON-FINDING — sandbox blocked PowerShell + sqlite3
+    + web search probes; 5049-LOC trace; substantive investigation but
+    no terminal JSON verdict; no NEEDS-REVISION findings surfaced
+  Per codex-t1-fix-forward-pattern.md §Pattern B: trace-mine + ship per
+  orchestrator Mia probes (7/7 PASS) + T2/T3 commit-time verification
+  Verdict-on-file: .claude/state/codex_consult_wave87_synthesis_verdict_OUT.txt
+
+KEY FINDING (operational impact):
+  cpa-usage-keeper SQLite usage_identities table HAS rate-limit schema
+  columns (primary_window_used_percent / primary_window_limit_seconds /
+  primary_window_reset_at / secondary_window_* / plan_type / limit_reached)
+  but ALL NULL — 0/10 identities populated. CPA passively counts proxy
+  traffic; doesn't actively poll Anthropic /api/oauth/usage or ChatGPT
+  /backend-api/wham/usage that Aperant documents.
+
+  Operational impact: 4-failed-of-6 calls on 739955940fc account today
+  (66% failure rate) could have been avoided with proactive polling
+  detecting primary_window_used_percent > 80% and rotating BEFORE 429.
+
+10 OAUTH IDENTITY FINAL STATUS (live SQLite probe 2026-05-08T16:19 UTC):
+  ACTIVE (3): aesthetic9c (Claude Opus 4.7 / 8 calls / 100% cache /
+              5.6M cached / dominant lane);
+              739955940fc (Claude Sonnet 4.5 / 6 calls / 2-OK-4-FAILED /
+              99.8% cache / capacity_score=85);
+              zfan7 (Codex Pro GPT-5.5 / 6 calls / 6/0 / 0% cache)
+  IDLE (7):  dreamweaver=100, avantmanifest=100 (recovered-from-2x429),
+             mr.euphoria=0 EXHAUSTED (Ship 1V candidate), nalawowac N/A,
+             zfan7-claude=67, antigravity (token expired 12:51 UTC),
+             gemini (RPM-rolling)
+
+APERANT v2.7.6 SOTA REFERENCE (HEAD cba7a0270ec794a14ac71615bc6c48085807ede6):
+  - Multi-Account Swapping (CHANGELOG L18) — auto-switch on rate-limit
+  - Multi-profile account management (CHANGELOG L11) — token refresh +
+    rate-limit recovery for OAuth + API providers
+  - Queue System v2 (CHANGELOG L23) — auto-promotion + rate-limit recovery
+  - OAuth token revocation loop prevention
+  - Subscription type preservation during refresh
+  - CODEX_RATE_LIMITS_RESEARCH.md (16,709 bytes):
+    Codex Usage API GET https://chatgpt.com/backend-api/wham/usage
+    Anthropic Usage API GET https://api.anthropic.com/api/oauth/usage
+    Passive headers: x-codex-primary-used-percent / x-codex-primary-reset-at
+    Response schema with primary_window (5h) + secondary_window (7d)
+
+CONVERGENCE-GATE Axis-1 ≥3-distinct-orgs PASS:
+  1. AndyMik90/Aperant (Z:/repos/deps/Aperant @ cba7a027)
+  2. steipete/CodexBar (cited by Aperant; not locally cloned)
+  3. openai/codex codex-rs/codex-backend-openapi-models (canonical schema)
+
+NEW SHIP CANDIDATES (designed; NOT implemented this fire):
+  Ship 1W: Aperant-derived rate-limit poller for cpa-usage-keeper
+           (Python tools/aperant_rate_limit_poller.py; reads OAuth tokens;
+            polls Anthropic + ChatGPT usage APIs; UPDATEs SQLite; 60s cron;
+            risk MEDIUM; reversible via stop-script)
+  Ship 1X: CLIProxyAPI cycle-aware-fill-first selector (depends on 1W;
+           skip accounts with primary_window_used_percent > 80%)
+
+CONSOLIDATED PENDING SHIPS (Wave 85+86+87 = 13):
+  Wave 85: 1K UserPromptSubmit / 1L PreCompact / 1M context-mode-full /
+           1N ECC-continuous-learning / 1O cpa-AUTH_ENABLED / 1P SubagentStop-extension
+  Wave 86: 1R motiful / 1S rtk-WSL / 1T cnighswonger / 1U claw-compactor / 1V mr.euphoria
+  Wave 87: 1W Aperant-poller / 1X cycle-aware-fill-first
+
+EDITS (1 file atomic):
+  docs/install-provenance.md: +Wave 87 entry (~150 LOC) covering Aperant
+    deep-dive + 10-identity fleet snapshot + cpa schema-vs-data gap +
+    Ships 1W+1X design + 13-ship consolidated queue + cite chain
+  tmp/wave87-fleet-final-2026-05-08.md (272 LOC; gitignored; full synthesis)
+  tmp/fleet-snapshot-probe.py (Mia probe script; gitignored)
+
+MIA PRE-APPLY (7/7 PASS via direct probes):
+  1. Aperant HEAD cba7a027 confirmed via git -C ... rev-parse HEAD
+  2. Aperant CHANGELOG verbatim quotes verified via direct Read
+  3. CODEX_RATE_LIMITS_RESEARCH.md cite-anchors verified L1-450
+  4. CPA SQLite schema verified (38 columns; rate-limit fields enumerated)
+  5. CPA SQLite live data verified (10 identities; 3 active; 0/10 rate-limit)
+  6. CLIProxyAPI HEAD ed1458aa confirmed (Wave 86)
+  7. /healthz returns {"status":"ok"} (Wave 86 + post-restart verified)
+
+CITE CHAIN:
+  TIER-1: Z:/repos/deps/Aperant/CHANGELOG.md:11-72 @ HEAD cba7a027
+  TIER-1: Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md:1-450 @ HEAD cba7a027
+  TIER-1: Z:/repos/deps/Aperant/CLAUDE.md:18,38 @ HEAD cba7a027
+  TIER-1: Z:/repos/deps/CLIProxyAPI/sdk/cliproxy/auth/selector.go:498-535
+          @ HEAD ed1458aa6d3430ba59538aeb980b8934f0e80c1f (carry from Wave 86)
+  TIER-2-RUNTIME: cpa-usage-keeper v1.5.2 SQLite (147 KB; 38-col table;
+                  rate-limit polling 0% coverage)
+  TIER-3-LOCAL: tmp/wave87-fleet-final-2026-05-08.md (272 LOC)
+  TIER-3-LOCAL: .claude/state/codex_consult_wave87_synthesis_verdict_OUT.txt
+                (5049 LOC; Pattern B HNF)
+
+Satisfies cardinal-rule-1+3+9+10+11.

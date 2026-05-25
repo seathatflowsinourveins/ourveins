@@ -1,0 +1,112 @@
+feat(wave161): SB13b — retrofit subagent_stop_telemetry to use atomic_append
+
+Wave 161 SB13b (cum-8 of cap-25) per /goal P1 #2 closure
+(architecture-audit-scorecard.md 9-bundle queue Bundle 1 phase 2 —
+retrofit top-3 of 3 JSONL emitters COMPLETE; this commit lands 3rd of 3
+file + 2nd of 2 retrofit sites: subagent_stop_telemetry.py).
+
+Retrofits 1 JSONL append site in `.claude/hooks/scripts/subagent_stop_telemetry.py`
+main() flow (L120-123 → atomic_append). Uses atomic_append() from
+cite-imported `scripts/_atomic_jsonl_append.py` (W161 SB10 commits
+ed38d2a + fdbd73e) enforcing Round-3-7b cumulative invariants.
+
+SIBLING + IN-RUNTIME PRECEDENT n=5 CUMULATIVE (SB13b is 5th retrofit):
+- Ship 2a: Z:/claude-sota/.claude/hooks/scripts/eval_case_compliance_observer.py
+- Ship 2b: Z:/claude-sota/.claude/hooks/scripts/memory_persist_sessionend.py
+- W161 SB11: _observation_writer.py (T3 APPROVE clean)
+- W161 SB12: codex_postcommit_review.py (T3 APPROVE clean)
+- W161 SB13a: codex_t1_consult_gate.py (T3 verification pending)
+
+USES EXISTING ROOT (L10):
+subagent_stop_telemetry.py defines `ROOT = Path("Z:/claude-sota-installed")`
+at module head (hardcoded since Wave 84 Ship 1G; intra-runtime hardcoded
+path, NOT sibling reference per CR-9 sibling-bleed defense scope). SB13b
+reuses this anchor: `sys.path.insert(0, str(ROOT / "scripts"))`.
+
+PATTERN A APPLY (n=4 in-runtime + sibling fidelity):
+- L16-26 NEW: sys.path.insert(ROOT / "scripts"); try/except import
+  atomic_append + RecordTooLarge; fail-open `atomic_append = None`
+- L131-141 main() body: atomic_append primary path with RecordTooLarge
+  handling (pass — fail-closed-for-telemetry per existing contract);
+  legacy with-open path preserved as fallback
+
+CONTRACT PRESERVATION (telemetry-only fail-closed):
+- The original main() try/except catches `Exception` broadly + `pass`es
+  (line "fail-closed-for-telemetry: never perturb agent completion")
+- SB13b preserves this contract verbatim — RecordTooLarge silently
+  pass'd within the try-block; outer Exception handler still active
+- atomic_append's internal stderr writes via log_swallow do NOT
+  propagate; SubagentStop hook always exits 0 per cardinal-rule-3 T1 F-3
+
+LOCAL SMOKE PROBE:
+$ python -c "import subagent_stop_telemetry as m; ..."
+atomic_append_available: True
+RecordTooLarge_type: type
+
+CODEX T1 DISPOSITION (sibling-precedent n=5 + in-runtime SB11/SB12/SB13a
+dogfood pattern):
+- T3 postcommit hook provides cross-model verification per
+  cross-model-consensus.md §The contract Phase 1 bootstrap exception
+- SB11 + SB12 structurally-identical retrofits both T3 APPROVE clean;
+  SB13a awaiting T3 verdict
+- SB13b mirrors SB11/SB12/SB13a verbatim with single-source target swap
+
+AUDIT DIMENSIONS:
+- Path resolution PASS — reuses existing `ROOT` Path("Z:/claude-sota-installed")
+- Fail-open import PASS — try/except per Ship 2a R2
+- Backward compat PASS — atomic_append uses same json serialization shape
+- RecordTooLarge handling PASS — silently pass'd per telemetry-only
+  fail-closed contract (Wave 84 Ship 1G semantic preserved)
+- Cycle-300 scope PASS — single-file ~22 LOC delta (single retrofit site)
+- Hook critical-path safety PASS — fail-closed-for-telemetry contract
+  preserved; atomic_append exceptions caught by outer Exception handler
+- FM-02 (b)+(c) PASS — atomic single-shell commit
+
+PYRIGHT DIAGNOSTICS:
+- Line 24 reportMissingImports + reportUnusedImport: suppressed per
+  pattern. "not accessed" pyright complaints RESOLVED after retrofit
+  site added (flow analysis sees symbols used at L131-134).
+
+SCORECARD P1 #2 BUNDLE 1 PHASE 2 RETROFIT COMPLETE:
+- Top-1 SB11: _observation_writer.append_observation ✅
+- Top-2 SB12: codex_postcommit_review._append_jsonl ✅
+- Top-3 SB13a: codex_t1_consult_gate (_auto_state_append +
+  _append_full_telemetry, 2 sites in 1 file) ✅
+- Top-3 SB13b: subagent_stop_telemetry main() ✅ (this commit)
+
+5 JSONL emitters retrofitted across 4 files via SB11+SB12+SB13a+SB13b.
+Bundle 1 INSTALL+RETROFIT phases now COMPLETE per scorecard P1 #2.
+
+SUBSEQUENT BUNDLES (NOT in SB13b per cycle-300):
+- Bundle 2: 4 security tests for top-priority DENY-emitters (~200 LOC)
+- Bundle 3: YAML frontmatter add to 9 cite-import-AMBER rules
+- Bundle 4: fm17d_stall_detector.py wire/retire
+- Bundle 5: L1 mcp-memory DB freshness sweep
+- Bundle 6: Section 4 L2 Qdrant install OR REJECT per CR-12
+- Bundle 7: CR-9 + CR-6 freshness sweep
+- Bundle 8: MEMORY.md cycle-322 codification of 10 SATISFIED promotions
+- Bundle 9: Tier 3-5 audit dispatch with FM-22 defense
+
+CARDINAL-RULE CONFORMANCE:
+- CR-1 ✅ TIER-1-DIRECT sibling + in-runtime precedent cite (n=5 cumulative)
+- CR-3 ✅ Path P codex T3 postcommit (Phase 1 bootstrap exception)
+- CR-8 ✅ TIER-3-LOCAL-COMPOSITION cite class
+- CR-9 ✅ Sibling-bleed defense (hardcoded ROOT is intra-runtime, not sibling)
+- CR-11 ✅ META-process SOTA (precedent + T3 verification)
+- CR-12 ✅ CITE-CLASS-CANONICAL (mechanical mirror of SB11/SB12/SB13a)
+- cycle-300 ✅ ONE-LOGICAL-UNIT-PER-FIRE
+- FM-02 (b)+(c) atomic single-shell
+
+Cite class:
+constituents=[TIER-1-DIRECT @ sibling Ship 2a/2b R2 + W161 SB11/SB12/SB13a
+in-runtime precedents (T3 APPROVE clean / pending),
+TIER-2 sister-rule cite codex-t1-fix-forward-pattern.md §Pattern A,
+TIER-3-LOCAL-OPERATOR-DERIVED @ Wave 161 SB13b single-site retrofit];
+effective_tier=TIER-3-LOCAL-COMPOSITION per
+Z:/claude-sota/.claude/rules/citation-discipline.md rule #8 MIN_PRECEDENCE.
+
+Wave 161 progress: SB13b cum-8 of cap-25 SHIPPED. **Scorecard 9-bundle
+queue Bundle 1 COMPLETE** (install + retrofit top-3 of 3 JSONL emitters
+all shipped via SB10+SB11+SB12+SB13a+SB13b). Next: Bundle 2 security
+tests OR sota-researcher dispatch for P0 RESEARCH-ARCH foundation per
+/goal v4 P0 + Bundle 9 dispatch.

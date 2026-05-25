@@ -1,0 +1,42 @@
+name: release-please (automated wave-closure PRs)
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+# Per https://github.com/googleapis/release-please-action + Conventional Commits
+# Generates automated release PRs from Conventional-Commits history.
+# For wave-architecture: commits of type 'ship' or 'wave' produce wave-closure release entries.
+
+concurrency:
+  group: release-please-${{ github.ref }}
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+        with: { egress-policy: audit }
+      # W432-FIX-A 2026-05-24 (Stream A D-1): bump v4.4.1 → v5.0.0. Stream A audit
+      # caught 20/20 release-please runs failing on `unexpected token ' '` / `+` parser
+      # errors from v4.4.1's older release-please CLI vs newer Conventional-Commits
+      # extensions. v5.0.0 (2026-04-22) bundles release-please 17.6.0 + Node 24 runtime
+      # (BREAKING CHANGE per release notes — aligned with Node 20→24 forced flip
+      # 2026-06-02 per github.blog/changelog/2025-09-19-deprecation-of-node-20).
+      # Cite: github.com/googleapis/release-please-action/releases/tag/v5.0.0
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0 (W432-FIX-A bump; was v4.4.1)
+        id: release
+        with:
+          # NB: `release-type` removed at action-input level — v4 branches on this input
+          # and skips config-file loading when present (codex W340-F5+Q10 r5 finding).
+          # release-type now lives in `.release-please-config.json` (packages."." block).
+          # Custom config for wave-architecture types (`ship` + `wave` Conventional Commits)
+          # → "Wave Closures" section in CHANGELOG.md.
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json

@@ -1,0 +1,83 @@
+# W233 E2E Fix Plan — cross-model verification request
+
+## CONTEXT (TIER-1-DIRECT runtime evidence)
+
+Sibling runtime `Z:/claude-sota-pure` has 6 problems blocking SessionStart + MCP startup + plugin install. Runtime probes captured 2026-05-15:
+
+### Problem #1 — SessionStart hook[1] stale fnm node path
+- Settings file: `Z:/claude-sota-pure/.claude/settings.json` `hooks.SessionStart[1].hooks[0].command`
+- Current: `"C:/Users/42/AppData/Local/fnm_multishells/88968_1778853515666/node.exe" "...gsd-check-update.js"`
+- fnm shell PID 88968 is DEAD; current fnm = 59536 (PIDs are per-shell ephemeral)
+- Canonical fix path: `Z:/tools/nodejs/node.exe` (verified 85804032 bytes)
+
+### Problem #2 — SessionStart hook[2] gsd-session-state.sh bash error
+- Hook command: `"C:/Program Files/Git/bin/bash.exe" "Z:/claude-sota-pure/.claude/hooks/gsd-session-state.sh"`
+- Error pattern: "bash.exe cannot execute binary file"
+- Script first-8-byte hex dump: `# ! / u s r / b` (verified no UTF-8 BOM)
+- Script body: shebang `#!/usr/bin/env bash`; line 11-15 `if [ -f .planning/config.json ]; then ...; else exit 0; fi` (opt-in, no-op without `.planning/`)
+- Suspected root cause: CRLF line endings introduced by Windows install of `get-shit-done` plugin → bash sees shebang as `#!/usr/bin/env bash\r` → tries to exec `bash\r` (binary file)
+
+### Problem #3 — MCP fetch deprecated package
+- Current `.mcp.json` fetch row: `{"command":"npx","args":["-y","@modelcontextprotocol/server-fetch"]}`
+- MCP-org upstream `modelcontextprotocol/servers/fetch/README.md` install (gh API live fetch):
+  - Section "Using uv (recommended)": `uvx mcp-server-fetch`
+  - JSON form: `{"command":"uvx","args":["mcp-server-fetch"]}`
+
+### Problem #4 — MCP serena wrong install path
+- Current: `{"command":"uvx","args":["--from","git+https://github.com/oraios/serena","serena","mcp","--context","ide-assistant"]}`
+- Upstream README L63-64 verbatim: "Do not install Serena via an MCP or plugin marketplace! They contain outdated and suboptimal installation commands. Instead, follow our Quick Start instructions."
+- Proposed fix: REMOVE from .mcp.json (re-install via upstream Quick Start later as separate ship)
+
+### Problem #5 — context-mode/1.0.134/ EBUSY lock
+- Lock-holders (from probe): 4 claude-sota-installed claude.exe PIDs (46264 / 66180 / 71180 / 81748; started 09:32/08:01/08:12/16:20)
+- Plugin install attempt error: `Failed to install: EBUSY: resource busy or locked, rm '...context-mode/1.0.134'`
+- Fix: close lock-holding claude-sota-installed sessions BEFORE `Remove-Item -Recurse -Force`
+
+### Problem #6 — ECC plugin install name
+- Wrong: `/plugin install everything-claude-code@ecc` (returns "Plugin not found")
+- ECC marketplace.json exposes 1 plugin named `ecc` (60 agents + 229 skills + 75 commands)
+- Right: `/plugin install ecc@ecc`
+
+## PROPOSED FIX SCRIPT
+Path: `Z:/claude-sota-installed/tmp/wave233-e2e-fix-script.ps1` (~180 LOC PowerShell)
+- Backs up settings.json + .mcp.json + gsd-session-state.sh before modification (`.bak-w233` suffix)
+- Fix #1: Replace stale fnm path with canonical `Z:/tools/nodejs/node.exe`
+- Fix #2: Probe gsd-session-state.sh for CRLF; if found, convert to LF + preserve UTF-8-no-BOM
+- Fix #3: Update .mcp.json fetch row to `uvx mcp-server-fetch`
+- Fix #4: Remove serena from .mcp.json (operator re-installs per upstream Quick Start later)
+- Fix #5: Interactive `Read-Host yes/no` prompt before unlocking context-mode (user closes other sessions first)
+- Fix #6: Print correct ECC install command for operator to run inside CC session
+
+## AUDIT AXES (please return per-axis verdict)
+
+1. **Are the 6 fixes correctly diagnosed?** Any wrong remediations? Does the CRLF hypothesis fit "cannot execute binary file" error semantically?
+
+2. **Is "REMOVE serena from .mcp.json" the right interim fix?** Or should the script instead carry a `Quick Start` install attempt (uvx variant)?
+
+3. **Side-effect concerns**: Does the fix script touch `Z:/claude-sota-installed` (this orchestrator runtime — must NOT modify) or `Z:/claude-sota` (sibling runtime — must NOT modify)? It targets `Z:/claude-sota-pure` exclusively. Verify by reading the script body if needed.
+
+4. **Atomic ordering**: Should fixes #3 and #4 be combined into a single `.mcp.json` write (currently script writes once after both edits) to avoid race? Or split into 2 atomic writes?
+
+5. **CRLF detection**: Script uses byte-level scan for `0x0D 0x0A`; is that the right detector or should it use `Get-Content -Encoding Byte` semantics differently?
+
+6. **Recovery completeness**: Each modified file has a `.bak-w233` backup. Is the documented revert path (`Move-Item -Force <backup> <original>`) sufficient if any step partially fails?
+
+7. **Missing classes**: Are there additional problems blocking claude-sota-pure session-start that this script doesn't address? (Beyond the 6 identified, e.g., codex hook wires, additional disconnected MCPs, plugin marketplace re-registration.)
+
+## RETURN FORMAT (strict JSON-at-EOF)
+
+```json
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0,
+  "per_axis": [
+    {"axis": 1, "verdict": "PASS|FAIL|HNF", "note": "..."},
+    ...
+  ],
+  "prescribed_edits": [
+    {"axis": N, "edit": "...", "rationale": "..."}
+  ]
+}
+```
+
+If timeout exhausts before structured verdict, trace-mine partial evidence; orchestrator will dispose per Pattern B HONEST-NON-FINDING per `codex-t1-fix-forward-pattern.md` Pattern B.

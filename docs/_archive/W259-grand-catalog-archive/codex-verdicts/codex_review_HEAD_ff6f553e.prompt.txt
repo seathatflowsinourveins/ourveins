@@ -1,0 +1,207 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit ff6f553e1525118e58f4a5b13aa1f83635120f14
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+...26-05-12-sota-architecture-deep-audit-design.md | 815 +++++++++++++++++++++
+ 1 file changed, 815 insertions(+)
+
+=== git show --format=fuller ===
+commit ff6f553e1525118e58f4a5b13aa1f83635120f14
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:17:46 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:17:46 2026 -0400
+
+    spec(brainstorming): SOTA architecture deep-audit + optimization design (3-fire wave)
+    
+    Path: docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md
+    Sister: .claude/state/codex_consult_w-deep-audit-spec-t1.txt + _OUT.txt
+    
+    Brainstorming output (superpowers:brainstorming → spec-write → spec-self-review →
+    user-review → codex T1 → Pattern A apply). 3-fire parallel-wave plan with 5-agent
+    fan-out per advanced-agent-team-standing-directive: Fire 1 (sota-researcher +
+    architect + gpt5-archaeologist BRIDGE-MODE + gpt5-reviewer BRIDGE-MODE +
+    probe-dag-verifier) → Fire 2 (Mia synthesis + codex T1 per-dim + cleanup +
+    install + manifest + atomic commit) → Fire 3 (validate + smoke probe + T3
+    postcommit review + HONEST-NON-FINDING documentation).
+    
+    Advanced automation layer per user directive 2026-05-12 ("we need advanced
+    automation"): /loop cron+dynamic mode + PROGRESS.md handoff (cwc-long-running-
+    agents primitive) + stop-hook auto-continue + hook-driven audit-action-loop +
+    codex T1-T7 lifecycle + multi-agent dispatch automation + ECC autonomous-loop
+    skills.
+    
+    Cardinal rule conformance:
+    - CR-1: TIER-3-LOCAL-COMPOSITION cite-class declared per citation-discipline.md
+      rule #8 with constituents form (≥27 TIER-1-DIRECT + 18 TIER-2 anchors at
+      file:line + HEAD SHA + Test-Path verified)
+    - CR-3: cross-model consensus FULL via REAL GPT-5.5 codex T1 Path P foreground+tee
+      dispatch (NOT subagent stand-in; verdict origin = direct codex CLI subprocess);
+      Phase 1 bootstrap exception NOT invoked
+    - CR-5: install-priority discipline; FORWARD-REF adapter scripts (sota_audit_
+      stop_continue.py + sota_audit_progress_hook.py) gated through Fire 2.5 CR-5/
+      CR-12 classification
+    - CR-8: ADAPTED-FROM-SOTA status declared (this spec adapts upstream SOTA
+      primitives across 27+ TIER-1-DIRECT cites)
+    - CR-9: install-risk discipline applied (version-pin + 2-round fix-forward
+      budget + REVERT precedent check + sibling-bleed defense baked into agent briefs)
+    - CR-10: research-first-then-install (Agent A sota-researcher dispatch IS the
+      research-first primary)
+    - CR-11: META-process SOTA discipline dogfood (this fire executes under cardinal-
+      rule-11 awareness; recursive)
+    - CR-12: upstream-install-priority over sibling-cite-import (CR-12 PRIMARY path
+      for all new install candidates; sibling cite-import-AMBER only via HONEST-NON-
+      FINDING gate)
+    
+    Codex T1 verdict (cycle-322 jurisdiction n=1 user-trigger satisfied):
+    - VERDICT: NEEDS-REVISION
+    - confidence: 0.91 [VERIFIED via .claude/state/codex_consult_w-deep-audit-spec-t1_OUT.txt EOF JSON block]
+    - 10 prescribed_edits across AXIS-1 (text soundness) + AXIS-2 (cite-class
+      correctness) + AXIS-3 (sister-rule integration) + AXIS-4 (forward usability)
+    - Pattern A apply per codex-t1-fix-forward-pattern.md §Pattern A: ALL 10
+      prescriptions applied in this single atomic commit (no iter-N.1 layered
+      correction; cycle-300 ONE-LOGICAL-UNIT-PER-FIRE)
+    
+    Pattern A apply summary:
+    - AXIS-2 P1: cwc-long-running-agents path corrected; superpowers HEAD updated
+      e7a2d164→f2cbfbef; mattpocock REMOTE-ONLY marker; brace/glob/ellipsis split
+    - AXIS-1 P1: §1 success criteria orthogonalized (4 separate metrics)
+    - AXIS-1 P2: §4.1+§10 count alignment 14→16 repos
+    - AXIS-1 P2: §2+§4.5 probe-count consistency (6-probe→Probe DAG 1-7)
+    - AXIS-3 P1: §4.3+§5.2 Pattern D vs Pattern A profile rationale clarified
+    - AXIS-3 P1: §3.7 SHARED INVARIANT BLOCK added (ARTIFACT-INLINE persistence
+      + termination predicate + cite anchors + Mia evidence); Agent C/D/E
+      termination markers updated to "ARTIFACT-INLINE:"
+    - AXIS-3 P2: §3.3+§3.4 hook scripts labeled as THIN ADAPTERS gated Fire 2.5
+    - AXIS-1 P2: §5.6 atomic git commit form unified
+    - AXIS-1 P2: §7 FM-17.a cite corrected to fm17-subagent-fleet-depletion.md
+    - AXIS-4 P2: §9.1 machine-readable YAML block added; §13 stale triggers fixed
+    
+    Provenance: superpowers:brainstorming → spec-write → spec-self-review (§14) →
+    user-review (APPROVE) → codex T1 deep-review (Path P) → Pattern A apply (this
+    commit) → writing-plans skill transition (next).
+    
+    Failure mode coverage (per §7): FM-02 (a/b/c) destructive race + FM-09 codex-
+    rescue blind-spot + FM-17.a-f sub-classes + FM-19 readonly-guard sidestep +
+    FM-20 path-drift cascade + FM-21 queue-time freeze.
+    
+    Forward-only persistence per port-note-discipline.md §6.
+
+=== diff ===
+diff --git a/docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md b/docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md
+new file mode 100644
+index 0000000..2376fb4
+--- /dev/null
++++ b/docs/superpowers/specs/2026-05-12-sota-architecture-deep-audit-design.md
+@@ -0,0 +1,815 @@
++---
++date: 2026-05-12
++topic: sota-architecture-deep-audit
++status: AUTHORITATIVE
++agent: orchestrator (superpowers:brainstorming → writing-plans transition pending)
++---
++
++# SOTA Architecture Deep Audit + Optimization — Design Spec
++
++# === Cite-class lattice (per Z:/claude-sota/.claude/rules/citation-discipline.md rule #8) ===
++# constituents=[
++#   TIER-1-DIRECT @ https://code.claude.com/docs/en/sub-agents (Anthropic CC subagent model precedence + permission modes),
++#   TIER-1-DIRECT @ https://code.claude.com/docs/en/hooks (Anthropic CC PreToolUse + PostToolUse + Stop + asyncRewake),
++#   TIER-1-DIRECT @ Z:/repos/deps/claude-code-best-practice-shan/development-workflows/cross-model-workflow/cross-model-workflow.md:1-48 @ HEAD 48f2cebeb88b389b27231c418ceadb65baf813fd (CCBP T1-T3 cross-model workflow),
++#   TIER-1-DIRECT @ Z:/repos/deps/cwc-long-running-agents/README.md @ HEAD ffd563d668a97a38d4aa092bf0d5b1507c046629 (Default-FAIL contract + fresh-context evaluator + PROGRESS.md handoff + kill-switch + steer mid-run; 5 install-class primitives also installed natively at Z:/claude-sota-installed/.local/cwc/ per docs/install-provenance.md Wave 62B),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/advanced-agent-team-standing-directive.md (Wave 24-D OWNED at n=3 user-trigger; 8-invariant standing directive),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/agent-harness-fit-verification.md (Probe DAG 1-7 + FM-09 codex-rescue blind-spot + 7 sub-classes),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md (Pattern A single-fix-forward + Pattern B HONEST-NON-FINDING + Pattern D foreground+tee),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/closed-loop-recursive-narrowing.md (Outcome A/B/C disposition gate),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/cross-model-consensus.md (T1-T7 lifecycle + STAND-IN-NOTICE disclosure),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/fm17-subagent-fleet-depletion.md (FM-17.a-f sub-class recovery),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/fm19-readonly-guard-sidestep.md (ARTIFACT-INLINE persistence),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/fm20-path-drift-cascade.md (claim-propagation Mia probe at every hop),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/mia-pre-apply.md (verify-before-Edit on prescriptions),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/parallel-agent-wave.md (CADP rule 5 cache-aware dispatch pacing),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/parallel-session-worktree-isolation.md (Layer 0 outer-CLI worktree),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/synthesis-layer-verify.md (OVER/UNDER/HONEST-NON-FINDING + Subclaim-type discriminator + SubagentStop transcript-mining),
++#   TIER-2 @ Z:/claude-sota/.claude/rules/audit-action-loop.md (Wire/Surface/Close/Re-fire 4-stage discipline)
+
+[prompt truncated]

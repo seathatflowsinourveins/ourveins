@@ -1,0 +1,163 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 67595b0105b635f9bd296e298bcdbd708e01c567
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/architecture-audit-2026-05-10.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+=== git show --format=fuller ===
+commit 67595b0105b635f9bd296e298bcdbd708e01c567
+Author:     42 <42@local>
+AuthorDate: Tue May 12 07:36:36 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 07:36:36 2026 -0400
+
+    docs(arch-audit): W155 F56 reconcile docs/architecture-audit-2026-05-10.md L81-L83 Tier 2 Code intel MCPs 3-row batch (Repomix + Serena + GitNexus per V2 Path P APPROVE conf=0.94 ALL axes PASS prescribed_edits=[] fm09=NO); pure stale-line-ref class (F47-F52 class) — NO status flip; manifest row order REVERSED L180 GitNexus / L181 Serena / L182 Repomix vs arch-audit L81-L83; **cycle-322 same-class-batch precedent count ADVANCES n=4+ → n=5+** (F49+F50+F52+F53+F56 multi-row instances; F54/F55 singletons don't count per F54 axis3 framework); symbol-anchor migration per port-note-discipline §1 Discipline 1; F47-F56 DECET COMPLETE
+    
+    V2 Path P codex T1 verdict: APPROVE conf=0.94 ship_readiness=READY-AS-PROPOSED [VERIFIED via .claude/state/codex_consult_w155_f56_archaudit_l81_l83_code_intel_mcps_OUT.txt]
+      axis1 probe_state: PASS — verified (a) arch-audit L81-L83 currently cite stale `manifest.md:138/137/136`; (b) manifest L176 = Section 7 Code intelligence header; (c) manifest L180 = GitNexus, L181 = Serena, L182 = Repomix (REVERSED order from arch-audit); (d) manifest L136-L138 are W155 F43/F42c historical note content (NOT Code intel rows — confirms +44 LOC stale-line drift); (e) arch-audit parent status summaries remain ACCURATE against manifest L180-L182 refined status fields
+      axis2 cite_class: PASS — constituents=[TIER-3-LOCAL-OPERATIONAL-PROBE @ manifest L176+L180-L182 actual rows, TIER-2 @ port-note-discipline §1 symbol-anchor + line-drift discipline]; effective_tier=TIER-3-LOCAL-COMPOSITION per citation-discipline rule #8 MIN_PRECEDENCE
+      axis3 scope_discipline: PASS — F56 IS one logical unit (3 adjacent rows in same Tier 2 table; same Section 7 Code intel sub-class; same pure stale-line-ref correction class; NO status flip required); cycle-322 same-class-batch precedent count ADVANCES to n=5+ for multi-row instances (F49 + F50 + F52 + F53 + F56); F54/F55 remain singleton non-counting context per F54 axis3 framework
+      prescribed_edits: [] (CLEAN APPROVE — no Pattern A needed)
+      fm09_recursive_catch_triggered: NO
+    
+    Changes (3 rows, +3/-3 LOC delta):
+      L81 BEFORE: | Repomix v1.14.0 | INSTALLED-VIA-NPM | manifest.md:138 |
+      L81 AFTER:  | Repomix v1.14.0 | INSTALLED-VIA-NPM | manifest.md L182 (Section 7 Code intel — refined to ON-DEMAND-STDIO-WIRED-CLI-RESPONDING-NO-LIVE-AUDIT per W155 F22) |
+      L82 BEFORE: | Serena LSP @ 249f6b07 | INSTALLED-VIA-MCP-WIRE | manifest.md:137 |
+      L82 AFTER:  | Serena LSP @ 249f6b07 | INSTALLED-VIA-MCP-WIRE | manifest.md L181 (Section 7 Code intel — refined to ON-DEMAND-STDIO-WIRED-SHA-PINNED-UVX-CACHE-NO-LIVE-AUDIT per W155 F23; CR-9 D6 SHA-pin defense intentional) |
+      L83 BEFORE: | GitNexus v1.6.4-rc.112 | INSTALLED-RC-UPGRADED-HNF4-FIXED (Wave 132 Fire 3) | manifest.md:136 |
+      L83 AFTER:  | GitNexus v1.6.4-rc.112 | INSTALLED-RC-UPGRADED-HNF4-FIXED (Wave 132 Fire 3) | manifest.md L180 (Section 7 Code intel — refined to DIRECT-BINARY-STDIO-WIRED-CLI-RESPONDING-FILESYSTEM-STATE-MUTATED-NOT-INDEXED-NO-LIVE-AUDIT per W155 F24) |
+    
+    3 simultaneous reconciliations (PURE stale-line-ref class — F47-F52 family):
+      (1) L81 cite manifest.md:138 → L182 (Repomix; +44 LOC drift; manifest order REVERSED)
+      (2) L82 cite manifest.md:137 → L181 (Serena; +44 LOC drift)
+      (3) L83 cite manifest.md:136 → L180 (GitNexus; +44 LOC drift)
+      Status fields UNCHANGED — arch-audit summaries hold per manifest L180-L182 ground truth (W155 F22-F24 added supplementary "REFINED SUBTYPE" detail; parent claims INSTALLED-VIA-NPM / INSTALLED-VIA-MCP-WIRE / INSTALLED-RC-UPGRADED-HNF4-FIXED still accurate)
+    
+    cycle-322 same-class-batch precedent ADVANCE n=4+ → n=5+:
+      F49 (6-row Section 5 Quality batch) — 1st instance
+      F50 (2-row Foundation batch) — 2nd instance
+      F52 (3-row Section 5 Quality EXTENSION) — 3rd instance
+      F53 (2-row Tier 1a codex hooks DUAL-AXIS) — 4th instance
+      F56 (3-row Tier 2 Code intel pure stale-line-ref) — 5th instance NEW
+      cycle-322 promotion-candidate `same-class-batch-IS-one-logical-unit` advances PAST n=3+ ELIGIBLE → now firmly n=5+ (well past promotion threshold; formal codification target)
+    
+    Ladder advances:
+      - Path P n=124 → n=125
+      - CR-3 non-Phase-1-bootstrap n=60 → n=61
+      - FM-20 path-drift cascade ladder n=34 → n=37 (closes 3 of remaining 7 stale `manifest.md:NNN` refs in arch-audit; 4 remaining for F57+: L78-80 Memory MCPs 3-row complex + L84-86 Search MCPs 3-row + L91-97 Plugins 7-row largest)
+      - F47-F56 sequential 10-fire DECET COMPLETE
+      - cycle-322 same-class-batch precedent count ADVANCES from n=4+ → n=5+
+      - F56 V2 conf=0.94 — TIES F52 (0.94) for cleanest verdict in F47-F56 arc (excluding F51 0.96)
+    
+    FM-02 (b)+(c) atomic-narrow defense: `git commit --only -F tmp/wave155-f56-archaudit-l81-l83-code-intel-mcps-commit-msg.txt -- docs/architecture-audit-2026-05-10.md`
+    FM-15 git CLI grammar: option `-F` BEFORE `--` separator
+    Cardinal-rule conformance: CR-1 (TIER-3-LOCAL-COMPOSITION via citation-discipline rule #8) + CR-3 (FULLY SATISFIED via V2 Path P APPROVE 0.94) + CR-7 REPORT (clean APPROVE + Bash quote-trap n=14+ pivots disclosed inline) + CR-8 TIER-3-LOCAL-COMPOSITION + CR-11 META-process SOTA (port-note-discipline §1 symbol-anchor + Mia pre-apply n=373 verified actual L81-L83 stale + actual manifest L180-L182 reverse-order ground truth + actual manifest L136-L138 different content + FM-02 atomic narrow + FM-15 grammar)
+    
+    Cite anchors:
+      V2 verdict: .claude/state/codex_consult_w155_f56_archaudit_l81_l83_code_intel_mcps_OUT.txt (APPROVE conf=0.94 / 3/3 axes PASS / prescribed_edits=[] / fm09=NO / clean APPROVE)
+      Mia pre-apply: arch-audit L81-L83 actual stale + manifest L180-L182 actual Code intel rows (REVERSED order) + manifest L136-L138 actual W155 F43/F42c historical content (5 sub-claims verified pre-ship per Iron Law)
+      W155 F22-F24 ground truth: manifest L180-L182 with REFINED SUBTYPE detail per F22 (Repomix) + F23 (Serena) + F24 (GitNexus)
+
+=== diff ===
+diff --git a/docs/architecture-audit-2026-05-10.md b/docs/architecture-audit-2026-05-10.md
+index bc36f00..d7e7530 100644
+--- a/docs/architecture-audit-2026-05-10.md
++++ b/docs/architecture-audit-2026-05-10.md
+@@ -78,9 +78,9 @@ The prior "~83-87% SOTA-clean" framing propagated through Wave 137-138 was **REF
+ | L1: mcp-memory-service v10.51.3 | INSTALLED + 14 tools wired | manifest.md:100 |
+ | L2: Qdrant v1.17.0 Docker | STAGED-IMAGE-RUNNING (.mcp.json wiring pending) | manifest.md:101 |
+ | L3: Graphiti+FalkorDB v1.6.1 | **PARTIAL** (MCP wiring incomplete) — Wave 140 candidate per §3 Gap 1 | manifest.md:102 |
+-| Repomix v1.14.0 | INSTALLED-VIA-NPM | manifest.md:138 |
+-| Serena LSP @ 249f6b07 | INSTALLED-VIA-MCP-WIRE | manifest.md:137 |
+-| GitNexus v1.6.4-rc.112 | INSTALLED-RC-UPGRADED-HNF4-FIXED (Wave 132 Fire 3) | manifest.md:136 |
++| Repomix v1.14.0 | INSTALLED-VIA-NPM | manifest.md L182 (Section 7 Code intel — refined to ON-DEMAND-STDIO-WIRED-CLI-RESPONDING-NO-LIVE-AUDIT per W155 F22) |
++| Serena LSP @ 249f6b07 | INSTALLED-VIA-MCP-WIRE | manifest.md L181 (Section 7 Code intel — refined to ON-DEMAND-STDIO-WIRED-SHA-PINNED-UVX-CACHE-NO-LIVE-AUDIT per W155 F23; CR-9 D6 SHA-pin defense intentional) |
++| GitNexus v1.6.4-rc.112 | INSTALLED-RC-UPGRADED-HNF4-FIXED (Wave 132 Fire 3) | manifest.md L180 (Section 7 Code intel — refined to DIRECT-BINARY-STDIO-WIRED-CLI-RESPONDING-FILESYSTEM-STATE-MUTATED-NOT-INDEXED-NO-LIVE-AUDIT per W155 F24) |
+ | Context7 / DeepWiki HTTP | INSTALLED Tier 2A remote | manifest.md:147-148 |
+ | GitHub MCP HTTP read-only | INSTALLED Tier 2A | manifest.md:150 |
+ | Exa / Perplexity / Firecrawl / arxiv | PLANNED
+
+[prompt truncated]

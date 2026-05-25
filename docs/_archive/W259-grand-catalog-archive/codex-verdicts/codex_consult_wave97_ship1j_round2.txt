@@ -1,0 +1,40 @@
+T1 ROUND-2 NARROW — Wave 97 Ship 1J Pattern A fix-forward verification
+
+PRIOR ROUND-1 VERDICT (verbatim):
+{"verdict":"NEEDS-REVISION","confidence":0.88,"rationale":"Round-robin is compatible with session affinity, but the stated 3-active-account burst distribution is false while active Claude priorities are P30/P20/P10 because CLIProxyAPI selects the highest priority bucket before applying round-robin.","prescribed_edits":["Keep routing.strategy=round-robin with session-affinity=true and session-affinity-ttl=4h.","Equalize the active Claude accounts intended for burst sharing to the same priority tier, or explicitly document that lower-priority accounts are standby overflow only.","Keep disable-cooling=false and do not retune session-affinity-ttl in this ship.","Update the note to state that round-robin load-balances within the highest available priority bucket, not across unequal priorities."]}
+
+PATTERN A FIX-FORWARD APPLIED (single atomic edit per codex-t1-fix-forward-pattern.md §Pattern A):
+
+F1 — Keep routing.strategy=round-robin with session-affinity=true and session-affinity-ttl=4h:
+  config.yaml routing block: strategy="round-robin" + session-affinity=true + session-affinity-ttl="4h" — VERIFIED in edit
+
+F2 — Equalize active Claude accounts to same priority tier OR explicitly document standby semantic:
+  Took DOCUMENTATION path (priority is operator semantic; equalization is separate operator-decision ship).
+  Comment block now explicitly states:
+    "round-robin operates WITHIN highest-priority bucket FIRST, NOT across unequal priorities.
+    Current OAuth fleet has UNEQUAL priorities: aesthetic9c=P30, mr.euphoriaincarnate=P20, nalawowac=P10.
+    Round-robin will exhaust P30 BEFORE falling to P20, then P10. Effectively: fill-first within priority tiers."
+  + DEFERRED note: "For TRUE 3-account burst-distribution: equalize all 3 active accounts to same priority — DEFERRED to separate operator-decision ship".
+
+F3 — Keep disable-cooling=false and do not retune session-affinity-ttl in this ship:
+  config.yaml line for disable-cooling NOT MODIFIED (still at false elsewhere in config).
+  session-affinity-ttl="4h" PRESERVED (not retuned).
+
+F4 — Update note to state round-robin load-balances within highest-priority bucket, NOT across unequal priorities:
+  Comment block now states verbatim "round-robin operates WITHIN highest-priority bucket FIRST, NOT across unequal priorities" + cites CLIProxyAPI source at sdk/cliproxy/auth/selector.go:26+283 + README:51 + config.example.yaml:114.
+  Justification for proceeding with flip even under unequal priorities:
+    (a) at upstream default
+    (b) when priorities ARE equal it distributes properly
+    (c) post-7d-reset rebalance is automatic (no fill-first's burn-first delay)
+
+CURRENT DIFF (post Pattern A; single file: .cli-proxy-api/config.yaml):
+- L70: strategy: "fill-first" → "round-robin"
+- L60-77: Wave 86 Ship 1Q comment block REPLACED with Wave 97 Ship 1J comment block citing all 4 prescribed_edits + priority-tier behavior + deferred-equalization-ship + Wave 86 Ship 1Q forward-only retired rationale preserved per port-note-discipline.md §6
+- L72-77: session-affinity:true + session-affinity-ttl:"4h" PRESERVED + clarifying comment
+
+QUESTION: Does the Pattern A fix-forward correctly address ALL 4 Round-1 prescribed_edits?
+
+Outcome A monotone-decline expected per closed-loop-recursive-narrowing.md (R1 NEEDS-REV 0.88 → R2 should be APPROVE OR confidence-decline).
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

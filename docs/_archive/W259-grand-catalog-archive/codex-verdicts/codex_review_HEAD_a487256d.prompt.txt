@@ -1,0 +1,183 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit a487256d53a038263673e1c8249163c0bc2adeaa
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.mcp.json                  | 2 +-
+ docs/install-provenance.md | 7 ++++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+=== git show --format=fuller ===
+commit a487256d53a038263673e1c8249163c0bc2adeaa
+Author:     42 <42@local>
+AuthorDate: Sun May 10 03:09:29 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 03:09:29 2026 -0400
+
+    chore(wave-133-fire-2): Pattern A fix-forward Agent C P2 + P3 prescriptions (cite-attribution-precision + multi-voice-framing)
+    
+    Wave 133 Fire 2 closes the Wave 133 Fire 1 deferred Pattern A apply for Agent C NEEDS-REVISION conf=0.88 prescriptions per `codex-t1-fix-forward-pattern.md §Pattern A` single-fix-forward.
+    
+    ## What changed
+    
+    ### P2 fix-forward — cite-attribution-precision (Mia OVER #129 corrected forward-only)
+    
+    Wave 132 Fire 3 commit body conflated TWO separate @ladybugdb/core dep bumps into ONE attribution. Forward-only correction per `port-note-discipline.md §6` "do not rewrite historical commit bodies" (the Wave 132 Fire 3 commit `4ac4d69` body remains UNTOUCHED; only living surfaces .mcp.json + install-provenance.md are corrected with explicit "Wave 133 Fire 2 fix-forward" provenance markers).
+    
+    **Empirical correction (Mia probe verified 2026-05-10 via gh api)**:
+    - Commit `3f0c74f` message verbatim: "fix(deps): upgrade @ladybugdb/core to **0.16.0** to resolve native segfaults (#1235)" — Magyar 2026-04-30T16:40:39Z
+    - Commit `c08564ab` message verbatim: "chore(deps): bump @ladybugdb/core to **^0.16.1** (#1326)" — Magyar 2026-05-04T12:30:20Z
+    - gitnexus@1.6.4-rc.112 package.json ships `"@ladybugdb/core": "^0.16.1"` (verified via npm view)
+    
+    **Files corrected**:
+    - `.mcp.json:88` `_comment_gitnexus` block: 4-layer multi-layered fix → 5-commit multi-layered fix; @ladybugdb/core bump split into 3f0c74f (0.15.2→0.16.0) + c08564ab (0.16.0→0.16.1 wasm Windows paths)
+    - `docs/install-provenance.md:11302` HNF-4 forensic heading: "4-LAYER fix" → "5-COMMIT fix" with attribution-precision provenance
+    - `docs/install-provenance.md:11309` HNF-4 4-LAYER fix table row: split Layer 4 row into 2 rows (Layer 4 = 3f0c74f bump to 0.16.0; NEW Layer 5 = c08564ab bump to 0.16.1)
+    
+    ### P3 fix-forward — multi-voice-framing precision (Agent C P3 Finding #2 prescription applied forward-only — distinct from Mia OVER #130 which is Agent C's separate P3 Finding #3 STAND-IN-NOTICE deferred to task #91)
+    
+    Wave 132 Fire 3 commit body framed Path P + Agent B + Agent C as "Triple-voice CONVERGENT verdict" — IMPRECISE per `synthesis-layer-verify.md §Reporting categories` OVER discrimination: Path P returned Pattern B HONEST-NON-FINDING-LOSS (no JSON verdict; mined-trace SUPPORTING evidence). Strictly only 2 structured verdicts CONVERGED (Agent B 0.86 + Agent C 0.92).
+    
+    **Cross-model gate satisfaction UNCHANGED**: Path P REAL GPT-5.5 voice via orchestrator-direct foreground+tee dispatch satisfies cross-model gate per CR-3 Phase 1 bootstrap exception. Only the framing precision improves; the gate-satisfaction is unchanged.
+    
+    **Files corrected**:
+    - `.mcp.json:88` `_comment_gitnexus` block: "Triple-voice CONVERGENT verdict" → "Multi-voice verdict (2-voice CONVERGENT structured + 1 mined-trace SUPPORTING)"
+    - `docs/install-provenance.md:11374` cross-arc lessons codified: same precision fix with synthesis-layer-verify.md OVER-discrimination cite
+    
+    ## Mia pre-apply gate decisions
+    
+    **APPLIED**: Agent C P2 (cite-attribution-precision) + Agent C P3 (multi-voice-framing) — 5 atomic Edits across 2 files; all string-replacements verified unique within target files via Mia probe before Edit.
+    
+    **DEFERRED to Wave 133 Fire 3+**: Agent B P0-1 v62 EXECUTE PLAN doctrine codification. Mia probe per Wave 133 Fire 1 Agent B brief (whether ALREADY covered by CR-7+CR-10+CR-11 combination): probe of CLAUDE.md grep returned ZERO matches for "Phase 0|Phase 7|Phase 8|EXECUTE|Continuous convergence|Benchmark-before|verification gate"; v62 EXECUTE_V62_ELITE_PLAN.md exists at `Z:/claude-sota/docs/outer research/kits/v62/EXECUTE_V62_ELITE_PLAN.md`. **Mia GENUINE-GAP confirmed** — Agent B P0-1 is NOT already covered. Codification queued as separate Wave 133 Fire 3 ship per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE.
+    
+    **DEFERRED to Wave 130 followup task #91**: Agent C P3 STAND-IN-NOTICE auto-emission discipline (sibling fm17 backport + cross-model-consensus.md amendment to mandate ACTUAL env probe rather than doc-inferred framing).
+    
+    ## Cardinal-rules conformance
+    
+    - **CR-1 cite-trail**: every change cites TIER-1-DIRECT (gh api verbatim commit messages + npm view package.json + synthesis-layer-verify.md §Reporting categories) ✅
+    - **CR-3 Phase 1 bootstrap exception**: this fire is documentation-precision fix-forward; cross-model verification provided by Wave 133 Fire 1 Agent C dispatch (already done — this commit IS the apply step) + post-commit T3 review available manually if needed ✅
+    - **CR-9 install-risk**: NO new installs this fire; documentation-only changes; pre-cite-import REVERT check N/A ✅
+    - **CR-10 research-first**: Mia probe of @ladybugdb/core attribution chain verified via direct gh api before Edit ✅
+    - **CR-11 META-process**: Pattern A single-fix-forward per `codex-t1-fix-forward-pattern.md §Pattern A` ✅
+    - **CR-12 upstream-install-priority**: NO sibling cite-imports this fire ✅
+    
+    ## Mia ladder UNCHANGED at n=130
+    
+    Both Wave 133 Fire 1 Mia OVER catches (#129 + #130) are Wave 132 Fire 3 commit body OVER catches. This Fire 2 APPLIES the corrections forward-only; no NEW Mia catches. Mia ladder cumulative remains n=130.
+    
+    ## FM-17.f cumulative ladder UNCHANGED at n=4
+    
+    This fire is orchestrator-direct Pattern A apply (no agent dispatch); no FM-17.f exposure.
+    
+    ## Files committed
+    
+    - `.mcp.json` (P2 + P3 fix-forward)
+    - `docs/install-provenance.md` (P2 + P3 fix-forward across L11302 / L11309 / L11374)
+    
+    ## Wave 133 Fire 3 candidate scope (queued)
+    
+    Per Wave 133 Fire 1 Agent B P0-1 + Mia probe GENUINE-GAP confirmation:
+    
+    1. v62 EXECUTE PLAN Phase 0-8 doctrine codification (cite-class TIER-1 to `Z:/claude-sota/docs/outer research/kits/v62/EXECUTE_V62_ELITE_PLAN.md`)
+    2. New cardinal-rule extension OR new doc file `docs/v62-execute-plan-doctrine.md` (architect to decide layer)
+    3. Estimated 3-4 dispatches (advanced agent team per cardinal-rule-11 META-process: sota-researcher + architect + codex-rescue or Path P) + ~200-280 LOC + 1 atomic commit
+    
+    Trigger: auto-fire on next session start (no upstream dependency); blocked by Wave 133 Fire 2 commit landing.
+    
+    closes #102 (Wave 133 Fire 2)
+    defers Wave 133 Fire 3 (Agent B P0-1 v62 EXECUTE PLAN doctrine codification)
+    defers Wave 132 Fire 4 (gitnexus stable bump auto-fire on dist-tags.latest change)
+    defers Wave 130 followup task #91 (sibling fm17 backport + STAND-IN-NOTICE actual-env-probe discipline)
+
+=== diff ===
+diff --git a/.mcp.json b/.mcp.json
+index 053bb1d..9876f11 100644
+--- a/.mcp.json
++++ b/.mcp.json
+@@ -85,7 +85,7 @@
+       "command": "npx",
+       "args": ["-y", "@arizeai/phoenix-mcp", "--baseUrl", "http://127.0.0.1:16006"]
+     },
+-    "_comment_gitnexus": "Wave 132 Fire 3 RC-UPGRADE 2026-05-10 (supersedes Wave 132 Fire 2 RETAIN-AT-1.6.3) — UPGRADED gitnexus@1.6.3 → @1.6.4-rc.112 per HNF-4 fix-forward 4-layer multi-layered fix (commits 6f42253 analyze invariant + b792787 hook canonical-root + 3732fa1 storage canonical-name + 3f0c74f @ladybugdb/core 0.15.2→0.16.1 native segfault). Empirical Wave 132 Fire 3 evidence: 1.6.3 BROKEN on Windows (silent meta.json + ~/.gitnexus/registry.json write failure post-DB-write; exit 0 masks); 1.6.4-rc.112 FULLY WORKS (24 nodes/25 edges indexed; meta.json 732B + registry.json 441B both written; status ✅ up-to-date). Triple-voice CONVERGENT verdict per cardinal-rule-3 Phase 1 bootstrap exception: Path P codex bg `brorqawb0` REAL GPT-5.5 (Pattern B HONEST-NON-FINDING-LOSS — mine
+
+[prompt truncated]

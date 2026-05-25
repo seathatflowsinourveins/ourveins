@@ -1,0 +1,35 @@
+SYSTEM: V2 designer for W154 F6 cli_path_audit.py SessionStart hook wire. Output JSON-strict at EOF.
+
+CONTEXT:
+- W154 F3 shipped scripts/cli_path_audit.py (commit 80f9765) with V3 SCOPED-DOWN: NO hook wire until "script proves clean schema/noise pattern across multiple cron iterations + PATH-fix lands"
+- W154 F4 gh install (7662cca) + F5 PATH-fix (a44b48c) landed; cli_path_audit Tier-0 3/3 PASS in simulated post-F5 shell
+- Cron `a83ecd8c` 3 iterations no schema-drift signal
+- Predicates SATISFIED for SessionStart wire
+- F6 = wire cli_path_audit.py as SessionStart hook in .claude/settings.json with --jsonl flag (capped append-only drift records)
+
+ANTHROPIC CC SessionStart hook docs (TIER-1-DIRECT cite anchor):
+- https://code.claude.com/docs/en/hooks ["SessionStart"]: fires at session start; can emit additionalContext via stdout JSON
+- Existing settings.json SessionStart hooks: claude_md_count_audit (async 30s) + cite_drift_audit (async 30s) + mcp_self_audit (async 30s) + mcp_overhead_audit (async 30s) + agent_frontmatter_audit (async 30s) + tmp_md_inventory (async 30s) + tmp_promote_authoritative (async 30s) + process_hygiene_audit (async 30s) etc — pattern: async 30s for non-blocking advisory
+- W154 F5 V3 SCOPED-DOWN inheritance: cli_path_audit at SessionStart should be ASYNC + advisory (NOT blocking)
+
+QUESTIONS:
+Q1: minimum_viable_f6_wire? (settings.json SessionStart entry for `python scripts/cli_path_audit.py --jsonl` async 30s)
+Q2: noise discipline? (only emit JSONL on drift via --jsonl flag — already capped per W154 F3 design)
+Q3: stdout vs stderr? (stdout = additionalContext to Claude / stderr = telemetry; cli_path_audit currently prints to stdout — should we suppress or pipe to stderr-only mode for the hook?)
+Q4: failure mode? (audit script throws → hook fails → log; advisory not blocking)
+Q5: reversibility per CR-9?
+Q6: scope per cycle-300 - JUST SessionStart wire OR also PostToolUse on `Bash(npm install -g *)` to catch new CLI installs?
+
+OUTPUT JSON-strict at EOF:
+{
+  "verdict": "APPROVE | NEEDS-REVISION | REJECT",
+  "confidence": 0.0-1.0,
+  "minimum_viable_f6_wire": "...",
+  "noise_discipline": "...",
+  "stdout_vs_stderr": "...",
+  "failure_mode": "...",
+  "reversibility_path": "...",
+  "scope_discipline": "...",
+  "prescribed_edits": [...],
+  "risk_class": "LOW | MEDIUM | HIGH"
+}

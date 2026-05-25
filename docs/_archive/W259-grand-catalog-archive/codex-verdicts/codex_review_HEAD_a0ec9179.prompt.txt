@@ -1,0 +1,257 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit a0ec9179061e92585c615b4f3a519796531d6055
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/hooks/scripts/fm20_path_drift_lint.py | 118 ++++++++++++++++++++++++++
+ .claude/settings.json                         |   6 ++
+ 2 files changed, 124 insertions(+)
+
+=== git show --format=fuller ===
+commit a0ec9179061e92585c615b4f3a519796531d6055
+Author:     42 <42@local>
+AuthorDate: Mon May 11 18:16:29 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 18:16:29 2026 -0400
+
+    feat(hooks): Wave 152 Fire 28 — FM-20 path-drift PreToolUse:Agent lint hook (AXIS-O #N3 DRY-RUN)
+    
+    NEW .claude/hooks/scripts/fm20_path_drift_lint.py (~90 LOC); registered as 2nd PreToolUse:Agent
+    hook (after agent_spawn_gate.py). Detects TIER-3 propagation in Agent dispatch briefs
+    (verdict-conf / tmp/wave*.md / codex_consult*_OUT.txt / memory/feedback_*.md / task-tracking /
+    "Agent X said") and warns when nearby probe marker ([VERIFIED]/[MEASURED]/Mia probe:/REFUTED)
+    is absent. DRY-RUN/warn mode per W152-F13 codex T1 fp_risk_per_fm: fm20=med (advisory exit 0;
+    emits JSONL + stderr; never decision:block in this rollout).
+    
+    Design source: W152-F13 codex T1 APPROVE conf=0.84 fm20_design block at L10524 of
+    .claude/state/codex_consult_wave152_f13_fm_lints_design_OUT.txt (SYSTEM-meta-review fallback
+    authorizes T1 SKIP per .claude/rules/codex-t1-system-meta-review-fallback.md 4-criteria match —
+    same path used for W152-F5b FM-19 + W152-F12 FM-17 ships).
+    
+    Cross-axis context: completes AXIS-O FM-19/FM-17/FM-20 SubagentStop+PreToolUse executable lint
+    triad per W152-F13 ordering recommendation. Operator decision on task #207 (W152-F18 Spec-Kit
+    runtime-root violation) still pending; this ship is orthogonal scope per ONE-LOGICAL-UNIT-PER-FIRE.
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/fm20_path_drift_lint.py b/.claude/hooks/scripts/fm20_path_drift_lint.py
+new file mode 100644
+index 0000000..37f583a
+--- /dev/null
++++ b/.claude/hooks/scripts/fm20_path_drift_lint.py
+@@ -0,0 +1,118 @@
++#!/usr/bin/env python3
++# FM-20 path-drift cascade — PreToolUse:Agent lint (advisory; DRY-RUN)
++#
++# Design source: W152-F13 codex T1 fm20_design block at
++#   .claude/state/codex_consult_wave152_f13_fm_lints_design_OUT.txt L10524
++#   (APPROVE conf=0.84; LOC=80 estimate; feasibility=med; DRY-RUN/warn for first rollout)
++# Discipline source: Z:/claude-sota/.claude/rules/fm20-path-drift-cascade.md (sister cite-import-AMBER)
++# Schema: PreToolUse hook input per https://code.claude.com/docs/en/hooks
++"""Detect TIER-3 claim propagation in Agent dispatch briefs without verification markers.
++
++Scope:
++  - PreToolUse:Agent only — inspects Agent tool_input.prompt + .description
++  - DRY-RUN: emits JSONL + stderr warn; does NOT block dispatch
++  - Future: tighten to decision:block once marker convention proves consistent
++
++Detection (TIER-3 propagation patterns):
++  - Agent verdict text (NEEDS-REVISION/APPROVE/REJECT with conf=0.NN)
++  - tmp/wave*.md paths
++  - codex_consult*_OUT.txt paths
++  - memory/feedback_*.md paths
++  - task-tracking claims (task #\\d+ / [completed] / [pending])
++  - "Agent X said/found/recommended/caught/surfaced/flagged"
++
++Verification proximity check:
++  - For each TIER-3 detection: search ±200 chars for [VERIFIED]/[MEASURED]/Mia probe:/REFUTED/DROPPED
++  - Marker nearby → CLASSIFY-OK (no warn)
++  - Marker missing → CLASSIFY-FM-20-RISK (emit JSONL + stderr warn; exit 0)
++
++Per fm20_design "fp_risk: med": DRY-RUN-WARN mode for first rollout.
++"""
++from __future__ import annotations
++
++import os
++import re
++import sys
++
++sys.path.insert(0, os.path.dirname(__file__))
++from _observation_writer import (  # noqa: E402
++    append_observation,
++    now_iso,
++    read_stdin_payload,
++)
++
++_CTX = "fm20_path_drift_lint"
++_DISABLE_ENV = "FM20_PATH_DRIFT_LINT_DISABLE"
++_NEARBY_WINDOW = 200  # chars on each side to search for verification marker
++_MAX_FINDINGS_LOGGED = 10
++
++# TIER-3 propagation patterns (cls, compiled regex)
++_PROPAGATION = [
++    ("verdict_conf", re.compile(r"(?:NEEDS-REVISION|NEEDS-ATTENTION|APPROVE|REJECT)\b[^.\n]{0,40}?\bconf\s*=\s*0\.\d{2}", re.IGNORECASE)),
++    ("tmp_wave",     re.compile(r"tmp/wave[\w\-./]+\.md", re.IGNORECASE)),
++    ("codex_out",    re.compile(r"codex_consult[\w\-./]*_OUT\.txt", re.IGNORECASE)),
++    ("feedback_mem", re.compile(r"memory/feedback_[\w\-./]+\.md", re.IGNORECASE)),
++    ("task_claim",   re.compile(r"task\s*#\d+|\[completed\]|\[pending\]")),
++    ("agent_said",   re.compile(r"Agent\s+[A-Z]\w*\s+(?:found|said|recommended|caught|surfaced|flagged|reported|claimed)", re.IGNORECASE)),
++]
++
++# Verification marker (any one nearby satisfies the proximity check)
++_VERIFICATION = re.compile(
++    r"\[VERIFIED\b|\[MEASURED\b|Mia probe:|REFUTED|DROPPED",
++    re.IGNORECASE,
++)
++
++
++def _has_nearby_marker(text: str, start: int, end: int) -> bool:
++    lo = max(0, start - _NEARBY_WINDOW)
++    hi = min(len(text), end + _NEARBY_WINDOW)
++    return bool(_VERIFICATION.search(text[lo:hi]))
++
++
++def main() -> int:
++    payload = read_stdin_payload(_DISABLE_ENV, _CTX)
++    if payload is None:
++        return 0
++
++    tool_input = payload.get("tool_input") or {}
++    if not isinstance(tool_input, dict):
++        return 0
++
++    prompt = str(tool_input.get("prompt") or "")
++    description = str(tool_input.get("description") or "")
++    text = description + "\n\n" + prompt
++    if not text.strip():
++        return 0
++
++    findings = []
++    for cls, pat in _PROPAGATION:
++        for m in pat.finditer(text):
++            if not _has_nearby_marker(text, m.start(), m.end()):
++                findings.append({"class": cls, "match": m.group(0)[:80], "pos": m.start()})
++
++    if not findings:
++        return 0  # Clean — no FM-20 risk detected
++
++    obs = {
++        "ts": now_iso(),
++        "ctx": _CTX,
++        "subagent_type": str(tool_input.get("subagent_type") or ""),
++        "findings_count": len(findings),
++        "findings": findings[:_MAX_FINDINGS_LOGGED],
++        "mode": "DRY-RUN-WARN",
++    }
++    try:
++        append_observation(obs, _CTX)
++    except Exception:
++        pass
++
++    sys.stderr.write(
++        f"[fm20-lint] FM-20 risk: {len(findings)} TIER-3 propagation(s) in Agent brief "
++        f"WITHOUT nearby [VERIFIED/MEASURED/Mia probe/REFUTED] marker. "
++        f"Consider decomposing sub-claims + Mia probe before dispatch. (DRY-RUN; not blocking)\n"
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 97b61bc..14e504f 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -121,6 +121,12 @@
+             "type": "command",
+             "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/agent_spawn_gate.py",
+             "timeout": 5
++          },
++          {
++            "type": "command",
++            "command": "Z:/venvs/claude/Scripts/python.exe Z:/claude-sota-installed/.claude/hooks/scripts/fm20_path_drift_lint.py",
++            "timeout": 5,
++            "async": true
+           }
+         ]
+       },
+</repository_context>

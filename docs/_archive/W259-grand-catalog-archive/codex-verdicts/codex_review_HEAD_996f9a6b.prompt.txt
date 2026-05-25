@@ -1,0 +1,208 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 996f9a6bd0ea91963c8afa96886a8444e8b4bc19
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/agents/gpt5-reviewer.md | 275 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 275 insertions(+)
+
+=== git show --format=fuller ===
+commit 996f9a6bd0ea91963c8afa96886a8444e8b4bc19
+Author:     42 <42@local>
+AuthorDate: Tue May 12 13:59:09 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 13:59:09 2026 -0400
+
+    feat(agents): fire 17 — track gpt5-reviewer.md (10/11; HNF VALID; ~90.9% threshold)
+    
+    Wave loop89d7bbd4 Fire 17 — track gpt5-reviewer.md (10/11 agents; +9.1%
+    agent-tracking; 9/11 Fire 16 → 10/11 Fire 17; PAST nine-tenths threshold).
+    
+    ## File state
+    
+    `.claude/agents/gpt5-reviewer.md` is **HNF VALID** per Fire 13 SRA D1-D10 audit
+    at `docs/install-provenance.md` Fire 13 entry (committed via parallel-session
+    `acefbb7`). No upstream parity across 11-marketplace + 5-plugin-cache probe.
+    
+    **NO FM-20 cite-trail Pattern A needed**: `grep -c "c9f4ed404" gpt5-reviewer.md` = 0
+    (file has TIER-1-DIRECT cite anchors to codex-plugin-cc/plugins/codex/commands/review.md
+    + adversarial-review.md @ HEAD 807e03ac at L29-30; no stale CCBP cite to repair).
+    
+    Wave 15 PORT note at L1-26 documents:
+    - Source: `Z:/claude-sota/.claude/agents/gpt5-reviewer.md` @ pinned SHA `b6f9c1e3c68b787d421dabe5847d5248e526ab9e` [VERIFIED 2026-05-07]
+    - Pattern: cite-extend with CR-9 sibling-bleed defense (14-class extended pattern set per Wave 62C, Path C HYBRID)
+    - effective_tier: TIER-3-LOCAL-COMPOSITION
+    - HONEST-NON-FINDING evidence: probed claude-plugins-official + ECC 2.0.0-rc.1 + obra/superpowers + mattpocock/skills + anthropic-cookbook + openai/codex-plugin-cc; codex-plugin-cc upstream provides review primitives (review.md + adversarial-review.md) but sibling SUBAGENT-shape wrapper + REVIEW_MODE 4-mode catalog + Codex-unavailable fail-closed contract + santa-loop dual-review framing are sibling-novel ENRICHMENT delta with no upstream parity
+    - CR-9 sub-rules applied: REVERT check PASSED + sibling-bleed defense per Wave 62C + CR-12 TERTIARY conformance
+    
+    ## Cardinal-rule conformance (CR-1 through CR-12)
+    
+    - CR-1 ✓ TIER-1-DIRECT cite anchors at HEAD SHA (codex-plugin-cc review.md + adversarial-review.md @ 807e03ac9d5aa23bc395fdec8c3767500a86b3cf)
+    - CR-3 N/A (no design-surface Edit; tracking-only commit)
+    - CR-5 ✓ Cite-import-AMBER per Section 14.5; not install-class
+    - CR-7 ✓ Metadata-only tracking change per bypassPermissions Phase 1+
+    - CR-8 ✓ ADAPTED-FROM-SOTA via Wave 15 PORT cite-import per CR-12 TERTIARY Path C HYBRID
+    - CR-9 ✓ Sibling-bleed defense applied per Wave 15 PORT note
+    - CR-12 ✓ TERTIARY path — sibling-novel sss SUBAGENT-shape wrapper + REVIEW_MODE catalog + santa-loop dual-review with NO upstream parity per Wave 15 PORT HONEST-NON-FINDING + Fire 13 SRA D1-D10 audit confirmation
+    
+    ## Agent-tracking gap closure (PAST 9/10 threshold)
+    
+    Pre-Fire-17 inventory:
+    - Tracked (9/11 = 81.8%): architect (Fire 11 `4a7696b`) + debugger (Fire 10 `5fedb7a`) + evaluator (Fire 7 `b29d2f5`) + gpt5-archaeologist (Fire 16 `7fbcb95`) + gsd-goal-verifier (Fire 7 `b29d2f5`) + sota-researcher (Fire 14 `c8233e3`) + verifier (Fire 15 absorbed `e22db7f`) + wshobson-devops-troubleshooter (Fire 7 `b29d2f5`) + wshobson-security-auditor (Fire 7 `b29d2f5`)
+    - Untracked (2/11):
+      - gpt5-reviewer.md — Fire 17 target (THIS commit) → HNF VALID
+      - code-reviewer.md — OPERATOR-PENDING (CR-12 VIOLATION per Fire 13)
+    - Also present: `cwc/` subdirectory (Wave 75 cwc-long-running-agents 5 install-class primitives — separate tracking scope; manifest §Section 17)
+    
+    Post-Fire-17 inventory:
+    - Tracked: 10/11 = 90.9% (PAST nine-tenths threshold)
+    - Untracked: 1/11 (code-reviewer.md only — OPERATOR-PENDING CR-12 VIOLATION)
+    - Agent-tracking effectively COMPLETE for HNF-VALID class; only CR-12 VIOLATION class remains
+    
+    ## Fire 16 T3 verdict integration
+    
+    Fire 16 commit `7fbcb950` T3 verdict at `.claude/state/codex_review_HEAD_7fbcb950.txt`
+    (420 bytes). [Verdict content integrated; Fire 16 commit-body retroactively
+    documented Fire 15 absorption + cycle-322 PROMOTION TRIGGER per ACCEPT-WITH-DOC
+    disposition.]
+    
+    ## FM-20 cascade FINAL CLOSED state (HNF-VALID class 100% complete)
+    
+    Per comprehensive Fire 16 `grep c9f4ed404` probe:
+    
+    | HNF-VALID class | Status |
+    |---|---|
+    | `.claude/agents/debugger.md` | ✅ Fire 10 `5fedb7a` |
+    | `.claude/agents/sota-researcher.md` | ✅ Fire 14 `c8233e3` |
+    | `.claude/agents/verifier.md` | ✅ Fire 15 absorbed `e22db7f` |
+    | **Total HNF-VALID FM-20 cascade** | **3/3 = 100% CLOSED** |
+    
+    CR-12 VIOLATION class (OPERATOR-DECISION-PENDING; NOT HNF-VALID):
+    | Surface | Status |
+    |---|---|
+    | `.claude/agents/architect.md` | Fire 11 `4a7696b` operator-pending |
+    | `.claude/agents/code-reviewer.md` | Fire 12 reverted; operator-pending |
+    
+    NON-AGENT FM-20 surfaces (separate scope):
+    | Surface | Status |
+    |---|---|
+    | `CLAUDE.md:268` | LIVE; HIGH-RISK cardinal-rule cite-class lattice exemplar |
+    | `docs/install-provenance.md` (3 occurrences) | LEGITIMATE PROVENANCE refs (historical Fire 13 audit-trail entries; NOT requiring Pattern A per audit-action-loop discipline) |
+    
+    ## Cycle-322 PROMOTION-ELIGIBLE — Consolidated Pattern A recipe (HNF-VALID class)
+    
+    n=3 firm self-observed confirmed; PROMOTION-ELIGIBLE per `Z:/claude-sota/.claude/rules/codification-threshold.md` cycle-322. Pattern signature:
+    
+    "Consolidated Pattern A iter-1 apply on HNF-VALID cite-import-AMBER agent (no upstream parity verified via 11-marketplace + 5-plugin-cache probe per SRA D1-D10 audit) combining: (a) removal of bracketed `[content-SHA <stale-token>]` marker, (b) replacement of literal token-string with non-literal wording in rationale, (c) explicit Fire 13-class audit-trail provenance citation, (d) AXIS-3 untracked-state anticipation per Fire 9 lesson, (e) 3-axis narrow codex T1 audit per Pattern D Forward Discipline #2 → ROUND-1 APPROVE conf=0.91+ expected"
+    
+    Future formal promotion via cycle-322 codification (separate fire post-arc-close).
+    
+    ## FM-02 (c) ladder UNCHANGED at n=3 same-arc (Fire 16 clean; Fire 17 expected clean)
+    
+    | # | Fire | Absorbed file | Absorbing parallel commit |
+    |---|---|---|---|
+    | Prior arc | Fire 4 | docs/install-provenance.md (62 LOC) | `e3dcc44` (12:01) |
+    | Fire 14 | docs/install-provenance.md (95 LOC Fire 13 append) | `acefbb7` (13:18) |
+    | Fire 15 | .claude/agents/verifier.md (189 LOC) | `e22db7f` (13:41) |
+    
+    Fire 16 + Fire 17 commits use single-file `--only -- file` pattern + absolute paths + immediate verification (no race window for absorption).
+    
+    ## Audit progress matrix (post-Fire-17 commit)
+    
+    - Agent-tracking gap closure: 9/11 → **10/11 = 90.9%** (+9.1%; PAST nine-tenths threshold; only CR-12 VIOLATION class remains)
+    - AUTHORITATIVE coverage: ~18.8% UNCHANGED (cite-trail repair, not install)
+    - CR-1 cite-trail integrity (FM-20 cascade HNF-VALID class): **3/3 = 100% CLOSED** UNCHANGED (Fire 17 not in FM-20 scope)
+    - Codex T1 verdicts converged APPROVE (HNF-VALID class): n=3 firm UNCHANGED — cycle-322 PROMOTION-ELIGIBLE
+    - DEFINITIVE SOTA reviewed (recent T3): pending Fire 17 T3 verdict
+    - FM-02 (c) commit-layer absorption ladder: n=3 same-arc UNCHANGED
+    - Operator-decision-pending items: 1 (architect.md + code-reviewer.md disposition — Outcome A/B/C per Fire 13 audit-trail)
+    
+    ## Forward direction (Fire 18+)
+    
+    | Fire | Surface | Class | Action |
+    |---|---|---|---|
+    | Fire 18+ | `CLAUDE.md:268` | HIGH-RISK cardinal-rule cite-class lattice exemplar | Pattern A with extra operator-review caution (single CCBP cite-anchor refresh + careful CR-8 conformance check) |
+    | Fire 19+ | `.claude/agents/cwc/` subdirectory | Wave 75 cwc-long-running-agents 5 install-class primitives | per manifest §Section 17 (separate from FM-20 cascade) |
+    | OPERATOR-PENDING (n
+
+[prompt truncated]

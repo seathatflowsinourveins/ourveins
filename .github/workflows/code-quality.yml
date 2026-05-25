@@ -1,0 +1,193 @@
+# .github/workflows/code-quality.yml
+#
+# W288-P3-m — CI lane for tracked-tooling enforcement.
+#
+# Per W286-C Section D proposal (docs/architecture/W286c-CODE-QUALITY-2026-05-18.md)
+# and cardinal-rule-1 (install primitives only from trusted plugins/skills/agents),
+# this workflow uses ONLY first-party trusted-publisher GitHub Actions:
+#   - actions/checkout@v4              (github.com/actions, GitHub-owned)
+#   - actions/setup-python@v5          (github.com/actions, GitHub-owned)
+#   - astral-sh/setup-uv@v3            (github.com/astral-sh, ruff/uv publisher)
+# Shell + PowerShell + JSON jobs use OS-shipped tooling (no third-party wrappers).
+#
+# Local pre-commit (.pre-commit-config.yaml) remains the primary enforcement layer;
+# this CI lane is a backstop for regressions a contributor missed locally.
+#
+# Cite anchors:
+#   - actions/checkout: github.com/actions/checkout/releases/tag/v4
+#   - astral-sh/setup-uv: github.com/astral-sh/setup-uv (official ruff/uv publisher)
+#   - ShellCheck: github.com/koalaman/shellcheck (apt-installed, no action wrapper)
+#   - PSScriptAnalyzer: PSGallery (Install-Module, no action wrapper)
+
+name: code-quality
+
+on:
+  push:
+    branches:
+      - main
+      - 'sota-*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: ruff + pyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0 (W432-CI-STALE-BUMP; was v3.2.4, 546 days stale — astral-sh signed-tag verified)
+        with:
+          enable-cache: false
+      - name: install ruff + pyright + harness deps
+        # W288-fix3 (codex round-3 MEDIUM-2): install harness optional deps so
+        # pyright can resolve imports (inspect_ai, claude_agent_sdk, etc.)
+        # rather than failing with reportMissingImports. The Z:/venvs venvPath
+        # in pyrightconfig.json is Windows-runtime-local; on ubuntu-latest
+        # pyright falls back to system Python — installing the deps system-wide
+        # makes that work.
+        # W349 P0.5 RC-22 (superseded by RC-23): --break-system-packages cleared PEP 668
+        # but Ubuntu 24.04 runner's /usr/local/lib/python3.12/dist-packages is root-owned
+        # (perm denied for the unprivileged runner user). Sudo-wrapping uv would lose its
+        # PATH from setup-uv. Canonical SOTA fix per astral-sh/uv docs is a venv:
+        # 'uv venv' creates a project-local venv (.venv) writable by the runner user;
+        # uv pip install (no --system) targets it; we then prepend .venv/bin to
+        # GITHUB_PATH so subsequent steps see ruff + pyright on PATH.
+        # Cite: docs.astral.sh/uv/pip/environments/ + GitHub Actions Docs
+        # 'Workflow commands > Adding a system path' (echo "$path" >> $GITHUB_PATH).
+        run: |
+          uv venv .venv
+          # shellcheck source=/dev/null
+          source .venv/bin/activate
+          uv pip install ruff pyright
+          if [ -f harness/requirements.txt ]; then uv pip install -r harness/requirements.txt || true; fi
+          uv pip install inspect_ai promptfoo claude-agent-sdk || true
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: ruff check
+        run: ruff check .
+      - name: ruff format --check
+        run: ruff format --check .
+      - name: pyright
+        # Advisory per W286-C Section D — don't block CI on type-check noise.
+        # Real type-check happens locally via venv-aware pyrightconfig.json.
+        continue-on-error: true
+        run: pyright --skipunannotated || true
+
+  shell:
+    name: shellcheck (severity=error)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with: { persist-credentials: false }
+      - name: install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: shellcheck tracked .sh files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.sh' '*.bash')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no tracked shell files; skipping"
+            exit 0
+          fi
+          shellcheck --severity=error "${files[@]}"
+
+  powershell:
+    # W381 Stream C §1.4: root-cause = runner module-acquisition/import fragility
+    # (unpinned PSSA + PS7≥7.4.7 import floor [PSScriptAnalyzer#2087/#2106] +
+    #  $ErrorActionPreference='Stop' escalation), NOT a code defect (local = 0 Error,
+    #  0 throw, 0 parse-error across 38 files; PSGallery has no newer version).
+    # Fix = pin + trust PSGallery + import-pinned + aggregate-with-Continue + wire -Settings.
+    name: PSScriptAnalyzer (severity=Error)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PSSA_VERSION: '1.25.0'   # W381 Stream C §1.4: pinned (matches local; PSGallery latest 2026-03-20)
+    steps:
+      # W400 (re-apply 843d19b W349-P0.5-RC-12): Enable Windows long-path support BEFORE
+      # checkout. Without this, paths under docs/architecture/W259-grand-catalog/
+      # 00-archive-from-prior-waves/... exceed MAX_PATH 260 and `git checkout`
+      # exits 128 with "Filename too long" errors. core.longpaths must be set
+      # system-wide (not repo-local) because checkout happens before any
+      # repo-local config can exist.
+      # Cite: git-scm.com/docs/git-config#Documentation/git-config.txt-corelongPaths
+      #       learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+      - name: Enable git core.longpaths (Windows)
+        run: git config --system core.longpaths true
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with: { persist-credentials: false }
+      # W381 Stream C §1.4: cache the pinned module so install-step can skip -Force reinstall
+      # over a loaded module (tablackburn/ScheduledTasksManager PR#30 NRE failure mode).
+      - name: Cache PSScriptAnalyzer
+        id: pssa-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.USERPROFILE }}\Documents\PowerShell\Modules\PSScriptAnalyzer
+          key: pssa-${{ runner.os }}-${{ env.PSSA_VERSION }}
+      # W381 Stream C §1.4: Set-PSRepository Trusted before install defeats the
+      # untrusted-PSGallery/NuGet-provider prompt escalation (github/docs PowerShell CI tutorial).
+      - name: Install PSScriptAnalyzer (pinned)
+        if: steps.pssa-cache.outputs.cache-hit != 'true'   # PR#30: skip -Force reinstall over cached module (avoids NRE)
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Scope CurrentUser -Force -SkipPublisherCheck -ErrorAction Stop
+      # W381 Stream C §1.4: import the pinned version (defeats shadowing #2087), invoke per-file
+      # with -ErrorAction Continue (one bad file no longer kills the run), aggregate after loop,
+      # wire -Settings PSScriptAnalyzerSettings.psd1 (CI now matches the curated local ruleset).
+      - name: Run PSScriptAnalyzer (aggregate, never throw on findings)
+        run: |
+          Import-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Force   # defeat version shadowing (#2087)
+          $ver = (Get-Module PSScriptAnalyzer).Version
+          Write-Host "PSScriptAnalyzer $ver on PowerShell $($PSVersionTable.PSVersion)"
+          $settings = Join-Path $PWD 'PSScriptAnalyzerSettings.psd1'
+          $tracked = git ls-files '*.ps1' '*.psm1' '*.psd1' |
+            Where-Object { $_ -notmatch '\.claude/plugins/cache' -and $_ -notmatch '00-archive-from-prior-waves' -and (Test-Path $_) }
+          if (-not $tracked) { Write-Host 'no tracked PowerShell files; skipping'; exit 0 }
+          $findings = $tracked | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_ -Settings $settings -ErrorAction Continue   # per-rule throw cannot kill the run
+          }
+          # codex W381-r1 P2: ParseError (syntax-broken .ps1) is a SEPARATE severity from Error;
+          # with -ErrorAction Continue it would otherwise slip past an Error-only filter and green
+          # the gate on broken PowerShell. Block on both.
+          $errs = @($findings | Where-Object { $_.Severity -in 'Error','ParseError' })
+          $warns = @($findings | Where-Object { $_.Severity -eq 'Warning' })
+          Write-Host "Error+ParseError=$($errs.Count)  Warning=$($warns.Count)  across $($tracked.Count) file(s)"
+          if ($errs.Count -gt 0) { $errs | Format-Table Severity,RuleName,ScriptName,Line,Message -AutoSize | Out-String -Width 200 | Write-Host; exit 1 }
+          Write-Host 'PSScriptAnalyzer: 0 Error/ParseError findings.'
+
+  json:
+    name: JSON parse-validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0 (W432-CI-STALE-BUMP; was v5.6.0, 394 days stale)
+        with:
+          python-version: '3.13'
+      - name: parse tracked configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            ".claude/settings.json"
+            ".mcp.json"
+            ".claude/plugins/installed_plugins.json"
+            ".claude/plugins/known_marketplaces.json"
+          )
+          for f in "${files[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "MISSING: $f (skipped)"
+              continue
+            fi
+            python -c "import json,sys; json.load(open('$f')); print(f'OK: $f')" \
+              || { echo "PARSE-FAIL: $f"; exit 1; }
+          done

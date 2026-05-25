@@ -1,0 +1,287 @@
+## §5 Install Priority — DETAILED (T0 → T4)
+
+### T0 — IMMEDIATE (reversible pilot this week; production cutover after 5 gates pass)
+
+**Production-cutover gates (ALL must pass before flipping from pilot to production):**
+1. Exact LiteLLM model IDs validated against current `docs.litellm.ai/docs/providers/`
+2. `api.deepseek.com/anthropic` endpoint smoke-test passes (auth, basic prompt, tool-call)
+3. Auth flow tested with low-stakes prompts (no PII, no internal-only context)
+4. Rollback procedure verified: `Remove-Item Env:ANTHROPIC_BASE_URL` reverts in <1 minute
+5. Quality eval on operator's top-5 workflow types via Promptfoo — ≥80% pass-rate vs Opus baseline
+
+If ANY gate fails: hold at pilot scope; fix the failing gate; re-test before broader rollout.
+
+#### T0.1 — LiteLLM 5-tier cascade
+
+```powershell
+# Rationale: $69K/mo sustained / $830K/yr (r49) Opus-heavy spend (98.8% Opus); 
+# target rebalance 50% Opus / 35% Sonnet / 15% Haiku saves $10-35K/mo range.
+pip install 'litellm[proxy]'
+# Use validated 5-tier YAML in §8 (Haiku → Sonnet → Opus → GPT-5.5 verify → DeepSeek V4 escape)
+# Set ANTHROPIC_BASE_URL=http://localhost:4000 in CLAUDE.local.md
+# Reversible via env-var unset; <1min rollback
+```
+
+**Impact:** $10-35K/month range ($10K under Sonnet-only 3%→35% reshare; up to $35K full 50/35/15 mix)
+**Risk:** Pilot-first; reversible via env-var unset
+**Quality gate:** Promptfoo eval on operator's top-5 workflow types
+
+#### T0.2 — DeepSeek V4 Anthropic-format endpoint pilot
+
+```powershell
+# Rationale: 30% offload of non-critical tasks = $240-485K/yr range
+# Anthropic-format compatible for text/tool-call ONLY
+# UNSUPPORTED: images / documents / web-search results / code-execution results / 
+#               MCP tool blocks / MCP server fields
+# Do NOT route multimodal or MCP-native CC tasks here
+# Add data-residency + ToS review before routing private repo prompts
+# Pilot path: route lowest-risk subagent workloads (bulk summarization, batch code review)
+# API base: https://api.deepseek.com/anthropic
+$env:ANTHROPIC_BASE_URL = 'https://api.deepseek.com/anthropic'
+$env:ANTHROPIC_API_KEY  = $env:DEEPSEEK_API_KEY
+# Reversible: Remove-Item Env:ANTHROPIC_BASE_URL
+```
+
+**Impact:** $240-485K/year (sustained-burn lower / active-window upper; basis stated per codex v7 audit math correction)
+**Risk:** Multimodal + MCP paths must NOT route through DeepSeek
+**Quality gate:** Smoke-test on bulk summarization first
+
+#### T0.3 — Rebalance Sonnet share via LiteLLM routing rules
+
+```powershell
+# r49-verified-current: 98.8% Opus / 1.2% Sonnet / ~0% Haiku
+# Target: 50% Opus / 35% Sonnet / 15% Haiku
+# Mechanism: LiteLLM cascade with task-complexity routing
+# Configure in §8 cascade YAML; deploy alongside T0.1
+```
+
+**Impact:** $10-35K/month savings range
+**Risk:** Quality regression if Sonnet can't handle task — Promptfoo gate
+
+#### T0.4 — Audit prompt churn
+
+```powershell
+# May 15 had 1.1B cache-creates (anomalous per r45)
+# Cost: 1.1B × $6.25/MTok cache-write rate = ~$6,875 single-day
+# Action: identify which subagents/skills mutate prompts within cache TTL
+# Add OTel span: cache_create_count vs cache_read_count per call
+# Alert when ratio inverts (cache_creates > cache_reads in same hour window)
+```
+
+**Impact:** $5-15K/month if churn eliminated
+**Risk:** Low — observational only
+
+#### T0.5 — Cost trajectory monitoring
+
+```powershell
+# Set up automated daily ccusage report (Slack / email)
+# Alert thresholds: $100K/month (orange); $200K/month (red)
+# Track 7-day rolling output-tokens/day vs r25 crossover (currently 17.4M avg / 39M peak)
+# Trigger self-host build evaluation at sustained >25M/day
+```
+
+**Impact:** Trajectory visibility; alerts before runaway burn
+**Risk:** Low — passive monitoring
+
+### T1 — Install now (highest leverage; reversible; zero-cost or zero-cost-edit)
+
+```powershell
+# 1. REFRESH AGENTS.md (operator HAS it at 15K per r26)
+#    Edit Z:/<project>/AGENTS.md to align with AAIF + Code with Claude 2026 conventions
+#    Zero new file write; minutes-cost edit
+
+# 2. MIGRATE bypassPermissions → Claude Code auto mode (Mar 25 2026 Anthropic-OFFICIAL r33)
+#    Edit .claude/settings.json: permissions.defaultMode "bypassPermissions" → "auto"
+#    Pair with strict permissions.deny list per L0.5
+
+# 3. Promptfoo PILOT (install + run on ONE critical flow first)
+npm install -g promptfoo
+# Use r30 §6 runnable promptfooconfig.yaml (5 test cases ready)
+
+# 4. ast-grep — AST-codemod slot (r29 ADOPT-NOW)
+#    Direct CLI install or MCP wrap depending on workflow
+
+# 5. rtk-ai/rtk — token tree-shake (60-90% reduction per Bash call)
+
+# 6. semgrep-mcp via PyPI (r30 §2 correction — function lives on PyPI)
+pipx install semgrep-mcp
+# Wire into .mcp.json as MCP server
+
+# 7. Migrate manual budget_tokens → adaptive thinking (Feb 5 GA per r33)
+#    Replace explicit budget_tokens in subagent prompts with:
+#      "thinking": {"type": "adaptive"}
+```
+
+### T2 — Install CONDITIONAL (specific triggers)
+
+```powershell
+# LiteLLM — MOVED to T0.1 above
+
+# Tavily OR Firecrawl MCP — live web search gap (pick one)
+# Probe MCP Registry first
+
+# opencode — peer CLI (one of the two first)
+npm install -g opencode-ai
+
+# Filesystem MCP — reference-grade (NOT production-ready per README)
+# Install ONLY with path-allowlist per L0.5
+
+# Sentry MCP — getsentry-OFFICIAL; install if Sentry projects active
+
+# claude-code-action — Anthropic-OFFICIAL CI (install if using GitHub Actions)
+
+# mem0 — memory upgrade (install when memory needs exceed CLAUDE.md)
+
+# NVIDIA garak — LLM red-team scanner (install if security workloads materialize)
+
+# Block goose — peer CLI #2 (install only if provider-redundancy becomes need)
+
+# zilliztech/claude-context — STUDY-PILOT vs Repomix before commit (r29)
+
+# Claude Managed Agents beta (adopt when stable — Apr 8 2026 Anthropic-OFFICIAL)
+
+# WSL2 setup runbook — required for Live-SWE-agent / mini-SWE-agent / OpenHands
+
+# PILOT server-side Compaction API on a CUSTOM Messages-API harness ONLY
+# DO NOT remove operator's CLAUDE_AUTOCOMPACT_PCT_OVERRIDE until CC-specific
+# support is verified separately (codex v3+v4+v5 audit P1)
+
+# PILOT Tool search tool — scoped to API/Managed-Agent/MCP catalog flows ONLY
+# NOT a proven Claude Code local MCP context switch
+```
+
+### T3 — Pattern-cite only (do NOT install)
+
+- **`iannuttall/ralph` ralph-dag pattern** (origin) — adopt as `.claude/skills/ralph-dag/SKILL.md`; Archon = derivative
+- **`anthropics/claude-quickstarts/autonomous-coding`** — clone for working starter code
+- **P14 stall-detection** — ~50 LOC adoption as native skill
+- **Tool search tool** (Anthropic GA Feb 17 r33) — adopt at API/Managed-Agent layer (NOT CC local)
+- **Anthropic Mar 24 harness-design** (3-agent planner/generator/evaluator + sprint contracts + context-resets > compaction)
+- **incident.io 12-parallel-reviewer** — high-stakes consensus reviews
+- **Stripe Minions architecture** — autonomous-PR pattern
+- **ccpm Issues-as-state** (r29)
+- **TandemKit Planner/Generator/Evaluator** (r29)
+- **KARIMO stall-detection + complexity-routing** (r29)
+- **DSPy compile-loop** (r32) — prompt-optimization-at-scale reference
+- **grill-me adversarial self-critique** (r48)
+- **think-in-code pattern** (r48)
+- **task-lifecycle pattern** (r48)
+
+### T4 — REJECT (multi-axis refutation — DO NOT install)
+
+See §3 Tier V REJECT list — 29 repos rejected with explicit refutation.
+
+---
+
+## §6 Operator-Fit Action Items
+
+### Concrete edits to operator's existing files
+
+#### `.claude/settings.json` — L0.5 secrets boundary expansion + auto mode
+
+```json
+{
+  "permissions": {
+    "defaultMode": "auto",      // CHANGE from "bypassPermissions"
+    "deny": [
+      "Read(./.env*)",
+      "Read(./secrets/**)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.pfx)",
+      "Read(**/*.key)",
+      // NEW per r37 §2:
+      "Read(./.aws/**)",
+      "Read(./.azure/**)",
+      "Read(./.gcloud/**)",
+      "Read(./.kube/**)",
+      "Read(./.ssh/**)",
+      "Read(./.docker/config.json)",
+      "Read(./.npmrc)",
+      "Read(./.git-credentials)",
+      "Read(./.codex/**)",
+      "Read(./*.kdbx)",
+      "Read(./*.tfstate)",
+      "Read(**/PSReadLine/ConsoleHost_history.txt)"
+    ]
+  }
+}
+```
+
+#### `.mcp.json` — pin missing versions
+
+```jsonc
+{
+  "mcpServers": {
+    "phoenix": {
+      // ADD explicit version pin per r40 + cardinal-rule-9
+      "version": "<pin to current stable>"
+    },
+    "ccusage": {
+      // ADD explicit version pin per r40
+      // ALSO verify maintainer provenance per L0.5 cardinal-rule #6
+      "version": "<pin to current stable>"
+    }
+  }
+}
+```
+
+#### `CLAUDE.md` — sibling cite-anchor fix
+
+```diff
+- ... reference to Z:/claude-sota/ as live sibling SOTA-evolving runtime ...
++ ... reference to Z:/claude-sota(retired)/ as historical sibling reference ...
+```
+
+OR remove sibling framing entirely. **v13 architecture is now the canonical reference; sibling LAGS per r48 verdict.**
+
+#### `CLAUDE.local.md` — Phoenix env-var pin + Anthropic key migration
+
+```powershell
+# ADD per r49 follow-up (enables per-MCP / per-tool / per-skill telemetry):
+$env:PHOENIX_WORKING_DIR = 'Z:/claude-sota-installed-state/.phoenix'
+
+# MIGRATE Anthropic API key from plaintext env to Windows Credential Manager:
+# Use cmdkey to store; reference via Get-StoredCredential in startup
+```
+
+#### `AGENTS.md` (at repo root, exists at 15K)
+
+Sync existing content with:
+- **AAIF founding-three** (MCP + goose + AGENTS.md) per `linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation`
+- **Code with Claude 2026 keynote** (May 6 2026): Remote Agents / Claude Code Routines / Managed-agent multi-agent orchestration / Advisor tool / CI auto-fix
+- **Repo renames** (per r39): `anthropic-cookbook` → `claude-cookbooks`; `anthropic-quickstarts` → `claude-quickstarts`
+- **`computer_use_20251124`** (newer tool version replacing `computer_20250124`)
+
+### Anti-patterns to fix (per r22 specialist audit)
+
+| # | Anti-pattern | Fix |
+|---|---|---|
+| 1 | Triple-encoded compact thresholds | RETAIN until Claude Code-specific Compaction API support verified (codex v3+v4+v5 audit P1) |
+| 2 | `ECC_DISABLED_HOOKS` env relic | **DELETE the env var** — 14 hook names disabled post-W255 cleanup; hooks no longer exist |
+| 3 | `autoMemoryEnabled: true` + `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` conflict | **Pick one** — env takes precedence; set `autoMemoryEnabled: false` to match |
+| 4 | 16 overlapping marketplaces | Audit skill duplication across addy-agent-skills / claude-code-skills / anthropic-agent-skills / claude-code-workflows; disable duplicate-source plugins |
+
+### 3 NEW context-engineering patterns to adopt
+
+- `AGENTS.md` REFRESH (above)
+- `.claude/skills/wave-n-codification/SKILL.md` — codify operator's W-N codification workflow as auto-firing skill
+- `.claude/agents/codex-rescue-bridgemode.md` — crystallize Path P as native project-scoped subagent
+
+### r40 operator MCP audit actions
+
+- Pin `phoenix` MCP version in `.mcp.json` (above)
+- Pin `ccusage` MCP version in `.mcp.json` (above)
+- Verify `ccusage` maintainer/provenance per L0.5 cardinal-rule #6
+- Empirically probe HTTP MCP endpoints (`github` / `context7` / `deepwiki`) for Streamable HTTP transport + OAuth 2.1 PKCE compliance per MCP spec 2025-11-25
+
+### OPTIONAL pattern-cite layers (r38)
+
+- **`unslothai/unsloth`** (3.5k★, MIT) — fine-tuning framework for small open-weight models. PATTERN-CITE only; adopt if/when specific repeatable task class can't be served by API + cascade routing.
+- **`DS4SD/docling`** (IBM) — Document AI / parsing layer. PATTERN-CITE only; adopt if workflow includes document parsing.
+- **OpenViking Apache-subtree selective-import caveat** — when adopting Apache-2.0 subtrees: preserve NOTICE file + verify subtree LICENSE inheritance + flag any nested non-Apache sub-subtrees.
+
+---
+
+## §7 Patterns to Adopt (18 non-tool SOTA patterns)

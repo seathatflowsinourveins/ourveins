@@ -1,0 +1,127 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 865263d79a8da34ec3b92ef25eac01f5795de72a</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/hooks/scripts/context_window_guard.py | 102 ++++++++++++++++++++++++++
+ 1 file changed, 102 insertions(+)
+
+=== git show --format=fuller ===
+commit 865263d79a8da34ec3b92ef25eac01f5795de72a
+Author:     42 <42@local>
+AuthorDate: Wed May 13 13:46:43 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Wed May 13 13:46:43 2026 -0400
+
+    session checkpoint: 2026-05-13 13:46
+
+=== diff ===
+diff --git a/.claude/hooks/scripts/context_window_guard.py b/.claude/hooks/scripts/context_window_guard.py
+new file mode 100644
+index 0000000..9385c1d
+--- /dev/null
++++ b/.claude/hooks/scripts/context_window_guard.py
+@@ -0,0 +1,102 @@
++#!/usr/bin/env python3
++"""PostToolUse context-window guard for Edit/Write/MultiEdit hooks.
++
++SOTA:
++- PostToolUse matcher and command-hook shape:
++  https://code.claude.com/docs/en/hooks:356-370 [VERIFIED 2026-05-13]
++- asyncRewake stderr reminder semantics:
++  https://code.claude.com/docs/en/hooks:435-443 [VERIFIED 2026-05-13]
++- additionalContext JSON shape:
++  https://code.claude.com/docs/en/hooks:743-757 [VERIFIED 2026-05-13]
++- 250k proactive compact and 300k stop-work discipline:
++  .claude/rules/auto-compact-discipline.md:102-113 @ HEAD 02bfaedfdb27ce1d1855bdbc7e7c75df6f5d14f2
++- Autocompact-last-resort discipline:
++  Z:/claude-sota/.claude/rules/coordination.md:182-190 @ HEAD 034e8c1e5b1593d71fbe21ddae9eb53570ecdab0
++"""
++
++from __future__ import annotations
++
++import json
++import os
++import sys
++from pathlib import Path
++
++ROOT = Path("Z:/claude-sota-installed")
++SIDECAR = ROOT / ".claude/state/context_window_sidecar.json"
++HOOK_EVENT = "PostToolUse"
++TARGET_TOOLS = {"Edit", "Write", "MultiEdit", "Bash", "Read", "Glob", "Grep", "Agent"}
++WARN_PERCENT = float(os.getenv("CONTEXT_WINDOW_WARN_PERCENT", "25"))
++CRITICAL_PERCENT = float(os.getenv("CONTEXT_WINDOW_CRITICAL_PERCENT", "30"))
++
++
++def _load_stdin() -> dict:
++    try:
++        payload = json.loads(sys.stdin.read() or "{}")
++    except json.JSONDecodeError:
++        return {}
++    return payload if isinstance(payload, dict) else {}
++
++
++def _sidecar_row(session_id: str) -> dict:
++    try:
++        with SIDECAR.open(encoding="utf-8") as f:
++            data = json.load(f)
++    except (OSError, json.JSONDecodeError):
++        return {}
++    if not isinstance(data, dict):
++        return {}
++    row = data.get(session_id)
++    return row if isinstance(row, dict) else {}
++
++
++def _used_percent(row: dict) -> float | None:
++    try:
++        return float(row.get("used_percentage"))
++    except (TypeError, ValueError):
++        return None
++
++
++def _hint(used: float, row: dict) -> str:
++    size = row.get("context_window_size")
++    tokens = row.get("total_input_tokens")
++    return (
++        f"Context window is {used:.1f}% used"
++        f"{f' ({tokens}/{size} input tokens)' if tokens and size else ''}. "
++        "Before further broad edits, run `/compact <hint>` with a focused handoff: "
++        "current goal, files touched, design citations, commands run, test state, "
++        "and next action. Autocompact is the fallback, not the primary path."
++    )
++
++
++def _emit_additional_context(message: str) -> None:
++    payload = {
++        "hookSpecificOutput": {
++            "hookEventName": HOOK_EVENT,
++            "additionalContext": message,
++        },
++    }
++    sys.stdout.write(json.dumps(payload, ensure_ascii=True))
++
++
++def main() -> int:
++    event = _load_stdin()
++    if event.get("tool_name") not in TARGET_TOOLS:
++        return 0
++    session_id = event.get("session_id")
++    if not session_id:
++        return 0
++    row = _sidecar_row(str(session_id))
++    used = _used_percent(row)
++    if used is None:
++        return 0
++    message = _hint(used, row)
++    if used >= CRITICAL_PERCENT:
++        sys.stderr.write("CRITICAL context-window guard: " + message + "\n")
++        return 2
++    if used >= WARN_PERCENT:
++        _emit_additional_context("WARN context-window guard: " + message)
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())</repository_context>

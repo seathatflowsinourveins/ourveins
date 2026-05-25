@@ -1,0 +1,212 @@
+# .github/workflows/parallel-ratio-gate.yml
+#
+# W370 P2.2 — per-PR parallel-ratio CI gate
+#
+# Closes W367 Stream F gap #9 (leverage 18.7): "Parallel-ratio CI gate —
+# GitHub Action validating per-PR parallel-guard metric vs 0.7 baseline".
+#
+# Trigger:  pull_request (opened, synchronize, reopened)
+# Behavior: PARSE session-JSONL parallel-guard signal via
+#           tools/parallel-ratio-calc.mjs; compute parallel_ratio over a 7-day
+#           window AND on the PR's own session JSONLs (when present).
+#           Compare vs 0.7 baseline (W269/W312-D per CLAUDE.md L19).
+#           Comment on PR with ratio + delta vs baseline.
+#
+# Gate-mode (WARN-ONLY initially; PROMOTE_TO_ERROR=true flips to hard-fail):
+#   - warn-only:    ratio < 0.7  → ::warning + comment; job exits 0 (NEVER blocks merge)
+#   - hard-fail:    ratio < 0.7  → ::error   + comment; job exits 1 (blocks merge)
+#   - met:          ratio >= 0.7 → ::notice  + comment; job exits 0
+#   - no-data:      no sessions found → ::notice "insufficient data"; job exits 0
+#
+# Cite-anchors (3-org-distinct per CR-6):
+#   - Anthropic:        https://docs.anthropic.com/en/docs/claude-code/sub-agents (Agent fan-out)
+#   - CLAUDE.md L19:    W269/W312-D parallel-dispatch mandate (target ratio ≥0.7)
+#   - GitHub:           docs.github.com/en/actions/security-for-github-actions/security-guides/
+#                       security-hardening-for-github-actions#using-third-party-actions
+#                       (SHA-pinning third-party actions mandate)
+#   - W325-A baseline:  empirical ratio 0.0036 → W330 P0-A binding fix → W370 CI gate
+#   - W343 measure:     .claude/state/parallel-ratio-W343.json (denom 1750, ratio 0.0034)
+#   - Companion tool:   tools/parallel-ratio-calc.mjs (W370 P2.2)
+#   - Companion tool:   tools/parallel-ratio-telemetry.mjs (W325-A; 0.30 stretch target)
+#
+# Cardinal-rule alignment:
+#   - CR-1: SHA-pinned first-party + third-party actions
+#   - CR-6: emits parallel_ratio JSON as independently-reproducible probe;
+#           PR comment surfaces verbatim helper output so reviewer can re-run locally
+
+name: parallel-ratio-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write   # required to post/update the PR comment
+
+concurrency:
+  group: parallel-ratio-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  parallel-ratio:
+    name: parallel-ratio vs 0.7 baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Promotion flag — set true via repo variable PARALLEL_RATIO_HARD_FAIL=1
+      # to convert warn-only into a blocking gate. Defaults to warn-only per
+      # W370 P2.2 ship plan (baseline ratio currently ~0.0022 makes hard-fail
+      # premature; warn-only surfaces the signal without blocking unrelated PRs).
+      PROMOTE_TO_ERROR: ${{ vars.PARALLEL_RATIO_HARD_FAIL == '1' && 'true' || 'false' }}
+      BASELINE: '0.7'
+      WINDOW: '7d'
+      EVENTS_CAP: '10'
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2 (W432-CI-STALE-BUMP; was v4.2.2, 577 days stale)
+        with:
+          fetch-depth: 0          # full history needed to find session JSONLs added in PR commits
+          persist-credentials: false
+
+      - name: Setup Node.js v22 LTS
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: '22.22.0'
+
+      - name: Verify helper script present
+        run: |
+          set -euo pipefail
+          if [ ! -f tools/parallel-ratio-calc.mjs ]; then
+            echo "::error::tools/parallel-ratio-calc.mjs not found (W370 P2.2 helper)."
+            echo "This workflow requires the helper that ships in the same PR."
+            exit 1
+          fi
+
+      - name: Compute parallel_ratio
+        id: ratio
+        run: |
+          set -euo pipefail
+          node tools/parallel-ratio-calc.mjs \
+            --since "${WINDOW}" \
+            --baseline "${BASELINE}" \
+            --events "${EVENTS_CAP}" \
+            > parallel-ratio.json
+          cat parallel-ratio.json
+          # Extract scalar fields for downstream steps.
+          PARALLEL_RATIO=$(node -e "console.log(JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')).parallel_ratio)")
+          DENOM=$(node -e "console.log(JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')).denom)")
+          PARALLEL_TURNS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')).parallel_turns)")
+          DELTA_ABS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')).delta_abs)")
+          DELTA_PCT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')).delta_pct)")
+          STATUS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')).status)")
+          {
+            echo "parallel_ratio=${PARALLEL_RATIO}"
+            echo "denom=${DENOM}"
+            echo "parallel_turns=${PARALLEL_TURNS}"
+            echo "delta_abs=${DELTA_ABS}"
+            echo "delta_pct=${DELTA_PCT}"
+            echo "status=${STATUS}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Decide gate outcome
+        id: gate
+        env:
+          STATUS: ${{ steps.ratio.outputs.status }}
+          PARALLEL_RATIO: ${{ steps.ratio.outputs.parallel_ratio }}
+          DENOM: ${{ steps.ratio.outputs.denom }}
+        run: |
+          set -euo pipefail
+          # No-data path: zero denom → notice + pass.
+          if [ "${DENOM}" = "0" ]; then
+            echo "gate_outcome=no_data" >> "${GITHUB_OUTPUT}"
+            echo "::notice title=parallel-ratio-gate::Insufficient session data in window (denom=0). Skipping gate."
+            exit 0
+          fi
+          if [ "${STATUS}" = "MET" ]; then
+            echo "gate_outcome=met" >> "${GITHUB_OUTPUT}"
+            echo "::notice title=parallel-ratio-gate::Ratio ${PARALLEL_RATIO} MEETS baseline ${BASELINE} (W269/W312-D mandate)."
+            exit 0
+          fi
+          # BELOW baseline.
+          if [ "${PROMOTE_TO_ERROR}" = "true" ]; then
+            echo "gate_outcome=hard_fail" >> "${GITHUB_OUTPUT}"
+            echo "::error title=parallel-ratio-gate::Ratio ${PARALLEL_RATIO} BELOW baseline ${BASELINE} (hard-fail mode active)."
+            # Comment posts even on failure due to `if: always()` on the comment step.
+            exit 1
+          fi
+          echo "gate_outcome=warn_only" >> "${GITHUB_OUTPUT}"
+          echo "::warning title=parallel-ratio-gate::Ratio ${PARALLEL_RATIO} BELOW baseline ${BASELINE} (warn-only; set vars.PARALLEL_RATIO_HARD_FAIL=1 to promote)."
+          exit 0
+
+      - name: Render PR comment body
+        if: always()
+        env:
+          RATIO: ${{ steps.ratio.outputs.parallel_ratio }}
+          DENOM: ${{ steps.ratio.outputs.denom }}
+          PARALLEL_TURNS: ${{ steps.ratio.outputs.parallel_turns }}
+          DELTA_ABS: ${{ steps.ratio.outputs.delta_abs }}
+          DELTA_PCT: ${{ steps.ratio.outputs.delta_pct }}
+          STATUS: ${{ steps.ratio.outputs.status }}
+          GATE_OUTCOME: ${{ steps.gate.outputs.gate_outcome }}
+        run: |
+          set -euo pipefail
+          if [ -f parallel-ratio.json ]; then
+            EVENTS_BLOCK=$(node -e "const j=JSON.parse(require('fs').readFileSync('parallel-ratio.json','utf8')); const ev=j.events||[]; if(!ev.length){console.log('_no recent events_');process.exit(0)} for(const e of ev){console.log(' - ' + (e.ts||'?') + ' — agent_blocks=' + e.agent_blocks)}")
+          else
+            EVENTS_BLOCK='_no parallel-ratio.json produced_'
+          fi
+          case "${GATE_OUTCOME}" in
+            met)       BADGE=':white_check_mark: MEETS baseline' ;;
+            warn_only) BADGE=':warning: BELOW baseline (warn-only)' ;;
+            hard_fail) BADGE=':x: BELOW baseline (hard-fail)' ;;
+            no_data)   BADGE=':grey_question: no data' ;;
+            *)         BADGE=':grey_question: unknown' ;;
+          esac
+          {
+            echo '<!-- parallel-ratio-gate:marker -->'
+            echo "## parallel-ratio-gate — ${BADGE}"
+            echo ""
+            echo "| metric          | value                          |"
+            echo "|-----------------|--------------------------------|"
+            echo "| parallel_ratio  | \`${RATIO}\`                    |"
+            echo "| baseline        | \`${BASELINE}\` (W269/W312-D)    |"
+            echo "| delta_abs       | \`${DELTA_ABS}\`                |"
+            echo "| delta_pct       | \`${DELTA_PCT}%\`               |"
+            echo "| denom           | \`${DENOM}\` Agent-dispatching turns |"
+            echo "| parallel_turns  | \`${PARALLEL_TURNS}\` turns with ≥2 Agent blocks |"
+            echo "| window          | \`${WINDOW}\`                   |"
+            echo "| status          | \`${STATUS}\`                   |"
+            echo "| gate_outcome    | \`${GATE_OUTCOME}\`             |"
+            echo ""
+            echo "### Last ${EVENTS_CAP} Agent-dispatching turns"
+            echo ''
+            echo "${EVENTS_BLOCK}"
+            echo ''
+            echo "### Notes"
+            echo ''
+            echo "- **Baseline 0.7** = W269 ideal floor (CLAUDE.md L19; per-multi-stream-session target)."
+            echo "- **Stretch 0.30** = W325 P0 ship-gate (see \`tools/parallel-ratio-telemetry.mjs\`)."
+            echo "- **Empirical SEV-1**: W325-A F1 measured \`0.0036\` over 1676-JSONL audit; W330 P0-A flipped guard to binding \`exit(2)\` 2nd-violation."
+            echo "- Re-run locally: \`node tools/parallel-ratio-calc.mjs --since ${WINDOW} --baseline ${BASELINE}\`"
+            echo "- Promote to hard-fail: set repo variable \`PARALLEL_RATIO_HARD_FAIL=1\`."
+          } > pr-comment.md
+          echo "--- PR comment preview ---"
+          cat pr-comment.md
+
+      - name: Upsert PR comment
+        if: always() && github.event.pull_request.number != ''
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0  # v3.0.4 (W432-CI-STALE-BUMP; was v2.9.1, 492 days stale — major v2→v3 = Node 24 runtime upgrade only; header+path inputs unchanged)
+        with:
+          header: parallel-ratio-gate
+          path: pr-comment.md
+
+      - name: Upload parallel-ratio.json artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: parallel-ratio-${{ github.event.pull_request.number }}
+          path: parallel-ratio.json
+          retention-days: 30

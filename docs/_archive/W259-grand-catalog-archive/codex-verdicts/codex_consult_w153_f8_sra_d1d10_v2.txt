@@ -1,0 +1,124 @@
+# W153 F8 V2 — Apply full SRA D1-D10 audit framework to F7 4-plugin disable decision
+
+## Background
+
+Wave 153 Fire 7 (commit e191378) disabled 4 plugins in `Z:/claude-sota-installed/.claude/settings.json` lines 527-530:
+- clickhouse@claude-plugins-official: true→false
+- outputai@claude-plugins-official: true→false
+- qdrant-skills@claude-plugins-official: true→false
+- cwc-makers@claude-plugins-official: true→false
+
+mcp-server-dev@claude-plugins-official KEPT at line 526 (V3 SAVED-SHIP catch on regret-risk for MCP-centric runtime).
+
+F7 was V2+V3 cross-model audit at conf 0.87/0.88, BUT operator challenged whether this is "definitive SOTA convergence decision reviewed by GPT-5.5". Honest answer: NO — it was CR-12 PARTIAL-OVERLAP CONFIG-PRUNE class audit, not full SRA D1-D10. Operator mandate locked: "only commit with sota convergence, deep research first with gpt5.5, commit convergence consensus always".
+
+This consult applies the FULL SRA D1-D10 framework to retroactively validate or refute F7.
+
+## Authority cite
+
+SRA D1-D10 framework: `Z:/claude-sota/.claude/rules/sota-research-architecture.md` — 10-dimension convergence gate; ≥7 PASS + D1+D6 critical for use-class adoption decisions.
+
+For REJECT-FOR-FIT decisions (this case), inverse applies: ≥7 FAIL + D7 critical (incumbent exists in eee) for DISABLE-VALIDATED.
+
+Probe DAG (per `Z:/claude-sota/.claude/rules/agent-harness-fit-verification.md`): 7 sub-classes for harness-fit verification.
+
+Convergence-gate Axis 1+2+3 per `Z:/claude-sota/.claude/rules/convergence-gate.md`.
+
+CR-12 6-class disposition lattice per `Z:/claude-sota-installed/CLAUDE.md` cardinal-rule-12.
+
+## SRA D1-D10 framework (score each plugin per dimension)
+
+D1: convergence-gate Axis 1+2+3 — ≥3 T1 sources distinct orgs / ≥2 named T2 / ≥3 month stability
+D2: harness-fit Probe DAG (7 sub-classes incl plugin-namespace + mode-harness-shape + demand-absence)
+D3: license + provenance verifiability
+D4: maintenance freshness (cpd × age bands)
+D5: community signal (stars + contributors + ecosystem reach)
+D6: industry adoption + Anthropic-OFFICIAL stamp
+D7: replacement viability — does eee have incumbent for this scope?
+D8: FM-class risk (FM-09 / FM-16 / FM-17 / FM-21 / etc.)
+D9: cost/benefit (token budget pollution, context-window cost, security surface)
+D10: operator-mode-fit (autonomous /loop compatibility per eee primary scope)
+
+Scoring: 0 = FAIL / 1 = PARTIAL / 2 = PASS
+
+For DISABLE-VALIDATED verdict on a plugin, need majority of dimensions FAIL or PARTIAL (i.e. NOT-FIT for eee).
+For DISABLE-REFUTED verdict, need majority of dimensions PASS (i.e. plugin IS-FIT for eee + should be re-enabled).
+
+## Four plugin scopes to audit
+
+### 1. clickhouse@claude-plugins-official
+- Cache: `Z:/claude-sota-installed/.claude/plugins/cache/claude-plugins-official/clickhouse/`
+- Plugin scope: ClickHouse Cloud MCP+skills for OLAP/analytics queries
+- eee operational scope: autonomous /loop research + provenance auditing
+- Memory Stack L2: sqlite_vec (in mcp-memory-service)
+- Memory Stack L3: FalkorDB temporal-KG (planned via Graphiti)
+- ClickHouse DB: NOT installed in eee; no analytics use case
+- READ: `.claude/plugins/cache/claude-plugins-official/clickhouse/*/.claude-plugin/plugin.json` and skills/
+
+### 2. outputai@claude-plugins-official
+- Cache: `Z:/claude-sota-installed/.claude/plugins/cache/claude-plugins-official/outputai/`
+- Plugin scope: Output.ai TypeScript framework for building durable LLM workflows (Temporal-based)
+- ~47 SKILL.md; SessionStart hook injects context every session (V3 F7 caught this)
+- eee operational scope: autonomous /loop META-process layer (research + cite-extraction + provenance audit)
+- W152 F26 classified as CR-12 PROVIDER-COMPLEMENT (already-installed-but-operationally-dormant)
+- READ: plugin.json + SessionStart hook context payload
+
+### 3. qdrant-skills@claude-plugins-official
+- Cache: `Z:/claude-sota-installed/.claude/plugins/cache/claude-plugins-official/qdrant-skills/`
+- Plugin scope: Qdrant vector DB skills (production-grade vector search)
+- ~26 SKILL.md
+- eee Memory Stack L2: sqlite_vec embedded in mcp-memory-service v10.51.3
+- Qdrant Docker: DEFERRED (sqlite_vec handles current scale per Memory Stack docs)
+- READ: plugin.json + skill descriptions
+
+### 4. cwc-makers@claude-plugins-official
+- Cache: `Z:/claude-sota-installed/.claude/plugins/cache/claude-plugins-official/cwc-makers/`
+- Plugin scope: Cardputer M5Stack hardware onboarding (CC + makers DIY)
+- ~2 SKILL.md + /maker-setup command
+- eee operational scope: NO hardware-maker scope; portable software-only Z:/ install
+- READ: plugin.json + command files
+
+## Task
+
+For EACH of the 4 plugins:
+1. Read the plugin cache directory contents (plugin.json + skills/* + agents/* + commands/* if present)
+2. Score each dimension D1-D10 with 0/1/2 + 1-line evidence
+3. Aggregate per-plugin verdict: DISABLE-VALIDATED / DISABLE-REFUTED / DISABLE-AMBIGUOUS with confidence
+4. Identify FM-class risks if re-enabled (FM-09 / FM-16 / FM-17 / etc.)
+5. Emit OPERATOR DECISION RECOMMENDATION: KEEP-ALL-DISABLES / REVERT-ALL / PARTIAL-REVERT (which subset)
+
+## Output schema (JSON-strict at EOF)
+
+```json
+{
+  "verdict": "APPROVE-F7-DISABLES|REVERT-F7-DISABLES|PARTIAL-REVERT",
+  "confidence": 0.NN,
+  "per_plugin": {
+    "clickhouse": {
+      "verdict": "DISABLE-VALIDATED|DISABLE-REFUTED|DISABLE-AMBIGUOUS",
+      "confidence": 0.NN,
+      "scores": {"D1": 0|1|2, "D2": 0|1|2, ..., "D10": 0|1|2},
+      "pass_count": N,
+      "fail_count": N,
+      "partial_count": N,
+      "key_evidence": ["..."],
+      "fm_risks": ["..."]
+    },
+    "outputai": {...},
+    "qdrant-skills": {...},
+    "cwc-makers": {...}
+  },
+  "cr12_disposition_class": {
+    "clickhouse": "PARTIAL-OVERLAP|DUPLICATE-FUNCTIONALITY|ECOSYSTEM-IMPORT|...",
+    "outputai": "...",
+    "qdrant-skills": "...",
+    "cwc-makers": "..."
+  },
+  "axis1_t1_sources": ["..."],
+  "axis2_named_t2_practitioners": ["..."],
+  "operator_decision": "KEEP-DISABLES|REVERT-ALL|PARTIAL-REVERT:[list]",
+  "prescribed_edits": ["..."]
+}
+```
+
+Be rigorous. Be honest. Cite evidence from file reads or web probes. If any dimension is UNKNOWN due to lack of evidence, mark as such (do not fabricate).

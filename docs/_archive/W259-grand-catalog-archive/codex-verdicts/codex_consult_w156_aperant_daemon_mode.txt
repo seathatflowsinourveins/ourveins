@@ -1,0 +1,59 @@
+# CODEX T1 PRE-EDIT CONSULT — Wave 156 Aperant poller daemon-mode conversion
+# Cross-model gate per CR-3 Phase 1 bootstrap exception (Path P foreground+tee)
+# Profile: codex default (per Pattern D §The Path P recipe)
+
+You are codex GPT-5.5 performing pre-edit T1 review of a Scheduled-Task installer
+modification. Apply Pattern A discipline: emit JSON-strict verdict at EOF.
+
+# CONTEXT
+
+Two Windows Scheduled Tasks register python.exe to fire every 60s (poller) and
+5min (planner) with `--once` flag — spawn-per-tick churn. Both Python scripts
+ALREADY ship with `--start` long-running daemon mode:
+
+- `tools/aperant_rate_limit_poller.py:339-426`: --once / --start / --stop / --interval-seconds (default 60); PID file + stop-sentinel (.stop file polled mid-loop); finally cleanup; `interval = max(15, args.interval_seconds)` floor
+- `tools/eee_account_rotation_planner.py:217-240`: same --once/--start contract; --interval-seconds default 300
+
+PROBE 18 OS-State-Mutation precondition check PASSED: both tasks state=Ready
+(not currently running), LastResult=0, no live aperant/rotation python.exe.
+55s window between fires for safe unregister + reregister.
+
+# PROPOSED DIFF (Install-Tasks function ONLY in tools/eee_install_cron_tasks.ps1)
+
+Poller — before (L85-87):
+    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --once" -WorkingDirectory $RepoRoot
+    $pollerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Seconds $PollIntervalSec)
+    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew
+
+Poller — after:
+    $pollerAction = New-ScheduledTaskAction -Execute $PythonBin -Argument "$PollerScript --start --interval-seconds $PollIntervalSec" -WorkingDirectory $RepoRoot
+    $pollerTrigger = New-ScheduledTaskTrigger -AtStartup
+    $pollerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Days 0) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+Planner — same shape (`--once --threshold-pct 80` → `--start --interval-seconds $($PlanIntervalMin*60) --threshold-pct 80`; trigger `-AtStartup`; ExecutionTimeLimit `Days 0`; same restart policy).
+
+Plus: start tasks immediately post-Register via Start-ScheduledTask (so we don't wait for boot).
+Plus: Show-Plan / help text updated to reflect daemon mode.
+
+# CITE CHAIN (TIER-1-DIRECT — claim per CR-1 cite-class lattice)
+
+- Twelve-Factor App §VIII Disposability (Adam Wiggins / Heroku co-founder): https://12factor.net/disposability — "Processes are disposable, meaning they can be started or stopped at a moment's notice"
+- Microsoft Learn New-ScheduledTaskTrigger -AtStartup: https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasktrigger
+- Microsoft Learn New-ScheduledTaskSettingsSet -ExecutionTimeLimit (PT0S = disabled): https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset
+- NSSM 2.24+ (alternative Path B — already installed): https://nssm.cc/usage
+- Aperant rate-limits research: Z:/repos/deps/Aperant/CODEX_RATE_LIMITS_RESEARCH.md @ HEAD cba7a027
+- Local poller --start impl: Z:/claude-sota-installed/tools/aperant_rate_limit_poller.py:378-426
+- Sister rules: launch-discipline.md §The 3 launch invariants (Reversible/Observable/Incremental) + 7th OS-State-Mutation axis; deprecation-discipline.md §4-stage migration; codex-t1-fix-forward-pattern.md Pattern A + Pattern D
+
+# AUDIT DIMENSIONS — answer EACH
+
+AXIS-1 Correctness: Does diff achieve "1 spawn per boot instead of 60/hour"? Does it preserve 60s polling cadence via `args.interval_seconds`?
+AXIS-2 Reversibility: Does existing `-Uninstall` function still work unchanged? Is the change `git revert`-able cleanly?
+AXIS-3 OS-State-Mutation safety: Race between unregister + reregister with in-flight `--once` invocation? Or with future scheduled-fire?
+AXIS-4 Crash recovery: If `--start` daemon crashes/leaks memory, does `-RestartCount 3 -RestartInterval 1min` provide adequate recovery? Is stop-sentinel `--stop` reachable?
+AXIS-5 Cite-class correctness: Per `citation-discipline.md` rule #8 lattice, what is `constituents=[...]; effective_tier=?` for the composed change?
+AXIS-6 Sister-rule compliance: Does the change satisfy launch-discipline 6-axis pre-deploy + 7th OS-State-Mutation? Does it satisfy deprecation-discipline 4-stage migration (`--once` task is the deprecated surface)?
+
+# OUTPUT (JSON-strict at EOF — no prose after)
+
+{"verdict": "APPROVE|NEEDS-REVISION|REJECT", "confidence": 0.NN, "axis_findings": {"AXIS-1": "...", "AXIS-2": "...", "AXIS-3": "...", "AXIS-4": "...", "AXIS-5": "constituents=[...]; effective_tier=...", "AXIS-6": "..."}, "prescribed_edits": [{"line_ref": "...", "before": "...", "after": "...", "rationale": "..."}], "rationale_1line": "..."}

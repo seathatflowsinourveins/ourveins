@@ -1,0 +1,82 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<task>Review git commit 9f6761638975077ea9499529d4d5e639144d010f</task>
+<user_focus>General commit-scope review across all 7 attack-surface buckets.</user_focus>
+<review_method>The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.</review_method>
+<repository_context>=== git show --stat ===
+.claude/rules/auto-compact-discipline.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+=== git show --format=fuller ===
+commit 9f6761638975077ea9499529d4d5e639144d010f
+Author:     42 <42@local>
+AuthorDate: Thu May 14 14:14:43 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Thu May 14 14:14:43 2026 -0400
+
+    docs(rules): W195 P0 recalibrate auto-compact-discipline Rank #3 — stop-and-handoff → save→compact→restore loop
+    
+    Recalibrate the RULE-LAYER behavior creating an operator-perceived "hard
+    limit" preventing self-/compact + /goal automation. Root cause (R1-R3
+    grounding): the compact hooks (userpromptsubmit_compact_threshold.py /
+    posttooluse_context_monitor.js / precompact_hint_emitter.py /
+    sessionstart_compact_hint_reader.py) are ALL advisory — no decision:block.
+    The block was Rank #3 + checklist step 6 training a STOP-and-handoff.
+    
+    Recalibration (cite-adapted, no novel content per CR-1/CR-8):
+    - Rank #3: "Pre-emptive /compact <hint>" → "SOTA save→compact→restore loop
+      (ADVISORY automation, never blocking)". 3-step loop: PERSIST (memory
+      stack + compact_hint.json 8-field bridge artifact) / SELF-/COMPACT
+      (agent CHOOSES to call /compact) / RESTORE (SessionStart reader +
+      wshobson /context-save+/context-restore command pattern).
+    - Scope-discipline sentence: Rank #3 = operational agent discipline;
+      Rank #3.5 = hooks exit-0, MUST NEVER decision:block for compaction.
+    - Checklist step 6: "STOP planning new work + /clear" → "execute loop
+      and CONTINUE". Anti-patterns: + "Stop-and-handoff as mandatory halt"
+      + "Hook decision:block for compaction".
+    
+    SOTA cites (4 new, 8 total upstream):
+    - GSD context-monitor bridge-file advisory: get-shit-done/docs/context-monitor.md
+      + hooks/gsd-context-monitor.js:158-191 @ 3aaed8f5
+    - ECC PreCompact state-save: everything-claude-code/scripts/hooks/pre-compact.js:24-31,41-47 @ 841beea4
+    - wshobson context-management persist/restore: wshobson-agents/plugins/context-management/commands/{context-save,context-restore}.md @ ece811f2 (MIT; v1.2.0 ALREADY INSTALLED)
+    - CCBP env thresholds: claude-code-best-practice-shan/best-practice/claude-settings.md:826,967 @ 48f2cebe
+    
+    Cross-model gate (CR-3 Phase 1 bootstrap exception — codex exec foreground+tee):
+    - codex T1 pre-edit: NEEDS-REVISION conf~0.88, 6 prescribed_edits all
+      applied (Pattern A single atomic apply) —
+      .claude/state/codex_consult_w195_p0_compact_recalibration_OUT.txt
+    - codex T2 uncommitted: 2 P2, no P0/P1 — P2-2 (compact_hint.v1.json
+      required commands_run omitted) FIXED; P2-1 (root sessions/ untracked)
+      out of W195 P0 scope —
+      .claude/state/codex_review_w195_p0_t2.txt
+    
+    No new hook — compact_hint.json bridge + 3 hooks + compact_hint.v1.json
+    schema all already exist + advisory-only. Zero decision:block introduced.
+    
+    risk-class: low — single-file rule-text recalibration; advisory-only;
+    HIGH reversibility (git revert <1min); codex T1+T2 gate satisfied.
+    Close-synthesis: tmp/wave195-p0-compact-automation-close-synthesis-2026-05-14.md
+
+=== diff ===
+diff --git a/.claude/rules/auto-compact-discipline.md b/.claude/rules/auto-compact-discipline.md
+index 86327d3..1ef3bc6 100644
+--- a/.claude/rules/auto-compact-discipline.md
++++ b/.claude/rules/auto-compact-discipline.md
+@@ -70,7 +70,7 @@ Raw stdout/output indexed into FTS5 in subprocess sandbox; only the search-resul
+ 
+ **How** — the 3-step loop (cite-adapted from GSD advisory pattern + ECC PreCompact state-save + wshobson persist/restore command pattern):
+ 
+-1. **PERSIST** — write durable state to the memory stack (mcp-memory `memory_store` + graphiti `add_memory` group=eee) AND to the bridge artifact `.claude/state/compact_hint.json` (`compact_hint.v1` schema at `.claude/schemas/compact_hint.v1.json` — fields: `version:1`, `ts`, `current_goal`, `test_state`, `next_action`, `files_touched[]`, `design_cites[]`). The bridge artifact is the EXISTING installed surface — `precompact_hint_emitter.py:39` (`HINT_PATH = compact_hint.json`, PreCompact writer-side) and `sessionstart_compact_hint_reader.py:38` (SessionStart reader-side) are hard-wired to it. ECC PreCompact `Z:/repos/deps/everything-claude-code/scripts/hooks/pre-compact.js:24-31,41-47 @ HEAD 841beea45cb25ba51f29fa45b7e272938d19b80a` is the upstream state-save-before-compaction pattern this adapts (`process.exit(0)` — never blocks).
++1. **PERSIST** — write durable state to the memory stack (mcp-memory `memory_store` + graphiti `add_memory` group=eee) AND to the bridge artifact `.claude/state/compact_hint.json`. The `compact_hint.v1` schema at `.claude/schemas/compact_hint.v1.json` marks ALL 8 fields `required` — write every one: `version:1`, `ts`, `current_goal`, `files_touched[]` (≤20), `design_cites[]` (≤10), `commands_run[]` (≤15 — significant Bash/MCP/Edit invocations this fire), `test_state` (enum UNKNOWN/PASS/FAIL/PENDING/N/A), `next_action`. The bridge artifact is the EXISTING installed surface — `precompact_hint_emitter.py:39` (`HINT_PATH = compact_hint.json`, PreCompact writer-side) and `sessionstart_compact_hint_reader.py:38` (SessionStart reader-side) are hard-wired to it. ECC PreCompact `Z:/repos/deps/everything-claude-code/scripts/hooks/pre-compact.js:24-31,41-47 @ HEAD 841beea45cb25ba51f29fa45b7e272938d19b80a` is the upstream state-save-before-compaction pattern this adapts (`process.exit(0)` — never blocks).
+ 2. **SELF-/COMPACT** — the active agent invokes `/compact` with a focused hint steering the lossy summary toward retained-value content:
+    ```
+    /compact focus on Bundle ship cumulative state and active queue, drop verbose codex T1 verdict bodies
+@@ -192,6 +192,6 @@ Re-evaluate this rule when:
+ - Anthropic CC ships native pre-emptive compact primitive (e.g., `--compact-at N%` env or runtime hook) — flip Rank #3 from operator-discipline to mechanical gate (but Rank #3.5 hooks MUST stay advisory exit-0 — no `decision:block` for compaction)
+ - A 9th SOTA auto-compact source emerges (currently 8 — Karpathy / context-mode / repomix / coordination / deepagents / GSD context-monitor / ECC pre-compact / wshobson context-management) — add Rank #N row
+ - context-mode MCP plugin schema changes (currently v1.0.124 latest; v1.0.111 running) — re-pin TIER-1 cite + verify ctx_batch_execute / ctx_execute_file API stability
+-- `compact_hint.v1` schema at `.claude/schemas/compact_hint.v1.json` changes (new fields / version bump) — re-pin the Rank #3 PERSIST-step bridge-artifact field list
++- `compact_hint.v1` schema at `.claude/schemas/compact_hint.v1.json` changes (new fields / version bump / `required` set changes) — re-pin the Rank #3 PERSIST-step bridge-artifact 8-field `required` list
+ - wshobson `context-management` plugin install wiring is verified end-to-end (`/context-save` + `/context-restore` invocation path confirmed) — promote the Rank #3 RESTORE-step from "cite-adapt the command pattern" to "the installed automated persist-restore loop"
+ - A long-arc fire produces a NEW anti-pattern not covered by the listed set — extend §Anti-patterns</repository_context>

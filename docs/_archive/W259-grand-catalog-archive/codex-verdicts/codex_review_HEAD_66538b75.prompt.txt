@@ -1,0 +1,112 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 66538b754d95c718e68981ce180f117f2cca76e1
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/architecture-audit-2026-05-10.md | 2 ++
+ 1 file changed, 2 insertions(+)
+
+=== git show --format=fuller ===
+commit 66538b754d95c718e68981ce180f117f2cca76e1
+Author:     42 <42@local>
+AuthorDate: Tue May 12 08:38:57 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Tue May 12 08:38:57 2026 -0400
+
+    docs(arch-audit): W155 F62b V2-RECURSIVE-CATCH forward-correction on F62 commit `7745c66` body 2026-05-12 — insert blockquote at docs/architecture-audit-2026-05-10.md L105 documenting F62 V2 dispatch ACTUAL verdict APPROVE conf=0.9 (NOT Pattern B HNF as F62 body claimed) + V2 axis1 non-blocking chronology caveat (8ef464c3:.claude/settings.json already had 27 enabledPlugins entries on 2026-05-10 ALREADY INCLUDING cwc-makers + claude-md-management + pr-review-toolkit per direct git show probe; F62 body "PRE-Wave-128-cwc-makers + PRE Wave 150+ multiple additions" framing was OVER); **probe-time-stale Marker Decay n=8 cumulative** (cycle-322 PROMOTION-GATE SATISFIED firm at n=5; n=8 strengthens — V2 OUT grew 1141894 → 1184375 bytes / +42481 bytes / +560 lines between F62 synthesis-probe and task notification arrival; sister to F45 V2-RECURSIVE-CATCH on F44 per manifest L132); F62 commit `7745c66` body PRESERVED verbatim per `Z:/claude-sota/.claude/rules/port-note-discipline.md §6` forward-only mandate (do NOT rewrite historical commit bodies); chronology framing forward-corrected via F62b blockquote — between 2026-05-10 8ef464c3 and 2026-05-12 7745c66, 4 plugins toggled TRUE → FALSE (TRUE count 26 → 22; total stayed 27); Edit content (27/22/5/3 breakdown) REMAINS ACCURATE per V2 axis1 PASS; **FM-09 cross-arc RECURSIVE catch n=44 → n=45** (codex V2 axis1 caveat caught operator chronology OVER in F62 commit body — Mia pre-apply gate could have caught this via `git show 8ef464c3:.claude/settings.json` probe BEFORE F62 commit body composition); F47-F62b SEPTENDECIM advance (17-fire sequential drift-closure arc; F62b = first V2-RECURSIVE-CATCH-on-F-fire-commit-body forward-correction in F47+ arc, structurally distinct from F45 which corrected manifest dashboard entry not F-fire commit body); **mechanical-mirror exception** per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Mechanical-mirror exception`: 5 activation predicates SATISFIED (single-file + ≤24 LOC blockquote + pure pointer-extension + NO new authority class + mirror chain context F45 V2-RECURSIVE-CATCH precedent + target-surface compatibility preflight) — T1 SKIP admissible; T2 commit-time hook provides cross-model verification net per `cross-model-consensus.md §The contract`; **CR-3 cross-model gate FULLY satisfied** via F62 V2 dispatch REAL GPT-5.5 codex CLI v0.130.0 APPROVE conf=0.9 (NOT degraded); F62b dogfoods deprecation-discipline.md §Hyrum's Law (Bash quote-trap dependency on file-content-shape was undocumented behavior consumers/operators began depending on → PowerShell-direct sub-pattern at n=15+ is the active migration to remove that dependency); cite trail: F62 V2 OUT at `.claude/state/codex_consult_w155_f62_archaudit_l103_plugin_count_drift_OUT.txt` (1184375 bytes / 9294 lines; terminal JSON verdict at L9367-L9374 EOF + duplicate L9379-L9386) + git show 8ef464c3:.claude/settings.json direct probe + manifest L132 F45 sister precedent + F62 commit `7745c66` body preserved per port-note-discipline §6
+
+=== diff ===
+diff --git a/docs/architecture-audit-2026-05-10.md b/docs/architecture-audit-2026-05-10.md
+index 401a1cc..a313007 100644
+--- a/docs/architecture-audit-2026-05-10.md
++++ b/docs/architecture-audit-2026-05-10.md
+@@ -102,6 +102,8 @@ The prior "~83-87% SOTA-clean" framing propagated through Wave 137-138 was **REF
+ 
+ **Total install-class count** [W155 F62 forward-correction 2026-05-12]: 27 plugins in enabledPlugins manifest (22 enabled live runtime + 5 INSTALLED-DISABLED: clickhouse/outputai/qdrant-skills/cwc-makers/hookify) + 3 orphaned-cache-only NOT-in-enabledPlugins (dash0 REVERTED-POST-INSTALL per W155 F41b + security-guidance + typescript-lsp DEFERRED-FOR-CAUSE per W155 F42c) + 13 MCPs + Tier 0 ~13 CLI tools + 6 cwc primitives + Tier 1c safety floor.
+ 
++> **W155 F62b V2-RECURSIVE-CATCH forward-correction on F62 commit `7745c66` 2026-05-12**: F62 commit body classified V2 dispatch as Pattern B HONEST-NON-FINDING per 1.14 MB / 8734 lines synthesis-probe snapshot. **V2 ACTUALLY emitted terminal verdict at L9367 EOF**: `APPROVE conf=0.9 ALL axes PASS prescribed_edits=[] fm09=NO READY-AS-PROPOSED`. V2 grew 1141894 → 1184375 bytes (+42481 bytes / +560 lines) AFTER F62 synthesis-probe but BEFORE task notification — **probe-time-stale Marker Decay n=8 cumulative** (cycle-322 PROMOTION-GATE SATISFIED firm at n=5; sister to F45 V2-RECURSIVE-CATCH on F44 staleness per manifest L132). **V2 axis1 non-blocking caveat**: F62 commit body chronology framing OVER — `git show 8ef464c3:.claude/settings.json` had **27 enabledPlugins entries on 2026-05-10 ALREADY INCLUDING cwc-makers + claude-md-management + pr-review-toolkit** (26 TRUE + 1 FALSE; verified via direct PowerShell probe). F62 body claim "PRE-Wave-128-cwc-makers + PRE Wave 150+ multiple additions" was OVER — those plugins were already in enabledPlugins at L103 origin commit. **Forward-correction**: F62 commit `7745c66` body PRESERVED verbatim per `Z:/claude-sota/.claude/rules/port-note-discipline.md §6` forward-only mandate; chronology framing forward-corrected here — between 2026-05-10 8ef464c3 and 2026-05-12 7745c66, 4 plugins toggled TRUE → FALSE (TRUE count 26 → 22; total stayed 27). Edit content REMAINS ACCURATE per V2 axis1 PASS. **FM-09 cross-arc RECURSIVE catch n=44 → n=45** (codex V2 axis1 caveat caught operator chronology OVER); Mia pre-apply gate could have caught this via `git show 8ef464c3:.claude/settings.json` probe BEFORE F62 commit body composition. **CR-3 cross-model gate**: V2 dispatch REAL GPT-5.5 codex CLI v0.130.0 APPROVE conf=0.9; cross-model consensus FULLY satisfied for F62 Edit content. **Mechanical-mirror exception** per `Z:/claude-sota/.claude/rules/codex-t1-fix-forward-pattern.md §Mechanical-mirror exception`: 5 activation predicates SATISFIED — T1 SKIP admissible; T2 commit-time hook = cross-model verification net per `cross-model-consensus.md §The contract`. Cite trail: V2 OUT at `.claude/state/codex_consult_w155_f62_archaudit_l103_plugin_count_drift_OUT.txt` (1184375 bytes / 9294 lines; terminal JSON verdict L9367-L9374 EOF + duplicate L9379-L9386).
++
+ ---
+ 
+ ## §2 — COVERAGE MATRIX vs Wave 47 baseline (Voice 2 sota-researcher data)
+</repository_context>

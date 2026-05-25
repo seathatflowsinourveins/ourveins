@@ -1,0 +1,38 @@
+feat(hooks): add context-window auto-compact guard
+
+Wave 166 P3 Ship auto-compact-hook
+
+Goal:
+- Add status-line bridge sidecar for context_window.used_percentage keyed by session_id.
+- Add PostToolUse context-window guard for Edit/Write/MultiEdit.
+- Add PreCompact guard that blocks hintless proactive auto-compaction below hard limit.
+
+CR conformance:
+- CR-1: Scripts cite Anthropic statusline/hooks docs and local SOTA line anchors:
+  - https://code.claude.com/docs/en/statusline:189-224 [VERIFIED 2026-05-13]
+  - https://code.claude.com/docs/en/hooks:356-370,435-443,725-792,743-757,1950-1971 [VERIFIED 2026-05-13]
+  - .claude/rules/auto-compact-discipline.md:102-113 @ HEAD 02bfaedfdb27ce1d1855bdbc7e7c75df6f5d14f2
+  - Z:/claude-sota/.claude/rules/coordination.md:182-190 @ HEAD 034e8c1e5b1593d71fbe21ddae9eb53570ecdab0
+- CR-6: No novel framework; adapts Claude Code statusLine, PostToolUse, asyncRewake, additionalContext, and PreCompact decision:block patterns.
+- CR-9: Uses existing .claude/hooks/scripts/ infrastructure and .claude/settings.json hook wiring.
+
+Mia pre-apply probes:
+- Verified target scripts did not already exist before Add File.
+- Verified .claude/settings.json hooks object shape and existing statusLine command before edit.
+
+Verification:
+- settings JSON parses with ConvertFrom-Json.
+- Python AST parse passed for context_window_guard.py and precompact_guard.py.
+- context_window_guard.py WARN path emits PostToolUse additionalContext at 26%.
+- context_window_guard.py CRITICAL path exits 2 and emits stderr at 31%.
+- precompact_guard.py emits decision:block for auto trigger with no custom_instructions below hard limit.
+- Total script LOC: 210 (<600 budget).
+- git diff --check passed for touched tracked files.
+
+Gate notes:
+- GitNexus status reported stale; `npx gitnexus analyze Z:/claude-sota-installed` failed on unavailable optional grammar tree-sitter-proto.
+- `npx gitnexus detect-changes --scope unstaged --repo claude-sota-installed` failed: `Git diff failed: spawnSync git EPERM`.
+- T2 pre-commit review attempted via `codex exec review --uncommitted` and `codex exec --ephemeral review --uncommitted`; both failed before review with Codex app-server Access denied (os error 5).
+
+Unresolved risks:
+- Manual `bash -n` could not run in this shell because Git Bash failed with Win32 CreateFileMapping access denied; the repo already relies on bash hooks and the bridge script is wired through the same runtime path.

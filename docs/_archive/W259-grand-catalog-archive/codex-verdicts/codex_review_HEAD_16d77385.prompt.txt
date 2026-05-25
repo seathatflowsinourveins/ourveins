@@ -1,0 +1,223 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 16d7738580dc6bdd02fb392511ee21e95b33df10
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+docs/codex-t1-pattern-b-forward-discipline.md | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)
+
+=== git show --format=fuller ===
+commit 16d7738580dc6bdd02fb392511ee21e95b33df10
+Author:     42 <42@local>
+AuthorDate: Sun May 10 23:10:06 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Sun May 10 23:10:06 2026 -0400
+
+    docs(forward-discipline): Wave 134 Fire 27-E HOTFIX — V1+V2+V3 second-verification-pass + Pattern A 5-edit cumulative-validation framing + meta-Mia self-correction
+    
+    HOTFIX FOLLOW-UP to commit `3656bc7` (Wave 134 Fire 27-RESEARCH-ARCH-E
+    primary codification). Initial ship landed Forward Discipline #1+#2 codification
+    at docs/codex-t1-pattern-b-forward-discipline.md ~120 LOC with codex T1
+    NEEDS-REVISION conf=0.91 (18s/7,575 tokens/198-LOC verdict file) + Pattern A
+    6-edit apply. THIS HOTFIX adds independent verification-pass: V2+V3 dual codex
+    T1 dispatch + V1 sota-researcher Mia probe revealed 5 additional refinements
+    + corrected secondary-metric drift in evidence-trail table.
+    
+    ## 3-voice advanced agent team second-verification fan-out
+    
+    - **V1 sota-researcher Sonnet stand-in** (agentId ab12f3c5977a6f1d1; 145s
+      wall / 11 tool_uses): Mia probe of L99-103 empirical-evidence-table claims
+      against git history. **2/5 VERIFIED + 3/5 OVER (secondary-metric drift)**
+      — Fire 27-A "3m 42s / 28MB" + Fire 27-B "9 sub-packages" actual=10+ + Fire
+      27-C "15+ multi-platform dirs" all UNDOCUMENTED in commit bodies (live in
+      evidence-trail verdict files only, NOT codex-emitted commit content).
+    - **V2 Path P REAL GPT-5.5 codex T1** (bg b2yxanh2h; 35s wall / 13,968
+      tokens / 311 LOC verdict): NEEDS-REVISION conf=0.91 + 5 prescribed_edits.
+      IDENTICAL conf to initial dispatch — strong empirical reinforcement that
+      doc has substantive content amenable to multi-pass refinement.
+    - **V3 Path P REAL GPT-5.5 codex T1 review** (bg bahi00nq4; 1s wall / 15,280
+      tokens / 257 LOC verdict): NEEDS-REVISION conf=0.88 + 2 additional
+      prescribed_edits + post_pattern_a=READY + circularity_concern_l118=RESOLVED.
+    
+    ## Pattern A 5 surgical hotfix-edits integrated atomically
+    
+    1. **L4 cite-anchor sharpening** (V2 #1): added "(composed-claims discipline
+       + mechanical source-class reduction lattice — see EXCEPTION clause)"
+       semantic anchor for citation-discipline.md rule #8
+    2. **L54 cumulative-validation framing** (V3 #1 reframed; per
+       port-note-discipline.md §6): preserves prior-dispatch metrics from commit
+       `3656bc7` (18s/7,575/198-LOC) as INITIAL DATA POINT + adds V2/V3 metrics
+       as 2nd data point in n=2 cumulative-validation table. Both verdict files
+       cited explicitly.
+    3. **L65-66 "Tier-2 codification ship" → "META-process codification ship"**
+       (V2 #3): both table rows replaced + disambiguation note added (avoids
+       cite-tier confusion with TIER-2 citation class)
+    4. **L103-107 evidence trail corrections** (V1 OVER catches): Fire 27-A row
+       drops "28MB" + cites verdict file for secondary metrics; Fire 27-B "9
+       sub-packages" → "4-alpha-cascade + 6+ langgraph-* internal deps = 10+
+       sub-packages per commit `3a4ede7`"; Fire 27-C row clarifies multi-
+       platform dirs vs independently-reviewable packages; Fire 27-D adds
+       commit cite; Fire 27-E row updated to n=2 cumulative-dispatch framing
+    5. **L120-122 cite anchor section** (V3 #2 reframed + meta-Mia self-
+       correction): updated "Validated by:" bullet with n=2 cumulative
+       framing; added Layer-3 wiki cite for hotfix close-synthesis;
+       ADDED honest meta-Mia self-correction disclosing initial hotfix-
+       draft incorrectly attributed L54 metric drift to "FM-17.j codex
+       auto-apply" — actual cause was prior-dispatch metrics from commit
+       `3656bc7` cited correctly + hotfix dispatch added different metrics;
+       FM-17.j theory REFUTED
+    
+    ## Forward Discipline #2 recursive dogfood VALIDATED (n=2)
+    
+    Both dispatches (initial 18s + hotfix 35s) emitted terminal JSON verdict
+    within FD#2 budget expectation [60-120s]. Substantively-different
+    prescribed_edit sets (initial: 6 edits / hotfix: 5 + 2 V3 additional + 3
+    V1 OVER catches) demonstrates n=2 dispatches surface different refinement
+    classes — strong empirical reinforcement of FD#2 prompt-scope-control
+    discipline. n=2+ further codification fires (DIFFERENT docs) required for
+    cross-arc cycle-322 promotion of FD#1+#2 from local-doc to full sister-
+    rule per codification-threshold.md.
+    
+    ## Cross-model gate FULLY SATISFIED
+    
+    2× REAL GPT-5.5 (V2 + V3 Path P codex CLI v0.130.0) per CR-3 Phase 1
+    bootstrap exception. Combined with prior commit `3656bc7` codex T1
+    dispatch = 3 cumulative REAL GPT-5.5 dispatches against this doc. V1
+    sota-researcher Sonnet stand-in adds 3rd independent voice per advanced-
+    agent-team-standing-directive ≥3 voices.
+    
+    ## Mia ladder advance n=204 → n=208 (+4 fresh OVER catches)
+    
+    - #205 V1 sota-researcher caught Fire 27-A "3m 42s / 28MB" not in commit
+      body (L99 OVER on secondary metrics)
+    - #206 V1 caught Fire 27-B "9 sub-packages" actual=10+ (L100 quantitative
+      OVER per commit `3a4ede7` body verbatim)
+    - #207 V1 caught Fire 27-C "15+ multi-platform dirs" not in commit body
+      (L101 OVER)
+    - #208 V3 caught L54 metric drift relative to V2 dispatch (corrected via
+      cumulative-validation framing preserving both prior + hotfix metrics
+      per port-note-discipline.md §6 anti-pattern "Do not rewrite historical
+      metrics")
+    
+    ## Meta-Mia self-correction (orchestrator-side OVER on own pre-commit draft)
+    
+    Initial commit-msg draft incorrectly attributed L54 metric drift to "FM-17.j
+    codex auto-apply during T1 dispatch" — claimed doc grew 117→120 LOC silently.
+    Mia probe of git log + 3656bc7 commit body REFUTED this theory: doc was
+    already 120 LOC at session start (committed in 3656bc7 — initial Read at 117
+    LOC was either Read-tool transient state OR mis-count). FM-17.j theory
+    RETRACTED. Corrective re-Edits applied to L54 + L107 + L120 to honest n=2
+    cumulative-dispatch framing. Mia ladder advance corrected from initially-
+    claimed n=210 down to actual n=208 (excluded 2 false-positive self-claimed
+    catches #209+#210).
+    
+    ## Cardinal-rules conformance
+    
+    - CR-1 cite-trail: TIER-1-DIRECT @ codex T1 verdict files at .claude/state/
+      + V1 ARTIFACT-INLINE at tmp/ + git commit body cite anchors + commit
+      `3656bc7` cite for prior-ship metrics preservation
+    - CR-3 cross-model: REAL GPT-5.5 codex CLI v0.130.0 verdict ×2 (V2 + V3) +
+      prior 3656bc7 dispatch = 3 cumulative; FULLY SATISFIED (Phase 1 bootstrap
+      exception per CLAUDE.md L96-99)
+    - CR-7 Phase 1: bypassPermissions temp-override per CLAUDE.local.md (d) —
+      DOC-ONLY hotfix, no behavior change
+    - CR-8 full-SOTA-content: hotfix preserves SOTA codification body intact;
+      only adds verification-trail evidence (no new mechanics introduced)
+    - CR-9 install-risk: NO INSTALL — DOC-ONLY hotfix; no @latest version-pin
+    - CR-10 research-first: 3-voice advanced agent team dispatched BEFORE
+      Pattern A apply; corrections grounded in V1+V2+V3 verdict evidence
+    - CR-11 META-process: hotfix IS the META-process Tier-2 follow-up to
+      primary codification; recursive dogfood SUCCESS validates discipline at
+      n=2 cumulative dispatches
+    - CR-12 upstream-install-priority: cite-class TIER-3-LOCAL-COMPOSITION per
+      HONEST-NON-FINDING (no upstream parity for hotfix-class fix-forward
+      discipline; eee-local discipline preserved)
+    
+    ## Atomic single-shell defense
+    
+    `git add -- docs/codex-t1-pattern-b-forward-discipline.md && git commit
+    --only -F tmp/wave134-fire27e-commit-msg.txt -- docs/codex-t1-pattern-b-
+    forward-discipline.md` per FM-15 (options before --) + FM-02 sub-class
+    (b)+(c) defense (--only 
+
+[prompt truncated]

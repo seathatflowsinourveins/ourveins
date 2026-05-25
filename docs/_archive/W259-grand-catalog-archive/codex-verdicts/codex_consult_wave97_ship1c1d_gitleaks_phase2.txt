@@ -1,0 +1,99 @@
+T1 PRE-COMMIT CONSULT — Wave 97 Ship 1C+1D (gitleaks Phase 2: PreToolUse hook wire + .gitleaks.toml config)
+
+CONTEXT:
+- Wave 97 Ship 1B (commit a1f19f0) installed gitleaks v8.30.1 binary at Z:/claude-sota-installed/.local/bin/gitleaks.exe
+- Live baseline scan revealed 1 false-positive: curl-auth-header rule firing on benign curl command syntax in docs/install-provenance.md (NOT real secret)
+- Each new ship appends ~120 LOC to install-provenance.md with curl examples, so future commits will re-trigger this rule
+- Ship 1C+1D bundled into 1 logical unit per cycle-300 ONE-LOGICAL-UNIT-PER-FIRE (config + wire are co-dependent: hook would FAIL on baseline FP without config; config without hook is dead state)
+
+DESIGN:
+
+### Component A — `.gitleaks.toml` config (NEW git-tracked file at repo root)
+
+```toml
+title = "claude-sota-installed gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "curl-auth-header"
+
+[[rules.allowlists]]
+description = "Benign curl command examples in operator-provenance docs (Ship 1B verified false-positive class)"
+paths = ['''docs/install-provenance\.md$''']
+```
+
+### Component B — `.claude/hooks/scripts/gitleaks_pre_commit_gate.py` (NEW git-tracked script)
+
+PreToolUse hook for Bash tool matching `Bash(git commit *)` per Anthropic CC hooks contract:
+- Read JSON stdin → extract tool_name + tool_input.command
+- Verify command starts with `git commit` (fail-open if not — defensive)
+- Locate gitleaks binary at Z:/claude-sota-installed/.local/bin/gitleaks.exe (or fall back to `gitleaks` in PATH)
+- Locate `.gitleaks.toml` config at repo root via $CLAUDE_PROJECT_DIR or git rev-parse
+- Exec: `gitleaks.exe detect --staged --config .gitleaks.toml --redact --no-banner --report-format json --report-path -` (captures findings to stdout)
+- 8s timeout; fail-OPEN on timeout (gitleaks unavailable shouldn't block commits)
+- Parse JSON output:
+  - If empty array → emit `permissionDecision: "allow"` (or exit 0)
+  - If findings exist → emit `permissionDecision: "deny"` with redacted finding summary in `permissionDecisionReason`
+- Exit codes: 0 = allow; 0 + JSON deny payload = block (per Anthropic CC PreToolUse semantic at https://code.claude.com/docs/en/hooks#pretooluse "permissionDecision can be 'allow', 'deny', or 'ask'")
+- Cite mirror: existing `.claude/hooks/scripts/codex_t2_pre_commit_gate.py` PreToolUse Bash(git commit *) hook structure
+
+### Component C — settings.json wire (Edit in existing PreToolUse:Bash block)
+
+Mirror codex_t2_pre_commit_gate.py wire location. Add new hook entry to existing PreToolUse:Bash array OR new block with matcher=Bash + if=Bash(git commit *).
+
+TIER-1 SOTA cite chain:
+- TIER-1-DIRECT: https://github.com/gitleaks/gitleaks/blob/v8.30.1/config/gitleaks.toml (canonical default config)
+- TIER-1-DIRECT: https://github.com/gitleaks/gitleaks#allowlist (allowlist syntax docs)
+- TIER-1-DIRECT: https://code.claude.com/docs/en/hooks (PreToolUse JSON contract; permissionDecision allow/deny/ask)
+- TIER-2: existing .claude/hooks/scripts/codex_t2_pre_commit_gate.py (mirror structure for Bash matcher + if + permissionDecision pattern)
+- TIER-2: tmp/wave97-agentB-arch-enhance-deep-dive-2026-05-08.md Cohort 6 ADOPT-NOW verdict for gitleaks
+- TIER-3 evidence: tmp/gitleaks-baseline-2026-05-08.json (the 1 FP that motivates the .gitleaks.toml allowlist)
+
+MIA PROBES (3/3 PASS):
+- Mia #1: existing `.gitleaks.toml` at repo root → grep returns 0 hits (genuine new file)
+- Mia #2: existing `gitleaks_pre_commit_gate.py` → 0 hits (genuine new file)
+- Mia #3: existing PreToolUse:Bash hooks → 1 block (codex_t2_pre_commit_gate.py per `if: Bash(git commit *)` matcher) — adding new hook in same matcher pattern is sister-mirror, not duplicate
+
+CARDINAL-RULE COMPLIANCE:
+- CR-1: TIER-1-DIRECT cites at file:line + HEAD SHA for upstream gitleaks + Anthropic CC hooks
+- CR-3: this consult IS the cross-model gate (real GPT-5.5 e2e BEFORE commit)
+- CR-5: install-priority — gitleaks binary already installed Wave 97 Ship 1B; this ship is hook-wire layer (eee-local glue per CR-9 cite-import-AMBER class TIER-3-LOCAL-COMPOSITION since it composes upstream-binary + upstream-CC-hook-contract)
+- CR-6: official-native-channel — config syntax + hook contract both upstream-canonical
+- CR-7: Phase 1 graduated-unleash; new hook adds blocking capability for committed-secrets but doesn't change permission scope structurally (extends existing Bash gate)
+- CR-8: ADAPTED-FROM-SOTA — config + hook both follow upstream + CC contract patterns
+- CR-9: install-risk MED — hook can fail-CLOSED if buggy (would block all git commits); mitigated via fail-OPEN on timeout/error + `GITLEAKS_HOOK_DISABLE=1` env escape
+- CR-10: research-first via Wave 97 Agent B + Wave 97 Ship 1B baseline scan
+- CR-11: META-process SOTA — Pattern A discipline + Mia 3/3 + GPT-5.5 e2e + provenance log
+
+LAUNCH-DISCIPLINE D1:
+- REVERSIBLE: rm `.gitleaks.toml` + rm hook script + revert settings.json edit; binary unchanged
+- OBSERVABLE: hook stderr + JSONL log at `.claude/state/gitleaks_pre_commit.jsonl` (telemetry record per invocation: ts/result/duration_ms/findings_count); pre-commit blocks visible to operator
+- INCREMENTAL: Phase 2 of Ship 1B trajectory — adds enforcement layer to already-installed binary
+
+EDIT SCOPE:
+- NEW git-tracked: `.gitleaks.toml` (~10 lines)
+- NEW git-tracked: `.claude/hooks/scripts/gitleaks_pre_commit_gate.py` (~120 lines)
+- MODIFIED git-tracked: `.claude/settings.json` (1 hook block addition; ~10 lines)
+- MODIFIED git-tracked: `docs/install-provenance.md` (Wave 97 Ship 1C+1D entry; ~110 lines)
+
+ANTI-PATTERNS to verify:
+1. fail-CLOSED behavior would block all commits if gitleaks binary missing — CR-9 install-risk; design uses fail-OPEN
+2. config-level allowlist (vs rule-level) would allowlist docs from ALL rules including real secret patterns — design uses rule-level
+3. Path regex `docs/install-provenance\.md$` is anchored — won't accidentally allowlist `docs/foo-install-provenance.md` (defensive)
+4. Hook timeout too short (5s) would fail-open even on legitimate scans of large diffs — design uses 8s
+5. JSON output to stdout could conflict with Bash output capture — design uses `--report-path -` explicitly to disambiguate
+
+QUESTION (JSON ONLY):
+Is Wave 97 Ship 1C+1D (bundled gitleaks Phase 2 hook wire + .gitleaks.toml config) APPROVE-COMMIT?
+
+Concerns to consider:
+1. Should Phase 2 (hook wire) be split from Phase 3 (.gitleaks.toml config) per ONE-LOGICAL-UNIT-PER-FIRE, OR is the bundle correct since they're co-dependent?
+2. Is fail-OPEN on hook errors the right safety floor (vs fail-CLOSED for security-critical gate)?
+3. Should the path allowlist be more restrictive (e.g. specific line ranges) vs file-level?
+4. Any conflict with existing PreToolUse:Bash codex_t2_pre_commit_gate.py — hook ordering concerns?
+5. Should the hook also scan unstaged-but-modified files OR only `--staged`?
+
+OUTPUT FORMAT (JSON-strict):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"rationale":"one-sentence","prescribed_edits":[]}

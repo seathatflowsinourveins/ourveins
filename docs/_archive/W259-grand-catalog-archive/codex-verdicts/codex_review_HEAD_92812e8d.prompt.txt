@@ -1,0 +1,194 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+
+<role>
+You are Codex performing an adversarial software review.
+Your job is to break confidence in the change, not to validate it.
+</role>
+
+<task>
+Review the provided repository context as if you are trying to find the strongest reasons this change should not ship yet.
+Target: git commit 92812e8d226db5c5c497d6616199866d1aaf00e4
+User focus: General commit-scope review across all 7 attack-surface buckets.
+</task>
+
+<operating_stance>
+Default to skepticism.
+Assume the change can fail in subtle, high-cost, or user-visible ways until the evidence says otherwise.
+Do not give credit for good intent, partial fixes, or likely follow-up work.
+If something only works on the happy path, treat that as a real weakness.
+</operating_stance>
+
+<attack_surface>
+Prioritize the kinds of failures that are expensive, dangerous, or hard to detect:
+- auth, permissions, tenant isolation, and trust boundaries
+- data loss, corruption, duplication, and irreversible state changes
+- rollback safety, retries, partial failure, and idempotency gaps
+- race conditions, ordering assumptions, stale state, and re-entrancy
+- empty-state, null, timeout, and degraded dependency behavior
+- version skew, schema drift, migration hazards, and compatibility regressions
+- observability gaps that would hide failure or make recovery harder
+</attack_surface>
+
+<review_method>
+Actively try to disprove the change.
+Look for violated invariants, missing guards, unhandled failure paths, and assumptions that stop being true under stress.
+Trace how bad inputs, retries, concurrent actions, or partially completed operations move through the code.
+If the user supplied a focus area, weight it heavily, but still report any other material issue you can defend.
+The diff is pre-captured below. Do NOT run shell commands or read other files — work only from the provided context.
+</review_method>
+
+<finding_bar>
+Report only material findings.
+Do not include style feedback, naming feedback, low-value cleanup, or speculative concerns without evidence.
+A finding should answer:
+1. What can go wrong?
+2. Why is this code path vulnerable?
+3. What is the likely impact?
+4. What concrete change would reduce the risk?
+</finding_bar>
+
+<structured_output_contract>
+Return only valid JSON matching the provided schema.
+Keep the output compact and specific.
+Use `needs-attention` if there is any material risk worth blocking on.
+Use `approve` only if you cannot support any substantive adversarial finding from the provided context.
+Every finding must include:
+- the affected file
+- `line_start` and `line_end`
+- a confidence score from 0 to 1
+- a concrete recommendation
+Write the summary like a terse ship/no-ship assessment, not a neutral recap.
+</structured_output_contract>
+
+<grounding_rules>
+Be aggressive, but stay grounded.
+Every finding must be defensible from the provided repository context or tool outputs.
+Do not invent files, lines, code paths, incidents, attack chains, or runtime behavior you cannot support.
+If a conclusion depends on an inference, state that explicitly in the finding body and keep the confidence honest.
+</grounding_rules>
+
+<calibration_rules>
+Prefer one strong finding over several weak ones.
+Do not dilute serious issues with filler.
+If the change looks safe, say so directly and return no findings.
+</calibration_rules>
+
+<final_check>
+Before finalizing, check that each finding is:
+- adversarial rather than stylistic
+- tied to a concrete code location
+- plausible under a real failure scenario
+- actionable for an engineer fixing the issue
+</final_check>
+
+<repository_context>
+=== git show --stat ===
+.claude/settings.json | 1 +
+ CLAUDE.md             | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+=== git show --format=fuller ===
+commit 92812e8d226db5c5c497d6616199866d1aaf00e4
+Author:     42 <42@local>
+AuthorDate: Mon May 11 02:19:49 2026 -0400
+Commit:     42 <42@local>
+CommitDate: Mon May 11 02:19:49 2026 -0400
+
+    docs(cardinal-rules): Wave 146 Fire 2 — CR-7 temporary-override marker strengthening (Agent C MODIFY #2 from W146-F1 Pattern A apply; mechanical-mirror within-file propagation of §"Intentional divergences" (d) → CR-7 Phase 1 L66-72 + settings.json _comment_temporary_override field)
+    
+    Per Wave 146 Fire 1 Agent C codex T1 REAL GPT-5.5 #2 adversarial verdict MODIFY #2
+    [VERIFIED via .claude/state/codex_consult_w146_f1_adversarial_review_OUT.txt JSON
+    EOF]: "SOTA-cleaner path is to strengthen the temporary-override marker and
+    manifest row, not immediate revert to auto. CLAUDE.md:237 gives explicit Wave 82d
+    predicates for reverting; reverting before classifier reliability and Tier
+    completion would violate the documented operator override rationale."
+    
+    ## Edits applied
+    
+    **Edit 1 — CLAUDE.md L68** CR-7 Phase 1 description reconciled:
+      BEFORE: "**Phase 1 (NOW — CCBP-canonical SOTA mode per Wave 61.5)**: `defaultMode: \"auto\"`"
+      AFTER: "**Phase 1 (CCBP-canonical SOTA destination per Wave 61.5; ⚠️ currently
+             TEMPORARILY OVERRIDDEN — see §\"Intentional divergences\" (d))**: canonical
+             `defaultMode: \"auto\"` ... **ACTIVE RUNTIME STATE = `bypassPermissions`**
+             per Wave 82d operator-override (2026-05-08; Anthropic classifier outage);
+             revert to canonical `auto` when 3 predicates hold per §\"Intentional
+             divergences\" (d): (1) Anthropic classifier reliable, (2) Tier 5 manifest
+             rows INSTALLED+smoke-PASS, (3) arc-convergence ≥7 fires no NEEDS-REVISION
+             conf>0.85"
+      RATIONALE: Reconciles internal CLAUDE.md drift. Pre-edit: L68 said "Phase 1 NOW =
+      auto"; §(d) at L237 said "actual = bypassPermissions per Wave 82d override". Edit
+      surfaces the OVERRIDE state at the CR-7 cardinal-rule definition site (load-bearing
+      reading surface) with cross-ref to §(d) for full rationale per kiss-dry-yagni
+      Must-Never #4 (no duplicate functionality — §(d) remains authoritative; L68 cross-refs).
+    
+    **Edit 2 — .claude/settings.json:82** new `_comment_temporary_override` field added
+    between defaultMode and _comment_deny_secrets_baseline:
+      CONTENT: "⚠️ TEMPORARY OPERATOR OVERRIDE per Wave 82d 2026-05-08 ... NOT CR-7 Phase
+      3 destination achievement. Canonical SOTA destination per CLAUDE.md CR-7 Phase 1
+      (CCBP-canonical Wave 61.5) is `defaultMode: \"auto\"`. Revert predicates (ALL
+      must hold): (1) Anthropic classifier reliable, (2) Tier 5 manifest rows
+      INSTALLED+smoke-PASS, (3) arc-convergence ≥7 fires no NEEDS-REVISION conf>0.85"
+      RATIONALE: Operators reading settings.json directly (without CLAUDE.md context)
+      now see explicit TEMPORARY OVERRIDE marker + revert predicates + cross-ref to
+      CLAUDE.md §(d). Pre-edit _comment_phase3_transition cited CCBP L251 auto-mode
+      SOTA-superior framing but did NOT explicitly mark OVERRIDE state. Forward-only
+      per port-note-discipline §6 — existing _comment_phase3_transition preserved verbatim.
+    
+    ## Mia probe results (5/5 verified GENUINE; 0 FM-20 OVERs)
+    
+    - Probe #1 codex_t1_consult_gate.py state-writing: hook ALREADY emits 11+ state codes
+      to .claude/state/codex_t1_consult_gate.jsonl + .claude/state/codex_t1_auto_spawn.jsonl
+      (in_progress / launch_error / stale_lock_released / lock_race / prompt_build_failed /
+      mock_resolved / mock_skip / cmd_not_found / blocked_sensitive / resolved / mock_write).
+      Agent C MODIFY #1 (T1 visibility artifacts) is PARTIALLY-SATISFIED at JSONL audit
+      layer; stdout/stderr hook-output surfacing to Claude as system-reminder is
+      separate (deferred to W146-F3 for verification — out-of-scope for THIS fire's
+      surgical CR-7 marker focus).
+    - Probe #2 hook overall LOC: 1903 (substantial code surface; surgical edit would
+      require focused Path P codex T1 dispatch + multi-edit Pattern A apply — deferred)
+    - Probe #3 CLAUDE.md L60-110 current text: confirmed CR-7 Phase 1 L68 said "NOW = auto"
+      contradicting §(d) actual = bypassPermissions; Edit 1 reconciles
+    - Probe #4 settings.json:81-86 inline _comment_phase3_transition: large block citing
+      CCBP L251 but no explicit OVERRIDE marker; Edit 2 adds adjacent _comment_temporary_override
+    - Probe #5 CLAUDE.md §(d) L237: confirmed already-authoritative TEMPORARY OPERATOR
+      OVERRIDE prose with 3 revert predicates + Wave 82d cite + Wave 124 codex T1 cite
+      + TIER-1-DIRECT cite chain. No duplicate edit needed at §(d) — kiss-dry-yagni
+      Must-Never #4.
+    
+    ## Discipline conformance
+    
+    ✅ CR-1 cite-trail (TIER-1-DIRECT CLAUDE.md §(d) authoritative + .claude/state codex verdict file)
+    ✅ CR-3 cross-model (Agent C MODIFY #2 already SOTA-verified Wave 146 Fire 1 — 2× REAL GPT-5.5)
+    ✅ CR-7 Phase 1 description reconciliation (the cardinal rule THIS edit operationalizes)
+    ✅ CR-8 SOTA-content (all claims cite-class adapted from CLAUDE.md §(d) + Agent C verdict)
+    ✅ CR-10 research-first (Mia probe BEFORE edits)
+    ✅ CR-11 META-process (this fire dogfoods CR-7 by reconciling CR-7 own description)
+    ✅ Wave 146 Fire 1 Pattern A apply 1/4 MODIFY queued — APPLIED this fire
+    ✅ Mia pre-apply n=265 → n=270 (+5 probes; 0 FM-20 OVERs caught)
+    ✅ FM-02 sub-class (b)+(c) atomic single-shell git add+commit
+    ✅ git-cli-grammar (options BEFORE --)
+    ✅ port-note-discipline §6 forward-only (no historical rewrite; both edits add/strengthen NOT delete)
+    ✅ synthesis-layer-verify (Mia probe surfaced PARTIAL-SATISFIED on Agent C #1 prescription; documented HNF-style boundary for deferred T1 visibility stdout work)
+    ✅ Forward Discipline #2 (Path P SKIP per codex-t1-fix-forward-pattern.md §Mechanical-mirror exception — propagating settled §(d) authority to L68 + settings.json sister surfaces; ≤24 LOC delta; pure pointer-extension; NO new authority class)
+    ✅ kiss-dry-yagni Must-Never #4 (no duplicate functionality — §(d) remains authoritative; new edits cross-ref §(d))
+    ✅ AUTO-PROCEED DEFAULTS MEDIUM-risk doc+config edit + Mia-verified Pattern A
+    
+    ## Ladder advances
+    
+    - Mia pre-apply n=265 → n=270 (+5 verified GENUINE Mia probes this fire)
+    - Pattern A MODIFY apply: 1 of 4 MODIFY shipped (Agent C #2 done; #1 hook-stdout partial-deferred + #4 eval/inspector queue + #5 Section 17 exclusion queued Wave 146 Fire 3)
+    - Wave 146 Fire 1 P0 trio: 2 of 3 shipped (phoenix pin W146-F1 + CR-7 marker W146-F2); item #1 hook stdout deferred to W146-F3 narrower fire OR Wave 146 Fire 4 dep-spec investigation
+    - FM-20 cascade n=15 unchanged (0 OVERs caught)
+    - Path P n=26 unchanged (this fire SKIP per mechanical-mirror exception)
+    - Cross-model gate satisfaction maintained via Wave 146 Fire 1 cumulative (2× REAL GPT-5.5)
+    
+    ## REVISED Forward Top-5 (post-W146-F2)
+    
+    🥇 W146-F3 — P1 manifest hygiene (eval/inspector queue + Section 17 machine-exclusion marker + INSTALLED-ACTIVE/DORMANT/AMBER/PLANNED scoring taxonomy + Section 0 settings row reconcile per Agent C #4+#5 MODIFY + missed gaps #1+#4)
+    🥈 W146-F4 — codex_t1 hook stdout emission Path P codex T1 dispatch (Agent C #1 MODIFY deeper — verify whether existing JSONL state-writing already surfaces via hook stdout system-reminder OR needs new emission code)
+    🥉 W146-F5 — 3 v23-v25 insights codify into 01-corrected-architecture.md (read-path-vs-shell-output + pattern-libs-NOT-runtime + 8-axis architecture-leverage)
+    #4 W145-F11/F12/F13 — dep-lock/test_command/replay-tool codification + manifest drift sweep PART-2
+    #5 addyosmani/agent-skills marketplace refresh (Agent C UNDER-claim #1 stale-against-upstream)
+    OPERATOR-GATED: W14
+
+[prompt truncated]

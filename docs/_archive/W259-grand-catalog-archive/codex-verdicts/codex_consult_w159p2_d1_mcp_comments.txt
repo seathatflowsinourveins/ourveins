@@ -1,0 +1,67 @@
+SYSTEM: META-process codification fire — review proposed .mcp.json schema-conformance restructuring. claude-sota-installed runtime hits CC v2.1.140 /doctor parse errors: 6 `_comment_*` keys inside `mcpServers` object treated as invalid MCP server configs ('expected object received string'). Target budget: 60-120s. JSON-strict verdict at EOF.
+
+CONTEXT: `.mcp.json` has 17 keys in `mcpServers`:
+  - 11 valid server configs (github / context7 / deepwiki / playwright / chrome-devtools / repomix / serena / memory / graphiti / phoenix / gitnexus) — each is an object with `type` + `command`/`url`/`args`
+  - 6 `_comment_*` keys (strings, NOT objects):
+    1. `_comment_playwright_pin` (Wave 124 fire 1 — playwright pinning provenance)
+    2. `_comment_w155_f13_native_node` (W155 F13 — native node migration provenance)
+    3. `_comment_chrome_devtools` (Wave 134 Fire 5 — DEP-ONLY install provenance)
+    4. `_comment_serena_pin` (Wave 124 fire 1 — serena SHA pinning provenance)
+    5. `_comment_context_mode_removed` (Wave 95 Ship 1M — standalone removal provenance)
+    6. `_comment_gitnexus` (Wave 132 Fire 3 — gitnexus RC upgrade provenance)
+  - Plus top-level `_comment` (singular) at L2 — currently parses cleanly outside `mcpServers`
+
+PROPOSED FIX (option B per /goal v7 D1): Move all 6 `_comment_*` keys + the existing L2 `_comment` to a top-level `_comments` OBJECT structure:
+
+BEFORE:
+{
+  "_comment": "Wave 75 ... gitnexus comment text ...",
+  "mcpServers": {
+    "github": {...},
+    ...
+    "_comment_playwright_pin": "Wave 124 fire 1 ...",
+    "playwright": {...},
+    "_comment_w155_f13_native_node": "W155 F13 ...",
+    ... etc ...
+  }
+}
+
+AFTER:
+{
+  "_comments": {
+    "header": "Wave 75 ... gitnexus comment text ...",
+    "playwright_pin": "Wave 124 fire 1 ...",
+    "w155_f13_native_node": "W155 F13 ...",
+    "chrome_devtools": "Wave 134 Fire 5 ...",
+    "serena_pin": "Wave 124 fire 1 ...",
+    "context_mode_removed": "Wave 95 Ship 1M ...",
+    "gitnexus": "Wave 132 Fire 3 ..."
+  },
+  "mcpServers": {
+    "github": {...},
+    ...
+    "playwright": {...},
+    ... (only valid MCP server objects) ...
+  }
+}
+
+Rationale:
+- Anthropic CC `.mcp.json` schema per `https://code.claude.com/docs/en/mcp` validates EVERY key in `mcpServers` as an MCP server config object (must have `type` field).
+- Strings as values trigger 'Invalid MCP server config: expected object received string' parse error in CC v2.1.140.
+- Moving to top-level `_comments` object preserves provenance audit trail (cardinal-rule-1 + audit-action-loop.md compliance) while removing schema violation.
+- Top-level keys outside `mcpServers` are NOT validated against MCP server schema (lenient per the L2 `_comment` working precedent).
+- 6 _comment_* relocation + 1 _comment promotion = net 14-line restructure; preserves all 7 provenance strings verbatim.
+
+LOAD-BEARING PRESERVATION: ALL 7 comment string values MUST be preserved VERBATIM (not summarized / paraphrased / shortened). They contain TIER-1 cite anchors at file:line + HEAD SHA depth + cardinal-rule conformance markers per cardinal-rule-1 + cardinal-rule-8. Audit trail integrity is non-negotiable.
+
+AUDIT DIMENSIONS REQUESTED:
+1. Schema-conformance: does moving _comment_* keys to top-level `_comments` object satisfy CC v2.1.140 `.mcp.json` schema? Confirm via Anthropic CC docs at `https://code.claude.com/docs/en/mcp` if reachable.
+2. Top-level key safety: does CC v2.1.140 reject UNKNOWN top-level keys (e.g., `_comments` object)? Or does it pass-through unknown keys? The existing L2 `_comment` singular at top level currently works — suggests pass-through.
+3. Audit-trail preservation: is verbatim preservation of all 7 strings sufficient for cardinal-rule-1 cite-trail conformance? Or should the relocation include a forwarding marker (e.g., `_comments_moved_from_mcpServers: true` to flag the migration in audit JSONL)?
+4. JSON validity: post-edit JSON syntax cleanly parses via `python -c "import json; json.load(open('.mcp.json'))"` — yes/no?
+5. Sister-rule integration: does this conflict with `Z:/claude-sota/.claude/rules/citation-discipline.md` rule #8 source-class lattice for the embedded provenance cites? Each _comment value cites TIER-1-DIRECT sources (e.g., Wave 134 Fire 5 cites `Z:/repos/deps/awesome-claude-plugins/README.md @ HEAD 765d795e` + `Z:/repos/deps/chrome-devtools-mcp/README.md @ HEAD 88e543f5`); the comments themselves are TIER-3-LOCAL-OPERATOR-DERIVED audit trail. Restructuring should not change cite class.
+
+OUTPUT_BUDGET: 300 LOC max for verdict body.
+
+VERDICT JSON SHAPE (emit at EOF):
+{"verdict":"APPROVE|NEEDS-REVISION|REJECT","confidence":0.0-1.0,"prescribed_edits":[{"file":"path","old":"...","new":"...","reason":"..."}],"axis_findings":{"schema_conformance":"PASS|REVISE","top_level_key_safety":"PASS|REVISE","audit_trail_preservation":"PASS|REVISE","json_validity":"PASS|REVISE","sister_rule_integration":"PASS|REVISE"},"summary":"..."}
