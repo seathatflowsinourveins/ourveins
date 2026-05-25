@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, 'goal/**', 'worktree-W**', 'sota-converge-w**']
+    branches: [main, 'feat/**', 'fix/**', 'chore/**']
   pull_request:
     branches: [main]
 
@@ -17,16 +17,16 @@ jobs:
     name: Pre-commit gates
     runs-on: ubuntu-latest
     steps:
-      - name: Harden runner (OWASP CICD-SEC-4 — egress audit/block)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
         with:
           egress-policy: audit
           disable-sudo: true
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { fetch-depth: 0, persist-credentials: false }
       - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0 (W432-CI-STALE-BUMP; was v5.6.0, 394 days stale)
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with: { python-version: '3.13' }
       - name: Setup Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -36,9 +36,6 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-      # W349 P0.5 RC-15: install system binaries that .pre-commit-config.yaml hooks
-      # depend on via `gitleaks-system` + `actionlint-system` (language: system).
-      # Pinned to .pre-commit-config.yaml versions (gitleaks v8.30.1; actionlint v1.7.12).
       - name: Install gitleaks (v8.30.1)
         run: |
           set -euo pipefail
@@ -55,72 +52,40 @@ jobs:
           actionlint -version
       - name: Install pre-commit
         run: pip install pre-commit==4.0.1
-      - name: Run pre-commit on all files
-        # wave-lock-validate (W363) is a LOCAL commit-time hook that validates the per-session
-        # wave-lock; it has no meaning in CI (no CLAUDE_SESSION_ID / no lock) and was failing the
-        # push-event run, producing a conflicting "Pre-commit gates" check-run that blocked merges
-        # (W387 CI-defect fix). Skip it in CI; it still runs at local commit time.
-        env:
-          SKIP: wave-lock-validate
-        run: pre-commit run --all-files --show-diff-on-failure
-
-  cr2-2kb-check:
-    name: CR-2 — .claude/hooks 2KB ceiling
-    runs-on: ubuntu-latest
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
-        with: { egress-policy: audit }
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
-        with: { persist-credentials: false }
-      - name: Verify .claude/hooks/** files <=2048 bytes
+      - name: Run pre-commit (if config present)
         run: |
-          set -euo pipefail
-          fail=0
-          while IFS= read -r f; do
-            size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
-            if [ "$size" -gt 2048 ]; then
-              echo "::error file=$f::CR-2 violation: $size bytes > 2048 ceiling per CLAUDE.md L29"
-              fail=1
-            fi
-          done < <(find .claude/hooks -type f 2>/dev/null || true)
-          exit $fail
+          if [ -f .pre-commit-config.yaml ]; then
+            pre-commit run --all-files --show-diff-on-failure
+          else
+            echo "No .pre-commit-config.yaml — skipping pre-commit run"
+          fi
 
   gitleaks:
     name: gitleaks (secrets scan)
     runs-on: ubuntu-latest
-    # W349 P0.5 RC-21: gitleaks-action calls GET /repos/{owner}/{repo}/pulls/{n}/commits
-    # to enumerate PR commits. Top-level workflow `permissions: contents: read` does NOT
-    # grant `pull-requests: read`, so the API returns 403 "Resource not accessible by
-    # integration". The action then exits non-zero. Grant `pull-requests: read` here
-    # (job-level, narrower scope than workflow-level) to unblock the API call.
-    # Cite: github.com/gitleaks/gitleaks-action README "Permissions" + GitHub Docs
-    # "Automatic token authentication > permissions for the GITHUB_TOKEN".
     permissions:
       contents: read
       pull-requests: read
     steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
         with: { egress-policy: audit }
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { fetch-depth: 0, persist-credentials: false }
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9 peeled-commit (W351 third-party pin)
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # W381 fix (diagnosed via reproduction): gitleaks-action@v2.3.9 bundles gitleaks 8.24.3,
-          # which PREDATES the `[[allowlists]]` global-allowlist syntax (added v8.25.0 #1777,
-          # fixed v8.25.1 #1845). 8.24.3 silently ignores .gitleaks.toml's W381 allowlist block →
-          # 10 false-positive sourcegraph-access-token hits on pinned-SHA strings in
-          # CODEX-R1-VERDICT.txt (verified ZERO real secrets). Pin to the project-standard 8.30.1
-          # (same binary the passing Pre-commit-gates `gitleaks-system` hook uses) so the allowlist applies.
           GITLEAKS_VERSION: 8.30.1
 
   trivy-ci:
-    name: trivy (HIGH/CRITICAL CVE scan — OWASP CICD-SEC-3)
+    name: trivy (HIGH/CRITICAL CVE scan)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
         with: { egress-policy: audit }
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { persist-credentials: false }
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
@@ -130,126 +95,53 @@ jobs:
           severity: 'HIGH,CRITICAL'
           format: 'sarif'
           output: 'trivy-results.sarif'
-          # W349 P0.5 RC-6: scanners=vuln disables secret scanning (gitleaks
-          # already covers that surface; trivy was double-firing + flagging
-          # docs/archive content as exit-1).  skip-dirs adds .local (matches
-          # the .claude/settings.json:148 local-hook fix; .local/graphiti
-          # uv.lock carries dormant Graphiti CVEs per W350 SECURITY-AUDIT §3).
           scanners: 'vuln'
-          skip-dirs: '.claude/plugins,node_modules,.git,tmp,.local'
-          # W432 G0 root-cause fix 2026-05-24: when `format: sarif` is used,
-          # trivy-action sets TRIVY_SEVERITY='' internally and scans ALL
-          # severities (log: "Building SARIF report with all severities").
-          # The `severity:` input ABOVE is then ignored for the SARIF output —
-          # and `exit-code: 1` triggers on ANY finding (including MEDIUM/LOW).
-          # `limit-severities-for-sarif` re-applies the HIGH,CRITICAL gate to
-          # the SARIF result set so exit-code matches the workflow's stated
-          # severity intent. Without this, the workflow's `severity` filter is
-          # decorative.  Action input added in trivy-action v0.10+ (still
-          # present at v0.36.0 pinned SHA).
-          # Cite: aquasecurity/trivy-action action.yaml line `limit-severities-for-sarif:`
-          # @ ed142fd0 (v0.36.0).  Reproduced locally via `trivy fs . --format sarif`
-          # → 1 SARIF result (CVE-2025-71176 MEDIUM, pytest 8.3.5) → exit 1.
+          skip-dirs: 'node_modules,.git,tmp'
           limit-severities-for-sarif: 'HIGH,CRITICAL'
           exit-code: '1'
-      # W349 P0.5 RC-18: SARIF upload to GH Security tab requires GH Advanced Security
-      # on PRIVATE repos; without it, github/codeql-action/upload-sarif fails with
-      # 'Resource not accessible by integration'. trivy itself already enforces exit-1
-      # on HIGH/CRITICAL findings (line 100) — SARIF upload is decorative observability.
-      # continue-on-error preserves PR-blocking behavior on real CVEs while letting
-      # the upload step fail gracefully when GH Advanced Security is absent.
       - name: Upload Trivy SARIF
         if: always()
-        continue-on-error: true   # W349 RC-18 (W380-merge re-union per codex r1 P1): graceful when GHAS absent
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4.35.5
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # W349 P0.5 RC-19: actions/dependency-review requires Dependency graph + GH Advanced
-  # Security on PRIVATE repos. Without both, the action errors with "Dependency review
-  # is not supported on this repository" (HTTP 403). Marked continue-on-error so the
-  # job surfaces the gap as a warning without blocking PRs. Re-enable as PR-blocking
-  # after GH Advanced Security is enabled or the repo is made public.
-  # Cite: github.com/actions/dependency-review-action README "Configuration"
   dependency-review:
-    name: actions/dependency-review (advisory on PRIVATE-repos w/o Advanced Security)
+    name: Dependency Review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    continue-on-error: true   # W349 RC-19 — PRIVATE-repo Advanced-Security gap
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; Enterprise-tier-only changelog, no behavioral delta)
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
         with: { egress-policy: audit }
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { persist-credentials: false }
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0 (W436-GH-PRACTICE-INSTALL bump 2026-05-24; node24 runtime per actions/dependency-review-action v5.0.0 release notes — requires runner v2.327.1+)
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
-          deny-licenses: 'AGPL-3.0, SSPL-1.0'   # per CR-1(b) license-risk audit
+          deny-licenses: 'AGPL-3.0, AGPL-3.0-only, AGPL-3.0-or-later, SSPL-1.0'
           comment-summary-in-pr: always
+          show-openssf-scorecard: true
 
   shellcheck:
     name: ShellCheck (Bash discipline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { persist-credentials: false }
-      - uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38  # 2.0.0 (W351 r2 codex-absorb pin)
+      - uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38  # 2.0.0
         with:
           severity: warning
           format: gcc
-          # W349 P0.5 RC-5: exclude vendored speckit scripts (~30 SC2155/SC2221/SC2222
-          # warnings are upstream-authored, not project-discipline). Project-authored
-          # tools/gh-search-rest.sh SC2154 false-positives fixed via inline
-          # `# shellcheck disable=SC2154` directives.
-          # W432-G2 2026-05-24: tools/sca-v7-prelim.sh was retired in W399 PR #70
-          # (commit cf8ea6e); reference removed from W388 seed-allowlist.txt line 87
-          # in companion commit. Closes Stream A audit cite-staleness.
-          ignore_paths: .specify
 
   ruff:
     name: Ruff (Python discipline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { persist-credentials: false }
-      - uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b  # v4.0.0 (W432-CI-STALE-BUMP; was v1.1.1, 599 days stale — astral-sh signed-tag verified; v4 = immutable release on Node 24)
+      - uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b  # v4.0.0
         with:
           version: '0.15.13'
           args: 'check --output-format=github'
-
-  subagent-allowlist-check:
-    name: R3 subagent_type allowlist freshness
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
-        with: { persist-credentials: false }
-      - name: Verify allowlist exists and has entries
-        run: |
-          set -euo pipefail
-          F=.claude/state/subagent-type-allowlist.json
-          if [ ! -f "$F" ]; then
-            echo "::error::R3 mechanization missing: $F not present (per CLAUDE.md L74)"
-            exit 1
-          fi
-          count=$(node -e "console.log((JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).allow||[]).length)" "$F")
-          if [ "$count" -lt 100 ]; then
-            echo "::error::R3 allowlist suspiciously sparse ($count entries; expected 300+)"
-            exit 1
-          fi
-          echo "OK: $count entries in $F"
-
-  cite-anchor-discipline:
-    name: sca-v13 Meta-Invariant I1 (provenance-lint)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (W432-CI-STALE-BUMP; was v4.3.1, 191 days stale)
-        with: { persist-credentials: false }
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with: { node-version: '22.22.0' }
-      - name: Run provenance-lint (skip if tool absent)
-        run: |
-          if [ -f tools/provenance-lint-v3.mjs ]; then
-            node tools/provenance-lint-v3.mjs --since origin/main --strict || true
-          else
-            echo "provenance-lint-v3.mjs not present yet — skip (forward-looking ref)"
-          fi

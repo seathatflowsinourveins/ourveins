@@ -1,0 +1,126 @@
+name: code-quality
+# Code quality gates: ruff, pyright (advisory), shellcheck, PSScriptAnalyzer, JSON parse-validation.
+# Per https://github.com/astral-sh/ruff + https://github.com/koalaman/shellcheck
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: ruff + pyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: false
+      - name: install ruff + pyright
+        run: |
+          uv venv .venv
+          # shellcheck source=/dev/null
+          source .venv/bin/activate
+          uv pip install ruff pyright
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: ruff check
+        run: ruff check .
+      - name: ruff format --check
+        run: ruff format --check .
+      - name: pyright
+        continue-on-error: true
+        run: pyright --skipunannotated || true
+
+  shell:
+    name: shellcheck (severity=error)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false }
+      - name: install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: shellcheck tracked .sh files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.sh' '*.bash')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no tracked shell files; skipping"
+            exit 0
+          fi
+          shellcheck --severity=error "${files[@]}"
+
+  powershell:
+    name: PSScriptAnalyzer (severity=Error)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PSSA_VERSION: '1.25.0'
+    steps:
+      - name: Enable git core.longpaths (Windows)
+        run: git config --system core.longpaths true
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false }
+      - name: Cache PSScriptAnalyzer
+        id: pssa-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.USERPROFILE }}\Documents\PowerShell\Modules\PSScriptAnalyzer
+          key: pssa-${{ runner.os }}-${{ env.PSSA_VERSION }}
+      - name: Install PSScriptAnalyzer (pinned)
+        if: steps.pssa-cache.outputs.cache-hit != 'true'
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Scope CurrentUser -Force -SkipPublisherCheck -ErrorAction Stop
+      - name: Run PSScriptAnalyzer
+        run: |
+          Import-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Force
+          $ver = (Get-Module PSScriptAnalyzer).Version
+          Write-Host "PSScriptAnalyzer $ver on PowerShell $($PSVersionTable.PSVersion)"
+          $tracked = git ls-files '*.ps1' '*.psm1' '*.psd1' | Where-Object { (Test-Path $_) }
+          if (-not $tracked) { Write-Host 'no tracked PowerShell files; skipping'; exit 0 }
+          $findings = $tracked | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_ -ErrorAction Continue
+          }
+          $errs = @($findings | Where-Object { $_.Severity -in 'Error','ParseError' })
+          $warns = @($findings | Where-Object { $_.Severity -eq 'Warning' })
+          Write-Host "Error+ParseError=$($errs.Count)  Warning=$($warns.Count)  across $($tracked.Count) file(s)"
+          if ($errs.Count -gt 0) { $errs | Format-Table Severity,RuleName,ScriptName,Line,Message -AutoSize | Out-String -Width 200 | Write-Host; exit 1 }
+          Write-Host 'PSScriptAnalyzer: 0 Error/ParseError findings.'
+
+  json:
+    name: JSON parse-validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+      - name: parse tracked JSON configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.json')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no tracked JSON files; skipping"
+            exit 0
+          fi
+          fail=0
+          for f in "${files[@]}"; do
+            python -c "import json,sys; json.load(open('$f')); print(f'OK: $f')" \
+              || { echo "PARSE-FAIL: $f"; fail=1; }
+          done
+          exit $fail
