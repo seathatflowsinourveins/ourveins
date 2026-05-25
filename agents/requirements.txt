@@ -1,0 +1,29 @@
+# agents/requirements.txt (W375 — extends W374 v1 baseline)
+openhands-sdk==1.22.1
+openhands-workspace[docker]>=1.23.0,<2.0
+fastmcp>=3.2,<4.0
+# W381 Stream A (verified osv.dev 2026-05-23): floor raised past HIGH/CRITICAL CVEs fixed in
+# 1.83.0 (CVE-2026-35029 priv-esc, password-hash-exposure) — the <1.45 range trivy flagged.
+litellm>=1.84.0,<2.0
+temporalio[opentelemetry]==1.27.2
+opentelemetry-instrumentation-httpx
+opentelemetry-exporter-otlp-proto-http
+prometheus-client
+portalocker>=2.10
+structlog>=24.0
+typer[all]>=0.25.1
+rich>=13.0
+httpx==0.28.1
+pydantic>=2.12.5,<3.0
+# W432 G0 root-cause fix 2026-05-24 — close CVE-2025-71176 (MEDIUM):
+# pytest <=9.0.2 on UNIX uses /tmp/pytest-of-{user} predictable path → DoS / privilege escalation.
+# Fixed in pytest 9.0.3. Trivy SARIF mode does NOT honor `severity: HIGH,CRITICAL` filter (action issue
+# aquasecurity/trivy-action: "Building SARIF report with all severities"), so even a MEDIUM finding
+# causes `exit-code: 1` and blocks all PR merges. Two-pronged fix:
+#   (a) bump pytest past the CVE (this line) — supersedes dependabot PR #34 + #39
+#   (b) add `limit-severities-for-sarif: 'HIGH,CRITICAL'` to ci.yml trivy step — defense-in-depth
+# Cite: nvd.nist.gov/vuln/detail/CVE-2025-71176 + pytest-dev/pytest#13123
+pytest==9.0.3
+# Companion bump to keep pytest-asyncio compatible with pytest 9.x.
+# Cite: pytest-dev/pytest-asyncio CHANGELOG.rst v1.3.0 (pytest>=8.4 supported).
+pytest-asyncio==1.3.0

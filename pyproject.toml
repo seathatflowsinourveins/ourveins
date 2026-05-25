@@ -1,0 +1,131 @@
+# pyproject.toml
+#
+# W381 Stream C §2.2 #2 (HIGH ROI): the repo lints Python with bare ruff defaults
+# (E,F,W) and had no ruff config. This adds a SOTA ruleset and keeps `ruff check .`
+# GREEN today via incremental adoption (docs.astral.sh/ruff "Adding noqa/ratcheting"):
+#   - DEFAULT rules (E/F/W — pyflakes/pycodestyle) stay ENFORCED; the codebase is
+#     already clean on them (0 violations), so this is a real, blocking, green gate.
+#   - extend-select declares the target SOTA families (B/I/UP/SIM/C4/PTH/RUF).
+#   - per-file-ignores below grandfather the 91 existing offender files for ONLY the
+#     codes they currently violate (343 violations; mostly cosmetic: 94 I001 import-sort,
+#     68 RUF100 stale-noqa, 26 UP017). A NEW file, or a NEW violation of any listed
+#     family in a clean file, IS caught — a real ratchet (codex GPT-5.5 r3: a global
+#     `ignore` would let new violations pass anywhere). Burned down family-by-family +
+#     test-verified in a dedicated wave (W382); NOT churned blind into this governance
+#     PR (no runnable local test suite here to prove behaviour-preservation).
+#   - Archives / vendored / frozen dumps are excluded (see extend-exclude).
+# Net: green enforced gate now + clear ratchet to zero. Cite: docs.astral.sh/ruff.
+
+[tool.ruff]
+target-version = "py313"          # matches pyrightconfig.json pythonVersion 3.13
+src = ["tools", "harness", "scripts", "evals", "accounts/scripts", "agents"]
+# Never lint frozen historical dumps, vendored skills, or transient scratch — they are
+# not maintained source and would emit thousands of irrelevant findings.
+extend-exclude = [
+  "docs/**",                       # archived research dumps + grand-catalog (frozen)
+  ".claude/**",                    # vendored plugins/skills (upstream-owned)
+  "tmp/**", "**/_archived/**",
+]
+
+[tool.ruff.lint]
+extend-select = ["I", "UP", "B", "SIM", "C4", "PTH", "RUF"]
+
+# W382-ruff-burndown ratchet via PER-FILE-IGNORES (codex GPT-5.5 r3 prescription — a
+# global `ignore` is not a ratchet because new violations of those codes would pass
+# anywhere). Each entry grandfathers one existing offender file for ONLY the codes it
+# currently violates; new files + new violations in clean files are caught. Defaults
+# (E/F/W) stay enforced. `ruff check .` is green. W382 burns these down family-by-family
+# (regenerate after each cleanup: ruff check --select I,UP,B,SIM,C4,PTH,RUF --output-format=json).
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "B011"]
+"accounts/scripts/cache_rate.py" = ["I001"]
+"accounts/scripts/poll_all.py" = ["I001", "PTH105", "RUF100", "SIM105", "UP009", "UP017", "UP045"]
+"accounts/scripts/token_efficiency.py" = ["UP009", "UP017", "UP045"]
+"accounts/scripts/weekly_reset_guard.py" = ["RUF002", "UP009", "UP017", "UP045"]
+"agents/admission_coordinator.py" = ["SIM102", "SIM117", "UP017"]
+"agents/agent_server_spawn.py" = ["I001", "UP017", "UP037"]
+"agents/codex_cli_llm.py" = ["PTH108", "PTH118", "PTH123", "PTH207", "RUF059", "SIM105", "UP015"]
+"agents/cove_activity.py" = ["I001", "RUF100"]
+"agents/cove_verifier.py" = ["I001"]
+"agents/docker_executor.py" = ["RUF002"]
+"agents/egress_sidecar.py" = ["RUF022", "SIM105", "UP017"]
+"agents/event_store.py" = ["I001", "PTH103", "PTH105", "PTH120", "PTH123", "SIM117", "UP017"]
+"agents/fake_otlp_collector.py" = ["RUF100", "UP028"]
+"agents/health_probes.py" = ["PTH110", "PTH112", "PTH116", "RUF100", "UP006", "UP017", "UP035"]
+"agents/idempotent_replayer.py" = ["I001"]
+"agents/jury_activity.py" = ["RUF002", "SIM117"]
+"agents/jury_aggregator.py" = ["I001", "UP042"]
+"agents/jury_quota.py" = ["PTH103", "PTH120"]
+"agents/jury_quota_ledger.py" = ["UP017"]
+"agents/llm_factory.py" = ["RUF002", "RUF100", "SIM105", "SIM117"]
+"agents/models.py" = ["I001", "UP042"]
+"agents/openhands_client.py" = ["I001"]
+"agents/oscillation_detector.py" = ["I001"]
+"agents/otel_spool.py" = ["I001", "PTH123", "RUF100", "SIM105", "UP035"]
+"agents/retry_budget.py" = ["I001"]
+"agents/review_gate.py" = ["UP042"]
+"agents/schema_router.py" = ["B905", "I001", "RUF005", "RUF007", "RUF012", "SIM118", "UP035"]
+"agents/search_attrs.py" = ["I001"]
+"agents/subprocess_helpers.py" = ["I001", "SIM105"]
+"agents/temporal_worker.py" = ["B904", "I001", "RUF100", "RUF102", "SIM105", "UP041"]
+"agents/workspace_factory.py" = ["UP037"]
+"evals/deepeval/test_smoke.py" = ["I001"]
+"harness/adapters/memory_recall/_longmemeval_loader.py" = ["RUF022"]
+"harness/adapters/memory_recall/agentmemory.py" = ["RUF100"]
+"harness/adapters/memory_recall/alma_memory.py" = ["RUF100"]
+"harness/adapters/memory_recall/mem0.py" = ["RUF100"]
+"harness/eval_harness.py" = ["I001", "PTH123", "RUF100", "SIM105", "UP017"]
+"harness/fixtures/smoke_astral_uv.py" = ["RUF003"]
+"harness/fixtures/smoke_claude_agent_sdk.py" = ["RUF100"]
+"harness/fixtures/smoke_mem0ai_mem0.py" = ["RUF100"]
+"harness/fixtures/smoke_oraios_serena.py" = ["RUF100"]
+"harness/inspect-evals/run_all.py" = ["RUF100"]
+"harness/local_model_otel_wrapper.py" = ["UP012", "UP035", "UP045"]
+"harness/sota_rubric_lane.py" = ["RUF100", "SIM102"]
+"scripts/hindsight-plugin-hooks-rewrite.py" = ["SIM102"]
+"tests/e2e/test_w376_egress_allowlist.py" = ["I001", "RUF059"]
+"tests/e2e/test_w376_otel_replay.py" = ["I001", "SIM105"]
+"tests/test_admission_coordinator.py" = ["I001", "UP017"]
+"tests/test_agent_server_spawn.py" = ["I001", "SIM117"]
+"tests/test_async_cleanup.py" = ["I001"]
+"tests/test_auto_proceed_gate_schema.py" = ["RUF015", "RUF100"]
+"tests/test_codex_cli_llm.py" = ["I001", "RUF059", "SIM105", "SIM117"]
+"tests/test_container_hardening.py" = ["I001", "SIM117"]
+"tests/test_cove_activity.py" = ["I001"]
+"tests/test_cove_verifier.py" = ["I001"]
+"tests/test_dispatch_temporal_cli.py" = ["I001"]
+"tests/test_docker_executor.py" = ["I001", "RUF003"]
+"tests/test_doctor_remote_coverage.py" = ["RUF059"]
+"tests/test_eval_gate.py" = ["I001", "RUF059"]
+"tests/test_event_store.py" = ["I001"]
+"tests/test_hmac_gate.py" = ["I001"]
+"tests/test_idempotent_replayer.py" = ["I001", "RUF059"]
+"tests/test_jury_activity_parallel.py" = ["I001", "RUF002"]
+"tests/test_jury_aggregator.py" = ["B017", "I001"]
+"tests/test_jury_integration.py" = ["I001"]
+"tests/test_jury_p35.py" = ["I001"]
+"tests/test_jury_quota_ledger.py" = ["I001"]
+"tests/test_l0_validate.py" = ["I001"]
+"tests/test_llm_factory.py" = ["I001", "RUF100"]
+"tests/test_mcp_server.py" = ["I001"]
+"tests/test_models.py" = ["B017", "I001"]
+"tests/test_network_helpers.py" = ["I001"]
+"tests/test_otel_spans_wiring.py" = ["I001", "RUF043", "UP017"]
+"tests/test_otel_spool.py" = ["SIM300"]
+"tests/test_retry_budget.py" = ["B007"]
+"tests/test_review_gate.py" = ["I001"]
+"tests/test_review_gate_activity.py" = ["I001"]
+"tests/test_sandbox_semaphore.py" = ["B017", "I001"]
+"tests/test_schema_router.py" = ["I001"]
+"tests/test_search_attrs.py" = ["I001"]
+"tests/test_subprocess_helpers.py" = ["I001"]
+"tests/test_temporal_worker.py" = ["I001", "RUF100"]
+"tests/test_w130_fire5_matcher_boundaries.py" = ["RUF001", "RUF002"]
+"tests/test_w130_fire6_git_verb_matches_shell_prefixes.py" = ["I001", "RUF100"]
+"tests/test_workspace_factory.py" = ["I001"]
+"tools/_eee_status_query.py" = ["UP017"]
+"tools/codex_verdict_normalizer.py" = ["SIM102", "UP017"]
+"tools/dispatch_temporal.py" = ["B904", "I001", "RUF100"]
+"tools/process_hygiene_audit.py" = ["UP017"]
+"tools/sca-mcda-rank.py" = ["B905", "RUF059"]
+"tools/sca_status_dashboard.py" = ["RUF021", "UP017"]
